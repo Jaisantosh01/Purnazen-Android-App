@@ -1,0 +1,38 @@
+wellness-backend/venv/
+wellness-backend/__pycache__/
+wellness-backend/.env
+wellness-backend/*.pyc
+wellness-backend/.pytest_cache/
+
+# ===== FRONTEND =====
+
+# OSX
+.DS_Store
+
+# React Native / Node
+frontend/node_modules/
+frontend/npm-debug.log
+frontend/yarn-error.log
+
+# Android
+frontend/android/.gradle
+frontend/android/app/build
+frontend/android/build
+frontend/android/.idea
+frontend/android/local.properties
+frontend/android/.cxx/
+
+# iOS
+frontend/ios/build/
+frontend/ios/DerivedData/
+frontend/ios/Pods/
+frontend/ios/*.xcuserstate
+
+# Metro
+frontend/.metro-health-check*
+
+# Coverage
+frontend/coverage/
+
+# Environment
+.env

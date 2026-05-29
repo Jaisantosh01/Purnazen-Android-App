@@ -1,0 +1,81 @@
+{
+  "WELLNESS_STATS": {
+    "sessions": 24,
+    "minutes": 180,
+    "streak": "7 days"
+  },
+  "WELLNESS_PROGRAMS": [
+    {
+      "id": "1",
+      "title": "Yoga Flow",
+      "subtitle": "Complete body stretching & strengthening",
+      "icon": "yoga",
+      "iconColor": "#7C3AED",
+      "iconBg": "#F3EEFF",
+      "duration": "15 min",
+      "level": "Beginner",
+      "completed": 234,
+      "sessionKey": "YogaSession"
+    },
+    {
+      "id": "2",
+      "title": "Guided Meditation",
+      "subtitle": "Mindfulness & stress reduction",
+      "icon": "meditation",
+      "iconColor": "#1FA77A",
+      "iconBg": "#E8FDF5",
+      "duration": "10 min",
+      "level": "All levels",
+      "completed": 312,
+      "sessionKey": "MeditationSession"
+    },
+    {
+      "id": "3",
+      "title": "Breathing Exercises",
+      "subtitle": "Pranayama for better health",
+      "icon": "weather-windy",
+      "iconColor": "#0284c7",
+      "iconBg": "#E0F2FE",
+      "duration": "5 min",
+      "level": "Beginner",
+      "completed": 189,
+      "sessionKey": "BreathingSession"
+    },
+    {
+      "id": "4",
+      "title": "Morning Routine",
+      "subtitle": "Start your day energized",
+      "icon": "weather-sunny",
+      "iconColor": "#f59e0b",
+      "iconBg": "#FFFBEB",
+      "duration": "20 min",
+      "level": "Intermediate",
+      "completed": 156,
+      "sessionKey": "MorningRoutineSession"
+    },
+    {
+      "id": "5",
+      "title": "Evening Wind Down",
+      "subtitle": "Relax and prepare for sleep",
+      "icon": "weather-night",
+      "iconColor": "#7C3AED",
+      "iconBg": "#F3EEFF",
+      "duration": "15 min",
+      "level": "All levels",
+      "completed": 198,
+      "sessionKey": "EveningWindDown"
+    },
+    {
+      "id": "6",
+      "title": "Full Body Stretch",
+      "subtitle": "Improve flexibility & reduce tension",
+      "icon": "human-handsup",
+      "iconColor": "#ea580c",
+      "iconBg": "#FFF3E0",
+      "duration": "12 min",
+      "level": "Beginner",
+      "completed": 167,
+      "sessionKey": "FullBodyStretch"
+    }
+  ]
+}
