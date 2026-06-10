@@ -1,38 +1,45 @@
+# ===== BACKEND (Flask) =====
 wellness-backend/venv/
-wellness-backend/__pycache__/
 wellness-backend/.env
+wellness-backend/__pycache__/
 wellness-backend/*.pyc
 wellness-backend/.pytest_cache/
+wellness-backend/instance/
+wellness-backend/.flaskenv
 
-# ===== FRONTEND =====
-
-# OSX
-.DS_Store
-
-# React Native / Node
-frontend/node_modules/
-frontend/npm-debug.log
-frontend/yarn-error.log
+# ===== FRONTEND (React Native) =====
+wellness-frontend/node_modules/
+wellness-frontend/.env
+wellness-frontend/.env.local
+wellness-frontend/npm-debug.log
+wellness-frontend/yarn-error.log
+wellness-frontend/.metro-health-check*
+wellness-frontend/coverage/
 
 # Android
-frontend/android/.gradle
-frontend/android/app/build
-frontend/android/build
-frontend/android/.idea
-frontend/android/local.properties
-frontend/android/.cxx/
+wellness-frontend/android/.gradle
+wellness-frontend/android/app/build
+wellness-frontend/android/build
+wellness-frontend/android/.idea
+wellness-frontend/android/local.properties
+wellness-frontend/android/.cxx/
+wellness-frontend/android/*.keystore
+!wellness-frontend/android/app/debug.keystore
 
 # iOS
-frontend/ios/build/
-frontend/ios/DerivedData/
-frontend/ios/Pods/
-frontend/ios/*.xcuserstate
+wellness-frontend/ios/build/
+wellness-frontend/ios/DerivedData/
+wellness-frontend/ios/Pods/
+wellness-frontend/ios/Podfile.lock
+wellness-frontend/ios/*.xcuserstate
+wellness-frontend/ios/.xcode.env.local
 
-# Metro
-frontend/.metro-health-check*
-
-# Coverage
-frontend/coverage/
-
-# Environment
+# ===== GENERAL =====
+.DS_Store
+Thumbs.db
 .env
+.env.local
+.vscode/
+.idea/
+*.log
+__pycache__/
