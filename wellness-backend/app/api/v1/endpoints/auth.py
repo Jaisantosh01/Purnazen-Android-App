@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from app.api.deps import (
@@ -7,6 +7,8 @@ from app.api.deps import (
     get_refresh_payload,
     require_role,
 )
+from app.core.limiter import limiter
+from app.core.config import settings
 from app.core.security import create_access_token
 from app.models.user import User
 from app.repositories.token_repository import TokenRepository
@@ -17,8 +19,14 @@ from app.utils.responses import error_response, success_response
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
-@router.post("/register", status_code=201)
-def register(body: RegisterRequest, db: Session = Depends(get_db)):
+@router.post(
+    "/register",
+    status_code=201,
+    summary="Create a new account",
+    description="Registers a patient account. Rate-limited per client IP.",
+)
+@limiter.limit(settings.RATE_LIMIT_REGISTER)
+def register(request: Request, body: RegisterRequest, db: Session = Depends(get_db)):
     response, status_code = AuthService.register(db, body.model_dump())
 
     if not response["success"]:
@@ -27,8 +35,13 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
     return success_response(response["message"], response.get("user"), status_code)
 
 
-@router.post("/login")
-def login(body: LoginRequest, db: Session = Depends(get_db)):
+@router.post(
+    "/login",
+    summary="Login with email and password",
+    description="Returns an access token, a refresh token and the user profile. Rate-limited per client IP.",
+)
+@limiter.limit(settings.RATE_LIMIT_LOGIN)
+def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)):
     response, status_code = AuthService.login(db, body.model_dump())
 
     if not response["success"]:
@@ -45,7 +58,11 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
     )
 
 
-@router.post("/logout")
+@router.post(
+    "/logout",
+    summary="Logout (revoke refresh token)",
+    description="Requires the **refresh** token as Bearer; adds its `jti` to the blocklist.",
+)
 def logout(
     payload: dict = Depends(get_refresh_payload),
     db: Session = Depends(get_db),
@@ -54,7 +71,7 @@ def logout(
     return success_response("Logged out successfully")
 
 
-@router.get("/me")
+@router.get("/me", summary="Current authenticated user")
 def me(payload: dict = Depends(get_access_payload)):
     return success_response(
         "Current user fetched successfully",
@@ -62,14 +79,19 @@ def me(payload: dict = Depends(get_access_payload)):
     )
 
 
-@router.post("/refresh")
-def refresh_token(payload: dict = Depends(get_refresh_payload)):
+@router.post(
+    "/refresh",
+    summary="Exchange a refresh token for a new access token",
+    description="Requires the **refresh** token as Bearer. Rate-limited per client IP.",
+)
+@limiter.limit(settings.RATE_LIMIT_REFRESH)
+def refresh_token(request: Request, payload: dict = Depends(get_refresh_payload)):
     return success_response(
         "Access token refreshed",
         {"access_token": create_access_token(payload["sub"])},
     )
 
 
-@router.get("/admin/dashboard")
+@router.get("/admin/dashboard", summary="Admin-only dashboard (role-gated)")
 def admin_dashboard(user: User = Depends(require_role("admin"))):
     return success_response("Welcome Admin", {"dashboard": "Admin Panel"})

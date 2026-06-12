@@ -82,6 +82,11 @@ cp .env.example .env
 ```
 Update `.env` with your credentials. If `DATABASE_URL` is omitted, the app uses a local SQLite file (`wellness.db`) — convenient for development.
 
+Optional settings (see `.env.example` for the full list):
+- `REDIS_URL` — enables Redis-backed rate-limit counters (shared across workers) and a revoked-token cache. Omit for local dev: rate limits fall back to in-memory, token revocation to the DB.
+- `CORS_ORIGINS` — comma-separated allowed origins. Defaults to `*`; restrict in production.
+- `RATE_LIMIT_ENABLED` / `RATE_LIMIT_LOGIN` / `RATE_LIMIT_REGISTER` / `RATE_LIMIT_REFRESH` — per-IP auth rate limits (defaults: 5/minute, 3/minute, 10/minute).
+
 ### 3. Apply migrations (PostgreSQL)
 ```bash
 alembic upgrade head

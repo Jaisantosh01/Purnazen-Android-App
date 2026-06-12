@@ -15,6 +15,21 @@ class Settings(BaseSettings):
     API_V1_PREFIX: str = "/api/v1"
     PROJECT_NAME: str = "Wellness Backend API"
 
+    # Comma-separated list of allowed origins; "*" allows all (dev only)
+    CORS_ORIGINS: str = "*"
+
+    # Empty string disables Redis (in-memory rate limits, DB-only blocklist)
+    REDIS_URL: str = ""
+
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_LOGIN: str = "5/minute"
+    RATE_LIMIT_REGISTER: str = "3/minute"
+    RATE_LIMIT_REFRESH: str = "10/minute"
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

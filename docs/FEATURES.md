@@ -1,6 +1,6 @@
 # Features Tracker
 
-**Last updated:** 2026-06-12 (post FastAPI migration)
+**Last updated:** 2026-06-12 (post FastAPI migration + tech-debt pass: rate limiting, Redis, keychain tokens)
 
 Single source of truth for what is built, what is stubbed, and what is missing — across frontend and backend.
 
@@ -108,12 +108,12 @@ Single source of truth for what is built, what is stubbed, and what is missing �
 
 | Item | Severity | Notes |
 |------|----------|-------|
-| Tokens in AsyncStorage | Medium | Move to `react-native-keychain` (Expo blocked on RN 0.84) |
-| No frontend tests | Medium | jest configured, zero tests |
+| ~~Tokens in AsyncStorage~~ | ✅ Resolved 2026-06-12 | Now in device keystore via `react-native-keychain` (`src/utils/secureStorage.js`); legacy tokens auto-migrated on app start |
+| ~~No rate limiting on auth~~ | ✅ Resolved 2026-06-12 | slowapi on login/register/refresh, per-IP, `RATE_LIMIT_*` env-configurable; Redis-backed when `REDIS_URL` set |
+| ~~CORS `allow_origins=["*"]`~~ | ✅ Configurable 2026-06-12 | `CORS_ORIGINS` env var; default still `*` for dev — **set explicit origins in production .env** |
+| Frontend tests thin | Medium | jest suite now runs (was broken); 2 suites / 6 tests (App render + secureStorage) — screens/services untested |
 | Monolithic screens | Low | Styles duplicated; no shared theme |
 | `BottomNav.js` unused | Low | React Navigation tabs used instead — candidate for deletion |
-| CORS `allow_origins=["*"]` | Low (dev) | Restrict before production |
-| No rate limiting on auth | Medium | Add slowapi or proxy-level limits before production |
-| Backend test coverage | Info | 22 tests cover all existing endpoints; extend with each new feature |
+| Backend test coverage | Info | 25 tests cover all existing endpoints + rate limiting; extend with each new feature |
 | HomeScreen renders empty text labels | Low | PR #1 emptied `<Text>` contents; `STRINGS` constants exist in `src/constants/strings.js` but aren't wired in (UI change — deliberately out of scope of the infra migration) |
 | `DoctorProfileScreen` eslint errors | Low | 2 pre-existing `react-hooks/exhaustive-deps` errors (missing `doctor.id` dependency) |

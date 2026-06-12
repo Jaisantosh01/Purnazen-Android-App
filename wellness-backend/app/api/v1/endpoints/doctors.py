@@ -7,7 +7,11 @@ from app.services.doctor_service import DoctorService
 router = APIRouter(tags=["Doctors"])
 
 
-@router.get("/doctors")
+@router.get(
+    "/doctors",
+    summary="List doctors",
+    description="Paginated doctor catalog; `search` matches doctor name and specialty.",
+)
 def get_doctors(
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=10, ge=1, le=100),

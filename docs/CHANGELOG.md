@@ -2,6 +2,33 @@
 
 All notable changes to the Purnazen App are documented here.
 
+## [2026-06-12] — Tech debt: rate limiting, Redis, secure token storage, API docs
+
+### Backend
+
+**Added**
+
+- **Rate limiting on auth** (`slowapi`): `POST /auth/login` (5/min), `/auth/register` (3/min), `/auth/refresh` (10/min) — per client IP, configurable via `RATE_LIMIT_*` env vars, returns 429 with the standard error envelope. New `app/core/limiter.py`; 3 new tests (`tests/test_rate_limit.py`); limiter disabled in the regular test fixtures.
+- **Optional Redis** (`REDIS_URL`, off by default): when set, rate-limit counters are shared across workers and revoked-token (`jti`) lookups are served from a Redis cache (TTL = refresh-token lifetime) before falling back to the DB. The DB remains the source of truth; Redis errors degrade gracefully. New `app/core/cache.py`.
+- **OpenAPI docs enrichment**: API description (envelope contract, auth model, rate limits), tag descriptions, and per-endpoint summaries — visible at `/apidocs` and `/redoc`. App version bumped to 2.1.0.
+
+**Changed**
+
+- **CORS origins are now settings-driven** (`CORS_ORIGINS`, comma-separated). Default remains `*` for dev; set explicit origins in production (`.env.example` documents this).
+- Dependencies: + `slowapi`, + `redis`.
+
+### Frontend
+
+**Changed**
+
+- **Tokens moved from AsyncStorage to the device keystore** via `react-native-keychain` (new `src/utils/secureStorage.js`, with in-memory caching so the axios interceptor doesn't hit the native keystore per request). User profile JSON stays in AsyncStorage (not a secret). One-time migration moves legacy AsyncStorage tokens into the keystore on app start.
+- `App.tsx` now calls `authService.bootstrap()` on mount — it was defined but never invoked, so persisted sessions were never restored into the Zustand store (and the token migration needs it).
+
+**Fixed**
+
+- `authService` used `AsyncStorage.multiSet`/`multiRemove`, which **do not exist in `@react-native-async-storage/async-storage` v3** (API is now `setMany`/`getMany`/`removeMany`) — token/user persistence on login would have thrown at runtime.
+- **Jest suite now runs**: `transformIgnorePatterns` allows the `@react-navigation`/RN ESM packages and `jest.setup.js` mocks the keychain + async-storage native modules. The template `App.test.tsx` failed to even parse before. Added `__tests__/secureStorage.test.js` (5 tests). 2 suites / 6 tests passing.
+
 ## [2026-06-12] — Backend migration: Flask → FastAPI + frontend infrastructure
 
 ### Backend — Migrated from Flask to FastAPI

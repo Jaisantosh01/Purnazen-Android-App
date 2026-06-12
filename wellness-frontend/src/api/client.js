@@ -1,5 +1,5 @@
 import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import secureStorage from '../utils/secureStorage';
 import { BASE_URL } from '../constants/apiEndpoints';
 
 const STATUS_MESSAGES = {
@@ -20,7 +20,7 @@ const client = axios.create({
 
 // Attach the auth token to every request
 client.interceptors.request.use(async config => {
-  const token = await AsyncStorage.getItem('access_token');
+  const token = await secureStorage.getAccessToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

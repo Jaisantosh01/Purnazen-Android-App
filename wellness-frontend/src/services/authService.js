@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient from '../api/client';
+import secureStorage from '../utils/secureStorage';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { useAuthStore } from '../store/authStore';
 
@@ -17,11 +18,9 @@ class AuthService {
 
     const { access_token, refresh_token, user } = response.data;
 
-    await AsyncStorage.multiSet([
-      ['access_token', access_token],
-      ['refresh_token', refresh_token],
-      ['user', JSON.stringify(user)],
-    ]);
+    // Tokens go to the device keystore; the user profile is not a secret
+    await secureStorage.setTokens(access_token, refresh_token);
+    await AsyncStorage.setItem('user', JSON.stringify(user));
 
     useAuthStore.getState().setAuth(user);
 
@@ -31,7 +30,7 @@ class AuthService {
   async logout() {
     // Revoke the refresh token server-side; clear locally even if that fails
     try {
-      const refreshToken = await AsyncStorage.getItem('refresh_token');
+      const refreshToken = await secureStorage.getRefreshToken();
       if (refreshToken) {
         await apiClient.post(ENDPOINTS.LOGOUT, null, {
           headers: { Authorization: `Bearer ${refreshToken}` },
@@ -41,12 +40,13 @@ class AuthService {
       // Token may already be expired/revoked — local logout still proceeds
     }
 
-    await AsyncStorage.multiRemove(['access_token', 'refresh_token', 'user']);
+    await secureStorage.clearTokens();
+    await AsyncStorage.removeItem('user');
     useAuthStore.getState().clearAuth();
   }
 
   getToken() {
-    return AsyncStorage.getItem('access_token');
+    return secureStorage.getAccessToken();
   }
 
   async getUser() {
@@ -61,6 +61,13 @@ class AuthService {
 
   /** Restore persisted session into the Zustand store on app start. */
   async bootstrap() {
+    // Move tokens persisted by older builds out of plaintext AsyncStorage
+    try {
+      await secureStorage.migrateFromAsyncStorage();
+    } catch (error) {
+      // Keystore unavailable (e.g. emulator quirk) — user can log in again
+    }
+
     const user = await this.getUser();
     if (user) {
       useAuthStore.getState().setAuth(user);

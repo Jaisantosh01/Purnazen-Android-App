@@ -1,29 +1,73 @@
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi.errors import RateLimitExceeded
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1.router import api_router
 from app.core.config import settings
+from app.core.limiter import limiter
 from app.utils.responses import error_response
+
+API_DESCRIPTION = """
+REST API for the Purnazen wellness app (React Native client).
+
+All endpoints return a JSON envelope: `{"success": bool, "message": str, "data": ...}`.
+Validation errors return **400** with `{field: [messages]}` in `message`.
+
+**Auth:** Bearer JWT. Access tokens (15 min) authorize API calls; refresh tokens
+(30 days) are accepted only by `/auth/refresh` and `/auth/logout`. Logout revokes
+the refresh token (`jti` blocklist).
+
+**Rate limits:** login, register and refresh are rate-limited per client IP and
+return **429** when exceeded.
+"""
+
+OPENAPI_TAGS = [
+    {
+        "name": "Authentication",
+        "description": "Register, login, token refresh, logout (refresh-token revocation) and role-gated admin access.",
+    },
+    {
+        "name": "Doctors",
+        "description": "Doctor catalog with pagination and search.",
+    },
+    {
+        "name": "Home",
+        "description": "Content for the home screen (quick relief cards).",
+    },
+    {
+        "name": "Health",
+        "description": "Liveness probe.",
+    },
+]
 
 
 def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.PROJECT_NAME,
-        version="2.0.0",
+        version="2.1.0",
+        description=API_DESCRIPTION,
+        openapi_tags=OPENAPI_TAGS,
         docs_url="/apidocs",
+        redoc_url="/redoc",
     )
+
+    app.state.limiter = limiter
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=settings.cors_origins_list,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
 
     app.include_router(api_router, prefix=settings.API_V1_PREFIX)
+
+    @app.exception_handler(RateLimitExceeded)
+    async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+        return error_response("Too many requests. Please try again later.", 429)
 
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -42,7 +86,7 @@ def create_app() -> FastAPI:
     async def unhandled_exception_handler(request: Request, exc: Exception):
         return error_response("Something went wrong", 500)
 
-    @app.get("/health", tags=["Health"])
+    @app.get("/health", tags=["Health"], summary="Liveness check")
     def health():
         return {"status": "ok"}
 

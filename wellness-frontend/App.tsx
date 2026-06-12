@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 // @ts-ignore
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+// @ts-ignore
+import authService from './src/services/authService';
 import LoginScreen from './src/screens/LoginScreen';
 
 import HomeScreen from './src/screens/HomeScreen';
@@ -145,6 +147,12 @@ function MainTabs() {
 }
 
 export default function App() {
+  // Restore persisted session and migrate legacy AsyncStorage tokens
+  // into the device keystore (see src/utils/secureStorage.js).
+  useEffect(() => {
+    authService.bootstrap();
+  }, []);
+
   return (
     <NavigationContainer>
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
