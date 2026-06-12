@@ -14,14 +14,26 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import QuickCard from '../components/QuickCards';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
-
-
+import wellnessService from '../services/wellnessService';
 
 const FALLBACK_WELLNESS = [
   { key: 'YogaSession', title: 'Yoga', duration: '15 min', icon: 'yoga' },
   { key: 'MeditationSession', title: 'Meditation', duration: '10 min', icon: 'meditation' },
   { key: 'BreathingSession', title: 'Breathing', duration: '5 min', icon: 'lungs' },
 ];
+
+// The catalog API carries emoji icons (player header); the Home rows render
+// MaterialCommunityIcons, so map by session key.
+const WELLNESS_ROW_ICONS = {
+  YogaSession: 'yoga',
+  MeditationSession: 'meditation',
+  BreathingSession: 'lungs',
+  MorningRoutineSession: 'weather-sunny',
+  EveningWindDown: 'weather-night',
+  FullBodyStretch: 'human-handsup',
+};
+
+const HOME_WELLNESS_ROWS = 3; // teaser only — "See All" opens the Wellness tab
 
 const HomeScreen = ({ navigation }) => {
   const [quickRelief, setQuickRelief] = useState([]);
@@ -30,25 +42,38 @@ const HomeScreen = ({ navigation }) => {
 
   useEffect(() => {
     const fetchHomeData = async () => {
-      try {
-        setLoading(true);
+      setLoading(true);
 
-        const reliefData = await apiClient.get(
-          ENDPOINTS.HOME_QUICK_RELIEF
-        );
-
-        if (reliefData?.data) {
-          setQuickRelief(reliefData.data);
-        } else {
+      const reliefPromise = apiClient
+        .get(ENDPOINTS.HOME_QUICK_RELIEF)
+        .then(reliefData => setQuickRelief(reliefData?.data || []))
+        .catch(error => {
+          console.log('Quick relief fetch failed:', error.message);
           setQuickRelief([]);
-        }
+        });
 
-      } catch (error) {
-        console.log('Home Screen Error:', error);
-        setQuickRelief([]);
-      } finally {
-        setLoading(false);
-      }
+      const wellnessPromise = wellnessService
+        .getAllSessions()
+        .then(data => {
+          const sessions = (data?.sessions || []).slice(0, HOME_WELLNESS_ROWS);
+          if (sessions.length) {
+            setWellness(
+              sessions.map(session => ({
+                key: session.key,
+                title: session.title,
+                duration: session.duration,
+                icon: WELLNESS_ROW_ICONS[session.key] || 'heart-pulse',
+              })),
+            );
+          }
+        })
+        .catch(error => {
+          // keep FALLBACK_WELLNESS
+          console.log('Wellness catalog fetch failed:', error.message);
+        });
+
+      await Promise.all([reliefPromise, wellnessPromise]);
+      setLoading(false);
     };
 
     fetchHomeData();
@@ -65,14 +90,14 @@ const HomeScreen = ({ navigation }) => {
       >
         {/* ── Header ── */}
         <View style={styles.header}>
-          <Text style={styles.title}></Text>
-          <Text style={styles.subtitle}></Text>
+          <Text style={styles.title}>{STRINGS.HOME_TITLE}</Text>
+          <Text style={styles.subtitle}>{STRINGS.HOME_SUBTITLE}</Text>
 
           <TouchableOpacity style={styles.banner} activeOpacity={0.9}>
             <Text style={styles.bannerIcon}>✨</Text>
             <View>
-              <Text style={styles.bannerTitle}></Text>
-              <Text style={styles.bannerSub}></Text>
+              <Text style={styles.bannerTitle}>{STRINGS.BANNER_TITLE}</Text>
+              <Text style={styles.bannerSub}>{STRINGS.BANNER_SUB}</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -101,9 +126,9 @@ const HomeScreen = ({ navigation }) => {
         {/* ── Wellness ── */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}></Text>
+            <Text style={styles.sectionTitle}>{STRINGS.WELLNESS_SECTION}</Text>
             <TouchableOpacity onPress={() => navigation.navigate('WellnessTab')}>
-              <Text style={styles.seeAll}></Text>
+              <Text style={styles.seeAll}>{STRINGS.SEE_ALL}</Text>
             </TouchableOpacity>
           </View>
 
@@ -140,8 +165,8 @@ const HomeScreen = ({ navigation }) => {
                 <MCIcon name="star-four-points-outline" size={22} color="#fff" />
               </View>
               <View>
-                <Text style={styles.faceGlowTitle}></Text>
-                <Text style={styles.faceGlowSub}></Text>
+                <Text style={styles.faceGlowTitle}>{STRINGS.FACE_GLOW_TITLE}</Text>
+                <Text style={styles.faceGlowSub}>{STRINGS.FACE_GLOW_SUB}</Text>
               </View>
             </View>
             <Text style={styles.faceGlowArrow}>→</Text>
@@ -153,8 +178,8 @@ const HomeScreen = ({ navigation }) => {
           <View style={styles.consultLeft}>
             <MCIcon name="calendar-month-outline" size={22} color="#fff" style={styles.consultIcon} />
             <View>
-              <Text style={styles.consultTitle}></Text>
-              <Text style={styles.consultSub}></Text>
+              <Text style={styles.consultTitle}>{STRINGS.CONSULT_TITLE}</Text>
+              <Text style={styles.consultSub}>{STRINGS.CONSULT_SUB}</Text>
             </View>
           </View>
           <View style={styles.consultArrowCircle}>

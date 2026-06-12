@@ -1,6 +1,6 @@
 # Features Tracker
 
-**Last updated:** 2026-06-12 (post P1 feature-completeness implementation, T6–T11)
+**Last updated:** 2026-06-12 (post P2 first batch: T12, T15, T18, T19)
 
 > Detailed, prioritized task breakdown of every gap below: **[TASKS.md](TASKS.md)** (T1–T19).
 
@@ -34,7 +34,7 @@ Single source of truth for what is built, what is stubbed, and what is missing �
 | Feature | Frontend | Backend | Status | Notes |
 |---------|----------|---------|--------|-------|
 | Quick relief cards | `HomeScreen` | `GET /api/v1/home/quick-relief` | ✅ | End-to-end; tested |
-| Wellness rows | `HomeScreen` | — | 🎨 | Hardcoded fallback list; no API call (→ T12; can reuse `GET /sessions`) |
+| Wellness rows | `HomeScreen` | `GET /api/v1/sessions` (reused) | ✅ | First 3 catalog rows, key→MCI icon map; fallback kept offline (T12) |
 
 ## Consultation
 
@@ -64,9 +64,9 @@ Single source of truth for what is built, what is stubbed, and what is missing �
 |---------|----------|---------|--------|-------|
 | Face Glow routines | `FaceGlowScreen` | — | 🎨 | Scan button shows alert; endpoints defined, no backend (→ T13) |
 | Subscriptions | `SubscriptionsScreen` | — | 🎨 | Static plans; no billing (→ T14) |
-| Notifications | `NotificationsScreen` | — | 🎨 | Toggles are local-only; no push service (→ T15) |
+| Notification preferences | `NotificationsScreen`, `SettingsScreen` | `GET/PUT /api/v1/users/me/preferences` | ✅ | Master + granular toggles persisted (T15); push *delivery* (FCM) still open |
 | Help & Support | `HelpSupportScreen` | — | ✅ | External links only — no backend needed |
-| Settings toggles | `SettingsScreen` | — | 🎨 | Account section is live (T8); notification/privacy toggles not persisted (→ T15) |
+| Settings toggles | `SettingsScreen` | `PUT /api/v1/users/me/preferences` | ⚠️ | Account + notification toggles live (T8/T15); appearance/privacy toggles still local-only |
 | Health check | — | `GET /health` | ✅ | |
 
 ---
@@ -76,12 +76,13 @@ Single source of truth for what is built, what is stubbed, and what is missing �
 | Category | Needed | Implemented | Gap |
 |----------|--------|-------------|-----|
 | Auth | 9 | 9 | — |
-| Home | 2 | 1 | wellness sessions list (can reuse `GET /sessions`) |
+| Home | 2 | 2 | — (wellness rows reuse `GET /sessions`) |
 | Consult | 11 | 11 | — (incl. payments process + verify) |
 | Sessions/Relief | 4 | 4 | — |
 | Therapy | 2 | 2 | — |
+| Users/Preferences | 2 | 2 | — |
 | Face Glow | 4 | 0 | routines, scan, history |
-| **Total** | **32** | **27** | **5** |
+| **Total** | **34** | **30** | **4** |
 
 (Plus `GET /api/v1/appointments` — implemented as part of booking, not counted in "needed".)
 
@@ -103,8 +104,9 @@ Single source of truth for what is built, what is stubbed, and what is missing �
 9. ~~Registration screen (frontend)~~
 10. ~~Axios auto-refresh on 401~~
 
-### P2 (→ T12–T19)
-11. Wellness rows on Home from API; Face Glow backend; subscriptions; notification preferences; theme adoption; frontend test coverage; STRINGS wiring; CI. Plus: react-native-razorpay checkout for real test keys (needs Android SDK machine).
+### P2 (→ T12–T19) — T12, T15, T18, T19 ✅ done 2026-06-12
+11. ~~Wellness rows on Home from API~~ · ~~notification preferences~~ · ~~STRINGS wiring~~ · ~~CI~~
+12. Remaining: Face Glow backend (T13), subscriptions (T14 — billing provider decision pending), theme adoption (T16), frontend test coverage (T17), react-native-razorpay checkout for real test keys (needs Android SDK machine).
 
 ---
 
@@ -121,6 +123,7 @@ Single source of truth for what is built, what is stubbed, and what is missing �
 | ~~`BottomNav.js` unused~~ | ✅ Deleted 2026-06-12 | Also deleted 7 unused `src/data/*.json` duplicates |
 | ~~Hardcoded API IP/port~~ | ✅ Resolved 2026-06-12 | `EXPO_PUBLIC_API_URL` via `.env` → `src/config/index.js`; fallback `10.0.2.2:5000` |
 | ~~`react-hooks/exhaustive-deps` errors~~ | ✅ Fixed 2026-06-12 | Were in `BookAppointmentScreen` (missing `doctor.id`); `eslint --quiet` now clean |
-| Backend test coverage | Info | 79 tests cover all existing endpoints + rate limiting; extend with each new feature |
+| Backend test coverage | Info | 84 tests cover all existing endpoints + rate limiting; extend with each new feature |
+| ~~No CI~~ | ✅ Resolved 2026-06-12 | GitHub Actions: backend pytest + frontend jest/tsc/eslint on PRs and main pushes (T19) |
 | Auth deps hit the DB per request | Info | `token_version` check fetches the user on every authed call (replaces unbounded-blocklist risk); cache in Redis if it ever shows up in profiles |
-| HomeScreen renders empty text labels | Low | PR #1 emptied `<Text>` contents; `STRINGS` constants exist in `src/constants/strings.js` but aren't wired in (→ T18) |
+| ~~HomeScreen renders empty text labels~~ | ✅ Fixed 2026-06-12 | All 10 labels wired to `STRINGS` constants (T18) |

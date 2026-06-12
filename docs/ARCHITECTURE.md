@@ -1,6 +1,6 @@
 # Architecture
 
-**Last updated:** 2026-06-12 (post P1 feature-completeness pass, T6–T11)
+**Last updated:** 2026-06-12 (post P2 first batch: T12/T15/T18/T19; CI added)
 
 ## System Overview
 
@@ -65,7 +65,8 @@ wellness-backend/
 │   │           ├── appointments.py    # POST /appointments/book, GET /appointments (auth)
 │   │           ├── therapy_history.py # POST /therapy-history/save, GET /therapy-history (auth)
 │   │           ├── sessions.py        # GET /sessions[/:key], /relief-sessions[/:key]
-│   │           └── payments.py        # POST /payments/process, /payments/verify (auth)
+│   │           ├── payments.py        # POST /payments/process, /payments/verify (auth)
+│   │           └── users.py           # GET/PUT /users/me/preferences (auth)
 │   ├── core/
 │   │   ├── config.py        # Settings (pydantic-settings): secrets, DB URL, expiries,
 │   │   │                    #   CORS_ORIGINS, REDIS_URL, RATE_LIMIT_*, RAZORPAY_KEY_*
@@ -78,24 +79,24 @@ wellness-backend/
 │   │   ├── base_class.py    # DeclarativeBase
 │   │   ├── base.py          # Imports every model → Base.metadata complete
 │   │   └── session.py       # create_engine + SessionLocal
-│   ├── models/              # 19 SQLAlchemy models (one file each; associations.py
+│   ├── models/              # 20 SQLAlchemy models (one file each; associations.py
 │   │                        #   holds the 3 many-to-many Tables)
 │   ├── schemas/             # Pydantic request schemas (auth.py, appointment.py,
-│   │                        #   therapy.py, payment.py)
+│   │                        #   therapy.py, payment.py, preferences.py)
 │   ├── repositories/        # UserRepository, TokenRepository, DoctorRepository,
 │   │                        #   QuickReliefRepository, AppointmentRepository,
 │   │                        #   TherapySessionRepository, SessionCatalogRepository,
-│   │                        #   PaymentRepository — all take a Session arg
+│   │                        #   PaymentRepository, PreferenceRepository — all take a Session arg
 │   ├── services/            # AuthService, DoctorService, HomeService,
 │   │                        #   AppointmentService, TherapyService,
-│   │                        #   SessionCatalogService, PaymentService
+│   │                        #   SessionCatalogService, PaymentService, PreferenceService
 │   └── utils/responses.py   # success_response / error_response (JSON envelope)
 ├── alembic/                 # Plain Alembic (env.py reads settings.DATABASE_URL)
-│   └── versions/            # 9 revisions (users → doctor module → quick_reliefs → avatar
+│   └── versions/            # 10 revisions (users → doctor module → quick_reliefs → avatar
 │                            #   → appointments → therapy_sessions → session catalogs
-│                            #   → token_version → payments)
+│                            #   → token_version → payments → user_preferences)
 ├── alembic.ini
-├── tests/                   # 79 pytest tests, in-memory SQLite, get_db override
+├── tests/                   # 84 pytest tests, in-memory SQLite, get_db override
 │                            #   (limiter off by default; rate_limited_client fixture)
 ├── seed.py                  # Idempotent dev seed (bcrypt-hashed passwords)
 ├── seed_data.py             # Session catalog content (ported from frontend mocks)
@@ -103,7 +104,7 @@ wellness-backend/
 └── run.py                   # uvicorn app.main:app --reload, port 5000
 ```
 
-### Database Schema (19 tables)
+### Database Schema (20 tables)
 
 | Table | Purpose |
 |-------|---------|
@@ -122,6 +123,7 @@ wellness-backend/
 | `wellness_sessions` | Wellness player catalog: key, title, duration label, icon, video URL, cycles, steps JSON |
 | `relief_sessions` | Relief player catalog (same shape, keyed by reliefKey e.g. "Neck Pain") |
 | `payments` | Razorpay payments: user FK, appointment FK, amount, order/payment ids, status (created/paid/failed) |
+| `user_preferences` | Per-user notification prefs: push_enabled master + JSON dict of toggle ids |
 
 ### Conventions
 
@@ -162,7 +164,7 @@ wellness-frontend/src/
 ├── store/authStore.js       # Zustand: user, isLoggedIn, setAuth, clearAuth
 ├── services/                # authService (register/login/profile/password/delete),
 │                            #   consultService (incl. payments), wellnessService,
-│                            #   reliefService, therapyService
+│                            #   reliefService, therapyService, preferencesService
 ├── screens/                 # 20 screens (see FEATURES.md) — incl. RegisterScreen
 ├── components/              # QuickCards
 ├── constants/

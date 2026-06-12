@@ -1,6 +1,6 @@
 # Task Backlog — Gap Features
 
-**Last updated:** 2026-06-12 (P0 T1–T5 **and P1 T6–T11 completed** — see CHANGELOG). Derived from the FEATURES.md scoreboard plus frontend work. Ordered by priority; each task lists scope, touched layers, and acceptance criteria. Conventions for backend tasks: model → import in `db/base.py` → `alembic revision --autogenerate` → schema → repository → service → endpoint → `router.py` → tests (see ARCHITECTURE.md).
+**Last updated:** 2026-06-12 (P0 T1–T5, P1 T6–T11 **and P2 T12/T15/T18/T19 completed** — see CHANGELOG; T13/T14/T16/T17 remain). Derived from the FEATURES.md scoreboard plus frontend work. Ordered by priority; each task lists scope, touched layers, and acceptance criteria. Conventions for backend tasks: model → import in `db/base.py` → `alembic revision --autogenerate` → schema → repository → service → endpoint → `router.py` → tests (see ARCHITECTURE.md).
 
 P0 implementation notes (2026-06-12): visit-type slugs `video`/`home`/`clinic` map to the `consultation_types` lookup names in `app/services/doctor_service.py` (`VISIT_TYPE_PRESENTATION`); booking conflict check is app-level (no partial unique index); seed adds Mon–Sat 09–12 & 14–17 availability (30-min slots) per doctor; therapy stats = completed sessions only, `avgRelief = round(avg(painAfter − painBefore))`.
 
@@ -65,16 +65,16 @@ P1 implementation notes (2026-06-12): filter routes are registered before `/doct
 - **Frontend:** PaymentScreen wired to order → Razorpay checkout (react-native-razorpay) → verify.
 - **Accept:** Sandbox payment marks appointment paid; failure path leaves it unpaid; tests with provider mocked.
 
-## P2 — Polish / platform
+## P2 — Polish / platform — partially done 2026-06-12 (T12, T15, T18, T19 ✅)
 
-### T12. Wellness rows on Home from API (`GET /api/v1/home/wellness` or reuse T7 list).
+### ✅ T12. Wellness rows on Home from API — done by reusing the T7 `GET /sessions` list; HomeScreen maps catalog keys to MCI icon names (`WELLNESS_ROW_ICONS`), shows the first 3 rows ("See All" → Wellness tab), keeps the local fallback offline.
 ### T13. Face Glow backend (routines model + `GET /face-glow/routines`, `/routines/:key`; scan + history later — needs media upload + storage decision).
 ### T14. Subscriptions (plans model + endpoints; billing provider decision pending).
-### T15. Notification preferences persistence (`PUT /api/v1/users/me/preferences`; push delivery needs FCM — Expo modules now available, `expo-notifications` is an option).
-### T16. Shared theme adoption — migrate the 19 screens' StyleSheets to `src/constants/theme.js` tokens (COLORS/SPACING/RADIUS); delete per-screen duplicates. Mechanical, do screen-by-screen.
+### ✅ T15. Notification preferences persistence — `user_preferences` table (migration `e6f3a82d4c91`): `push_enabled` master + JSON dict of toggle ids (no migration per new toggle). `GET`/`PUT /api/v1/users/me/preferences` (auth, partial merge). SettingsScreen + NotificationsScreen toggles hydrate from the server and save optimistically (`preferencesService`). Push *delivery* (FCM/`expo-notifications`) still open.
+### T16. Shared theme adoption — migrate the 20 screens' StyleSheets to `src/constants/theme.js` tokens (COLORS/SPACING/RADIUS); delete per-screen duplicates. Mechanical, do screen-by-screen.
 ### T17. Frontend test coverage — services (axios mocked), authService (keychain mock exists), 2–3 screen smoke tests. Target: every service file has a suite.
-### T18. Wire `STRINGS` constants into HomeScreen empty `<Text>` labels (pre-existing PR #1 regression noted in FEATURES.md).
-### T19. CI: GitHub Actions running backend pytest + frontend jest/tsc/eslint on PR.
+### ✅ T18. Wire `STRINGS` constants into HomeScreen empty `<Text>` labels (pre-existing PR #1 regression noted in FEATURES.md) — all 10 labels restored.
+### ✅ T19. CI: `.github/workflows/ci.yml` — backend pytest (Python 3.13) + frontend jest/tsc/eslint (Node 22) on PRs and pushes to main.
 
 ---
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
+import preferencesService from '../services/preferencesService';
 
 const NOTIFICATION_GROUPS = [
   {
@@ -51,13 +52,31 @@ const NotificationsScreen = ({ navigation }) => {
   const [enabled, setEnabled] = useState(initState);
   const [allEnabled, setAllEnabled] = useState(true);
 
-  const toggle = (id) => setEnabled(prev => ({ ...prev, [id]: !prev[id] }));
+  // Hydrate from the server; defaults stay if the request fails (offline)
+  useEffect(() => {
+    preferencesService.getPreferences()
+      .then(prefs => {
+        setAllEnabled(prefs.pushEnabled);
+        setEnabled(prev => ({ ...prev, ...prefs.notifications }));
+      })
+      .catch(err => console.log('Preferences fetch failed:', err.message));
+  }, []);
+
+  // Optimistic toggles — server save is fire-and-forget
+  const toggle = (id) => {
+    const next = !enabled[id];
+    setEnabled(prev => ({ ...prev, [id]: next }));
+    preferencesService.updatePreferences({ notifications: { [id]: next } })
+      .catch(err => console.log('Preference save failed:', err.message));
+  };
 
   const toggleAll = (val) => {
     setAllEnabled(val);
     const next = {};
     NOTIFICATION_GROUPS.forEach(g => g.items.forEach(i => { next[i.id] = val; }));
     setEnabled(next);
+    preferencesService.updatePreferences({ pushEnabled: val, notifications: next })
+      .catch(err => console.log('Preference save failed:', err.message));
   };
 
   return (

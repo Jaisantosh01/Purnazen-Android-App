@@ -53,6 +53,10 @@ OPENAPI_TAGS = [
         "description": "Razorpay order creation and signature verification (sandbox-capable).",
     },
     {
+        "name": "Users",
+        "description": "Per-user settings (notification preferences).",
+    },
+    {
         "name": "Health",
         "description": "Liveness probe.",
     },

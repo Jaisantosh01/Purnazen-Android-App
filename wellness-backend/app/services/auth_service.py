@@ -11,6 +11,7 @@ from app.models.doctor import Doctor
 from app.models.payment import Payment
 from app.models.therapy_session import TherapySession
 from app.models.user import User
+from app.models.user_preference import UserPreference
 from app.repositories.user_repository import UserRepository
 
 
@@ -106,6 +107,7 @@ class AuthService:
         db.query(TherapySession).filter_by(user_id=user.id).delete()
         db.query(Payment).filter_by(user_id=user.id).delete()
         db.query(Appointment).filter_by(user_id=user.id).delete()
+        db.query(UserPreference).filter_by(user_id=user.id).delete()
         db.delete(user)
         db.commit()
 

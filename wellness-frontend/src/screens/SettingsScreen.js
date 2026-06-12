@@ -15,8 +15,16 @@ import {
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import authService from '../services/authService';
+import preferencesService from '../services/preferencesService';
 import { useAuthStore } from '../store/authStore';
 import { resetToLogin } from '../navigation/navigationRef';
+
+// Shared toggle ids with NotificationsScreen (user_preferences.notifications)
+const PREF_KEYS = {
+  sessionReminders: 'session_reminder',
+  appointmentAlerts: 'appointment',
+  promotionalEmails: 'offers',
+};
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#f5f5f5' },
@@ -198,6 +206,34 @@ const SettingsScreen = ({ navigation }) => {
   const [biometric, setBiometric]                 = useState(false);
   const [locationAccess, setLocationAccess]       = useState(true);
 
+  // Hydrate the notification toggles from the server (defaults kept offline)
+  React.useEffect(() => {
+    preferencesService.getPreferences()
+      .then(prefs => {
+        setNotifications(prefs.pushEnabled);
+        const saved = prefs.notifications || {};
+        if (PREF_KEYS.sessionReminders in saved) setSessionReminders(saved[PREF_KEYS.sessionReminders]);
+        if (PREF_KEYS.appointmentAlerts in saved) setAppointmentAlerts(saved[PREF_KEYS.appointmentAlerts]);
+        if (PREF_KEYS.promotionalEmails in saved) setPromotionalEmails(saved[PREF_KEYS.promotionalEmails]);
+      })
+      .catch(err => console.log('Preferences fetch failed:', err.message));
+  }, []);
+
+  const savePreference = payload => {
+    preferencesService.updatePreferences(payload)
+      .catch(err => console.log('Preference save failed:', err.message));
+  };
+
+  const togglePush = value => {
+    setNotifications(value);
+    savePreference({ pushEnabled: value });
+  };
+
+  const makeToggle = (setter, prefKey) => value => {
+    setter(value);
+    savePreference({ notifications: { [prefKey]: value } });
+  };
+
   // Edit profile modal
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [fullName, setFullName]               = useState('');
@@ -358,7 +394,7 @@ const SettingsScreen = ({ navigation }) => {
               title="Push Notifications"
               subtitle="Enable all app notifications"
               value={notifications}
-              onToggle={setNotifications}
+              onToggle={togglePush}
             />
             <View style={styles.rowDivider} />
             <ToggleRow
@@ -368,7 +404,7 @@ const SettingsScreen = ({ navigation }) => {
               title="Session Reminders"
               subtitle="Daily wellness session alerts"
               value={sessionReminders}
-              onToggle={setSessionReminders}
+              onToggle={makeToggle(setSessionReminders, PREF_KEYS.sessionReminders)}
             />
             <View style={styles.rowDivider} />
             <ToggleRow
@@ -378,7 +414,7 @@ const SettingsScreen = ({ navigation }) => {
               title="Appointment Alerts"
               subtitle="Reminders before consultations"
               value={appointmentAlerts}
-              onToggle={setAppointmentAlerts}
+              onToggle={makeToggle(setAppointmentAlerts, PREF_KEYS.appointmentAlerts)}
             />
             <View style={styles.rowDivider} />
             <ToggleRow
@@ -388,7 +424,7 @@ const SettingsScreen = ({ navigation }) => {
               title="Promotional Emails"
               subtitle="Offers, tips & newsletters"
               value={promotionalEmails}
-              onToggle={setPromotionalEmails}
+              onToggle={makeToggle(setPromotionalEmails, PREF_KEYS.promotionalEmails)}
             />
           </View>
         </View>

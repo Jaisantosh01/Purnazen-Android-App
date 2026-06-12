@@ -2,6 +2,31 @@
 
 All notable changes to the Purnazen App are documented here.
 
+## [2026-06-12] — P2 polish/platform, first batch (TASKS.md T12, T15, T18, T19)
+
+### Backend
+
+**Added**
+
+- **T15 — Notification preferences**: new `UserPreference` model + migration (`e6f3a82d4c91`) — one row per user with a `push_enabled` master switch and a JSON `notifications` dict keyed by the apps' toggle ids (new toggles need no migration). `GET /api/v1/users/me/preferences` (auth; defaults created on first read) and `PUT` (auth; partial update — the notifications dict merges with stored values, non-bool values rejected 400). Per-user isolation tested; account deletion cascades the row. Tests: 79 → **84**.
+
+### Frontend
+
+**Fixed**
+
+- **T18 — HomeScreen empty labels**: the 10 `<Text>` elements emptied by PR #1 (title, subtitle, banner, Wellness/See All, Face Glow card, consult banner) now render the `STRINGS` constants that already existed for them.
+
+**Changed**
+
+- **T12 — Home wellness rows from API**: HomeScreen now loads the wellness rows from the T7 `GET /sessions` catalog (first 3 by sort order — "See All" opens the Wellness tab), mapping session keys to MaterialCommunityIcons names (`WELLNESS_ROW_ICONS`); quick-relief and wellness fetches run in parallel; the hardcoded list remains as the offline fallback.
+- **T15 — Preference toggles persisted**: SettingsScreen's notification toggles and NotificationsScreen's master + 9 granular toggles hydrate from the server on mount and save optimistically on change via the new `src/services/preferencesService.js`. Both screens share toggle ids (e.g. SettingsScreen "Promotional Emails" ↔ NotificationsScreen "Offers & Deals" = `offers`). Push *delivery* (FCM / expo-notifications) is still open.
+
+### Tooling
+
+- **T19 — CI**: `.github/workflows/ci.yml` — on PRs and pushes to main, runs backend pytest (Python 3.13, pip cache) and frontend jest + `tsc --noEmit` + eslint (Node 22, npm ci).
+
+Remaining P2 (next session): T13 Face Glow backend, T14 subscriptions (billing provider decision pending), T16 theme-token migration, T17 frontend service/screen test coverage, plus the react-native-razorpay checkout for real keys.
+
 ## [2026-06-12] — P1 feature completeness (TASKS.md T6–T11)
 
 ### Backend

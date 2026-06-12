@@ -14,6 +14,9 @@ export const ENDPOINTS = {
   ME: `${API_VERSION}/auth/me`,
   CHANGE_PASSWORD: `${API_VERSION}/auth/change-password`,
 
+  // User preferences
+  PREFERENCES: `${API_VERSION}/users/me/preferences`,
+
   // Home
   HOME_QUICK_RELIEF: `${API_VERSION}/home/quick-relief`,
 
