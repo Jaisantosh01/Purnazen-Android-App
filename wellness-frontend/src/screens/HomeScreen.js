@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { STRINGS } from '../constants/strings';
 import {
   View,
   Text,
@@ -6,27 +7,57 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import QuickCard from '../components/QuickCards';
+import httpInterceptor from '../interceptors/httpInterceptor';
+import { BASE_URL, ENDPOINTS } from '../constants/apiEndpoints';
 
-const QUICK_RELIEF_ITEMS = [
-  { title: 'Headache', icon: 'brain',           bg: '#EEF2FF', color: '#4f46e5', sub: '#818cf8' },
-  { title: 'Neck Pain', icon: 'lightning-bolt', bg: '#F5F0FF', color: '#7c3aed', sub: '#a78bfa' },
-  { title: 'Back Pain', icon: 'fire',           bg: '#FFF3E0', color: '#ea580c', sub: '#fb923c' },
-  { title: 'Stress',    icon: 'weather-windy',  bg: '#E8FDF5', color: '#0d9488', sub: '#2dd4bf' },
-  { title: 'Anxiety',   icon: 'heart-outline',  bg: '#FFF0F3', color: '#e11d48', sub: '#fb7185' },
-  { title: 'Sleep',     icon: 'sleep',          bg: '#F0F9FF', color: '#0284c7', sub: '#38bdf8' },
-];
 
-const WELLNESS_ITEMS = [
-  { title: 'Yoga',       duration: '15 min', icon: 'yoga'         },
-  { title: 'Meditation', duration: '10 min', icon: 'meditation'   },
-  { title: 'Breathing',  duration: '5 min',  icon: 'lungs'        },
+
+const FALLBACK_WELLNESS = [
+  { key: 'YogaSession', title: 'Yoga', duration: '15 min', icon: 'yoga' },
+  { key: 'MeditationSession', title: 'Meditation', duration: '10 min', icon: 'meditation' },
+  { key: 'BreathingSession', title: 'Breathing', duration: '5 min', icon: 'lungs' },
 ];
 
 const HomeScreen = ({ navigation }) => {
+  const [quickRelief, setQuickRelief] = useState([]);
+  const [wellness, setWellness] = useState(FALLBACK_WELLNESS);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchHomeData = async () => {
+      try {
+        setLoading(true);
+
+        console.log('QUICK_RELIEF:', BASE_URL + ENDPOINTS.HOME_QUICK_RELIEF);
+
+        const reliefData = await httpInterceptor.get(
+          ENDPOINTS.HOME_QUICK_RELIEF
+        );
+
+        console.log('Quick Relief Response:', reliefData);
+
+        if (reliefData?.data) {
+          setQuickRelief(reliefData.data);
+        } else {
+          setQuickRelief([]);
+        }
+
+      } catch (error) {
+        console.log('Home Screen Error:', error);
+        setQuickRelief([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHomeData();
+  }, []);
+
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor="#1FA77A" />
@@ -38,90 +69,83 @@ const HomeScreen = ({ navigation }) => {
       >
         {/* ── Header ── */}
         <View style={styles.header}>
-          <Text style={styles.title}>PurnaZen</Text>
-          <Text style={styles.subtitle}>Your wellness companion</Text>
+          <Text style={styles.title}></Text>
+          <Text style={styles.subtitle}></Text>
 
           <TouchableOpacity style={styles.banner} activeOpacity={0.9}>
             <Text style={styles.bannerIcon}>✨</Text>
             <View>
-              <Text style={styles.bannerTitle}>How are you feeling today?</Text>
-              <Text style={styles.bannerSub}>Let's find relief together</Text>
+              <Text style={styles.bannerTitle}></Text>
+              <Text style={styles.bannerSub}></Text>
             </View>
           </TouchableOpacity>
         </View>
 
         {/* ── Quick Relief ── */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Quick Relief</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('SelectSymptom')}>
-             <Text style={styles.seeAll}>See all →</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.grid}>
-            {QUICK_RELIEF_ITEMS.map((item, index) => (
-              <QuickCard
-                key={index}
-                title={item.title}
-                iconName={item.icon}
-                bg={item.bg}
-                color={item.color}
-                sub={item.sub}
-                onPress={() => navigation.navigate('ReliefSession', { reliefKey: item.title })}
-              />
-            ))}
-          </View>
+        <View style={styles.grid}>
+          {quickRelief.map(item => (
+            <QuickCard
+              key={item.id}
+              title={item.title}
+              iconName={item.icon_name}
+              bg={item.background_color}
+              color={item.text_color}
+              sub={item.subtitle}
+              onPress={() =>
+                navigation.navigate('ReliefSession', {
+                  reliefId: item.id,
+                  reliefSlug: item.slug,
+                  reliefTitle: item.title,
+                })
+              }
+            />
+          ))}
         </View>
 
         {/* ── Wellness ── */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Wellness</Text>
+            <Text style={styles.sectionTitle}></Text>
             <TouchableOpacity onPress={() => navigation.navigate('WellnessTab')}>
-              <Text style={styles.seeAll}>Explore →</Text>
+              <Text style={styles.seeAll}></Text>
             </TouchableOpacity>
           </View>
 
-          {WELLNESS_ITEMS.map((item, index) => (
-            <TouchableOpacity
-              key={index}
-              style={styles.wellnessRow}
-              activeOpacity={0.85}
-              onPress={() => {
-                if (item.title === 'Yoga') {
-                  navigation.navigate('SessionScreen', { sessionKey: 'YogaSession' });
-                } else if (item.title === 'Meditation') {
-                  navigation.navigate('SessionScreen', { sessionKey: 'MeditationSession' });
-                } else if (item.title === 'Breathing') {
-                  navigation.navigate('SessionScreen', { sessionKey: 'BreathingSession' });
-                }
-              }}
-            >
-              <MCIcon name={item.icon} size={28} color="#1FA77A" style={styles.wellnessIcon} />
-              <View style={styles.wellnessInfo}>
-                <Text style={styles.wellnessTitle}>{item.title}</Text>
-                <Text style={styles.wellnessDuration}>{item.duration}</Text>
-              </View>
-              <View style={styles.videoBtn}>
-                <MCIcon name="video-outline" size={18} color="#1FA77A" />
-              </View>
-            </TouchableOpacity>
-          ))}
+          {loading ? (
+            <ActivityIndicator color="#1FA77A" style={{ marginVertical: 20 }} />
+          ) : (
+            wellness.map((item, index) => (
+              <TouchableOpacity
+                key={item.key ?? index}
+                style={styles.wellnessRow}
+                activeOpacity={0.85}
+                onPress={() => navigation.navigate('SessionScreen', { sessionKey: item.key })}
+              >
+                <MCIcon name={item.icon} size={28} color="#1FA77A" style={styles.wellnessIcon} />
+                <View style={styles.wellnessInfo}>
+                  <Text style={styles.wellnessTitle}>{item.title}</Text>
+                  <Text style={styles.wellnessDuration}>{item.duration}</Text>
+                </View>
+                <View style={styles.videoBtn}>
+                  <MCIcon name="video-outline" size={18} color="#1FA77A" />
+                </View>
+              </TouchableOpacity>
+            ))
+          )}
 
           {/* Face Glow Card */}
           <TouchableOpacity
-  style={styles.faceGlowCard}
-  activeOpacity={0.85}
-  onPress={() => navigation.navigate('FaceGlow')}
->
+            style={styles.faceGlowCard}
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate('FaceGlow')}
+          >
             <View style={styles.faceGlowLeft}>
               <View style={styles.faceGlowIconCircle}>
                 <MCIcon name="star-four-points-outline" size={22} color="#fff" />
               </View>
               <View>
-                <Text style={styles.faceGlowTitle}>Face Glow</Text>
-                <Text style={styles.faceGlowSub}>Radiant skin routine</Text>
+                <Text style={styles.faceGlowTitle}></Text>
+                <Text style={styles.faceGlowSub}></Text>
               </View>
             </View>
             <Text style={styles.faceGlowArrow}>→</Text>
@@ -133,8 +157,8 @@ const HomeScreen = ({ navigation }) => {
           <View style={styles.consultLeft}>
             <MCIcon name="calendar-month-outline" size={22} color="#fff" style={styles.consultIcon} />
             <View>
-              <Text style={styles.consultTitle}>Book a Consultation</Text>
-              <Text style={styles.consultSub}>Connect with expert doctors</Text>
+              <Text style={styles.consultTitle}></Text>
+              <Text style={styles.consultSub}></Text>
             </View>
           </View>
           <View style={styles.consultArrowCircle}>
@@ -256,9 +280,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#e8f8f2',
     borderRadius: 10,
     padding: 8,
-  },
-  videoBtnIcon: {
-    fontSize: 16,
   },
   faceGlowCard: {
     backgroundColor: '#fdf0f5',

@@ -11,7 +11,7 @@ from app.controllers.auth_controller import (
 
 
 
-auth_bp = Blueprint('auth', __name__)
+auth_bp = Blueprint('auth', __name__,url_prefix='/api/v1/auth')
 
 auth_bp.route(
     '/register',

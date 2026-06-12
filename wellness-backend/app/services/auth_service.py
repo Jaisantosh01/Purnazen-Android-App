@@ -47,6 +47,8 @@ class AuthService:
     @staticmethod
     def login(data):
 
+        print("Data:", data)
+
         user = UserRepository.find_by_email(
             data['email']
         )
