@@ -1,6 +1,6 @@
 # Stack Recommendation
 
-**Date:** 2026-06-12
+**Last updated:** 2026-06-12 (reflects PR #1: `AdditionCode_11June2026_SP`)
 
 Analysis of the current stack and alternatives for the Purnazen wellness Android (+ iOS) app.
 
@@ -23,7 +23,7 @@ Analysis of the current stack and alternatives for the Purnazen wellness Android
 
 ## Verdict: Keep the current stack
 
-The current stack is a solid, production-proven choice for this type of app. The architecture is clean on both sides and the team is clearly comfortable with it. The gaps are feature gaps, not architecture gaps.
+The current stack is a solid, production-proven choice for this type of app. The architecture is clean on both sides and the team is clearly comfortable with it.
 
 **The stack is not the bottleneck. Missing backend endpoints are.**
 
@@ -31,9 +31,40 @@ That said, below are targeted upgrades worth considering — not a full rewrite.
 
 ---
 
+## Progress on Previously Recommended Quick Wins
+
+| Recommendation | Status |
+|---------------|--------|
+| Set `BASE_URL` in `apiEndpoints.js` | ✅ Done — now `http://10.0.2.2:5000` |
+| Move tokens to secure storage | ❌ Still in `AsyncStorage` |
+| Connect HomeScreen to real API | ✅ Done — quick relief fetched from backend |
+| Add `authService` logout server call | ❌ Still local-only |
+
+---
+
 ## Recommended Upgrades (Drop-in, Low Risk)
 
-### 1. Backend: Migrate Flask → FastAPI
+### 1. Create `src/constants/strings.js` (Urgent)
+
+`HomeScreen.js` imports `STRINGS` from `../constants/strings` but that file does not exist. This will crash the app. Create it immediately:
+
+```js
+// src/constants/strings.js
+export const STRINGS = {
+  HOME_TITLE: 'PurnaZen',
+  HOME_SUBTITLE: 'Your wellness journey starts here',
+  BANNER_TITLE: 'Premium Wellness Plan',
+  BANNER_SUB: 'Unlock all sessions',
+  WELLNESS_SECTION: 'Wellness',
+  SEE_ALL: 'See All',
+  FACE_GLOW_TITLE: 'Face Glow',
+  FACE_GLOW_SUB: 'Acupressure facial therapy',
+  CONSULT_TITLE: 'Book a Consultation',
+  CONSULT_SUB: 'Talk to an expert today',
+};
+```
+
+### 2. Backend: Migrate Flask → FastAPI (for new endpoints)
 
 | | Flask (current) | FastAPI (recommended) |
 |--|---|---|
@@ -44,15 +75,15 @@ That said, below are targeted upgrades worth considering — not a full rewrite.
 | IDE support | Good | Excellent (full type inference) |
 | Migration effort | Medium (2–3 days) | — |
 
-FastAPI generates OpenAPI/Swagger docs automatically from type hints — no manual Flasgger annotations needed. Pydantic v2 replaces Marshmallow. The existing layered architecture (controllers / services / repositories) maps 1:1.
+FastAPI generates OpenAPI/Swagger docs automatically from type hints. Pydantic v2 replaces Marshmallow. The existing layered architecture (controllers / services / repositories) maps 1:1.
 
-**Recommended when:** adding the 19 missing endpoints — build new routes in FastAPI, migrate auth last.
+**Recommended when:** adding the 22 missing endpoints — build new routes in FastAPI, migrate auth last.
 
 ---
 
-### 2. Frontend: Add Expo Modules (without full Expo migration)
+### 3. Frontend: Add Expo Modules (without full Expo migration)
 
-React Native 0.84 bare workflow is fine. However, adding `expo-modules-core` unlocks useful packages without migrating to managed Expo:
+React Native 0.84 bare workflow is fine. Adding `expo-modules-core` unlocks:
 
 - `expo-secure-store` — replaces `AsyncStorage` for token storage (fixes the biggest security gap)
 - `expo-notifications` — simpler push notification setup than raw FCM
@@ -63,9 +94,9 @@ React Native 0.84 bare workflow is fine. However, adding `expo-modules-core` unl
 
 ---
 
-### 3. State Management: Add Zustand (not Redux)
+### 4. State Management: Add Zustand (not Redux)
 
-Currently there is no global state. As more backend endpoints come online, prop drilling and re-fetching will compound. Zustand is 1 KB, requires zero boilerplate, and is a drop-in for this codebase:
+Currently there is no global state. As more backend endpoints come online, prop drilling and re-fetching will compound. Zustand is 1 KB, requires zero boilerplate:
 
 ```js
 // store/authStore.js
@@ -78,31 +109,35 @@ export const useAuthStore = create(set => ({
 }));
 ```
 
-Redux Toolkit would also work but is heavier than this app needs.
-
 ---
 
-### 4. HTTP Client: Switch to Axios (optional)
+### 5. Backend: Fix Seed Password Hashing
 
-The custom `httpInterceptor.js` works, but Axios provides the same features with less maintenance:
-
-- Request/response interceptors
-- Automatic JSON parsing
-- Cancellation tokens (useful for debounced search)
-- Better error objects
-
-**Migration effort:** 2–4 hours to replace `httpInterceptor.js` and update all services.
-
----
-
-### 5. Backend: Add Redis for Token Blocklist
-
-The current `TokenBlocklist` table is a database-backed revocation list. Under load, every authenticated request queries the DB twice (get user, check blocklist). Redis with TTL matching the JWT expiry is the standard solution:
+`seed.py` creates doctor users with `password="123456"` as a plain string. The `User` model `__init__` does not hash through the service layer. Verify that `AuthService.register()` (which hashes via bcrypt) is called — or add hashing directly to `seed.py`:
 
 ```python
-# Check revocation in O(1) with automatic expiry
-redis_client.set(jti, "revoked", ex=token_expiry_seconds)
+from app.utils.password import hash_password
+user = User(
+    full_name="Dr Sarah Chen",
+    email="sarah@example.com",
+    password=hash_password("123456"),
+    role="doctor"
+)
 ```
+
+---
+
+### 6. HTTP Client: Switch to Axios (optional)
+
+The custom `httpInterceptor.js` works, but Axios provides the same features with less maintenance: interceptors, automatic JSON parsing, cancellation tokens (useful for debounced search), better error objects.
+
+**Migration effort:** 2–4 hours.
+
+---
+
+### 7. Backend: Add Redis for Token Blocklist
+
+The current `TokenBlocklist` table is a database-backed revocation list. Under load, every authenticated request queries the DB twice. Redis with TTL matching JWT expiry is the standard solution.
 
 **Recommended when:** reaching ~100+ DAU.
 
@@ -111,28 +146,16 @@ redis_client.set(jti, "revoked", ex=token_expiry_seconds)
 ## Alternatives Considered (and why to stay with current stack)
 
 ### Flutter
-
-**Pros:** Better rendering performance, single Dart codebase, excellent animation APIs  
-**Cons:** Requires full rewrite, team is clearly in React Native, ecosystem less mature for wellness/therapy domains  
-**Verdict:** Not worth rewriting 17 screens and 5 services. Performance is not the problem here.
+**Verdict:** Not worth rewriting 17 screens and 5 services. Performance is not the problem.
 
 ### Expo Managed Workflow
-
-**Pros:** Easier setup, OTA updates, unified SDK  
-**Cons:** Less control over native modules, larger bundle, ejecting is painful later  
-**Verdict:** The bare workflow is already set up and fine. Use individual Expo packages instead (see point 2 above).
+**Verdict:** Bare workflow is already set up. Use individual Expo packages instead (see point 3 above).
 
 ### Node.js / Express Backend
-
-**Pros:** Same language as frontend, large ecosystem  
-**Cons:** The Flask backend is well-structured and working. Python is preferred for future ML features (face glow analysis)  
-**Verdict:** No reason to migrate. Python will become an asset once Face Glow analysis is implemented.
+**Verdict:** Python will become an asset once Face Glow ML analysis is implemented. No reason to migrate.
 
 ### Firebase (BaaS)
-
-**Pros:** Realtime DB, auth, push notifications, storage in one service  
-**Cons:** Vendor lock-in, cost unpredictable at scale, no SQL joins for complex queries  
-**Verdict:** Could replace individual services (Auth → Firebase Auth, Notifications → FCM) but not the whole backend. Only worth it if the team has no backend developer.
+**Verdict:** Vendor lock-in, no SQL joins. Could replace individual pieces (Auth → Firebase Auth, Notifications → FCM) but not the whole backend.
 
 ---
 
@@ -140,15 +163,19 @@ redis_client.set(jti, "revoked", ex=token_expiry_seconds)
 
 | Phase | Work | Effort |
 |-------|------|--------|
-| Now | Set `BASE_URL`, move tokens to `expo-secure-store` | 2 hours |
-| Phase 1 | Implement 6 P0 backend endpoints in Flask (or FastAPI) | 1 week |
-| Phase 2 | Add Zustand store, implement remaining 13 backend endpoints | 2 weeks |
-| Phase 3 | Migrate backend to FastAPI, add Redis blocklist | 3 days |
-| Phase 4 | Integrate real payment gateway (Razorpay for India), FCM push notifications | 1 week |
-| Phase 5 | Face Glow camera + ML analysis | 2+ weeks |
+| Now | Create `src/constants/strings.js` (app crashes without it) | 30 min |
+| Now | Fix seed.py password hashing | 30 min |
+| Now | Remove debug `console.log` from `authService.js` | 15 min |
+| Phase 1 | Wire frontend logout to call server; move tokens to `expo-secure-store` | 2 hours |
+| Phase 2 | Implement P0 backend endpoints (doctor detail, time slots, book appointment, save session) | 1 week |
+| Phase 3 | Implement P1 endpoints (therapy history, wellness/relief sessions, profile update) | 1 week |
+| Phase 4 | Add Zustand store, connect remaining frontend screens | 3 days |
+| Phase 5 | Migrate backend to FastAPI, add Redis blocklist | 3 days |
+| Phase 6 | Real payment gateway (Razorpay for India), FCM push notifications | 1 week |
+| Phase 7 | Face Glow camera + ML analysis | 2+ weeks |
 
 ---
 
 ## One-Line Summary
 
-Keep React Native + Flask. Add FastAPI for new endpoints, `expo-secure-store` for token security, and Zustand for state. Those three changes address every major gap without a rewrite.
+Keep React Native + Flask. Fix the missing `strings.js` immediately (app will crash), add FastAPI for new endpoints, `expo-secure-store` for token security, and Zustand for state. The doctor listing now works end-to-end — the team has a working template to follow for the remaining 22 endpoints.

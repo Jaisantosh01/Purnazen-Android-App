@@ -1,7 +1,7 @@
 # Purnazen App — Full-Stack Audit
 
-**Date:** 2026-06-12  
-**Status:** Beta UI / Alpha Backend
+**Last updated:** 2026-06-12 (reflects PR #1: `AdditionCode_11June2026_SP`)  
+**Status:** Beta UI / Active Backend Development
 
 ---
 
@@ -23,53 +23,97 @@ Purnazen is a wellness and acupressure therapy mobile application. Users can:
 ### Architecture
 Clean layered MVC with repository pattern: Routes → Controllers → Services → Repositories → Models.
 
-### What Is Done
+### Models
 
-| Layer | File | Status | Notes |
-|-------|------|--------|-------|
-| Entry point | `run.py` | Done | Simple Flask launcher |
-| App factory | `app/__init__.py` | Done | Blueprint registration, JWT, Swagger |
-| Config | `app/config/config.py` | Done | Loads from `.env` |
-| DB extension | `app/extensions/database.py` | Done | SQLAlchemy init |
-| JWT extension | `app/extensions/jwt.py` | Done | Flask-JWT-Extended init |
-| User model | `app/models/user_model.py` | Done | id, full_name, email, password, role, created_at |
-| Token blocklist model | `app/models/token_blocklist_model.py` | Done | JWT logout support |
-| User repository | `app/repositories/user_repository.py` | Done | `find_by_email()`, `create_user()` |
-| Token repository | `app/repositories/token_repository.py` | Done | `add_to_blocklist()`, `is_token_revoked()` |
-| Auth service | `app/services/auth_service.py` | Done | `register()`, `login()` with bcrypt |
-| Auth controller | `app/controllers/auth_controller.py` | Done | register, login, logout, me, refresh, admin |
-| Auth routes | `app/routes/auth_routes.py` | Done | `/api/v1/auth/*` blueprint |
-| Auth validator | `app/validators/auth_validator.py` | Done | Marshmallow `RegisterSchema`, `LoginSchema` |
-| Password utils | `app/utils/password.py` | Done | bcrypt hash + verify |
-| Response utils | `app/utils/response.py` | Done | `success_response()`, `error_response()` |
-| Error handlers | `app/utils/error_handler.py` | Done | 400, 404, 500, ValidationError, Exception |
-| Role middleware | `app/middlewares/role_middleware.py` | Done | `role_required()` decorator |
-| DB migration | `migrations/` | Done | One migration: create users table |
+| Model | File | Status | Key Fields |
+|-------|------|--------|-----------|
+| User | `app/models/user_model.py` | Done | id, full_name, avatar_url *(new)*, email, password, role, created_at |
+| TokenBlocklist | `app/models/token_blocklist_model.py` | Done | jti, created_at |
+| Doctor | `app/models/doctor_model.py` | Done | user_id (FK), specialty_id (FK), about, education, experience_years, consultation_fee, average_rating, reviews_count, is_available_today |
+| Specialty | `app/models/specialty_model.py` | Done | name, description |
+| Clinic | `app/models/clinic_model.py` | Done | doctor_id (FK), name, address, city, lat/long, phone, is_primary |
+| DoctorAvailability | `app/models/doctor_availability_model.py` | Done | doctor_id (FK), day_of_week, start_time, end_time, slot_duration_minutes |
+| Award | `app/models/award_model.py` | Done | doctor_id (FK), title, issuer, year, description |
+| Expertise | `app/models/expertise_model.py` | Done | name |
+| Language | `app/models/language_model.py` | Done | name |
+| ConsultationType | `app/models/consultation_type_model.py` | Done | name |
+| DoctorExpertise | `app/models/doctor_expertise_model.py` | Done | Association table (doctor ↔ expertise) |
+| DoctorLanguage | `app/models/doctor_language_model.py` | Done | Association table (doctor ↔ language) |
+| DoctorConsultationType | `app/models/doctor_consultation_type_model.py` | Done | Association table (doctor ↔ consultation_type) |
+| QuickRelief | `app/models/quick_relief_model.py` | Done | name, slug, title, subtitle, icon_name, icon_url, background_color, text_color, sort_order, is_active |
+
+### Repositories
+
+| Repository | File | Status | Methods |
+|-----------|------|--------|---------|
+| UserRepository | `app/repositories/user_repository.py` | Done | `find_by_email()`, `create_user()` |
+| TokenRepository | `app/repositories/token_repository.py` | Done | `add_to_blocklist()`, `is_token_revoked()` |
+| DoctorRepository | `app/repositories/doctor_repository.py` | Done | `get_doctors(page, limit, search)` — paginated + name search |
+| QuickReliefRepository | `app/repositories/quick_relief_repository.py` | Done | `get_active_quick_reliefs()` — ordered by sort_order |
+
+### Services
+
+| Service | File | Status | Methods |
+|---------|------|--------|---------|
+| AuthService | `app/services/auth_service.py` | Done | `register()`, `login()` |
+| DoctorService | `app/services/doctor_service.py` | Done | `get_doctors(page, limit, search)` |
+| HomeService | `app/services/home_service.py` | Done | `get_quick_reliefs()` — serialises QuickRelief list |
+
+### Controllers
+
+| Controller | File | Style | Methods |
+|-----------|------|-------|---------|
+| auth_controller | `app/controllers/auth_controller.py` | Class | register, login, logout, me, refresh_token, admin_dashboard |
+| doctor_controller | `app/controllers/doctor_controller.py` | Function | `get_doctors()` — reads page/limit/search from query params |
+| HomeController | `app/controllers/home_controller.py` | Class | `get_quick_relief()` |
 
 ### Implemented API Endpoints
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | `/api/v1/auth/register` | None | Create new account |
-| POST | `/api/v1/auth/login` | None | Returns access + refresh tokens |
-| GET | `/api/v1/auth/me` | JWT Access | Get current user profile |
-| POST | `/api/v1/auth/logout` | JWT Refresh | Revoke refresh token |
-| POST | `/api/v1/auth/refresh` | JWT Refresh | Issue new access token |
-| GET | `/api/v1/auth/admin/dashboard` | JWT + admin role | Admin-only route |
+| Method | Path | Auth | Status | Notes |
+|--------|------|------|--------|-------|
+| POST | `/api/v1/auth/register` | None | Done | Create account |
+| POST | `/api/v1/auth/login` | None | Done | Returns access + refresh tokens |
+| GET | `/api/v1/auth/me` | JWT Access | Done | Current user profile |
+| POST | `/api/v1/auth/logout` | JWT Refresh | Done | Revoke token |
+| POST | `/api/v1/auth/refresh` | JWT Refresh | Done | New access token |
+| GET | `/api/v1/auth/admin/dashboard` | JWT + admin | Done | Admin-only |
+| GET | `/api/v1/doctors` | None | **New** | Paginated doctor list, `?page=&limit=&search=` |
+| GET | `/api/v1/home/quick-relief` | None | **New** | Quick relief cards for Home screen |
+
+### Database Migrations
+
+| File | Description |
+|------|-------------|
+| `migrations/versions/<hash>_create_users_table.py` | Initial users table |
+| `migrations/versions/<hash>_add_avatar_url_in_user_table_created_.py` | Adds avatar_url to users |
+| `migrations/versions/<hash>_create_doctor_module_tables.py` | All doctor-related tables |
+| `migrations/versions/<hash>_create_quick_reliefs_table.py` | quick_reliefs table |
+
+### Seed Data (`seed.py`)
+
+Seeds a working development database with:
+- 3 specialties: Acupressure Specialist, Wellness Expert, Pain Management
+- 3 consultation types: Video Call, Home Visit, Clinic Visit
+- 4 languages: English, Hindi, Mandarin, Kannada
+- 11 expertise areas: Pain Management, Stress Relief, Migraine Treatment, Sports Injuries, etc.
+- 3 doctor users + 3 doctor profiles (Dr Sarah Chen, Dr Rajesh Kumar, Dr Priya Sharma)
+
+Run with: `python seed.py`
 
 ### What Is Missing (Backend)
 
-- Doctor profiles and management
-- Appointment booking and calendar
-- Payment processing
-- Wellness session catalog (yoga, meditation, breathing, etc.)
-- Relief session catalog
-- Therapy history recording and retrieval
-- User profile update endpoint (`PUT /me`)
-- Email / SMS notifications
+- Individual doctor detail endpoint (`GET /api/v1/doctors/:id`)
+- Doctor filtering by availability/type (`/today`, `/video`, `/home`, `/top-rated`)
+- Appointment booking (`POST /api/v1/appointments`)
+- Payment processing (`POST /api/v1/payments`)
+- Wellness session catalog endpoints
+- Relief session catalog endpoints
+- Therapy history endpoints
+- User profile update (`PUT /api/v1/auth/me`)
+- Password change endpoint
+- Account deletion endpoint
 - CORS configuration
-- Rate limiting on auth endpoints
-- Database schemas: `doctors`, `appointments`, `sessions`, `payments`
+- Rate limiting
 
 ---
 
@@ -96,69 +140,56 @@ RootStack
 | Screen | File | Status | Notes |
 |--------|------|--------|-------|
 | Login | `LoginScreen.js` | Done | Validation, token storage, error display |
-| Home | `HomeScreen.js` | Done | Quick relief cards, wellness cards, face glow, consult CTA |
-| Relief | `ReliefScreen.js` | Done | 8-card grid, navigates to ReliefSession |
+| Home | `HomeScreen.js` | **Updated** | Fetches quick relief from `GET /api/v1/home/quick-relief`; loading state; wellness rows static fallback |
+| Relief | `ReliefScreen.js` | Done | 8-card grid |
 | Wellness | `WellnessScreen.js` | Done | Stats header, 6 program cards |
 | Yoga Session | `YogaSessionScreen.js` | Done | Video player, animated progress, step tracking, cycle support |
 | Relief Session | `ReliefSessionScreen.js` | Done | Acupressure steps, 3 cycles, saves on completion |
-| Face Glow | `FaceGlowScreen.js` | Partial | UI done; "Start Face Analysis" button shows alert only |
+| Face Glow | `FaceGlowScreen.js` | Partial | UI done; "Start Face Analysis" shows alert only |
 | Consult | `ConsultScreen.js` | Done | Search + debounce, 5 filter tabs, pagination, pull-to-refresh |
 | Doctor Profile | `DoctorProfileScreen.js` | Done | Async detail load, error/retry, book CTA |
-| Book Appointment | `BookAppointmentScreen.js` | Done | Visit type, calendar, time slots, confirmation |
+| Book Appointment | `BookAppointmentScreen.js` | Done | Visit type, calendar, time slots |
 | Booking Confirmed | `BookingConfirmedScreen.js` | Done | Success screen, proceed to payment |
-| Payment | `PaymentScreen.js` | Done | Card / UPI / Wallet, GST calculation |
+| Payment | `PaymentScreen.js` | Done | Card / UPI / Wallet, GST |
 | Profile | `ProfileScreen.js` | Done | Stats, streak, menu, logout |
 | Therapy History | `TherapyHistoryScreen.js` | Done | Stats, session cards, pain progress |
 | Settings | `SettingsScreen.js` | Done | Account, notifications, appearance, privacy, danger zone |
-| Notifications | `NotificationsScreen.js` | Done | Grouped toggles, recent notifications list |
-| Subscriptions | `SubscriptionsScreen.js` | Done | Free / Premium / Pro plans, upgrade alerts |
-| Help & Support | `HelpSupportScreen.js` | Done | Contact cards, FAQ accordion, quick links |
+| Notifications | `NotificationsScreen.js` | Done | Grouped toggles, recent list |
+| Subscriptions | `SubscriptionsScreen.js` | Done | Free / Premium / Pro plans |
+| Help & Support | `HelpSupportScreen.js` | Done | Contact cards, FAQ, quick links |
 | Select Symptom | `SelectSymptomScreen.js` | Done | Searchable symptom list |
 
 ### Services
 
-| Service | File | Status | Endpoints Called |
-|---------|------|--------|-----------------|
-| Auth | `authService.js` | Done | `LOGIN` |
-| Consult | `consultService.js` | Done | `DOCTORS`, `DOCTOR_DETAIL`, `VISIT_TYPES`, `TIME_SLOTS`, `BOOK_APPOINTMENT`, `PAYMENT`, `FILTER_TABS` |
-| Relief | `reliefService.js` | Done | `ALL_RELIEF_SESSIONS`, `RELIEF_SESSION` (falls back to mock) |
-| Wellness | `wellnessService.js` | Done | `ALL_SESSIONS`, `SESSION` (falls back to mock) |
-| Therapy | `therapyService.js` | Done | `THERAPY_HISTORY`, `SAVE_THERAPY_SESSION` |
+| Service | File | Status | Notes |
+|---------|------|--------|-------|
+| Auth | `authService.js` | **Updated** | Reads `response.data.{access_token, refresh_token, user}` — matches new backend response shape; debug `console.log` statements present (cleanup needed) |
+| Consult | `consultService.js` | Done | Falls back to mock data |
+| Relief | `reliefService.js` | Done | Falls back to mock data |
+| Wellness | `wellnessService.js` | Done | Falls back to mock data |
+| Therapy | `therapyService.js` | Done | Falls back to mock data |
 
-### Components
+### Constants (`src/constants/apiEndpoints.js`) — Updated
 
-| Component | Status | Notes |
-|-----------|--------|-------|
-| `BottomNav.js` | Done | Custom nav bar (currently unused, React Navigation used instead) |
-| `QuickCards.js` | Done | Icon card used in HomeScreen |
-| Shared theme / StyleSheet | **Missing** | Styles duplicated across 17+ screens |
-| Loading skeleton | **Missing** | Blank flash while async data loads |
-| Toast / Snackbar | **Missing** | Errors shown via Alert only |
-| Error boundary | **Missing** | No global JS error boundary |
+| Constant | Value | Status |
+|---------|-------|--------|
+| `BASE_URL` | `http://10.0.2.2:5000` *(Android emulator)* | **Now set** |
+| `HOME_QUICK_RELIEF` | `/api/v1/home/quick-relief` | **New** |
+| `DOCTORS` | `/api/v1/doctors` | Done |
+| `FACE_GLOW_ROUTINES` | `/api/v1/face-glow/routines` | **New** (no backend yet) |
+| `FACE_GLOW_SCAN` | `/api/v1/face-glow/scan` | **New** (no backend yet) |
+| `FACE_GLOW_SCAN_HISTORY` | `/api/v1/face-glow/history` | **New** (no backend yet) |
 
-### HTTP Interceptor (`src/interceptors/httpInterceptor.js`)
+### Known Issues / Code Quality
 
-- Done: Bearer token injection, 401/403/404/500 global handling, request/response logging, singleton pattern.
-
-### Constants (`src/constants/apiEndpoints.js`)
-
-- 17 endpoints defined
-- `BASE_URL` is a placeholder — must be set per environment
-
-### Mock Data Files (`src/data/`)
-
-All data files are complete with realistic content; used as fallback when API is unavailable.
-
-| File | Content |
-|------|---------|
-| `consultData.js` | 2 full doctor profiles |
-| `reliefData.js` | 8 relief conditions |
-| `symptomsData.js` | 8 symptoms |
-| `wellnessData.js` | Stats + 6 programs |
-| `therapyData.js` | Stats + 6 history sessions |
-| `faceGlowData.js` | 4 routines + 6 benefits |
-| `yogaSessionData.js` | 6 session types with detailed steps |
-| `reliefSessionData.js` | 9 relief sessions with step-by-step instructions |
+| Issue | Location | Severity |
+|-------|----------|---------|
+| `STRINGS` imported but file doesn't exist | `HomeScreen.js:2` + `src/constants/strings.js` missing | High — will crash on import |
+| Debug `console.log` statements | `authService.js:18–35` | Low — cleanup before release |
+| `BottomNav.js` component unused | `src/components/BottomNav.js` | Low |
+| Tokens in `AsyncStorage` instead of secure storage | `authService.js` | Medium — security gap |
+| `logout()` only clears local storage; does not call server | `authService.js:51–55` | Medium — refresh token stays valid |
+| Wellness rows in HomeScreen use hardcoded fallback only | `HomeScreen.js:20–24` | Medium — no API integration yet |
 
 ---
 
@@ -169,11 +200,12 @@ All data files are complete with realistic content; used as fallback when API is
 | Architecture | 8/10 | Clean layered backend; clear frontend service pattern |
 | UI/UX | 8/10 | Polished screens, consistent color scheme |
 | Authentication | 9/10 | JWT, refresh tokens, blocklist, RBAC |
-| API Integration | 4/10 | Endpoints defined but backend only implements auth |
+| API Integration | 5/10 | 2 domain endpoints now live; 17+ still missing |
+| Data Models | 7/10 | Doctor module fully modelled; no appointment/session models yet |
 | Testing | 0/10 | Zero test files found |
-| Documentation | 6/10 | READMEs solid; code-level docs minimal |
-| Code Quality | 6/10 | Monolithic screens, no shared theme, some prop drilling |
-| Completeness | 5/10 | UI-complete; backend ~10% of needed endpoints |
+| Documentation | 7/10 | READMEs solid; this audit tracks current state |
+| Code Quality | 6/10 | Debug logs in authService; missing strings.js; monolithic screens |
+| Completeness | 6/10 | Doctor listing works end-to-end; most features still stubbed |
 | Production Readiness | 3/10 | Missing rate limiting, CORS, monitoring, tests, CI/CD |
 
 ---
@@ -187,12 +219,11 @@ All data files are complete with realistic content; used as fallback when API is
 - Bearer token attached by interceptor
 
 ### Needs Attention
-- `AsyncStorage` used for tokens (prefer `react-native-keychain` for secure storage)
+- `AsyncStorage` used for tokens (prefer `react-native-keychain` or `expo-secure-store`)
+- `logout()` in `authService.js` does not call `POST /api/v1/auth/logout` — refresh token remains valid on server
 - No CORS config on Flask backend
 - No rate limiting on `/register` and `/login`
-- No brute-force protection
-- No certificate pinning in mobile app
-- `BASE_URL` in plain JS constants (should come from environment variable / build config)
+- Seed doctor passwords are plaintext `"123456"` — `User.__init__` does not hash them via the service layer (check if this goes through bcrypt)
 
 ---
 
@@ -208,7 +239,7 @@ psycopg2-binary 2.9.12 | python-dotenv 1.2.2 | Flasgger 0.9.7.1
 ### Frontend
 ```
 React Native 0.84.1 | React 19.2.3 | React Navigation 7.x
-@react-navigation/stack | @react-navigation/bottom-tabs
+@react-navigation/native-stack | @react-navigation/bottom-tabs
 @react-native-async-storage/async-storage
 react-native-vector-icons | react-native-video
 ```
