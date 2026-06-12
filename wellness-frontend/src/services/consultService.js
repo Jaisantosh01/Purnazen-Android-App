@@ -92,6 +92,19 @@ class ConsultService {
     }
   }
 
+  async verifyPayment({ orderId, paymentId, signature }) {
+    try {
+      const json = await this.post(ENDPOINTS.PAYMENT_VERIFY, {
+        orderId,
+        paymentId,
+        signature,
+      });
+      return json?.data;
+    } catch (err) {
+      throw new Error(err?.message ?? 'Payment verification failed');
+    }
+  }
+
 }
 
 export default new ConsultService();

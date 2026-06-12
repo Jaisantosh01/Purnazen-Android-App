@@ -2,6 +2,33 @@
 
 All notable changes to the Purnazen App are documented here.
 
+## [2026-06-12] — P1 feature completeness (TASKS.md T6–T11)
+
+### Backend
+
+**Added**
+
+- **T6 — Doctor filter endpoints**: `GET /api/v1/doctors/available-today`, `/video-call`, `/home-visit`, `/top-rated` — same paginated card shape (+ `search`) as the catalog. available-today filters `is_available_today`; video/home join the `consultation_types` m2m; top-rated = `average_rating >= 4.5` ordered desc. Registered **before** `/doctors/{id}` (FastAPI path-converter ordering). `seed.py` now links consultation types to the demo doctors (the filters were unseedable before).
+- **T7 — Session catalogs**: new `WellnessSession` + `ReliefSession` models (key, title, duration label, icon, video URL, total cycles, steps JSON, sort order, is_active) + migration (`b7c1f4e92d35`). `GET /api/v1/sessions[/:key]` and `GET /api/v1/relief-sessions[/:key]` return the exact player shape the screens consume; 404 envelope on unknown keys. Seed content ported from the frontend mock files into `seed_data.py` (6 wellness + 10 relief sessions).
+- **T8 — Profile management**: `PUT /api/v1/auth/me` (full_name/avatar_url), `POST /api/v1/auth/change-password` (verifies current password — 401 on mismatch — then **revokes every previously issued token** and returns a fresh pair), `DELETE /api/v1/auth/me` (hard delete + explicit cascade of therapy sessions, payments and appointments; doctor accounts refused with 400). Token revocation works via a new `users.token_version` column (migration `c4d8a61f7b29`) carried in JWTs as `ver` and checked on every authed request — also makes deleted users' tokens die immediately. `GET /auth/me` now returns the full user profile alongside `user_id`.
+- **T11 — Payments (Razorpay sandbox)**: new `Payment` model + migration (`d9e2b53a8c47`, also adds `appointments.payment_status` unpaid/paid). `POST /api/v1/payments/process` (auth) creates an order — against the Razorpay REST API when `RAZORPAY_KEY_ID/SECRET` are set (test keys = sandbox), otherwise in a keyless **local sandbox mode** that also returns a valid `sandboxPaymentId`/`sandboxSignature` pair so the flow completes without the native checkout SDK. `POST /api/v1/payments/verify` checks the Razorpay HMAC-SHA256 signature (`order_id|payment_id`): success marks payment + appointment paid; mismatch marks the payment failed and leaves the appointment unpaid. Ownership enforced; double payment refused.
+- Tests: 52 → **79** (filters, session catalogs, profile update / password change / token revocation / account deletion, payment process/verify/tamper/auth/ownership).
+
+### Frontend
+
+**Added**
+
+- **T9 — RegisterScreen**: full name / email / password + confirm, client-side validation, calls `POST /auth/register` then auto-logs in (`authService.register`) and lands on Main. Linked from LoginScreen ("Sign Up") and added to the RootStack. 4 jest tests.
+- **T10 — Axios auto-refresh on 401** (`src/api/client.js`): response interceptor exchanges the keychain refresh token for a new access token on any 401 (except login/register/refresh/logout), replays the original request, and queues concurrent 401s behind a single refresh. On refresh failure: tokens + cached user cleared, Zustand store reset, navigation reset to Login via the new `src/navigation/navigationRef.js` (attached to NavigationContainer in App.tsx). 5 adapter-driven jest tests.
+- `authService`: new `register`, `updateProfile`, `changePassword` (stores the rotated token pair), `deleteAccount` methods.
+
+**Changed**
+
+- **T8 — SettingsScreen wired**: Edit Profile and Change Password now work via in-screen modal forms; the email row shows the logged-in user's email; Logout actually logs out (server-side revoke + reset to Login); Delete Account calls `DELETE /auth/me` and resets to Login.
+- **T11 — PaymentScreen wired**: Pay now runs order create → verify against the backend (no more fake success alert); failures surface as a Payment Failed alert. `appointmentId` is threaded through Book → BookingConfirmed → Payment so a verified payment marks that appointment paid. With real Razorpay keys the checkout SDK step is still TODO (native module — needs an Android SDK machine).
+- T6 note: ConsultScreen's filter tabs were already calling the new endpoints (`FILTER_ENDPOINT_MAP`) — they now return server-filtered data instead of erroring into the fallback.
+- T7 note: the wellness/relief players now run from API content; the local `yogaSessionData.js`/`reliefSessionData.js` files are kept (deliberately, vs. the original "delete mocks" wording) as instant-render/offline fallbacks since the screens initialize timer state synchronously before the fetch resolves.
+
 ## [2026-06-12] — P0 booking funnel + therapy history (TASKS.md T1–T5)
 
 ### Backend

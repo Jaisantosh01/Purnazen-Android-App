@@ -45,6 +45,14 @@ OPENAPI_TAGS = [
         "description": "Save completed wellness/relief sessions and list them with stats.",
     },
     {
+        "name": "Sessions",
+        "description": "Wellness and relief player content catalogs (steps, cycles, media).",
+    },
+    {
+        "name": "Payments",
+        "description": "Razorpay order creation and signature verification (sandbox-capable).",
+    },
+    {
         "name": "Health",
         "description": "Liveness probe.",
     },

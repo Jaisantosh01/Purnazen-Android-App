@@ -18,7 +18,7 @@ const WALLETS = [
 ];
 
 const PaymentScreen = ({ navigation, route }) => {
-  const { doctor, fee } = route.params;
+  const { doctor, fee, appointmentId } = route.params;
   const gst = Math.round(fee * 0.18);
   const total = fee + gst;
 
@@ -34,22 +34,38 @@ const PaymentScreen = ({ navigation, route }) => {
   const handlePay = async () => {
     setIsProcessing(true);
     try {
-      await consultService.processPayment({
+      // 1. Create the payment order
+      const order = await consultService.processPayment({
+        appointmentId,
         doctorId: doctor.id,
         amount:   total,
         method:   selectedMethod,
         wallet:   selectedMethod === 'wallet' ? selectedWallet : undefined,
       });
+
+      // 2. Complete it. Without provider keys the backend runs a local
+      //    sandbox and hands us a valid signature pair; with real keys this
+      //    is where the Razorpay checkout SDK would produce them.
+      if (order?.sandboxPaymentId) {
+        await consultService.verifyPayment({
+          orderId:   order.orderId,
+          paymentId: order.sandboxPaymentId,
+          signature: order.sandboxSignature,
+        });
+      } else {
+        throw new Error('Razorpay checkout is not available in this build yet.');
+      }
+
+      Alert.alert(
+        'Payment Successful!',
+        `₹${total} paid successfully for your appointment with ${doctor.name}.`,
+        [{ text: 'OK', onPress: () => navigation.navigate('ConsultMain') }]
+      );
     } catch (err) {
-      console.log('Payment API not ready:', err.message);
+      Alert.alert('Payment Failed', err.message || 'Please try again.');
     } finally {
       setIsProcessing(false);
     }
-    Alert.alert(
-      'Payment Successful!',
-      `₹${total} paid successfully for your appointment with ${doctor.name}.`,
-      [{ text: 'OK', onPress: () => navigation.navigate('ConsultMain') }]
-    );
   };
 
   return (

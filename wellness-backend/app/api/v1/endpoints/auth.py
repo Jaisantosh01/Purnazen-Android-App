@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import (
     get_db,
-    get_access_payload,
+    get_current_user,
     get_refresh_payload,
     require_role,
 )
@@ -12,7 +12,12 @@ from app.core.config import settings
 from app.core.security import create_access_token
 from app.models.user import User
 from app.repositories.token_repository import TokenRepository
-from app.schemas.auth import LoginRequest, RegisterRequest
+from app.schemas.auth import (
+    ChangePasswordRequest,
+    LoginRequest,
+    RegisterRequest,
+    UpdateProfileRequest,
+)
 from app.services.auth_service import AuthService
 from app.utils.responses import error_response, success_response
 
@@ -72,11 +77,73 @@ def logout(
 
 
 @router.get("/me", summary="Current authenticated user")
-def me(payload: dict = Depends(get_access_payload)):
+def me(user: User = Depends(get_current_user)):
     return success_response(
         "Current user fetched successfully",
-        {"user_id": payload["sub"]},
+        {"user_id": str(user.id), "user": user.to_dict()},
     )
+
+
+@router.put(
+    "/me",
+    summary="Update profile",
+    description="Updates the authenticated user's full name and/or avatar URL.",
+)
+def update_me(
+    body: UpdateProfileRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    response, status_code = AuthService.update_profile(db, user, body.model_dump())
+    return success_response(response["message"], {"user": response["user"]}, status_code)
+
+
+@router.post(
+    "/change-password",
+    summary="Change password",
+    description=(
+        "Verifies the current password, stores the new one and **revokes every "
+        "previously issued token**. Returns a fresh access/refresh token pair."
+    ),
+)
+def change_password(
+    body: ChangePasswordRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    response, status_code = AuthService.change_password(db, user, body.model_dump())
+
+    if not response["success"]:
+        return error_response(response["message"], status_code)
+
+    return success_response(
+        response["message"],
+        {
+            "access_token": response["access_token"],
+            "refresh_token": response["refresh_token"],
+        },
+        status_code,
+    )
+
+
+@router.delete(
+    "/me",
+    summary="Delete account",
+    description=(
+        "Permanently deletes the authenticated user with their appointments and "
+        "therapy history. All tokens stop working immediately."
+    ),
+)
+def delete_me(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    response, status_code = AuthService.delete_account(db, user)
+
+    if not response["success"]:
+        return error_response(response["message"], status_code)
+
+    return success_response(response["message"], None, status_code)
 
 
 @router.post(
@@ -88,7 +155,7 @@ def me(payload: dict = Depends(get_access_payload)):
 def refresh_token(request: Request, payload: dict = Depends(get_refresh_payload)):
     return success_response(
         "Access token refreshed",
-        {"access_token": create_access_token(payload["sub"])},
+        {"access_token": create_access_token(payload["sub"], payload.get("ver", 0))},
     )
 
 

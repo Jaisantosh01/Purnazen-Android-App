@@ -28,6 +28,9 @@ class Appointment(Base):
     slot_end = Column(Time, nullable=False)
     fee = Column(Numeric(10, 2))
     status = Column(String(20), nullable=False, default="booked")  # booked | cancelled | completed
+    payment_status = Column(
+        String(20), nullable=False, default="unpaid", server_default="unpaid"
+    )  # unpaid | paid
     created_at = Column(DateTime, server_default=func.now())
 
     user = relationship("User", backref="appointments")
@@ -54,5 +57,6 @@ class Appointment(Base):
             "slotEnd": self.slot_end.strftime("%H:%M"),
             "fee": float(self.fee) if self.fee is not None else None,
             "status": self.status,
+            "paymentStatus": self.payment_status,
             "createdAt": self.created_at.isoformat() if self.created_at else None,
         }

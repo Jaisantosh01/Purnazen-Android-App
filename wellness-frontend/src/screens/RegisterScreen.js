@@ -14,23 +14,30 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import authService from '../services/authService';
 
-const LoginScreen = ({ navigation }) => {
+const EMAIL_RE = /^\S+@\S+\.\S+$/;
+
+const RegisterScreen = ({ navigation }) => {
+  const [fullName, setFullName]         = useState('');
   const [email, setEmail]               = useState('');
   const [password, setPassword]         = useState('');
+  const [confirm, setConfirm]           = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError]               = useState('');
   const [isLoading, setIsLoading]       = useState(false);
 
-  const handleLogin = async () => {
-    if (!email.trim())    { setError('Please enter your email.');    return; }
-    if (!password.trim()) { setError('Please enter your password.'); return; }
+  const handleRegister = async () => {
+    if (!fullName.trim())          { setError('Please enter your name.');                 return; }
+    if (!EMAIL_RE.test(email.trim())) { setError('Please enter a valid email.');          return; }
+    if (password.length < 6)       { setError('Password must be at least 6 characters.'); return; }
+    if (password !== confirm)      { setError('Passwords do not match.');                 return; }
     setError('');
     setIsLoading(true);
     try {
-      await authService.login(email.trim(), password);
+      // register() auto-logs in on success
+      await authService.register(fullName.trim(), email.trim(), password);
       navigation.replace('Main');
     } catch (err) {
-      setError(err.message || 'Login failed. Please try again.');
+      setError(err.message || 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -56,16 +63,28 @@ const LoginScreen = ({ navigation }) => {
 
         {/* Form card */}
         <View style={styles.card}>
-          <Text style={styles.title}>Welcome Back</Text>
-          <Text style={styles.subtitle}>Login to your account</Text>
+          <Text style={styles.title}>Create Account</Text>
+          <Text style={styles.subtitle}>Sign up to get started</Text>
 
-          {/* Error message */}
           {error.length > 0 && (
             <View style={styles.errorBox}>
               <MCIcon name="alert-circle-outline" size={16} color="#ef4444" />
               <Text style={styles.errorText}>{error}</Text>
             </View>
           )}
+
+          {/* Full name */}
+          <Text style={styles.label}>Full Name</Text>
+          <View style={styles.inputContainer}>
+            <MCIcon name="account-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your full name"
+              placeholderTextColor="#9ca3af"
+              value={fullName}
+              onChangeText={text => { setFullName(text); setError(''); }}
+            />
+          </View>
 
           {/* Email */}
           <Text style={styles.label}>Email</Text>
@@ -88,7 +107,7 @@ const LoginScreen = ({ navigation }) => {
             <MCIcon name="lock-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="Enter your password"
+              placeholder="At least 6 characters"
               placeholderTextColor="#9ca3af"
               value={password}
               onChangeText={text => { setPassword(text); setError(''); }}
@@ -107,21 +126,38 @@ const LoginScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
 
-          {/* Login Button */}
+          {/* Confirm password */}
+          <Text style={styles.label}>Confirm Password</Text>
+          <View style={styles.inputContainer}>
+            <MCIcon name="lock-check-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Repeat your password"
+              placeholderTextColor="#9ca3af"
+              value={confirm}
+              onChangeText={text => { setConfirm(text); setError(''); }}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+            />
+          </View>
+
+          {/* Register Button */}
           <TouchableOpacity
-            style={[styles.loginBtn, isLoading && styles.loginBtnDisabled]}
+            style={[styles.registerBtn, isLoading && styles.registerBtnDisabled]}
             activeOpacity={0.85}
-            onPress={handleLogin}
+            onPress={handleRegister}
             disabled={isLoading}
           >
-            <Text style={styles.loginBtnText}>{isLoading ? 'Logging in...' : 'Login'}</Text>
+            <Text style={styles.registerBtnText}>
+              {isLoading ? 'Creating account...' : 'Sign Up'}
+            </Text>
           </TouchableOpacity>
 
-          {/* Sign up link */}
-          <View style={styles.signupRow}>
-            <Text style={styles.signupHint}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-              <Text style={styles.signupLink}>Sign Up</Text>
+          {/* Back to login */}
+          <View style={styles.loginRow}>
+            <Text style={styles.loginHint}>Already have an account? </Text>
+            <TouchableOpacity onPress={() => navigation.goBack()}>
+              <Text style={styles.loginLink}>Login</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -131,7 +167,7 @@ const LoginScreen = ({ navigation }) => {
   );
 };
 
-export default LoginScreen;
+export default RegisterScreen;
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#1FA77A' },
@@ -141,8 +177,8 @@ const styles = StyleSheet.create({
   // Top green section
   topSection: {
     alignItems: 'center',
-    paddingTop: 70,
-    paddingBottom: 40,
+    paddingTop: 60,
+    paddingBottom: 32,
   },
   logoCircle: {
     width: 80,
@@ -183,7 +219,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     color: '#9ca3af',
-    marginBottom: 28,
+    marginBottom: 24,
   },
 
   // Error box
@@ -217,7 +253,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 14,
-    marginBottom: 20,
+    marginBottom: 18,
   },
   inputIcon: { marginRight: 10 },
   input: {
@@ -228,34 +264,34 @@ const styles = StyleSheet.create({
   },
   eyeBtn: { padding: 4 },
 
-  // Login button
-  loginBtn: {
+  // Register button
+  registerBtn: {
     backgroundColor: '#1FA77A',
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 8,
   },
-  loginBtnDisabled: {
+  registerBtnDisabled: {
     opacity: 0.7,
   },
-  loginBtnText: {
+  registerBtnText: {
     fontSize: 16,
     fontWeight: '700',
     color: '#fff',
   },
 
-  // Sign up link
-  signupRow: {
+  // Back-to-login link
+  loginRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     marginTop: 20,
   },
-  signupHint: {
+  loginHint: {
     fontSize: 13,
     color: '#9ca3af',
   },
-  signupLink: {
+  loginLink: {
     fontSize: 13,
     fontWeight: '700',
     color: '#1FA77A',

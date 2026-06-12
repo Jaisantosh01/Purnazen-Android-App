@@ -123,6 +123,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
         visitType: selectedVisitData?.title,
         fee: selectedVisitData?.fee,
         bookingRef: booking?.reference,
+        appointmentId: booking?.id,
       });
     } catch (err) {
       Alert.alert('Booking Failed', err.message);

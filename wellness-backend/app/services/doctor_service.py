@@ -39,8 +39,10 @@ VISIT_SLUG_TO_CONSULTATION_TYPE = {
 class DoctorService:
 
     @staticmethod
-    def get_doctors(db: Session, page: int, limit: int, search: str):
-        return DoctorRepository.get_doctors(db, page, limit, search)
+    def get_doctors(
+        db: Session, page: int, limit: int, search: str, filter_key: str | None = None
+    ):
+        return DoctorRepository.get_doctors(db, page, limit, search, filter_key)
 
     @staticmethod
     def get_doctor_by_id(db: Session, doctor_id: int) -> Doctor | None:

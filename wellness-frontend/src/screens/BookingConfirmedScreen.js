@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 
 const BookingConfirmedScreen = ({ navigation, route }) => {
-  const { doctor, date, time, visitType, fee, bookingRef } = route.params;
+  const { doctor, date, time, visitType, fee, bookingRef, appointmentId } = route.params;
 
   return (
     <View style={styles.root}>
@@ -73,7 +73,7 @@ const BookingConfirmedScreen = ({ navigation, route }) => {
         {/* Buttons */}
         <TouchableOpacity
           style={styles.payBtn}
-          onPress={() => navigation.navigate('Payment', { doctor, fee })}
+          onPress={() => navigation.navigate('Payment', { doctor, fee, appointmentId })}
           activeOpacity={0.85}
         >
           <Text style={styles.payBtnText}>Proceed to Payment  →</Text>

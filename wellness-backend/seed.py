@@ -14,10 +14,13 @@ from app.db.base import (
     DoctorAvailability,
     Expertise,
     Language,
+    ReliefSession,
     Specialty,
     User,
+    WellnessSession,
 )
 from app.db.session import SessionLocal, engine
+from seed_data import RELIEF_SESSIONS, WELLNESS_SESSIONS
 
 Base.metadata.create_all(bind=engine)
 
@@ -146,6 +149,30 @@ try:
     db.commit()
 
     # ------------------------
+    # Doctor ↔ consultation types (drives visit-types + the T6 filter endpoints)
+    # ------------------------
+    type_links = {
+        "sarah@example.com": ["Video Call", "Clinic Visit"],
+        "rajesh@example.com": ["Home Visit", "Clinic Visit"],
+        "priya@example.com": ["Video Call", "Home Visit", "Clinic Visit"],
+    }
+
+    for email, type_names in type_links.items():
+        owner = db.query(User).filter_by(email=email).first()
+        doctor = db.query(Doctor).filter_by(user_id=owner.id).first() if owner else None
+        if not doctor:
+            continue
+        existing = {ct.name for ct in doctor.consultation_types}
+        for type_name in type_names:
+            if type_name not in existing:
+                consultation_type = (
+                    db.query(ConsultationType).filter_by(name=type_name).first()
+                )
+                doctor.consultation_types.append(consultation_type)
+
+    db.commit()
+
+    # ------------------------
     # Weekly availability (drives /doctors/:id/time-slots)
     # ------------------------
     weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
@@ -166,6 +193,41 @@ try:
                             is_available=True,
                         )
                     )
+
+    db.commit()
+
+    # ------------------------
+    # Session catalogs (wellness + relief players)
+    # ------------------------
+    for sort_order, (key, content) in enumerate(WELLNESS_SESSIONS.items()):
+        if not db.query(WellnessSession).filter_by(key=key).first():
+            db.add(
+                WellnessSession(
+                    key=key,
+                    title=content["title"],
+                    duration_label=content["duration"],
+                    icon=content["icon"],
+                    video_url=content["videoUrl"],
+                    total_cycles=content["totalCycles"],
+                    steps=content["steps"],
+                    sort_order=sort_order,
+                )
+            )
+
+    for sort_order, (key, content) in enumerate(RELIEF_SESSIONS.items()):
+        if not db.query(ReliefSession).filter_by(key=key).first():
+            db.add(
+                ReliefSession(
+                    key=key,
+                    title=content["title"],
+                    duration_label=content["duration"],
+                    icon=content["icon"],
+                    video_url=content["videoUrl"],
+                    total_cycles=content["totalCycles"],
+                    steps=content["steps"],
+                    sort_order=sort_order,
+                )
+            )
 
     db.commit()
 

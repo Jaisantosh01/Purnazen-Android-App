@@ -27,6 +27,21 @@ class AuthService {
     return user;
   }
 
+  /** Create an account, then log straight in (returns the user). */
+  async register(fullName, email, password) {
+    const response = await apiClient.post(ENDPOINTS.REGISTER, {
+      full_name: fullName,
+      email,
+      password,
+    });
+
+    if (!response.success) {
+      throw new Error(response.message || 'Registration failed');
+    }
+
+    return this.login(email, password);
+  }
+
   async logout() {
     // Revoke the refresh token server-side; clear locally even if that fails
     try {
@@ -38,6 +53,51 @@ class AuthService {
       }
     } catch (error) {
       // Token may already be expired/revoked — local logout still proceeds
+    }
+
+    await secureStorage.clearTokens();
+    await AsyncStorage.removeItem('user');
+    useAuthStore.getState().clearAuth();
+  }
+
+  /** Update full name / avatar; keeps the cached user and store in sync. */
+  async updateProfile({ fullName, avatarUrl } = {}) {
+    const response = await apiClient.put(ENDPOINTS.ME, { fullName, avatarUrl });
+
+    if (!response.success) {
+      throw new Error(response.message || 'Profile update failed');
+    }
+
+    const user = response.data.user;
+    await AsyncStorage.setItem('user', JSON.stringify(user));
+    useAuthStore.getState().setAuth(user);
+    return user;
+  }
+
+  /**
+   * Change the password. The backend revokes every previously issued token
+   * and returns a fresh pair, which replaces the stored ones.
+   */
+  async changePassword(currentPassword, newPassword) {
+    const response = await apiClient.post(ENDPOINTS.CHANGE_PASSWORD, {
+      currentPassword,
+      newPassword,
+    });
+
+    if (!response.success) {
+      throw new Error(response.message || 'Password change failed');
+    }
+
+    const { access_token, refresh_token } = response.data;
+    await secureStorage.setTokens(access_token, refresh_token);
+  }
+
+  /** Delete the account server-side, then clear the local session. */
+  async deleteAccount() {
+    const response = await apiClient.delete(ENDPOINTS.ME);
+
+    if (!response.success) {
+      throw new Error(response.message || 'Account deletion failed');
     }
 
     await secureStorage.clearTokens();

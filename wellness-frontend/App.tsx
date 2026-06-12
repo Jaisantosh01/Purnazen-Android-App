@@ -7,8 +7,11 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 // @ts-ignore
 import authService from './src/services/authService';
 // @ts-ignore
+import { navigationRef } from './src/navigation/navigationRef';
+// @ts-ignore
 import { COLORS } from './src/constants/theme';
 import LoginScreen from './src/screens/LoginScreen';
+import RegisterScreen from './src/screens/RegisterScreen';
 
 import HomeScreen from './src/screens/HomeScreen';
 import ReliefScreen from './src/screens/ReliefScreen';
@@ -156,10 +159,11 @@ export default function App() {
   }, []);
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
-        <RootStack.Screen name="Login" component={LoginScreen} />
-        <RootStack.Screen name="Main"  component={MainTabs}    />
+        <RootStack.Screen name="Login"    component={LoginScreen}    />
+        <RootStack.Screen name="Register" component={RegisterScreen} />
+        <RootStack.Screen name="Main"     component={MainTabs}       />
       </RootStack.Navigator>
     </NavigationContainer>
   );

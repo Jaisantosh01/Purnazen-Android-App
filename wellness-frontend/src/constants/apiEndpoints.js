@@ -12,6 +12,7 @@ export const ENDPOINTS = {
   LOGOUT: `${API_VERSION}/auth/logout`,
   REFRESH: `${API_VERSION}/auth/refresh`,
   ME: `${API_VERSION}/auth/me`,
+  CHANGE_PASSWORD: `${API_VERSION}/auth/change-password`,
 
   // Home
   HOME_QUICK_RELIEF: `${API_VERSION}/home/quick-relief`,
@@ -32,6 +33,7 @@ export const ENDPOINTS = {
   // Booking & Payment
   BOOK_APPOINTMENT: `${API_VERSION}/appointments/book`,
   PAYMENT: `${API_VERSION}/payments/process`,
+  PAYMENT_VERIFY: `${API_VERSION}/payments/verify`,
 
   // Wellness Sessions
   ALL_SESSIONS: `${API_VERSION}/sessions`,

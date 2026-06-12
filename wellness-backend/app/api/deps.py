@@ -40,6 +40,13 @@ def _get_token_payload(
     if TokenRepository.is_token_revoked(db, payload.get("jti", "")):
         raise HTTPException(status_code=401, detail="Token has been revoked")
 
+    # Tokens minted before a password change (or for a deleted account) carry a
+    # stale "ver" claim and are rejected — see User.token_version.
+    subject = str(payload.get("sub", ""))
+    user = db.get(User, int(subject)) if subject.isdigit() else None
+    if user is None or payload.get("ver", 0) != (user.token_version or 0):
+        raise HTTPException(status_code=401, detail="Token has been revoked")
+
     return payload
 
 

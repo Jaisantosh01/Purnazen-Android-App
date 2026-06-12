@@ -15,6 +15,9 @@ from app.models.doctor_availability import DoctorAvailability  # noqa: E402,F401
 from app.models.quick_relief import QuickRelief  # noqa: E402,F401
 from app.models.appointment import Appointment  # noqa: E402,F401
 from app.models.therapy_session import TherapySession  # noqa: E402,F401
+from app.models.wellness_session import WellnessSession  # noqa: E402,F401
+from app.models.relief_session import ReliefSession  # noqa: E402,F401
+from app.models.payment import Payment  # noqa: E402,F401
 from app.models.associations import (  # noqa: E402,F401
     doctor_consultation_types,
     doctor_expertise,

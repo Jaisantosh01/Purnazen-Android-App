@@ -26,6 +26,12 @@ class Settings(BaseSettings):
     RATE_LIMIT_REGISTER: str = "3/minute"
     RATE_LIMIT_REFRESH: str = "10/minute"
 
+    # Razorpay credentials (test-mode keys for the sandbox). When empty, the
+    # payment provider runs in a local sandbox mode: orders are generated
+    # locally and signatures use a dev secret — no external calls.
+    RAZORPAY_KEY_ID: str = ""
+    RAZORPAY_KEY_SECRET: str = ""
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]

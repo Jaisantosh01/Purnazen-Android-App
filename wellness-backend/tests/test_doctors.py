@@ -14,6 +14,8 @@ def seed_doctor(
     email="sarah@example.com",
     available=True,
     with_types=True,
+    types=("Video Call",),
+    rating=4.9,
 ):
     user = User(
         full_name=name,
@@ -25,10 +27,6 @@ def seed_doctor(
     if not specialty:
         specialty = Specialty(name="Acupressure Specialist")
         db.add(specialty)
-    video = db.query(ConsultationType).filter_by(name="Video Call").first()
-    if not video:
-        video = ConsultationType(name="Video Call")
-        db.add(video)
     db.add(user)
     db.commit()
 
@@ -39,12 +37,19 @@ def seed_doctor(
         education="MBBS, MD",
         experience_years=15,
         consultation_fee=1200,
-        average_rating=4.9,
+        average_rating=rating,
         reviews_count=234,
         is_available_today=available,
     )
     if with_types:
-        doctor.consultation_types.append(video)
+        for type_name in types:
+            consultation_type = (
+                db.query(ConsultationType).filter_by(name=type_name).first()
+            )
+            if not consultation_type:
+                consultation_type = ConsultationType(name=type_name)
+                db.add(consultation_type)
+            doctor.consultation_types.append(consultation_type)
     db.add(doctor)
     db.commit()
     return doctor
@@ -129,6 +134,84 @@ def test_get_doctors_rejects_bad_params(client):
     response = client.get("/api/v1/doctors", params={"page": 0})
     assert response.status_code == 400
     assert response.json()["success"] is False
+
+
+# ── T6: filter endpoints ─────────────────────────────────────────────────────
+
+
+def test_filter_available_today(client, db_session):
+    seed_doctor(db_session, name="Dr Here", email="here@example.com", available=True)
+    seed_doctor(db_session, name="Dr Away", email="away@example.com", available=False)
+
+    response = client.get("/api/v1/doctors/available-today")
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["total"] == 1
+    assert data["doctors"][0]["name"] == "Dr. Dr Here"
+
+
+def test_filter_video_call(client, db_session):
+    seed_doctor(
+        db_session, name="Dr Video", email="video@example.com", types=("Video Call",)
+    )
+    seed_doctor(
+        db_session, name="Dr House", email="house@example.com", types=("Home Visit",)
+    )
+
+    response = client.get("/api/v1/doctors/video-call")
+    data = response.json()["data"]
+    assert data["total"] == 1
+    assert data["doctors"][0]["name"] == "Dr. Dr Video"
+
+
+def test_filter_home_visit(client, db_session):
+    seed_doctor(
+        db_session, name="Dr Video", email="video@example.com", types=("Video Call",)
+    )
+    seed_doctor(
+        db_session,
+        name="Dr House",
+        email="house@example.com",
+        types=("Home Visit", "Video Call"),
+    )
+
+    response = client.get("/api/v1/doctors/home-visit")
+    data = response.json()["data"]
+    assert data["total"] == 1
+    assert data["doctors"][0]["name"] == "Dr. Dr House"
+
+
+def test_filter_top_rated_orders_by_rating(client, db_session):
+    seed_doctor(db_session, name="Dr Good", email="good@example.com", rating=4.6)
+    seed_doctor(db_session, name="Dr Best", email="best@example.com", rating=5.0)
+    seed_doctor(db_session, name="Dr Meh", email="meh@example.com", rating=4.2)
+
+    response = client.get("/api/v1/doctors/top-rated")
+    data = response.json()["data"]
+    assert data["total"] == 2
+    assert [d["name"] for d in data["doctors"]] == ["Dr. Dr Best", "Dr. Dr Good"]
+
+
+def test_filter_supports_search_and_pagination(client, db_session):
+    for index in range(3):
+        seed_doctor(
+            db_session,
+            name=f"Dr Avail {index}",
+            email=f"avail{index}@example.com",
+            available=True,
+        )
+
+    response = client.get(
+        "/api/v1/doctors/available-today", params={"page": 2, "limit": 2}
+    )
+    data = response.json()["data"]
+    assert data["total"] == 3
+    assert len(data["doctors"]) == 1
+
+    response = client.get(
+        "/api/v1/doctors/available-today", params={"search": "Avail 1"}
+    )
+    assert response.json()["data"]["total"] == 1
 
 
 # ── T1: doctor detail ────────────────────────────────────────────────────────

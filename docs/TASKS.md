@@ -1,8 +1,10 @@
 # Task Backlog — Gap Features
 
-**Last updated:** 2026-06-12 (P0 chain T1–T5 completed — see CHANGELOG). Derived from the FEATURES.md scoreboard plus frontend work. Ordered by priority; each task lists scope, touched layers, and acceptance criteria. Conventions for backend tasks: model → import in `db/base.py` → `alembic revision --autogenerate` → schema → repository → service → endpoint → `router.py` → tests (see ARCHITECTURE.md).
+**Last updated:** 2026-06-12 (P0 T1–T5 **and P1 T6–T11 completed** — see CHANGELOG). Derived from the FEATURES.md scoreboard plus frontend work. Ordered by priority; each task lists scope, touched layers, and acceptance criteria. Conventions for backend tasks: model → import in `db/base.py` → `alembic revision --autogenerate` → schema → repository → service → endpoint → `router.py` → tests (see ARCHITECTURE.md).
 
 P0 implementation notes (2026-06-12): visit-type slugs `video`/`home`/`clinic` map to the `consultation_types` lookup names in `app/services/doctor_service.py` (`VISIT_TYPE_PRESENTATION`); booking conflict check is app-level (no partial unique index); seed adds Mon–Sat 09–12 & 14–17 availability (30-min slots) per doctor; therapy stats = completed sessions only, `avgRelief = round(avg(painAfter − painBefore))`.
+
+P1 implementation notes (2026-06-12): filter routes are registered before `/doctors/{id}` (path-converter ordering); T7 keeps the frontend mock data files as offline/instant-render fallbacks (screens init timer state synchronously) — API content wins once fetched; T8 token revocation = `users.token_version` ↔ JWT `ver` claim (also kills deleted users' tokens); T10 resets to Login through `src/navigation/navigationRef.js`; T11 runs keyless in a **local sandbox mode** (backend returns `sandboxPaymentId`/`sandboxSignature`; verify path identical to live) — the react-native-razorpay checkout for real keys is still open (native module, needs an Android SDK machine).
 
 ---
 
@@ -33,32 +35,32 @@ P0 implementation notes (2026-06-12): visit-type slugs `video`/`home`/`clinic` m
 - **Frontend:** YogaSessionScreen/ReliefSessionScreen already call `therapyService.saveSession(...)` on completion (currently silently lost); TherapyHistoryScreen shows mock — wire list.
 - **Accept:** Completing a session persists it and it appears in TherapyHistoryScreen; tests for save + list + auth-required.
 
-## P1 — Feature completeness
+## P1 — Feature completeness — ✅ ALL DONE 2026-06-12
 
-### T6. Doctor filter endpoints
+### ✅ T6. Doctor filter endpoints
 - **Backend:** `GET /doctors/available-today`, `/video-call`, `/home-visit`, `/top-rated` (or one endpoint with `?filter=`). available-today uses `is_available_today`; video/home filter by consultation_type name; top-rated by `average_rating >= 4.5` ordered desc.
 - **Frontend:** ConsultScreen filter tabs currently filter client-side mock; wire to endpoints.
 - **Accept:** Each tab shows distinct server-filtered list; tests per filter.
 
-### T7. Session catalogs (wellness + relief)
+### ✅ T7. Session catalogs (wellness + relief)
 - **Backend:** models `WellnessSession` and `ReliefSession` mirroring `src/data/yogaSessionData.js` / `reliefSessionData.js` shapes (key, title, type, duration, steps JSON, media URLs). Seed from those files. `GET /api/v1/sessions`, `GET /api/v1/sessions/:key`, `GET /api/v1/relief-sessions`, `GET /api/v1/relief-sessions/:key`.
 - **Frontend:** wellnessService/reliefService already call these with mock fallbacks.
 - **Accept:** Players run from API content with mocks deleted; tests for list + detail + unknown key.
 
-### T8. Profile management endpoints
+### ✅ T8. Profile management endpoints
 - **Backend:** `PUT /api/v1/auth/me` (full_name, avatar_url), `POST /api/v1/auth/change-password` (current + new, bcrypt verify, revoke refresh tokens on change), `DELETE /api/v1/auth/me` (soft-delete or hard-delete + cascade; revoke tokens).
 - **Frontend:** SettingsScreen UI exists; wire forms + logout-on-delete.
 - **Accept:** Tests: wrong current password 401, password change invalidates old refresh token, deleted user can't login.
 
-### T9. Registration screen (frontend)
+### ✅ T9. Registration screen (frontend)
 - **Frontend only:** `RegisterScreen` (full_name, email, password + confirm), calls existing `POST /auth/register`, then auto-login. Add to RootStack + link from LoginScreen.
 - **Accept:** New account can register → land on Main tabs; jest test for the screen.
 
-### T10. Axios auto-refresh on 401
+### ✅ T10. Axios auto-refresh on 401
 - **Frontend only:** response interceptor in `src/api/client.js`: on 401 (not from `/auth/login|/auth/refresh`), call `ENDPOINTS.REFRESH` with the keychain refresh token, store the new access token (`secureStorage`), replay the original request; queue concurrent 401s behind one refresh; on refresh failure clear tokens + reset to Login.
 - **Accept:** Unit test with mocked axios adapter: expired access token → one refresh call → original request succeeds; refresh failure → logout.
 
-### T11. Payment processing (Razorpay sandbox)
+### ✅ T11. Payment processing (Razorpay sandbox) — *checkout SDK for real keys still open*
 - **Backend:** `Payment` model (appointment FK, amount, currency, provider ref, status) + `POST /api/v1/payments/process` (sandbox order create) + webhook/verify endpoint.
 - **Frontend:** PaymentScreen wired to order → Razorpay checkout (react-native-razorpay) → verify.
 - **Accept:** Sandbox payment marks appointment paid; failure path leaves it unpaid; tests with provider mocked.

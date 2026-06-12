@@ -36,6 +36,21 @@ def doctor_card(doctor):
     }
 
 
+def _doctor_list(db, page, limit, search, filter_key=None):
+    """Shared list/total payload for the catalog and filter endpoints."""
+    doctors, total = DoctorService.get_doctors(db, page, limit, search, filter_key)
+
+    return {
+        "success": True,
+        "data": {
+            "doctors": [doctor_card(doctor) for doctor in doctors],
+            "total": total,
+            "page": page,
+            "limit": limit,
+        },
+    }
+
+
 @router.get(
     "/doctors",
     summary="List doctors",
@@ -47,17 +62,65 @@ def get_doctors(
     search: str = Query(default=""),
     db: Session = Depends(get_db),
 ):
-    doctors, total = DoctorService.get_doctors(db, page, limit, search)
+    return _doctor_list(db, page, limit, search)
 
-    return {
-        "success": True,
-        "data": {
-            "doctors": [doctor_card(doctor) for doctor in doctors],
-            "total": total,
-            "page": page,
-            "limit": limit,
-        },
-    }
+
+# NOTE: these static paths must stay registered before /doctors/{doctor_id},
+# otherwise the int path converter swallows them.
+@router.get(
+    "/doctors/available-today",
+    summary="Doctors available today",
+    description="Same shape as the catalog, filtered to doctors available today.",
+)
+def get_doctors_available_today(
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=10, ge=1, le=100),
+    search: str = Query(default=""),
+    db: Session = Depends(get_db),
+):
+    return _doctor_list(db, page, limit, search, "available_today")
+
+
+@router.get(
+    "/doctors/video-call",
+    summary="Doctors offering video consultations",
+    description="Same shape as the catalog, filtered by the Video Call consultation type.",
+)
+def get_doctors_video_call(
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=10, ge=1, le=100),
+    search: str = Query(default=""),
+    db: Session = Depends(get_db),
+):
+    return _doctor_list(db, page, limit, search, "video")
+
+
+@router.get(
+    "/doctors/home-visit",
+    summary="Doctors offering home visits",
+    description="Same shape as the catalog, filtered by the Home Visit consultation type.",
+)
+def get_doctors_home_visit(
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=10, ge=1, le=100),
+    search: str = Query(default=""),
+    db: Session = Depends(get_db),
+):
+    return _doctor_list(db, page, limit, search, "home")
+
+
+@router.get(
+    "/doctors/top-rated",
+    summary="Top-rated doctors",
+    description="Doctors rated 4.5+, ordered by rating descending; same shape as the catalog.",
+)
+def get_doctors_top_rated(
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=10, ge=1, le=100),
+    search: str = Query(default=""),
+    db: Session = Depends(get_db),
+):
+    return _doctor_list(db, page, limit, search, "top_rated")
 
 
 @router.get(
