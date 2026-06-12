@@ -6,7 +6,7 @@
 
 ```
 ┌─────────────────────────────┐         ┌──────────────────────────────┐
-│   React Native App (0.84)   │  HTTP   │   FastAPI Backend (Uvicorn)  │
+│   React Native App (0.85)   │  HTTP   │   FastAPI Backend (Uvicorn)  │
 │                             │ ──────► │                              │
 │  Screens → Services →       │  JSON   │  Endpoints → Services →      │
 │  axios client (Bearer JWT)  │ ◄────── │  Repositories → SQLAlchemy   │
@@ -19,7 +19,7 @@
                                             └──────────────────────┘
 ```
 
-- **Base URL:** `http://10.0.2.2:5000` (Android emulator → host machine)
+- **Base URL:** from `wellness-frontend/.env` → `EXPO_PUBLIC_API_URL`; defaults to `http://10.0.2.2:5000` (Android emulator → host machine)
 - **Auth:** JWT Bearer. Access token (15 min) for API calls; refresh token (30 days) for `/refresh` and `/logout`. Revoked tokens tracked by `jti` in the `token_blocklist` table (cached in Redis when `REDIS_URL` is set). On the device, tokens live in the keystore (react-native-keychain), not AsyncStorage.
 - **Rate limiting:** slowapi, per client IP, on login (5/min), register (3/min), refresh (10/min) — `RATE_LIMIT_*` env vars; 429 + standard envelope when exceeded. Counters are shared across workers when Redis is configured, per-process in-memory otherwise.
 - **CORS:** origins from `CORS_ORIGINS` (comma-separated); default `*` is dev-only.
@@ -109,7 +109,7 @@ wellness-backend/
 
 ---
 
-## Frontend (`wellness-frontend/`) — React Native 0.84 (bare)
+## Frontend (`wellness-frontend/`) — React Native 0.85 (bare + Expo modules, SDK 56)
 
 ### Data Flow
 
@@ -130,6 +130,7 @@ Persistence: tokens in the device keystore via src/utils/secureStorage.js
 
 ```text
 wellness-frontend/src/
+├── config/index.js          # BASE_URL from EXPO_PUBLIC_API_URL (.env), API_VERSION
 ├── api/client.js            # axios instance + get/post/put/delete (returns body)
 ├── utils/secureStorage.js   # Keystore-backed token storage (react-native-keychain)
 │                            #   + one-time AsyncStorage migration
@@ -139,10 +140,12 @@ wellness-frontend/src/
 ├── screens/                 # 19 screens (see FEATURES.md)
 ├── components/              # QuickCards, BottomNav
 ├── constants/
-│   ├── apiEndpoints.js      # BASE_URL + all endpoint paths
+│   ├── apiEndpoints.js      # All endpoint paths (re-exports BASE_URL from config)
+│   ├── theme.js             # COLORS / SPACING / RADIUS design tokens
 │   └── strings.js           # UI display strings
-├── data/                    # Mock fallback data (8 files)
-└── App.tsx                  # Navigation root (stack + bottom tabs)
+├── data/                    # Mock fallback data (.js files)
+└── App.tsx                  # Navigation root (stack + bottom tabs); calls
+                             #   authService.bootstrap() on mount
 ```
 
 ### Navigation
@@ -160,6 +163,7 @@ RootStack
 
 ### Known Constraints
 
-- **Expo modules:** blocked — no Expo SDK supports RN 0.84 yet (`install-expo-modules` refuses). `react-native-keychain` is used for secure token storage instead.
+- **Expo modules:** installed (SDK 56) since the RN 0.85.3 upgrade — Expo skipped RN 0.84, which is why installs failed before. Babel preset is `babel-preset-expo`; Metro extends `expo/metro-config`; Android bundling goes through `expo export:embed`.
 - **AsyncStorage v3 API:** `multiGet/multiSet/multiRemove` no longer exist — use `getMany/setMany/removeMany`.
+- **Android SDK:** not installed on the current dev machine — JS-level verification only (jest/tsc/eslint/Metro bundle). See docs/TASKS.md environment notes before running `run-android`.
 - **Mock fallbacks:** wellness/relief/therapy/consult-detail services fall back to `src/data/*.js` when the corresponding backend endpoint doesn't exist yet (see FEATURES.md).

@@ -2,6 +2,28 @@
 
 All notable changes to the Purnazen App are documented here.
 
+## [2026-06-12] — Frontend: RN 0.85 + Expo SDK 56, env-driven config, restructure
+
+### React Native 0.84.1 → 0.85.3 + Expo SDK 56
+
+- **Why:** Expo skipped RN 0.84 entirely (SDK 55 pairs with RN 0.83, SDK 56 with RN 0.85), so `install-expo-modules` could never work on 0.84. Upgrading to 0.85.3 unblocked it.
+- Upgraded `react-native@0.85.3`, all `@react-native/*` packages, added `@react-native/jest-preset` (new template preset), Gradle distribution 9.0 → 9.3.1, `gem 'nkf'` (Gemfile).
+- `npx install-expo-modules` succeeded: `expo@~56.0.0`, `babel-preset-expo`, `expo/metro-config`, Expo wiring in `MainApplication.kt`/`MainActivity.kt`/`AppDelegate.swift`/gradle.
+- **Fixed install-expo-modules bug:** it inserted the `import expo.modules...` lines *above* the `package` declaration in both Kotlin files (syntax error) — reordered.
+- **Verified:** jest 6/6, `tsc` clean, `eslint --quiet` clean, release Metro bundle builds. Native (gradle) build not verifiable on this machine — no Android SDK installed (see docs/TASKS.md → Environment notes).
+
+### Env-driven configuration (no more hardcoded IP/port)
+
+- New `src/config/index.js`: `BASE_URL` from `EXPO_PUBLIC_API_URL` (inlined at bundle time by babel-preset-expo) with `http://10.0.2.2:5000` fallback; `apiEndpoints.js` now imports it.
+- Added `wellness-frontend/.env.example`; `.env` is gitignored. Verified by bundling with a custom URL and confirming inlining + dead-code elimination of the fallback.
+
+### Restructure / cleanup
+
+- New `src/constants/theme.js` — canonical COLORS/SPACING/RADIUS tokens (App.tsx tab bar migrated as first consumer; screen-by-screen adoption is task T16).
+- Deleted dead code: `src/components/BottomNav.js` (unreferenced) and 7 unused `src/data/*.json` twins of the `.js` mock files.
+- Removed leftover debug `console.log`s in HomeScreen; fixed the 2 pre-existing `react-hooks/exhaustive-deps` errors in BookAppointmentScreen (missing `doctor.id`).
+- Added `docs/TASKS.md` — detailed, prioritized backlog of all gap features (T1–T19).
+
 ## [2026-06-12] — Tech debt: rate limiting, Redis, secure token storage, API docs
 
 ### Backend

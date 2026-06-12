@@ -51,7 +51,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
     consultService.getVisitTypes(doctor.id)
       .then(data => { if (data?.length) setVisitTypes(data); })
       .catch(() => {});
-  }, []);
+  }, [doctor.id]);
 
   useEffect(() => {
     if (!selectedDate) return;
@@ -59,7 +59,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
     consultService.getTimeSlots(doctor.id, dateStr)
       .then(data => { if (data?.length) setTimeSlots(data); })
       .catch(() => {});
-  }, [selectedDate, currentMonth, currentYear]);
+  }, [doctor.id, selectedDate, currentMonth, currentYear]);
 
   // Calendar helpers
   const getDaysInMonth = (month, year) => new Date(year, month + 1, 0).getDate();

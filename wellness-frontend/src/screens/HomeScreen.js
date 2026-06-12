@@ -13,7 +13,7 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import QuickCard from '../components/QuickCards';
 import apiClient from '../api/client';
-import { BASE_URL, ENDPOINTS } from '../constants/apiEndpoints';
+import { ENDPOINTS } from '../constants/apiEndpoints';
 
 
 
@@ -33,13 +33,9 @@ const HomeScreen = ({ navigation }) => {
       try {
         setLoading(true);
 
-        console.log('QUICK_RELIEF:', BASE_URL + ENDPOINTS.HOME_QUICK_RELIEF);
-
         const reliefData = await apiClient.get(
           ENDPOINTS.HOME_QUICK_RELIEF
         );
-
-        console.log('Quick Relief Response:', reliefData);
 
         if (reliefData?.data) {
           setQuickRelief(reliefData.data);

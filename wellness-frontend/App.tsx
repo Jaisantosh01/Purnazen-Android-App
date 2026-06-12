@@ -6,6 +6,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 // @ts-ignore
 import authService from './src/services/authService';
+// @ts-ignore
+import { COLORS } from './src/constants/theme';
 import LoginScreen from './src/screens/LoginScreen';
 
 import HomeScreen from './src/screens/HomeScreen';
@@ -108,10 +110,10 @@ function MainTabs() {
           const iconName = focused ? icons.active : icons.inactive;
           return <Icon name={iconName} size={22} color={color} />;
         },
-        tabBarActiveTintColor: '#1FA77A',
-        tabBarInactiveTintColor: '#9ca3af',
+        tabBarActiveTintColor: COLORS.primary,
+        tabBarInactiveTintColor: COLORS.textMuted,
         tabBarStyle: {
-          backgroundColor: '#fff',
+          backgroundColor: COLORS.white,
           borderTopWidth: 1,
           borderTopColor: '#f0f0f0',
           height: 60,

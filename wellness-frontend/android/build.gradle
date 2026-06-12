@@ -25,3 +25,4 @@ allprojects {
         maven { url("$rootDir/../node_modules/@react-native-async-storage/async-storage/android/local_repo") }
     }
 }
+apply plugin: "expo-root-project"

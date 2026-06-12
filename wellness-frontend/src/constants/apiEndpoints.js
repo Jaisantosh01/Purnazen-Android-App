@@ -1,9 +1,8 @@
-const IP_ADDRESS = '10.0.2.2';
-const BACKEND_PORT = 5000;
+import { BASE_URL, API_VERSION } from '../config';
 
-export const BASE_URL = `http://${IP_ADDRESS}:${BACKEND_PORT}`;
-
-const API_VERSION = '/api/v1';
+// Re-exported for callers that build absolute URLs; the value itself is
+// env-driven — see src/config/index.js.
+export { BASE_URL };
 
 export const ENDPOINTS = {
 

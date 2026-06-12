@@ -1,3 +1,4 @@
+/* eslint-env jest */
 /* Mocks for native modules that have no JS-only implementation under jest. */
 
 jest.mock('@react-native-async-storage/async-storage', () =>
