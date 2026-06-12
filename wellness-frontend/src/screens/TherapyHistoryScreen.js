@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,10 +6,37 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
-import { THERAPY_STATS, THERAPY_SESSIONS } from '../data/therapyData';
+import therapyService from '../services/therapyService';
+
+const EMPTY_STATS = { sessions: 0, minutes: 0, avgRelief: 0 };
 
 const TherapyHistoryScreen = ({ navigation }) => {
+  const [history, setHistory]     = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError]         = useState(null);
+
+  const fetchHistory = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await therapyService.getTherapyHistory();
+      setHistory(data);
+    } catch (err) {
+      setError(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchHistory();
+  }, [fetchHistory]);
+
+  const stats = history?.stats ?? EMPTY_STATS;
+  const sessions = history?.sessions ?? [];
+
   return (
     <View style={styles.root}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
@@ -26,6 +53,20 @@ const TherapyHistoryScreen = ({ navigation }) => {
         <View style={styles.backBtn} />
       </View>
 
+      {isLoading ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color="#1FA77A" />
+          <Text style={styles.stateText}>Loading history...</Text>
+        </View>
+      ) : error ? (
+        <View style={styles.centered}>
+          <Text style={styles.stateTitle}>Failed to load history</Text>
+          <Text style={styles.stateText}>{error}</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={fetchHistory} activeOpacity={0.85}>
+            <Text style={styles.retryText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 30 }}
@@ -33,27 +74,35 @@ const TherapyHistoryScreen = ({ navigation }) => {
         {/* ── Stats Row ── */}
         <View style={styles.statsRow}>
           <View style={[styles.statBox, styles.statBorder]}>
-            <Text style={styles.statValue}>{THERAPY_STATS.sessions}</Text>
+            <Text style={styles.statValue}>{stats.sessions}</Text>
             <Text style={styles.statLabel}>Sessions</Text>
           </View>
           <View style={[styles.statBox, styles.statBorder]}>
-            <Text style={styles.statValue}>{THERAPY_STATS.minutes}</Text>
+            <Text style={styles.statValue}>{stats.minutes}</Text>
             <Text style={styles.statLabel}>Minutes</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statValue}>{THERAPY_STATS.avgRelief}</Text>
+            <Text style={styles.statValue}>{stats.avgRelief}</Text>
             <Text style={styles.statLabel}>Avg Relief</Text>
           </View>
         </View>
 
         {/* ── Session Cards ── */}
+        {sessions.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.stateTitle}>No sessions yet</Text>
+            <Text style={styles.stateText}>
+              Complete a wellness or relief session and it will show up here.
+            </Text>
+          </View>
+        ) : (
         <View style={styles.sessionList}>
-          {THERAPY_SESSIONS.map((session, index) => (
+          {sessions.map((session, index) => (
             <View
               key={session.id}
               style={[
                 styles.sessionCard,
-                index < THERAPY_SESSIONS.length - 1 && styles.sessionBorder,
+                index < sessions.length - 1 && styles.sessionBorder,
               ]}
             >
               {/* Title + Status */}
@@ -104,7 +153,9 @@ const TherapyHistoryScreen = ({ navigation }) => {
             </View>
           ))}
         </View>
+        )}
       </ScrollView>
+      )}
     </View>
   );
 };
@@ -143,6 +194,43 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
     color: '#1a1a1a',
+  },
+
+  // Loading / error / empty states
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    gap: 8,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 48,
+    gap: 8,
+  },
+  stateTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1a1a1a',
+  },
+  stateText: {
+    fontSize: 13,
+    color: '#9ca3af',
+    textAlign: 'center',
+  },
+  retryBtn: {
+    backgroundColor: '#1FA77A',
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 14,
+    marginTop: 12,
+  },
+  retryText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#fff',
   },
 
   // Stats

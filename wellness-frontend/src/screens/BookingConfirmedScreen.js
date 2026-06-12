@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 
 const BookingConfirmedScreen = ({ navigation, route }) => {
-  const { doctor, date, time, visitType, fee } = route.params;
+  const { doctor, date, time, visitType, fee, bookingRef } = route.params;
 
   return (
     <View style={styles.root}>
@@ -58,6 +58,16 @@ const BookingConfirmedScreen = ({ navigation, route }) => {
               <Text style={styles.detailValue}>{visitType}</Text>
             </View>
           </View>
+
+          {bookingRef ? (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailIcon}>🔖</Text>
+              <View>
+                <Text style={styles.detailLabel}>Booking ID</Text>
+                <Text style={styles.detailValue}>{bookingRef}</Text>
+              </View>
+            </View>
+          ) : null}
         </View>
 
         {/* Buttons */}

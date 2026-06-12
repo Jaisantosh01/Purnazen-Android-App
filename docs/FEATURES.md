@@ -1,6 +1,6 @@
 # Features Tracker
 
-**Last updated:** 2026-06-12 (post FastAPI migration + tech-debt pass + RN 0.85/Expo SDK 56 upgrade)
+**Last updated:** 2026-06-12 (post P0 booking-funnel + therapy-history implementation, T1–T5)
 
 > Detailed, prioritized task breakdown of every gap below: **[TASKS.md](TASKS.md)** (T1–T19).
 
@@ -42,10 +42,10 @@ Single source of truth for what is built, what is stubbed, and what is missing �
 |---------|----------|---------|--------|-------|
 | Doctor list + search + pagination | `ConsultScreen` | `GET /api/v1/doctors` | ✅ | Tested (card shape, search, pagination) |
 | Filter tabs (Today/Video/Home/Top) | `ConsultScreen` | — | 🎨 | Endpoints `/doctors/available-today` etc. missing |
-| Doctor detail | `DoctorProfileScreen` | — | 🎨 | Needs `GET /api/v1/doctors/:id` |
-| Visit types | `BookAppointmentScreen` | — | 🎨 | Model exists (`consultation_types`); endpoint missing |
-| Time slots | `BookAppointmentScreen` | — | 🎨 | `doctor_availability` table exists; slot generation missing |
-| Book appointment | `BookAppointmentScreen` | — | 🎨 | No `Appointment` model — booking is decorative |
+| Doctor detail | `DoctorProfileScreen` | `GET /api/v1/doctors/:id` | ✅ | Card shape shared with list endpoint; 404 envelope; tested |
+| Visit types | `BookAppointmentScreen` | `GET /api/v1/doctors/:id/visit-types` | ✅ | Derived from `consultation_types` m2m; fee from `consultation_fee`; tested |
+| Time slots | `BookAppointmentScreen` | `GET /api/v1/doctors/:id/time-slots?date=` | ✅ | Generated from `doctor_availability`, minus booked appointments; seeded Mon–Sat; tested |
+| Book appointment | `BookAppointmentScreen` | `POST /api/v1/appointments/book`, `GET /api/v1/appointments` | ✅ | `Appointment` model + migration; 409 on slot conflict; booking ref shown on confirmation screen; tested |
 | Payment | `PaymentScreen` | — | 🎨 | No payment model/gateway — decorative |
 
 ## Wellness & Relief Sessions
@@ -55,8 +55,8 @@ Single source of truth for what is built, what is stubbed, and what is missing �
 | Session player (yoga/meditation/breathing) | `YogaSessionScreen` | — | 🎨 | Full player UI; content from local mock |
 | Relief session player (acupressure) | `ReliefSessionScreen` | — | 🎨 | Full player UI; content from local mock |
 | Session catalog API | services ready | — | ❌ | Needs `GET /api/v1/sessions`, `/relief-sessions` |
-| Save completed session | called on completion | — | ❌ | `POST /api/v1/therapy-history/save` missing — data silently lost |
-| Therapy history | `TherapyHistoryScreen` | — | 🎨 | Shows mock data |
+| Save completed session | called on completion | `POST /api/v1/therapy-history/save` | ✅ | `TherapySession` model + migration; auth-required; tested |
+| Therapy history | `TherapyHistoryScreen` | `GET /api/v1/therapy-history` | ✅ | Live list + stats (sessions/minutes/avgRelief), paginated, newest first; mock removed |
 
 ## Other
 
@@ -77,21 +77,23 @@ Single source of truth for what is built, what is stubbed, and what is missing �
 |----------|--------|-------------|-----|
 | Auth | 9 | 6 | profile update, change password, delete account |
 | Home | 2 | 1 | wellness sessions list |
-| Consult | 10 | 1 | detail, filters, visit types, slots, booking, payment |
+| Consult | 10 | 5 | filters (4), payment |
 | Sessions/Relief | 4 | 0 | catalogs |
-| Therapy | 2 | 0 | history, save |
+| Therapy | 2 | 2 | — |
 | Face Glow | 4 | 0 | routines, scan, history |
-| **Total** | **31** | **8** | **23** |
+| **Total** | **31** | **14** | **17** |
+
+(Plus `GET /api/v1/appointments` — implemented as part of booking, not counted in "needed".)
 
 ---
 
 ## Priority Queue (backend work)
 
-### P0 — Blocks core UX
-1. `GET /api/v1/doctors/:id` — doctor detail screen
-2. `GET /api/v1/doctors/:id/time-slots` + slot generation from `doctor_availability`
-3. `POST /api/v1/appointments/book` (+ `Appointment` model + migration)
-4. `POST /api/v1/therapy-history/save` + `GET /api/v1/therapy-history` (+ model)
+### P0 — Blocks core UX — ✅ all done 2026-06-12 (T1–T5)
+1. ~~`GET /api/v1/doctors/:id` — doctor detail screen~~
+2. ~~`GET /api/v1/doctors/:id/time-slots` + slot generation from `doctor_availability`~~
+3. ~~`POST /api/v1/appointments/book` (+ `Appointment` model + migration)~~
+4. ~~`POST /api/v1/therapy-history/save` + `GET /api/v1/therapy-history` (+ model)~~
 
 ### P1
 5. Doctor filter endpoints (available-today / video-call / home-visit / top-rated)
@@ -118,5 +120,5 @@ Single source of truth for what is built, what is stubbed, and what is missing �
 | ~~`BottomNav.js` unused~~ | ✅ Deleted 2026-06-12 | Also deleted 7 unused `src/data/*.json` duplicates |
 | ~~Hardcoded API IP/port~~ | ✅ Resolved 2026-06-12 | `EXPO_PUBLIC_API_URL` via `.env` → `src/config/index.js`; fallback `10.0.2.2:5000` |
 | ~~`react-hooks/exhaustive-deps` errors~~ | ✅ Fixed 2026-06-12 | Were in `BookAppointmentScreen` (missing `doctor.id`); `eslint --quiet` now clean |
-| Backend test coverage | Info | 25 tests cover all existing endpoints + rate limiting; extend with each new feature |
+| Backend test coverage | Info | 52 tests cover all existing endpoints + rate limiting; extend with each new feature |
 | HomeScreen renders empty text labels | Low | PR #1 emptied `<Text>` contents; `STRINGS` constants exist in `src/constants/strings.js` but aren't wired in (UI change — deliberately out of scope of the infra migration) |

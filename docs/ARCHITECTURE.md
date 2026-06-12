@@ -55,9 +55,12 @@ wellness-backend/
 │   │   └── v1/
 │   │       ├── router.py    # Aggregates endpoint routers under /api/v1
 │   │       └── endpoints/
-│   │           ├── auth.py     # register, login, logout, me, refresh, admin
-│   │           ├── doctors.py  # GET /doctors (pagination + search)
-│   │           └── home.py     # GET /home/quick-relief
+│   │           ├── auth.py            # register, login, logout, me, refresh, admin
+│   │           ├── doctors.py         # GET /doctors (pagination + search), /doctors/:id,
+│   │           │                      #   /doctors/:id/visit-types, /doctors/:id/time-slots
+│   │           ├── home.py            # GET /home/quick-relief
+│   │           ├── appointments.py    # POST /appointments/book, GET /appointments (auth)
+│   │           └── therapy_history.py # POST /therapy-history/save, GET /therapy-history (auth)
 │   ├── core/
 │   │   ├── config.py        # Settings (pydantic-settings): secrets, DB URL, expiries,
 │   │   │                    #   CORS_ORIGINS, REDIS_URL, RATE_LIMIT_*
@@ -68,24 +71,27 @@ wellness-backend/
 │   │   ├── base_class.py    # DeclarativeBase
 │   │   ├── base.py          # Imports every model → Base.metadata complete
 │   │   └── session.py       # create_engine + SessionLocal
-│   ├── models/              # 14 SQLAlchemy models (one file each; associations.py
+│   ├── models/              # 16 SQLAlchemy models (one file each; associations.py
 │   │                        #   holds the 3 many-to-many Tables)
-│   ├── schemas/             # Pydantic request schemas (auth.py)
+│   ├── schemas/             # Pydantic request schemas (auth.py, appointment.py, therapy.py)
 │   ├── repositories/        # UserRepository, TokenRepository, DoctorRepository,
-│   │                        #   QuickReliefRepository — all take a Session arg
-│   ├── services/            # AuthService, DoctorService, HomeService
+│   │                        #   QuickReliefRepository, AppointmentRepository,
+│   │                        #   TherapySessionRepository — all take a Session arg
+│   ├── services/            # AuthService, DoctorService, HomeService,
+│   │                        #   AppointmentService, TherapyService
 │   └── utils/responses.py   # success_response / error_response (JSON envelope)
 ├── alembic/                 # Plain Alembic (env.py reads settings.DATABASE_URL)
-│   └── versions/            # 4 revisions (users → doctor module → quick_reliefs → avatar)
+│   └── versions/            # 6 revisions (users → doctor module → quick_reliefs → avatar
+│                            #   → appointments → therapy_sessions)
 ├── alembic.ini
-├── tests/                   # 25 pytest tests, in-memory SQLite, get_db override
+├── tests/                   # 52 pytest tests, in-memory SQLite, get_db override
 │                            #   (limiter off by default; rate_limited_client fixture)
 ├── seed.py                  # Idempotent dev seed (bcrypt-hashed passwords)
 ├── requirements.txt
 └── run.py                   # uvicorn app.main:app --reload, port 5000
 ```
 
-### Database Schema (14 tables)
+### Database Schema (16 tables)
 
 | Table | Purpose |
 |-------|---------|
@@ -99,6 +105,8 @@ wellness-backend/
 | `expertise`, `languages`, `consultation_types` | Lookup tables |
 | `doctor_expertise`, `doctor_languages`, `doctor_consultation_types` | Many-to-many links |
 | `quick_reliefs` | Home-screen quick relief cards (slug, icon, colors, sort order) |
+| `appointments` | Bookings: user FK, doctor FK, visit type, date, slot start/end, fee, status (booked/cancelled/completed) |
+| `therapy_sessions` | Completed wellness/relief sessions: user FK, title, type, duration, pain before/after, completed_at |
 
 ### Conventions
 

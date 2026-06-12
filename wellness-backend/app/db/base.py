@@ -13,6 +13,8 @@ from app.models.clinic import Clinic  # noqa: E402,F401
 from app.models.award import Award  # noqa: E402,F401
 from app.models.doctor_availability import DoctorAvailability  # noqa: E402,F401
 from app.models.quick_relief import QuickRelief  # noqa: E402,F401
+from app.models.appointment import Appointment  # noqa: E402,F401
+from app.models.therapy_session import TherapySession  # noqa: E402,F401
 from app.models.associations import (  # noqa: E402,F401
     doctor_consultation_types,
     doctor_expertise,

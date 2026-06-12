@@ -1,32 +1,34 @@
 # Task Backlog — Gap Features
 
-**Last updated:** 2026-06-12. Derived from the FEATURES.md scoreboard (23 missing endpoints) plus frontend work. Ordered by priority; each task lists scope, touched layers, and acceptance criteria. Conventions for backend tasks: model → import in `db/base.py` → `alembic revision --autogenerate` → schema → repository → service → endpoint → `router.py` → tests (see ARCHITECTURE.md).
+**Last updated:** 2026-06-12 (P0 chain T1–T5 completed — see CHANGELOG). Derived from the FEATURES.md scoreboard plus frontend work. Ordered by priority; each task lists scope, touched layers, and acceptance criteria. Conventions for backend tasks: model → import in `db/base.py` → `alembic revision --autogenerate` → schema → repository → service → endpoint → `router.py` → tests (see ARCHITECTURE.md).
+
+P0 implementation notes (2026-06-12): visit-type slugs `video`/`home`/`clinic` map to the `consultation_types` lookup names in `app/services/doctor_service.py` (`VISIT_TYPE_PRESENTATION`); booking conflict check is app-level (no partial unique index); seed adds Mon–Sat 09–12 & 14–17 availability (30-min slots) per doctor; therapy stats = completed sessions only, `avgRelief = round(avg(painAfter − painBefore))`.
 
 ---
 
-## P0 — Blocks core UX (the booking funnel)
+## P0 — Blocks core UX (the booking funnel) — ✅ ALL DONE 2026-06-12
 
-### T1. Doctor detail endpoint
+### ✅ T1. Doctor detail endpoint
 - **Backend:** `GET /api/v1/doctors/:id` returning the same card shape as the list endpoint (single object, 404 envelope when missing). No new model — `DoctorRepository.get_by_id` + service + endpoint.
 - **Frontend:** `consultService.getDoctorDetail(id)` already calls `ENDPOINTS.DOCTOR_DETAIL(id)` with a mock fallback — verify shape matches, then remove fallback.
 - **Accept:** DoctorProfileScreen renders live data; tests for 200 + 404.
 
-### T2. Visit types endpoint
+### ✅ T2. Visit types endpoint
 - **Backend:** `GET /api/v1/doctors/:id/visit-types` from the existing `consultation_types` m2m (id, name, fee/duration if modeled; else derive fee from `doctors.consultation_fee`).
 - **Frontend:** BookAppointmentScreen already fetches via `consultService.getVisitTypes(doctor.id)` and falls back to `DEFAULT_VISIT_TYPES`.
 - **Accept:** Visit-type chips reflect DB rows; test covers doctor with/without types.
 
-### T3. Time slots + slot generation
+### ✅ T3. Time slots + slot generation
 - **Backend:** `GET /api/v1/doctors/:id/time-slots?date=YYYY-MM-DD`. Generate slots from `doctor_availability` (day-of-week, start/end, slot_duration), minus already-booked appointments (depends on T4 model; until then return all generated slots). Validate date ≥ today.
 - **Frontend:** already wired with fallback (`consultService.getTimeSlots`).
 - **Accept:** Slots match seeded availability; booked slots excluded once T4 lands; tests for empty day, invalid date.
 
-### T4. Appointment booking
+### ✅ T4. Appointment booking
 - **Backend:** new `Appointment` model (user FK, doctor FK, consultation_type FK, date, slot start/end, status: booked/cancelled/completed, created_at) + migration. `POST /api/v1/appointments/book` (auth required) with conflict check (unique doctor+date+slot among non-cancelled), `GET /api/v1/appointments` (user's upcoming/past). Seed statuses.
 - **Frontend:** BookAppointmentScreen → BookingConfirmedScreen currently navigates without calling anything; wire `consultService.bookAppointment(payload)`; pass booking ref to the confirmation screen.
 - **Accept:** Double-booking a slot returns 409-style envelope; booking appears in `GET /appointments`; tests for happy path, conflict, unauthenticated.
 
-### T5. Therapy history (save + list)
+### ✅ T5. Therapy history (save + list)
 - **Backend:** new `TherapySession` model (user FK, session_key, session_type yoga/meditation/breathing/acupressure, duration_seconds, completed_at) + migration. `POST /api/v1/therapy-history/save` (auth), `GET /api/v1/therapy-history` (auth, newest first, paginated).
 - **Frontend:** YogaSessionScreen/ReliefSessionScreen already call `therapyService.saveSession(...)` on completion (currently silently lost); TherapyHistoryScreen shows mock — wire list.
 - **Accept:** Completing a session persists it and it appears in TherapyHistoryScreen; tests for save + list + auth-required.

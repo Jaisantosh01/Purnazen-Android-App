@@ -49,15 +49,21 @@ const BookAppointmentScreen = ({ navigation, route }) => {
 
   useEffect(() => {
     consultService.getVisitTypes(doctor.id)
-      .then(data => { if (data?.length) setVisitTypes(data); })
+      .then(data => {
+        if (data?.length) {
+          setVisitTypes(data);
+          setSelectedVisit(prev => (data.some(v => v.id === prev) ? prev : data[0].id));
+        }
+      })
       .catch(() => {});
   }, [doctor.id]);
 
   useEffect(() => {
     if (!selectedDate) return;
+    setSelectedTime(null);
     const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(selectedDate).padStart(2, '0')}`;
     consultService.getTimeSlots(doctor.id, dateStr)
-      .then(data => { if (data?.length) setTimeSlots(data); })
+      .then(data => { if (Array.isArray(data)) setTimeSlots(data); })
       .catch(() => {});
   }, [doctor.id, selectedDate, currentMonth, currentYear]);
 
@@ -103,23 +109,24 @@ const BookAppointmentScreen = ({ navigation, route }) => {
     }
     const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(selectedDate).padStart(2, '0')}`;
     try {
-      await consultService.bookAppointment({
+      const booking = await consultService.bookAppointment({
         doctorId:  doctor.id,
         visitType: selectedVisit,
         date:      dateStr,
         time:      selectedTime,
         fee:       selectedVisitData?.fee,
       });
+      navigation.navigate('BookingConfirmed', {
+        doctor,
+        date: getSelectedDateString(),
+        time: selectedTime,
+        visitType: selectedVisitData?.title,
+        fee: selectedVisitData?.fee,
+        bookingRef: booking?.reference,
+      });
     } catch (err) {
-      console.log('Booking API not ready:', err.message);
+      Alert.alert('Booking Failed', err.message);
     }
-    navigation.navigate('BookingConfirmed', {
-      doctor,
-      date: getSelectedDateString(),
-      time: selectedTime,
-      visitType: selectedVisitData?.title,
-      fee: selectedVisitData?.fee,
-    });
   };
 
   // Build calendar grid

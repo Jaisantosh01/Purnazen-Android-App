@@ -7,6 +7,10 @@ from app.models.user import User
 class DoctorRepository:
 
     @staticmethod
+    def get_by_id(db: Session, doctor_id: int) -> Doctor | None:
+        return db.get(Doctor, doctor_id)
+
+    @staticmethod
     def get_doctors(db: Session, page: int, limit: int, search: str):
         query = db.query(Doctor)
 

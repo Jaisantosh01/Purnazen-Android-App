@@ -2,6 +2,27 @@
 
 All notable changes to the Purnazen App are documented here.
 
+## [2026-06-12] — P0 booking funnel + therapy history (TASKS.md T1–T5)
+
+### Backend
+
+**Added**
+
+- **T1 — Doctor detail**: `GET /api/v1/doctors/:id` returning the same card shape as the list (serializer extracted to `doctor_card()` in `endpoints/doctors.py`, shared by both); 404 envelope when missing.
+- **T2 — Visit types**: `GET /api/v1/doctors/:id/visit-types` derived from the `consultation_types` m2m. Presentation metadata (slug/title/subtitle/icon) lives in `app/services/doctor_service.py` (`VISIT_TYPE_PRESENTATION`); fee comes from `doctors.consultation_fee`.
+- **T3 — Time slots**: `GET /api/v1/doctors/:id/time-slots?date=YYYY-MM-DD` generates slots from `doctor_availability` (day-of-week window ÷ `slot_duration_minutes`), minus already-booked non-cancelled appointments. 400 on malformed/past dates. `seed.py` now seeds Mon–Sat 09:00–12:00 + 14:00–17:00 (30-min) availability per doctor.
+- **T4 — Appointment booking**: new `Appointment` model + migration (`f3a9c2d41b07`) with user/doctor/consultation-type FKs, date, slot start/end, fee, status (booked/cancelled/completed). `POST /api/v1/appointments/book` (auth) — 409 envelope when the doctor already has a non-cancelled appointment for the same date+slot; 404 unknown doctor; 400 past date / bad time. `GET /api/v1/appointments` (auth) — user's bookings newest first with `isUpcoming` flag. Booking reference (`APT-NNNNNN`) derived from the row id.
+- **T5 — Therapy history**: new `TherapySession` model + migration (`9d4e7b21c8aa`). `POST /api/v1/therapy-history/save` (auth) accepts the exact payload the session screens already send (`title`, `type`, ISO `date`, `'15 min'` duration, `painBefore/After`). `GET /api/v1/therapy-history` (auth, paginated, newest first) returns display-ready sessions + aggregate stats (`sessions`, `minutes`, `avgRelief` — completed sessions only).
+- Tests: 25 → **52** (doctor detail/visit-types/time-slots, booking happy/conflict/auth/validation + slot exclusion + per-user isolation, therapy save/list/stats/pagination/auth). Migration chain verified against a scratch SQLite DB.
+
+### Frontend
+
+**Changed**
+
+- `BookAppointmentScreen`: booking now actually books — navigates to `BookingConfirmed` only on API success (passing the new `bookingRef`), shows an alert on failure (e.g. slot conflict). Visit-type selection re-syncs to server data; time-slot list now reflects empty days instead of keeping stale defaults; changing date clears the selected time.
+- `BookingConfirmedScreen`: displays the booking reference when present.
+- `TherapyHistoryScreen`: wired to `GET /therapy-history` (loading/error/empty states); mock `therapyData` no longer used by the screen. Completed yoga/relief sessions now persist and appear here.
+
 ## [2026-06-12] — Frontend: RN 0.85 + Expo SDK 56, env-driven config, restructure
 
 ### React Native 0.84.1 → 0.85.3 + Expo SDK 56

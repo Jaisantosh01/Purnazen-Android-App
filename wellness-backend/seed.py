@@ -4,11 +4,14 @@ Usage:  python seed.py
 Creates tables if missing, then inserts idempotent reference + demo data.
 """
 
+from datetime import time
+
 from app.core.security import hash_password
 from app.db.base import (
     Base,
     ConsultationType,
     Doctor,
+    DoctorAvailability,
     Expertise,
     Language,
     Specialty,
@@ -139,6 +142,30 @@ try:
                     is_available_today=available,
                 )
             )
+
+    db.commit()
+
+    # ------------------------
+    # Weekly availability (drives /doctors/:id/time-slots)
+    # ------------------------
+    weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+    windows = [(time(9, 0), time(12, 0)), (time(14, 0), time(17, 0))]
+
+    for user, *_ in doctor_profiles:
+        doctor = db.query(Doctor).filter_by(user_id=user.id).first()
+        if doctor and not db.query(DoctorAvailability).filter_by(doctor_id=doctor.id).first():
+            for day in weekdays:
+                for start, end in windows:
+                    db.add(
+                        DoctorAvailability(
+                            doctor_id=doctor.id,
+                            day_of_week=day,
+                            start_time=start,
+                            end_time=end,
+                            slot_duration_minutes=30,
+                            is_available=True,
+                        )
+                    )
 
     db.commit()
 

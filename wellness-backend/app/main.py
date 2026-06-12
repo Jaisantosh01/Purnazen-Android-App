@@ -30,11 +30,19 @@ OPENAPI_TAGS = [
     },
     {
         "name": "Doctors",
-        "description": "Doctor catalog with pagination and search.",
+        "description": "Doctor catalog (pagination + search), detail, visit types and time slots.",
     },
     {
         "name": "Home",
         "description": "Content for the home screen (quick relief cards).",
+    },
+    {
+        "name": "Appointments",
+        "description": "Book a slot with a doctor and list the user's appointments.",
+    },
+    {
+        "name": "Therapy History",
+        "description": "Save completed wellness/relief sessions and list them with stats.",
     },
     {
         "name": "Health",
