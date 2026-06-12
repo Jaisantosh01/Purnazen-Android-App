@@ -5,8 +5,25 @@ from app.config.config import Config
 from app.extensions.database import db
 
 from app.models.user_model import User
+from app.models.doctor_model import Doctor
+from app.models.specialty_model import Specialty
+from app.models.language_model import Language
+from app.models.consultation_type_model import ConsultationType
+from app.models.doctor_consultation_type_model import DoctorConsultationType
+from app.models.doctor_language_model import DoctorLanguage
+from app.models.doctor_expertise_model import DoctorExpertise
+from app.models.quick_relief_model import QuickRelief
+from app.models.expertise_model import Expertise
+from app.models.clinic_model import Clinic
+from app.models.award_model import Award
+from app.models.doctor_availability_model import DoctorAvailability
+
 from app.routes.auth_routes import auth_bp
 from app.extensions.jwt import jwt
+
+from app.routes.doctor_routes import (
+    doctor_bp
+)
 
 from app.utils.error_handler import (
     register_error_handlers
@@ -23,6 +40,8 @@ from flask_jwt_extended import (
 from app.repositories.token_repository import (
     TokenRepository
 )
+
+from app.routes.home_routes import home_bp
 
 from flasgger import Swagger
 
@@ -57,10 +76,11 @@ def create_app():
 
     Swagger(app)
 
-    app.register_blueprint(
-        auth_bp,
-        url_prefix='/api/v1/auth'
-    )
+    app.register_blueprint(auth_bp,)
+
+    app.register_blueprint(doctor_bp)
+
+    app.register_blueprint(home_bp)
 
     register_error_handlers(app)
 

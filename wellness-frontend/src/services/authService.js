@@ -10,14 +10,41 @@ class AuthService {
 
   async login(email, password) {
     try {
-      const json = await this.post(ENDPOINTS.LOGIN, { email, password });
-      const { access_token, refresh_token, user } = json?.data;
-      await AsyncStorage.setItem('access_token',  access_token);
-      await AsyncStorage.setItem('refresh_token', refresh_token);
-      await AsyncStorage.setItem('user',          JSON.stringify(user));
+      const response = await this.post(ENDPOINTS.LOGIN, {
+        email,
+        password,
+      });
+
+      console.log(response);
+
+
+      if (!response.success) {
+        throw new Error(response.message || "Login failed");
+      }
+
+      console.log("1");
+
+
+      const { access_token, refresh_token, user } = response.data;
+
+      console.log("2");
+
+
+      console.log(access_token);
+      console.log(refresh_token);
+      console.log(user);
+
+      await AsyncStorage.setItem("access_token", access_token);
+      await AsyncStorage.setItem("refresh_token", refresh_token);
+      await AsyncStorage.setItem("user", JSON.stringify(user));
+
+      console.log("3");
+
+
+
       return user;
     } catch (err) {
-      throw new Error(err?.message ?? 'Login failed');
+      throw new Error(err?.message || "Login failed");
     }
   }
 
