@@ -1,38 +1,28 @@
+from sqlalchemy.orm import Session
+
+from app.core.security import (
+    create_access_token,
+    create_refresh_token,
+    hash_password,
+    verify_password,
+)
 from app.repositories.user_repository import UserRepository
 
-from flask_jwt_extended import (
-    create_access_token,
-    create_refresh_token
-)
-
-from app.utils.password import (
-    hash_password,
-    verify_password
-)
-
-from flask_jwt_extended import create_access_token
 
 class AuthService:
 
     @staticmethod
-    def register(data):
-
-        existing_user = UserRepository.find_by_email(
-            data['email']
-        )
+    def register(db: Session, data: dict):
+        existing_user = UserRepository.find_by_email(db, data["email"])
 
         if existing_user:
-
             return {
                 "success": False,
-                "message": "Email already exists"
+                "message": "Email already exists",
             }, 400
 
-        data['password'] = hash_password(
-            data['password']
-        )
-
-        user = UserRepository.create_user(data)
+        data["password"] = hash_password(data["password"])
+        user = UserRepository.create_user(db, data)
 
         return {
             "success": True,
@@ -40,55 +30,29 @@ class AuthService:
             "user": {
                 "id": user.id,
                 "email": user.email,
-                "full_name": user.full_name
-            }
+                "full_name": user.full_name,
+            },
         }, 201
 
     @staticmethod
-    def login(data):
+    def login(db: Session, data: dict):
+        user = UserRepository.find_by_email(db, data["email"])
 
-        print("Data:", data)
-
-        user = UserRepository.find_by_email(
-            data['email']
-        )
-
-        if not user:
-
+        if not user or not verify_password(data["password"], user.password):
             return {
                 "success": False,
-                "message": "Invalid email or password"
+                "message": "Invalid email or password",
             }, 401
-
-        is_valid_password = verify_password(
-            data['password'],
-            user.password
-        )
-
-        if not is_valid_password:
-
-            return {
-                "success": False,
-                "message": "Invalid email or password"
-            }, 401
-
-        access_token = create_access_token(
-            identity=str(user.id)
-        )
-
-        refresh_token = create_refresh_token(
-            identity=str(user.id)
-        )
 
         return {
             "success": True,
             "message": "Login successful",
-            "access_token": access_token,
-            "refresh_token": refresh_token,
+            "access_token": create_access_token(str(user.id)),
+            "refresh_token": create_refresh_token(str(user.id)),
             "user": {
                 "id": user.id,
                 "email": user.email,
                 "full_name": user.full_name,
-                "role": user.role
-            }
+                "role": user.role,
+            },
         }, 200

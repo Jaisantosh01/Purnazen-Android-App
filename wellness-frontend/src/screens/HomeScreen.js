@@ -12,7 +12,7 @@ import {
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import QuickCard from '../components/QuickCards';
-import httpInterceptor from '../interceptors/httpInterceptor';
+import apiClient from '../api/client';
 import { BASE_URL, ENDPOINTS } from '../constants/apiEndpoints';
 
 
@@ -35,7 +35,7 @@ const HomeScreen = ({ navigation }) => {
 
         console.log('QUICK_RELIEF:', BASE_URL + ENDPOINTS.HOME_QUICK_RELIEF);
 
-        const reliefData = await httpInterceptor.get(
+        const reliefData = await apiClient.get(
           ENDPOINTS.HOME_QUICK_RELIEF
         );
 

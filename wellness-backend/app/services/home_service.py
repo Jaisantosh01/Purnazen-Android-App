@@ -1,12 +1,13 @@
+from sqlalchemy.orm import Session
+
 from app.repositories.quick_relief_repository import QuickReliefRepository
 
 
 class HomeService:
 
     @staticmethod
-    def get_quick_reliefs():
-
-        items = QuickReliefRepository.get_active_quick_reliefs()
+    def get_quick_reliefs(db: Session):
+        items = QuickReliefRepository.get_active_quick_reliefs(db)
 
         return [
             {
@@ -18,7 +19,7 @@ class HomeService:
                 "icon_name": item.icon_name,
                 "icon_url": item.icon_url,
                 "background_color": item.background_color,
-                "text_color": item.text_color
+                "text_color": item.text_color,
             }
             for item in items
         ]

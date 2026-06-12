@@ -43,3 +43,6 @@ Thumbs.db
 .idea/
 *.log
 __pycache__/
+
+# SQLite dev fallback
+wellness-backend/*.db

@@ -1,27 +1,17 @@
-from app.extensions.database import db
+from sqlalchemy.orm import Session
 
-from app.models.token_blocklist_model import (
-    TokenBlocklist
-)
+from app.models.token_blocklist import TokenBlocklist
 
 
 class TokenRepository:
 
     @staticmethod
-    def add_to_blocklist(jti):
-
-        token = TokenBlocklist(
-            jti=jti
-        )
-
-        db.session.add(token)
-
-        db.session.commit()
-
+    def add_to_blocklist(db: Session, jti: str):
+        db.add(TokenBlocklist(jti=jti))
+        db.commit()
 
     @staticmethod
-    def is_token_revoked(jti):
-
-        return TokenBlocklist.query.filter_by(
-            jti=jti
-        ).first() is not None
+    def is_token_revoked(db: Session, jti: str) -> bool:
+        return (
+            db.query(TokenBlocklist).filter_by(jti=jti).first() is not None
+        )

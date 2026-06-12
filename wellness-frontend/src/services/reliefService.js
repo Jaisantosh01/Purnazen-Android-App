@@ -1,10 +1,10 @@
-import httpInterceptor from '../interceptors/httpInterceptor';
+import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 
 class ReliefService {
 
   get(endpoint) {
-    return httpInterceptor.get(endpoint);
+    return apiClient.get(endpoint);
   }
 
   async getAllReliefSessions() {

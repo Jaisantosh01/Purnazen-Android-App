@@ -9,6 +9,10 @@ export const ENDPOINTS = {
 
   // Auth
   LOGIN: `${API_VERSION}/auth/login`,
+  REGISTER: `${API_VERSION}/auth/register`,
+  LOGOUT: `${API_VERSION}/auth/logout`,
+  REFRESH: `${API_VERSION}/auth/refresh`,
+  ME: `${API_VERSION}/auth/me`,
 
   // Home
   HOME_QUICK_RELIEF: `${API_VERSION}/home/quick-relief`,

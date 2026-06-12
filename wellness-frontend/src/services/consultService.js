@@ -1,4 +1,4 @@
-import httpInterceptor from '../interceptors/httpInterceptor';
+import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 
 const PAGE_SIZE = 10;
@@ -14,11 +14,11 @@ const FILTER_ENDPOINT_MAP = {
 class ConsultService {
 
   get(endpoint) {
-    return httpInterceptor.get(endpoint);
+    return apiClient.get(endpoint);
   }
 
   post(endpoint, body) {
-    return httpInterceptor.post(endpoint, body);
+    return apiClient.post(endpoint, body);
   }
 
   async getFilterTabs() {

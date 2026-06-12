@@ -1,34 +1,45 @@
 # Wellness Backend API
 
-Enterprise-grade wellness SaaS backend built using Flask.
+Enterprise-grade wellness SaaS backend built with **FastAPI**.
 
 ## Tech Stack
-- **Framework:** Flask
-- **ORM:** SQLAlchemy (with Flask-SQLAlchemy)
-- **Migrations:** Alembic (with Flask-Migrate)
-- **Authentication:** JWT (Flask-JWT-Extended)
-- **Validation:** Marshmallow
-- **Documentation:** Swagger (Flasgger)
-- **Database:** PostgreSQL (via `psycopg2-binary`)
+- **Framework:** FastAPI (ASGI, served by Uvicorn)
+- **ORM:** SQLAlchemy 2.0
+- **Migrations:** Alembic
+- **Authentication:** JWT (PyJWT — access + refresh tokens with revocation)
+- **Validation:** Pydantic v2
+- **Documentation:** OpenAPI / Swagger UI (built-in, auto-generated)
+- **Database:** PostgreSQL (SQLite fallback for local development)
+- **Tests:** pytest + FastAPI TestClient
 
 ## Folder Structure
 ```text
 wellness-backend/
 ├── app/
-│   ├── config/          # Application configurations
-│   ├── controllers/     # Request handlers (logic)
-│   ├── extensions/      # Flask extension initializations (DB, JWT, etc.)
-│   ├── middlewares/     # Custom middlewares (e.g., role_required)
-│   ├── models/          # SQLAlchemy database models
-│   ├── repositories/    # Data access layer (DB queries)
-│   ├── routes/          # API endpoint definitions (Blueprints)
-│   ├── services/        # Business logic layer
-│   ├── utils/           # Helper functions (password hash, responses)
-│   └── validators/      # Marshmallow schemas for data validation
-├── migrations/          # Database migration scripts
-├── .env                 # Environment variables (local only)
-├── requirements.txt     # Python dependencies
-└── run.py               # Application entry point
+│   ├── main.py            # FastAPI app factory, middleware, exception handlers
+│   ├── api/
+│   │   ├── deps.py        # Dependencies: get_db, JWT auth, role checks
+│   │   └── v1/
+│   │       ├── router.py  # Aggregates all v1 routers
+│   │       └── endpoints/ # Route handlers (auth, doctors, home)
+│   ├── core/
+│   │   ├── config.py      # Pydantic Settings (.env driven)
+│   │   └── security.py    # Password hashing + JWT create/decode
+│   ├── db/
+│   │   ├── base_class.py  # Declarative Base
+│   │   ├── base.py        # Imports all models (for Alembic/tests)
+│   │   └── session.py     # Engine + SessionLocal
+│   ├── models/            # SQLAlchemy database models
+│   ├── schemas/           # Pydantic request/response schemas
+│   ├── repositories/      # Data access layer (DB queries)
+│   ├── services/          # Business logic layer
+│   └── utils/             # Response envelope helpers
+├── alembic/               # Database migration scripts
+├── alembic.ini            # Alembic configuration
+├── tests/                 # pytest suite (runs against in-memory SQLite)
+├── seed.py                # Development seed data
+├── requirements.txt       # Python dependencies
+└── run.py                 # Dev entry point (uvicorn with reload)
 ```
 
 ## Development Workflow
@@ -38,66 +49,85 @@ Follow this layered architecture when adding new features:
 | Layer | Folder | Responsibility |
 | :--- | :--- | :--- |
 | **Model** | `app/models/` | Define database schemas (SQLAlchemy). |
-| **Validator** | `app/validators/` | Define request/response validation (Marshmallow). |
+| **Schema** | `app/schemas/` | Define request/response validation (Pydantic). |
 | **Repository** | `app/repositories/` | Direct database operations (CRUD). Keep logic minimal. |
 | **Service** | `app/services/` | Business logic, calculations, and data processing. |
-| **Controller** | `app/controllers/` | Extract request data, call services, and return responses. |
-| **Route** | `app/routes/` | Register API endpoints and map them to controllers. |
+| **Endpoint** | `app/api/v1/endpoints/` | Route handlers: parse request, call services, return responses. |
+| **Router** | `app/api/v1/router.py` | Register endpoint routers. |
 
 ### How to Add a New Database Schema
-1. **Define Model:** Create a new file in `app/models/` (e.g., `product_model.py`) and define your SQLAlchemy class.
-2. **Register Model:** Import your new model in `app/__init__.py` to ensure Alembic detects it.
-3. **Generate Migration:** Run:
+1. **Define Model:** Create a new file in `app/models/` and define your SQLAlchemy class (inherit from `app.db.base_class.Base`).
+2. **Register Model:** Import it in `app/db/base.py` so Alembic detects it.
+3. **Generate Migration:**
    ```bash
-   flask db migrate -m "added product table"
+   alembic revision --autogenerate -m "added product table"
    ```
-4. **Apply Changes:** Run:
+4. **Apply Changes:**
    ```bash
-   flask db upgrade
+   alembic upgrade head
    ```
 
 ## Setup & Installation
 
-### 1. Database Creation
-Before running migrations, you must **manually create** the database in your PostgreSQL instance (e.g., `wellness_db`).
-
-### 2. Environment Configuration
-Create a `.env` file by copying the provided example:
+### 1. Create a virtualenv and install dependencies
 ```bash
-cp .env.example .env
-```
-Then, update the `.env` file with your local credentials and configurations.
-
-### 3. Install Dependencies
-```bash
+python -m venv venv
+venv\Scripts\activate        # Windows
 pip install -r requirements.txt
 ```
 
-## Database Migrations
+### 2. Environment Configuration
+```bash
+cp .env.example .env
+```
+Update `.env` with your credentials. If `DATABASE_URL` is omitted, the app uses a local SQLite file (`wellness.db`) — convenient for development.
 
-The project uses `Flask-Migrate`.
+### 3. Apply migrations (PostgreSQL)
+```bash
+alembic upgrade head
+```
 
-- **Apply migrations:**
-  ```bash
-  flask db upgrade
-  ```
-- **Create a new migration:**
-  ```bash
-  flask db migrate -m "Description of changes"
-  ```
-- **Initialize migrations (if starting fresh):**
-  ```bash
-  flask db init
-  ```
+### 4. Seed development data (optional)
+```bash
+python seed.py
+```
+Creates specialties, consultation types, languages, expertise, and 3 demo doctors (passwords bcrypt-hashed).
 
 ## Running the Application
 
-Start the development server:
 ```bash
 python run.py
 ```
-The server will start at `http://127.0.0.1:5000/`.
+The server starts at `http://127.0.0.1:5000/` (reload enabled).
+
+For production:
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port 5000
+```
+
+## Running Tests
+
+```bash
+pytest
+```
+Tests run against an in-memory SQLite database — no PostgreSQL needed.
 
 ## API Documentation
-Once the server is running, you can access the Swagger documentation at:
-`http://127.0.0.1:5000/apidocs/`
+With the server running:
+- Swagger UI: `http://127.0.0.1:5000/apidocs`
+- ReDoc: `http://127.0.0.1:5000/redoc`
+- OpenAPI JSON: `http://127.0.0.1:5000/openapi.json`
+
+## API Endpoints
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/api/v1/auth/register` | — | Create account |
+| POST | `/api/v1/auth/login` | — | Get access + refresh tokens |
+| GET | `/api/v1/auth/me` | Access token | Current user |
+| POST | `/api/v1/auth/refresh` | Refresh token | New access token |
+| POST | `/api/v1/auth/logout` | Refresh token | Revoke refresh token |
+| GET | `/api/v1/auth/admin/dashboard` | Access + admin role | Admin-only |
+| GET | `/api/v1/doctors` | — | Paginated doctor list (`?page=&limit=&search=`) |
+| GET | `/api/v1/home/quick-relief` | — | Quick relief cards |
+| GET | `/health` | — | Health check |

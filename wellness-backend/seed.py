@@ -1,76 +1,70 @@
-from app import create_app
-from app.extensions.database import db
+"""Seed the database with development data.
 
-from app.models.specialty_model import Specialty
-from app.models.consultation_type_model import ConsultationType
-from app.models.language_model import Language
-from app.models.expertise_model import Expertise
-from app.models.user_model import User
-from app.models.doctor_model import Doctor
+Usage:  python seed.py
+Creates tables if missing, then inserts idempotent reference + demo data.
+"""
 
-app = create_app()
+from app.core.security import hash_password
+from app.db.base import (
+    Base,
+    ConsultationType,
+    Doctor,
+    Expertise,
+    Language,
+    Specialty,
+    User,
+)
+from app.db.session import SessionLocal, engine
 
-with app.app_context():
+Base.metadata.create_all(bind=engine)
 
+db = SessionLocal()
+
+try:
     # ------------------------
     # Specialties
     # ------------------------
-
     specialties = [
         "Acupressure Specialist",
         "Wellness Expert",
-        "Pain Management"
+        "Pain Management",
     ]
 
     for name in specialties:
-        if not Specialty.query.filter_by(name=name).first():
-            db.session.add(
-                Specialty(name=name)
-            )
+        if not db.query(Specialty).filter_by(name=name).first():
+            db.add(Specialty(name=name))
 
-    db.session.commit()
+    db.commit()
 
     # ------------------------
     # Consultation Types
     # ------------------------
-
     consultation_types = [
         "Video Call",
         "Home Visit",
-        "Clinic Visit"
+        "Clinic Visit",
     ]
 
     for name in consultation_types:
-        if not ConsultationType.query.filter_by(name=name).first():
-            db.session.add(
-                ConsultationType(name=name)
-            )
+        if not db.query(ConsultationType).filter_by(name=name).first():
+            db.add(ConsultationType(name=name))
 
-    db.session.commit()
+    db.commit()
 
     # ------------------------
     # Languages
     # ------------------------
-
-    languages = [
-        "English",
-        "Hindi",
-        "Mandarin",
-        "Kannada"
-    ]
+    languages = ["English", "Hindi", "Mandarin", "Kannada"]
 
     for name in languages:
-        if not Language.query.filter_by(name=name).first():
-            db.session.add(
-                Language(name=name)
-            )
+        if not db.query(Language).filter_by(name=name).first():
+            db.add(Language(name=name))
 
-    db.session.commit()
+    db.commit()
 
     # ------------------------
     # Expertise
     # ------------------------
-
     expertise_list = [
         "Pain Management",
         "Stress Relief",
@@ -82,144 +76,72 @@ with app.app_context():
         "Chronic Pain",
         "Back Pain",
         "Joint Pain",
-        "Rehabilitation"
+        "Rehabilitation",
     ]
 
     for name in expertise_list:
-        if not Expertise.query.filter_by(name=name).first():
-            db.session.add(
-                Expertise(name=name)
-            )
+        if not db.query(Expertise).filter_by(name=name).first():
+            db.add(Expertise(name=name))
 
-    db.session.commit()
+    db.commit()
 
     # ------------------------
-    # Users
+    # Doctor users (passwords properly bcrypt-hashed)
     # ------------------------
+    doctor_users = [
+        ("Dr Sarah Chen", "sarah@example.com"),
+        ("Dr Rajesh Kumar", "rajesh@example.com"),
+        ("Dr Priya Sharma", "priya@example.com"),
+    ]
 
-    if not User.query.filter_by(
-        email="sarah@example.com"
-    ).first():
+    for full_name, email in doctor_users:
+        if not db.query(User).filter_by(email=email).first():
+            db.add(
+                User(
+                    full_name=full_name,
+                    email=email,
+                    password=hash_password("123456"),
+                    role="doctor",
+                )
+            )
 
-        user = User(
-            full_name="Dr Sarah Chen",
-            email="sarah@example.com",
-            password="123456",
-            role="doctor"
-        )
-
-        db.session.add(user)
-
-    if not User.query.filter_by(
-        email="rajesh@example.com"
-    ).first():
-
-        user = User(
-            full_name="Dr Rajesh Kumar",
-            email="rajesh@example.com",
-            password="123456",
-            role="doctor"
-        )
-
-        db.session.add(user)
-
-    if not User.query.filter_by(
-        email="priya@example.com"
-    ).first():
-
-        user = User(
-            full_name="Dr Priya Sharma",
-            email="priya@example.com",
-            password="123456",
-            role="doctor"
-        )
-
-        db.session.add(user)
-
-    db.session.commit()
+    db.commit()
 
     # ------------------------
-    # Doctors
+    # Doctor profiles
     # ------------------------
+    sarah = db.query(User).filter_by(email="sarah@example.com").first()
+    rajesh = db.query(User).filter_by(email="rajesh@example.com").first()
+    priya = db.query(User).filter_by(email="priya@example.com").first()
 
-    sarah = User.query.filter_by(
-        email="sarah@example.com"
-    ).first()
+    acupressure = db.query(Specialty).filter_by(name="Acupressure Specialist").first()
+    wellness = db.query(Specialty).filter_by(name="Wellness Expert").first()
+    pain = db.query(Specialty).filter_by(name="Pain Management").first()
 
-    rajesh = User.query.filter_by(
-        email="rajesh@example.com"
-    ).first()
+    doctor_profiles = [
+        (sarah, acupressure, "Experienced acupressure specialist.", 15, 1200, 4.9, 234, True),
+        (rajesh, wellness, "Wellness and lifestyle expert.", 12, 1000, 4.8, 189, False),
+        (priya, pain, "Pain management specialist.", 18, 1500, 4.9, 312, True),
+    ]
 
-    priya = User.query.filter_by(
-        email="priya@example.com"
-    ).first()
-
-    acupressure = Specialty.query.filter_by(
-        name="Acupressure Specialist"
-    ).first()
-
-    wellness = Specialty.query.filter_by(
-        name="Wellness Expert"
-    ).first()
-
-    pain = Specialty.query.filter_by(
-        name="Pain Management"
-    ).first()
-
-    if not Doctor.query.filter_by(
-        user_id=sarah.id
-    ).first():
-
-        db.session.add(
-            Doctor(
-                user_id=sarah.id,
-                specialty_id=acupressure.id,
-                about="Experienced acupressure specialist.",
-                education="MBBS, MD",
-                experience_years=15,
-                consultation_fee=1200,
-                average_rating=4.9,
-                reviews_count=234,
-                is_available_today=True
+    for user, specialty, about, years, fee, rating, reviews, available in doctor_profiles:
+        if not db.query(Doctor).filter_by(user_id=user.id).first():
+            db.add(
+                Doctor(
+                    user_id=user.id,
+                    specialty_id=specialty.id,
+                    about=about,
+                    education="MBBS, MD",
+                    experience_years=years,
+                    consultation_fee=fee,
+                    average_rating=rating,
+                    reviews_count=reviews,
+                    is_available_today=available,
+                )
             )
-        )
 
-    if not Doctor.query.filter_by(
-        user_id=rajesh.id
-    ).first():
-
-        db.session.add(
-            Doctor(
-                user_id=rajesh.id,
-                specialty_id=wellness.id,
-                about="Wellness and lifestyle expert.",
-                education="MBBS, MD",
-                experience_years=12,
-                consultation_fee=1000,
-                average_rating=4.8,
-                reviews_count=189,
-                is_available_today=False
-            )
-        )
-
-    if not Doctor.query.filter_by(
-        user_id=priya.id
-    ).first():
-
-        db.session.add(
-            Doctor(
-                user_id=priya.id,
-                specialty_id=pain.id,
-                about="Pain management specialist.",
-                education="MBBS, MD",
-                experience_years=18,
-                consultation_fee=1500,
-                average_rating=4.9,
-                reviews_count=312,
-                is_available_today=True
-            )
-        )
-
-    db.session.commit()
+    db.commit()
 
     print("Seed data inserted successfully.")
+finally:
+    db.close()

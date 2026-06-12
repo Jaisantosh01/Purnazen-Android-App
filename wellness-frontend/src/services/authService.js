@@ -1,57 +1,48 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import httpInterceptor from '../interceptors/httpInterceptor';
+import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
+import { useAuthStore } from '../store/authStore';
 
 class AuthService {
 
-  post(endpoint, body) {
-    return httpInterceptor.post(endpoint, body);
-  }
-
   async login(email, password) {
-    try {
-      const response = await this.post(ENDPOINTS.LOGIN, {
-        email,
-        password,
-      });
+    const response = await apiClient.post(ENDPOINTS.LOGIN, {
+      email,
+      password,
+    });
 
-      console.log(response);
-
-
-      if (!response.success) {
-        throw new Error(response.message || "Login failed");
-      }
-
-      console.log("1");
-
-
-      const { access_token, refresh_token, user } = response.data;
-
-      console.log("2");
-
-
-      console.log(access_token);
-      console.log(refresh_token);
-      console.log(user);
-
-      await AsyncStorage.setItem("access_token", access_token);
-      await AsyncStorage.setItem("refresh_token", refresh_token);
-      await AsyncStorage.setItem("user", JSON.stringify(user));
-
-      console.log("3");
-
-
-
-      return user;
-    } catch (err) {
-      throw new Error(err?.message || "Login failed");
+    if (!response.success) {
+      throw new Error(response.message || 'Login failed');
     }
+
+    const { access_token, refresh_token, user } = response.data;
+
+    await AsyncStorage.multiSet([
+      ['access_token', access_token],
+      ['refresh_token', refresh_token],
+      ['user', JSON.stringify(user)],
+    ]);
+
+    useAuthStore.getState().setAuth(user);
+
+    return user;
   }
 
   async logout() {
-    await AsyncStorage.removeItem('access_token');
-    await AsyncStorage.removeItem('refresh_token');
-    await AsyncStorage.removeItem('user');
+    // Revoke the refresh token server-side; clear locally even if that fails
+    try {
+      const refreshToken = await AsyncStorage.getItem('refresh_token');
+      if (refreshToken) {
+        await apiClient.post(ENDPOINTS.LOGOUT, null, {
+          headers: { Authorization: `Bearer ${refreshToken}` },
+        });
+      }
+    } catch (error) {
+      // Token may already be expired/revoked — local logout still proceeds
+    }
+
+    await AsyncStorage.multiRemove(['access_token', 'refresh_token', 'user']);
+    useAuthStore.getState().clearAuth();
   }
 
   getToken() {
@@ -66,6 +57,15 @@ class AuthService {
   async isLoggedIn() {
     const token = await this.getToken();
     return !!token;
+  }
+
+  /** Restore persisted session into the Zustand store on app start. */
+  async bootstrap() {
+    const user = await this.getUser();
+    if (user) {
+      useAuthStore.getState().setAuth(user);
+    }
+    return user;
   }
 
 }
