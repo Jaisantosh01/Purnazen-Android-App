@@ -1,6 +1,6 @@
 # Task Backlog — Gap Features
 
-**Last updated:** 2026-06-12 (P0 T1–T5, P1 T6–T11 **and P2 T12/T15/T18/T19 completed** — see CHANGELOG; T13/T14/T16/T17 remain). Derived from the FEATURES.md scoreboard plus frontend work. Ordered by priority; each task lists scope, touched layers, and acceptance criteria. Conventions for backend tasks: model → import in `db/base.py` → `alembic revision --autogenerate` → schema → repository → service → endpoint → `router.py` → tests (see ARCHITECTURE.md).
+**Last updated:** 2026-06-13 (P0 T1–T5, P1 T6–T11, P2 T12/T15/T16/T17/T18/T19 **all completed** — see CHANGELOG; T13/T14 deferred pending backend decisions). Also completed this session: Toast/Snackbar, SkeletonLoader, src/data/ removal, folder rename (`wellness-frontend → mobile`, `wellness-backend → backend`), root README.md. Derived from the FEATURES.md scoreboard plus frontend work. Ordered by priority; each task lists scope, touched layers, and acceptance criteria. Conventions for backend tasks: model → import in `db/base.py` → `alembic revision --autogenerate` → schema → repository → service → endpoint → `router.py` → tests (see ARCHITECTURE.md).
 
 P0 implementation notes (2026-06-12): visit-type slugs `video`/`home`/`clinic` map to the `consultation_types` lookup names in `app/services/doctor_service.py` (`VISIT_TYPE_PRESENTATION`); booking conflict check is app-level (no partial unique index); seed adds Mon–Sat 09–12 & 14–17 availability (30-min slots) per doctor; therapy stats = completed sessions only, `avgRelief = round(avg(painAfter − painBefore))`.
 
@@ -71,16 +71,17 @@ P1 implementation notes (2026-06-12): filter routes are registered before `/doct
 ### T13. Face Glow backend (routines model + `GET /face-glow/routines`, `/routines/:key`; scan + history later — needs media upload + storage decision).
 ### T14. Subscriptions (plans model + endpoints; billing provider decision pending).
 ### ✅ T15. Notification preferences persistence — `user_preferences` table (migration `e6f3a82d4c91`): `push_enabled` master + JSON dict of toggle ids (no migration per new toggle). `GET`/`PUT /api/v1/users/me/preferences` (auth, partial merge). SettingsScreen + NotificationsScreen toggles hydrate from the server and save optimistically (`preferencesService`). Push *delivery* (FCM/`expo-notifications`) still open.
-### T16. Shared theme adoption — migrate the 20 screens' StyleSheets to `src/constants/theme.js` tokens (COLORS/SPACING/RADIUS); delete per-screen duplicates. Mechanical, do screen-by-screen.
-### T17. Frontend test coverage — services (axios mocked), authService (keychain mock exists), 2–3 screen smoke tests. Target: every service file has a suite.
+### ✅ T16. Shared theme adoption — all 20 screens migrated to `src/constants/theme.js` tokens (COLORS/SPACING/RADIUS). Per-screen hex literals replaced; FaceGlow/logout/per-symptom brand colours preserved. `COLORS.danger` added to theme. JSX props (placeholderTextColor, ActivityIndicator color, Switch trackColor/thumbColor, RefreshControl colors, StatusBar backgroundColor, MCIcon color) all tokenised.
+### ✅ T17. Frontend test coverage — 6 service suites (wellnessService, reliefService, consultService, therapyService, preferencesService, authService) with axios/apiClient mocked; 3 screen smoke tests (HomeScreen, ConsultScreen, TherapyHistoryScreen) using react-test-renderer + act. Files in `mobile/src/__tests__/`. All tests use the existing jest preset + setup.
 ### ✅ T18. Wire `STRINGS` constants into HomeScreen empty `<Text>` labels (pre-existing PR #1 regression noted in FEATURES.md) — all 10 labels restored.
 ### ✅ T19. CI: `.github/workflows/ci.yml` — backend pytest (Python 3.13) + frontend jest/tsc/eslint (Node 22) on PRs and pushes to main.
 
 ---
 
-## Environment / tooling notes (2026-06-12)
+## Environment / tooling notes (2026-06-13, updated)
 
 - **RN 0.85.3 + Expo SDK 56** now installed (RN 0.84 had no matching Expo SDK — Expo skipped it).
 - **Android builds on a new machine need:** Android Studio (or cmdline-tools) with SDK 36, `ANDROID_HOME` set, JDK 17+ (21 present). This machine currently has **no Android SDK** — install before `npx react-native run-android`. First gradle run should also execute `gradlew wrapper --gradle-version 9.3.1` to refresh wrapper scripts/jar (distributionUrl already bumped; old wrapper jar works but is from 9.0).
 - **Node:** v23.8 works but is outside RN 0.85's supported engines — prefer Node 22.13+ LTS or 24.3+.
-- **API URL config:** `wellness-frontend/.env` → `EXPO_PUBLIC_API_URL` (inlined at bundle time; defaults to `http://10.0.2.2:5000`).
+- **Folders renamed (2026-06-13):** `wellness-frontend` → `mobile`, `wellness-backend` → `backend`. CI workflow and package-lock cache paths updated to match.
+- **API URL config:** `mobile/.env` → `EXPO_PUBLIC_API_URL` (inlined at bundle time; defaults to `http://10.0.2.2:5000`).

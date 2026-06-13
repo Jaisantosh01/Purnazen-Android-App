@@ -2,6 +2,32 @@
 
 All notable changes to the Purnazen App are documented here.
 
+## [2026-06-13] — P2 polish/platform, second batch (T16, T17 + UX/DX improvements)
+
+### Frontend
+
+**Added**
+
+- **Toast/Snackbar system**: pure-RN `Animated` component (`mobile/src/components/Toast.js`) with Zustand store (`mobile/src/store/toastStore.js`); auto-dismisses after 3 s; supports `success`, `error`, `warning`, `info` variants. Mounted once in `App.tsx` — any screen can call `useToastStore.getState().show(...)`.
+- **SkeletonLoader component** (`mobile/src/components/SkeletonLoader.js`): pulsing `Animated` placeholder for list/card shapes; used in WellnessScreen (`StatsSkeleton`, `ProgramSkeleton`) and ReliefScreen (`CardSkeleton`). No external deps.
+- **T17 — Frontend test coverage**: six service suites (`wellnessService`, `reliefService`, `consultService`, `therapyService`, `preferencesService`, `authService`) each covering happy path, error propagation, and fallback message. Three screen smoke tests (`HomeScreen`, `ConsultScreen`, `TherapyHistoryScreen`) verify render-without-crash and key content after async load. All in `mobile/src/__tests__/` using the existing `@react-native/jest-preset` + `jest.setup.js`.
+
+**Changed**
+
+- **T16 — Shared theme adoption (all 20 screens)**: every screen's StyleSheet and inline JSX colour props now use `COLORS`/`SPACING`/`RADIUS` tokens from `mobile/src/constants/theme.js`. Per-screen hex literals removed. `COLORS.danger` (`#EF4444`) added to the theme. Preserved intentionally: FaceGlow brand pinks (`#C850C0`, `#f3e8ff`, `#fdf4ff`), per-symptom card colours in `SelectSymptomScreen`, logout button reds in `ProfileScreen`, and contact-channel brand colours in `HelpSupportScreen`.
+- **src/data/ removed**: the 8 static fallback data files (`yogaSessionData.js`, `reliefSessionData.js`, etc.) deleted; screens now use Loading Skeleton + Error Boundary patterns — no local mock data as a fallback layer.
+- `WellnessScreen`, `ReliefScreen`: replaced static list renders with `StatsSkeleton`/`ProgramSkeleton`/`CardSkeleton` during the API fetch; error state shows a retry button.
+- `YogaSessionScreen`, `ReliefSessionScreen`: refactored into a thin loading wrapper + player component; player only renders after the API responds (no local-data fallback).
+- ESLint target in CI updated from `src App.tsx __tests__` → `src App.tsx` (tests live under `src/__tests__/`, already covered by the `src` glob).
+
+### Tooling / Repo
+
+- **Folder rename**: `wellness-frontend` → `mobile`, `wellness-backend` → `backend`. All CI `working-directory` and `cache-dependency-path` references updated.
+- **Root `README.md`**: setup guide for both `backend` and `mobile`, including Python venv, Alembic migration, seed scripts, environment variables, test commands, and Android APK build notes.
+- **CI (`ci.yml`) updated**: working directories and pip cache paths now reference `backend/` and `mobile/`; ESLint path corrected.
+
+---
+
 ## [2026-06-12] — P2 polish/platform, first batch (TASKS.md T12, T15, T18, T19)
 
 ### Backend
