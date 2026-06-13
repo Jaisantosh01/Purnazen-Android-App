@@ -1,0 +1,46 @@
+from sqlalchemy import (
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    func,
+)
+from sqlalchemy.orm import relationship
+
+from app.db.base_class import Base
+
+
+class Payment(Base):
+    __tablename__ = "payments"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    appointment_id = Column(Integer, ForeignKey("appointments.id"))
+    amount = Column(Numeric(10, 2), nullable=False)
+    currency = Column(String(10), nullable=False, default="INR")
+    provider = Column(String(30), nullable=False, default="razorpay")
+    order_id = Column(String(100), nullable=False, unique=True)
+    payment_id = Column(String(100))  # provider payment reference (set on verify)
+    method = Column(String(20))  # card | upi | wallet
+    status = Column(String(20), nullable=False, default="created")  # created | paid | failed
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User", backref="payments")
+    appointment = relationship("Appointment", backref="payments")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "appointmentId": self.appointment_id,
+            "amount": float(self.amount),
+            "currency": self.currency,
+            "provider": self.provider,
+            "orderId": self.order_id,
+            "paymentId": self.payment_id,
+            "method": self.method,
+            "status": self.status,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+        }

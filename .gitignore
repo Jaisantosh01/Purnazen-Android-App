@@ -1,38 +1,38 @@
-# ===== BACKEND (Flask) =====
-wellness-backend/venv/
-wellness-backend/.env
-wellness-backend/__pycache__/
-wellness-backend/*.pyc
-wellness-backend/.pytest_cache/
-wellness-backend/instance/
-wellness-backend/.flaskenv
+# ===== BACKEND (FastAPI) =====
+backend/venv/
+backend/.env
+backend/__pycache__/
+backend/*.pyc
+backend/.pytest_cache/
+backend/instance/
+backend/.flaskenv
 
 # ===== FRONTEND (React Native) =====
-wellness-frontend/node_modules/
-wellness-frontend/.env
-wellness-frontend/.env.local
-wellness-frontend/npm-debug.log
-wellness-frontend/yarn-error.log
-wellness-frontend/.metro-health-check*
-wellness-frontend/coverage/
+mobile/node_modules/
+mobile/.env
+mobile/.env.local
+mobile/npm-debug.log
+mobile/yarn-error.log
+mobile/.metro-health-check*
+mobile/coverage/
 
 # Android
-wellness-frontend/android/.gradle
-wellness-frontend/android/app/build
-wellness-frontend/android/build
-wellness-frontend/android/.idea
-wellness-frontend/android/local.properties
-wellness-frontend/android/.cxx/
-wellness-frontend/android/*.keystore
-!wellness-frontend/android/app/debug.keystore
+mobile/android/.gradle
+mobile/android/app/build
+mobile/android/build
+mobile/android/.idea
+mobile/android/local.properties
+mobile/android/.cxx/
+mobile/android/*.keystore
+!mobile/android/app/debug.keystore
 
 # iOS
-wellness-frontend/ios/build/
-wellness-frontend/ios/DerivedData/
-wellness-frontend/ios/Pods/
-wellness-frontend/ios/Podfile.lock
-wellness-frontend/ios/*.xcuserstate
-wellness-frontend/ios/.xcode.env.local
+mobile/ios/build/
+mobile/ios/DerivedData/
+mobile/ios/Pods/
+mobile/ios/Podfile.lock
+mobile/ios/*.xcuserstate
+mobile/ios/.xcode.env.local
 
 # ===== GENERAL =====
 .DS_Store
@@ -43,3 +43,6 @@ Thumbs.db
 .idea/
 *.log
 __pycache__/
+
+# SQLite dev fallback
+backend/*.db
