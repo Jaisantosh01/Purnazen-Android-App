@@ -7,7 +7,7 @@ const SLIDE_OFFSET = -80;
 
 const PRESETS = {
   success: { bg: COLORS.primary,        icon: '✓' },
-  error:   { bg: '#EF4444',             icon: '✕' },
+  error:   { bg: COLORS.danger,         icon: '✕' },
   info:    { bg: COLORS.textSecondary,  icon: 'i' },
   warning: { bg: COLORS.warning,        icon: '!' },
 };

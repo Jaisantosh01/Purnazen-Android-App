@@ -12,15 +12,18 @@ A high-performance React Native mobile application for enterprise wellness and a
 
 ## Folder Structure
 ```text
-wellness-frontend/
+mobile/
 ├── src/
-│   ├── components/      # Reusable UI components (Navbars, Cards)
-│   ├── constants/       # API endpoints and global constants
-│   ├── data/            # Static mock data and JSON schemas
-│   ├── interceptors/    # HTTP Interceptor (fetch wrapper with Auth)
+│   ├── api/             # axios client (token injection, 401 auto-refresh)
+│   ├── components/      # Reusable UI components (Toast, SkeletonLoader, cards)
+│   ├── config/          # Env-driven config (EXPO_PUBLIC_API_URL)
+│   ├── constants/       # API endpoints, strings, theme tokens
+│   ├── navigation/      # navigationRef for imperative navigation
 │   ├── screens/         # Main application screens (Home, Consult, etc.)
 │   ├── services/        # API service layer (Business logic & data fetching)
-│   └── utils/           # Helper utility functions
+│   ├── store/           # Zustand stores (auth)
+│   ├── utils/           # Helpers (secureStorage, toast store)
+│   └── __tests__/       # Jest service + screen smoke tests
 ├── App.tsx              # Main entry point and Navigation Root
 ├── index.js             # AppRegistry registration
 └── package.json         # Dependencies and scripts

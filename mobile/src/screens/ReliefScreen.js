@@ -77,7 +77,7 @@ const ReliefScreen = ({ navigation }) => {
           </View>
         ) : error ? (
           <View style={styles.errorBox}>
-            <MCIcon name="alert-circle-outline" size={52} color="#EF4444" />
+            <MCIcon name="alert-circle-outline" size={52} color={COLORS.danger} />
             <Text style={styles.errorTitle}>Failed to load</Text>
             <Text style={styles.errorText}>{error}</Text>
             <TouchableOpacity style={styles.retryBtn} onPress={() => fetchData()} activeOpacity={0.85}>

@@ -34,30 +34,48 @@ jest.mock('../../services/consultService', () => ({
 
 const navigation = { navigate: jest.fn(), goBack: jest.fn() };
 
+// Collect rendered text by walking children only. ConsultScreen's FlatList puts
+// a <RefreshControl> element in its props, which has circular fiber refs — so
+// JSON.stringify(tree.toJSON()) throws. Walking children avoids those props.
+const collectText = (node) => {
+  if (node == null) return '';
+  if (typeof node === 'string') return node;
+  if (Array.isArray(node)) return node.map(collectText).join(' ');
+  return collectText(node.children);
+};
+
 describe('ConsultScreen', () => {
-  it('renders without crashing', async () => {
-    let tree;
+  // ConsultScreen runs a 300ms search-debounce timer; unmounting after each
+  // test fires the effect cleanup (clearTimeout) so no deferred state update
+  // re-renders the component after the Jest environment is torn down.
+  let tree;
+
+  const render = async () => {
     await act(async () => {
       tree = renderer.create(<ConsultScreen navigation={navigation} />);
     });
+    return tree;
+  };
+
+  afterEach(() => {
+    if (tree) {
+      act(() => tree.unmount());
+      tree = null;
+    }
+  });
+
+  it('renders without crashing', async () => {
+    await render();
     expect(tree).toBeTruthy();
   });
 
   it('shows booking consultation heading', async () => {
-    let tree;
-    await act(async () => {
-      tree = renderer.create(<ConsultScreen navigation={navigation} />);
-    });
-    const allText = JSON.stringify(tree.toJSON());
-    expect(allText).toContain('Book Consultation');
+    await render();
+    expect(collectText(tree.toJSON())).toContain('Book Consultation');
   });
 
   it('renders doctor card after data loads', async () => {
-    let tree;
-    await act(async () => {
-      tree = renderer.create(<ConsultScreen navigation={navigation} />);
-    });
-    const allText = JSON.stringify(tree.toJSON());
-    expect(allText).toContain('Dr. Priya Sharma');
+    await render();
+    expect(collectText(tree.toJSON())).toContain('Dr. Priya Sharma');
   });
 });

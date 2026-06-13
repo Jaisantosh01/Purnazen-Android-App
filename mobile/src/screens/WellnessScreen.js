@@ -126,7 +126,7 @@ const WellnessScreen = ({ navigation }) => {
             [1, 2, 3].map(i => <ProgramSkeleton key={i} />)
           ) : error ? (
             <View style={styles.errorBox}>
-              <MCIcon name="alert-circle-outline" size={40} color="#EF4444" />
+              <MCIcon name="alert-circle-outline" size={40} color={COLORS.danger} />
               <Text style={styles.errorTitle}>Failed to load programs</Text>
               <Text style={styles.errorText}>{error}</Text>
               <TouchableOpacity style={styles.retryBtn} onPress={() => fetchData()} activeOpacity={0.85}>

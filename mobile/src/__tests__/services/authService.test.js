@@ -22,6 +22,14 @@ jest.mock('../../navigation/navigationRef', () => ({
   resetToLogin: jest.fn(),
 }));
 
+// async-storage v3's bundled jest mock is a real in-memory store, not jest.fn
+// spies — override with spies so we can assert setItem/removeItem calls.
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  setItem: jest.fn().mockResolvedValue(undefined),
+  getItem: jest.fn().mockResolvedValue(null),
+  removeItem: jest.fn().mockResolvedValue(undefined),
+}));
+
 const USER = { id: 1, email: 'test@example.com', full_name: 'Test User' };
 
 describe('AuthService', () => {

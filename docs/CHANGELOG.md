@@ -2,13 +2,23 @@
 
 All notable changes to the Purnazen App are documented here.
 
+## [2026-06-13] — P2 validation pass (test + token fixes)
+
+Validation of the P2 batch surfaced a few defects in the just-added work; fixed:
+
+- **T17 test suite was not actually green** (the failures were intermittent, masked by an unrelated teardown error):
+  - `authService.test.js` (4 tests) asserted `AsyncStorage.setItem/removeItem` calls, but `@react-native-async-storage/async-storage` **v3**'s bundled jest mock is a real in-memory store, not `jest.fn()` spies — `toHaveBeenCalledWith` errored. Now overridden with spies in the test file.
+  - `ConsultScreen.smoke.test.js` content assertions used `JSON.stringify(tree.toJSON())`, which threw *"Converting circular structure to JSON"* because the FlatList's `refreshControl` element prop carries circular fiber refs — so those assertions never ran. Replaced with a children-only text walker. Also unmount the tree after each test so the 300 ms search-debounce timer's cleanup fires (it was re-rendering after Jest teardown → the flaky `RefreshControl` "import after teardown" error).
+  - Full suite now **13 suites / 64 tests, green and stable across repeated runs**; `tsc --noEmit` clean; eslint 0 errors.
+- **T16 token misses**: 5 danger-semantic `#EF4444` literals (the Toast error background + the error-state icons in WellnessScreen, ReliefScreen, ReliefSessionScreen, YogaSessionScreen) now use the `COLORS.danger` token that was added for exactly this value.
+
 ## [2026-06-13] — P2 polish/platform, second batch (T16, T17 + UX/DX improvements)
 
 ### Frontend
 
 **Added**
 
-- **Toast/Snackbar system**: pure-RN `Animated` component (`mobile/src/components/Toast.js`) with Zustand store (`mobile/src/store/toastStore.js`); auto-dismisses after 3 s; supports `success`, `error`, `warning`, `info` variants. Mounted once in `App.tsx` — any screen can call `useToastStore.getState().show(...)`.
+- **Toast/Snackbar system**: pure-RN `Animated` component (`mobile/src/components/Toast.js`) with Zustand store (`mobile/src/utils/toast.js`); auto-dismisses after 3 s; supports `success`, `error`, `warning`, `info` variants. Mounted once in `App.tsx` — any screen can call `useToastStore.getState().show(...)` (or the `showToast`/`showError`/… helpers exported from the same module).
 - **SkeletonLoader component** (`mobile/src/components/SkeletonLoader.js`): pulsing `Animated` placeholder for list/card shapes; used in WellnessScreen (`StatsSkeleton`, `ProgramSkeleton`) and ReliefScreen (`CardSkeleton`). No external deps.
 - **T17 — Frontend test coverage**: six service suites (`wellnessService`, `reliefService`, `consultService`, `therapyService`, `preferencesService`, `authService`) each covering happy path, error propagation, and fallback message. Three screen smoke tests (`HomeScreen`, `ConsultScreen`, `TherapyHistoryScreen`) verify render-without-crash and key content after async load. All in `mobile/src/__tests__/` using the existing `@react-native/jest-preset` + `jest.setup.js`.
 

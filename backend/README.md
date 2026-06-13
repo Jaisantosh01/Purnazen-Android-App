@@ -14,7 +14,7 @@ Enterprise-grade wellness SaaS backend built with **FastAPI**.
 
 ## Folder Structure
 ```text
-wellness-backend/
+backend/
 ├── app/
 │   ├── main.py            # FastAPI app factory, middleware, exception handlers
 │   ├── api/

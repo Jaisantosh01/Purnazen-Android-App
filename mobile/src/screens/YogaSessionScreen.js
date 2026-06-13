@@ -222,7 +222,7 @@ const YogaSessionScreen = ({ navigation, route }) => {
           </TouchableOpacity>
         </View>
         <View style={styles.errorState}>
-          <MCIcon name="alert-circle-outline" size={60} color="#EF4444" />
+          <MCIcon name="alert-circle-outline" size={60} color={COLORS.danger} />
           <Text style={styles.errorTitle}>Session not found</Text>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity style={styles.errorRetryBtn} onPress={() => navigation.goBack()} activeOpacity={0.85}>
