@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: wellness-backend
+        working-directory: backend
     steps:
       - uses: actions/checkout@v4
 
@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: '3.13'
           cache: pip
-          cache-dependency-path: wellness-backend/requirements.txt
+          cache-dependency-path: backend/requirements.txt
 
       - name: Install dependencies
         run: pip install -r requirements.txt
@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: wellness-frontend
+        working-directory: mobile
     steps:
       - uses: actions/checkout@v4
 
@@ -40,7 +40,7 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: wellness-frontend/package-lock.json
+          cache-dependency-path: mobile/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -52,4 +52,4 @@ jobs:
         run: npx tsc --noEmit
 
       - name: ESLint
-        run: npx eslint src App.tsx __tests__
+        run: npx eslint src App.tsx
