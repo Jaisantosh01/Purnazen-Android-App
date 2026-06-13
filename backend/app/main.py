@@ -4,6 +4,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+import app.db.base  # noqa: F401  — register every model so SQLAlchemy can
+#                                    resolve string-based relationships (e.g.
+#                                    Doctor → "Specialty") at runtime.
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.limiter import limiter
