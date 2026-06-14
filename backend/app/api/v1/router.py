@@ -4,6 +4,7 @@ from app.api.v1.endpoints import (
     appointments,
     auth,
     doctors,
+    face_glow,
     home,
     payments,
     sessions,
@@ -21,3 +22,4 @@ api_router.include_router(therapy_history.router)
 api_router.include_router(sessions.router)
 api_router.include_router(payments.router)
 api_router.include_router(users.router)
+api_router.include_router(face_glow.router)

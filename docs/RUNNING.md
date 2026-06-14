@@ -186,7 +186,33 @@ subsequent builds are much faster.
 
 ---
 
-## 3. Useful commands
+## 3. Stopping everything
+
+Run these in any order — all processes are safe to force-kill:
+
+```powershell
+# Stop the backend (port 5000)
+Stop-Process -Id (Get-NetTCPConnection -LocalPort 5000 -State Listen).OwningProcess -Force -ErrorAction SilentlyContinue
+
+# Stop Metro (port 8081)
+Stop-Process -Id (Get-NetTCPConnection -LocalPort 8081 -State Listen).OwningProcess -Force -ErrorAction SilentlyContinue
+
+# Stop the emulator (graceful shutdown via adb, then force if needed)
+C:\Android\Sdk\platform-tools\adb.exe emu kill
+# If adb emu kill isn't enough:
+Get-Process -Name "emulator","qemu-system-x86_64" -ErrorAction SilentlyContinue | Stop-Process -Force
+
+# Confirm everything is gone
+@(5000,8081) | ForEach-Object {
+    $c = Get-NetTCPConnection -LocalPort $_ -State Listen -ErrorAction SilentlyContinue
+    if ($c) { "PORT $_ still in use by PID $($c.OwningProcess)" } else { "PORT $_ free" }
+}
+adb devices   # should list no devices / emulator
+```
+
+---
+
+## 4. Useful commands
 
 ```powershell
 adb devices                              # list running emulators/devices
@@ -199,13 +225,14 @@ cd backend; .\venv\Scripts\python.exe -m pytest -q   # backend tests (84)
 
 ---
 
-## 4. Troubleshooting
+## 5. Troubleshooting
 
 | Symptom | Cause / Fix |
 |---|---|
 | `adb` / `emulator` / `sdkmanager` "not recognized" | `ANDROID_HOME` / `PATH` not set — see §0.1, open a **new** terminal |
 | Backend `/api/v1/doctors` → `{"success":false,"message":"Something went wrong"}` | Stale build before the model-registry fix, **or** the DB has no tables — re-run `seed.py` |
 | `sqlite3.OperationalError: unknown function: now()` while seeding | You ran `alembic upgrade head` on SQLite. Delete `wellness.db` and use `seed.py` only (§1.1) |
+| `FATAL: database "wellness_db" does not exist` on backend startup | Database was never created — run `createdb` once: `$env:PGPASSWORD="<your password>"; & "C:\Program Files\PostgreSQL\18\bin\createdb.exe" -U <your username> -h localhost -p 5432 -O <your username> wellness_db` |
 | Backend can't connect to DB on startup | Postgres isn't running on the `.env` port — use the SQLite override (§1.1) |
 | App shows network errors / can't reach API | Wrong `EXPO_PUBLIC_API_URL`. Emulator → `10.0.2.2:5000`; device → LAN IP. Rebuild after changing `.env` (it's inlined at bundle time). Or use `adb reverse tcp:5000 tcp:5000` |
 | Gradle: `SDK location not found` | Create `mobile/android/local.properties` (§2.2) or set `ANDROID_HOME` |
@@ -218,7 +245,38 @@ cd backend; .\venv\Scripts\python.exe -m pytest -q   # backend tests (84)
 
 ---
 
-## 5. Quick reference — full run from scratch (SQLite)
+## 6. Quick reference — full run from scratch (Postgres)
+
+> Prerequisites: PostgreSQL 18 running on port 5432, role `<your username>` (password `<your password>`).
+> One-time DB creation: `$env:PGPASSWORD="<your password>"; & "C:\Program Files\PostgreSQL\18\bin\createdb.exe" -U <your username> -h localhost -p 5432 -O <your username> wellness_db`
+
+```powershell
+# Terminal A — backend
+cd backend
+.\venv\Scripts\Activate.ps1
+# First time (or after DB reset):
+python -m alembic upgrade head
+python seed.py
+# Run:
+python run.py              # uvicorn + reload, port 5000
+
+# Terminal B — emulator + Metro
+emulator -avd Pixel_API_36 -no-snapshot-load
+cd mobile
+npx react-native start --reset-cache
+
+# Terminal C — build & install
+cd mobile
+# Set adb reverse (lets emulator reach host ports):
+C:\Android\Sdk\platform-tools\adb.exe reverse tcp:8081 tcp:8081
+C:\Android\Sdk\platform-tools\adb.exe reverse tcp:5000 tcp:5000
+# Build (x86_64 only = ~3 min):
+cd android
+.\gradlew.bat app:installDebug -PreactNativeArchitectures=x86_64
+C:\Android\Sdk\platform-tools\adb.exe shell monkey -p com.wellness -c android.intent.category.LAUNCHER 1
+```
+
+## 7. Quick reference — full run from scratch (SQLite)
 
 ```powershell
 # Terminal A — backend

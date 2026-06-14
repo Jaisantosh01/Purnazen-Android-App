@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../constants/theme';
 
 const PLANS = [
@@ -68,7 +69,8 @@ const PLANS = [
 ];
 
 const SubscriptionsScreen = ({ navigation }) => {
-  const [currentPlan] = useState('free');
+  const user = useAuthStore(state => state.user);
+  const currentPlan = user?.plan ?? 'free';
 
   return (
     <View style={styles.root}>
@@ -89,7 +91,10 @@ const SubscriptionsScreen = ({ navigation }) => {
         <View style={styles.currentBanner}>
           <MCIcon name="shield-check" size={20} color={COLORS.primary} />
           <Text style={styles.currentBannerText}>
-            You're on the <Text style={{ fontWeight: '700', color: COLORS.primary }}>Free Plan</Text>
+            You're on the{' '}
+            <Text style={{ fontWeight: '700', color: COLORS.primary }}>
+              {PLANS.find(p => p.id === currentPlan)?.name ?? 'Free'} Plan
+            </Text>
           </Text>
         </View>
 

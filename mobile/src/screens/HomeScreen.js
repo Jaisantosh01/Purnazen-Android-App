@@ -7,21 +7,15 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
-  ActivityIndicator,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import QuickCard from '../components/QuickCards';
+import { WellnessRowSkeleton, QuickCardSkeleton } from '../components/SkeletonLoader';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import wellnessService from '../services/wellnessService';
 import { COLORS } from '../constants/theme';
-
-const FALLBACK_WELLNESS = [
-  { key: 'YogaSession', title: 'Yoga', duration: '15 min', icon: 'yoga' },
-  { key: 'MeditationSession', title: 'Meditation', duration: '10 min', icon: 'meditation' },
-  { key: 'BreathingSession', title: 'Breathing', duration: '5 min', icon: 'lungs' },
-];
 
 // The catalog API carries emoji icons (player header); the Home rows render
 // MaterialCommunityIcons, so map by session key.
@@ -38,46 +32,32 @@ const HOME_WELLNESS_ROWS = 3; // teaser only — "See All" opens the Wellness ta
 
 const HomeScreen = ({ navigation }) => {
   const [quickRelief, setQuickRelief] = useState([]);
-  const [wellness, setWellness] = useState(FALLBACK_WELLNESS);
-  const [loading, setLoading] = useState(true);
+  const [wellness, setWellness] = useState([]);
+  const [reliefLoading, setReliefLoading] = useState(true);
+  const [wellnessLoading, setWellnessLoading] = useState(true);
 
   useEffect(() => {
-    const fetchHomeData = async () => {
-      setLoading(true);
+    apiClient
+      .get(ENDPOINTS.HOME_QUICK_RELIEF)
+      .then(res => setQuickRelief(res?.data || []))
+      .catch(() => setQuickRelief([]))
+      .finally(() => setReliefLoading(false));
 
-      const reliefPromise = apiClient
-        .get(ENDPOINTS.HOME_QUICK_RELIEF)
-        .then(reliefData => setQuickRelief(reliefData?.data || []))
-        .catch(error => {
-          console.log('Quick relief fetch failed:', error.message);
-          setQuickRelief([]);
-        });
-
-      const wellnessPromise = wellnessService
-        .getAllSessions()
-        .then(data => {
-          const sessions = (data?.sessions || []).slice(0, HOME_WELLNESS_ROWS);
-          if (sessions.length) {
-            setWellness(
-              sessions.map(session => ({
-                key: session.key,
-                title: session.title,
-                duration: session.duration,
-                icon: WELLNESS_ROW_ICONS[session.key] || 'heart-pulse',
-              })),
-            );
-          }
-        })
-        .catch(error => {
-          // keep FALLBACK_WELLNESS
-          console.log('Wellness catalog fetch failed:', error.message);
-        });
-
-      await Promise.all([reliefPromise, wellnessPromise]);
-      setLoading(false);
-    };
-
-    fetchHomeData();
+    wellnessService
+      .getAllSessions()
+      .then(data => {
+        const sessions = (data?.sessions || []).slice(0, HOME_WELLNESS_ROWS);
+        setWellness(
+          sessions.map(s => ({
+            key: s.key,
+            title: s.title,
+            duration: s.duration,
+            icon: WELLNESS_ROW_ICONS[s.key] || 'heart-pulse',
+          })),
+        );
+      })
+      .catch(() => setWellness([]))
+      .finally(() => setWellnessLoading(false));
   }, []);
 
   return (
@@ -87,7 +67,7 @@ const HomeScreen = ({ navigation }) => {
       <ScrollView
         style={styles.container}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 20 }}
+        contentContainerStyle={{ paddingBottom: 24 }}
       >
         {/* ── Header ── */}
         <View style={styles.header}>
@@ -95,33 +75,58 @@ const HomeScreen = ({ navigation }) => {
           <Text style={styles.subtitle}>{STRINGS.HOME_SUBTITLE}</Text>
 
           <TouchableOpacity style={styles.banner} activeOpacity={0.9}>
-            <Text style={styles.bannerIcon}>✨</Text>
-            <View>
+            <View style={styles.bannerIconCircle}>
+              <MCIcon name="sparkles" size={18} color={COLORS.white} />
+            </View>
+            <View style={{ flex: 1 }}>
               <Text style={styles.bannerTitle}>{STRINGS.BANNER_TITLE}</Text>
               <Text style={styles.bannerSub}>{STRINGS.BANNER_SUB}</Text>
             </View>
+            <MCIcon name="chevron-right" size={20} color="rgba(255,255,255,0.7)" />
           </TouchableOpacity>
         </View>
 
         {/* ── Quick Relief ── */}
-        <View style={styles.grid}>
-          {quickRelief.map(item => (
-            <QuickCard
-              key={item.id}
-              title={item.title}
-              iconName={item.icon_name}
-              bg={item.background_color}
-              color={item.text_color}
-              sub={item.subtitle}
-              onPress={() =>
-                navigation.navigate('ReliefSession', {
-                  reliefId: item.id,
-                  reliefSlug: item.slug,
-                  reliefTitle: item.title,
-                })
-              }
-            />
-          ))}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Quick Relief</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('ReliefTab')}>
+              <Text style={styles.seeAll}>{STRINGS.SEE_ALL}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.grid}>
+            {reliefLoading ? (
+              [1, 2, 3, 4].map(i => <QuickCardSkeleton key={i} />)
+            ) : quickRelief.length > 0 ? (
+              quickRelief.map(item => (
+                <QuickCard
+                  key={item.id}
+                  title={item.title}
+                  iconName={item.icon_name}
+                  bg={item.background_color}
+                  color={item.text_color}
+                  sub={item.subtitle}
+                  onPress={() =>
+                    navigation.navigate('ReliefSession', {
+                      reliefId: item.id,
+                      reliefSlug: item.slug,
+                      reliefTitle: item.title,
+                    })
+                  }
+                />
+              ))
+            ) : (
+              <TouchableOpacity
+                style={styles.emptyBanner}
+                activeOpacity={0.85}
+                onPress={() => navigation.navigate('ReliefTab')}
+              >
+                <MCIcon name="hand-heart-outline" size={24} color={COLORS.primary} style={{ marginRight: 10 }} />
+                <Text style={styles.emptyBannerText}>Browse relief sessions →</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         {/* ── Wellness ── */}
@@ -133,9 +138,9 @@ const HomeScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
 
-          {loading ? (
-            <ActivityIndicator color={COLORS.primary} style={{ marginVertical: 20 }} />
-          ) : (
+          {wellnessLoading ? (
+            [1, 2, 3].map(i => <WellnessRowSkeleton key={i} />)
+          ) : wellness.length > 0 ? (
             wellness.map((item, index) => (
               <TouchableOpacity
                 key={item.key ?? index}
@@ -143,17 +148,19 @@ const HomeScreen = ({ navigation }) => {
                 activeOpacity={0.85}
                 onPress={() => navigation.navigate('SessionScreen', { sessionKey: item.key })}
               >
-                <MCIcon name={item.icon} size={28} color={COLORS.primary} style={styles.wellnessIcon} />
+                <View style={styles.wellnessIconCircle}>
+                  <MCIcon name={item.icon} size={22} color={COLORS.primary} />
+                </View>
                 <View style={styles.wellnessInfo}>
                   <Text style={styles.wellnessTitle}>{item.title}</Text>
                   <Text style={styles.wellnessDuration}>{item.duration}</Text>
                 </View>
                 <View style={styles.videoBtn}>
-                  <MCIcon name="video-outline" size={18} color={COLORS.primary} />
+                  <MCIcon name="play-circle-outline" size={20} color={COLORS.primary} />
                 </View>
               </TouchableOpacity>
             ))
-          )}
+          ) : null}
 
           {/* Face Glow Card */}
           <TouchableOpacity
@@ -163,21 +170,27 @@ const HomeScreen = ({ navigation }) => {
           >
             <View style={styles.faceGlowLeft}>
               <View style={styles.faceGlowIconCircle}>
-                <MCIcon name="star-four-points-outline" size={22} color={COLORS.white} />
+                <MCIcon name="star-four-points-outline" size={20} color={COLORS.white} />
               </View>
               <View>
                 <Text style={styles.faceGlowTitle}>{STRINGS.FACE_GLOW_TITLE}</Text>
                 <Text style={styles.faceGlowSub}>{STRINGS.FACE_GLOW_SUB}</Text>
               </View>
             </View>
-            <Text style={styles.faceGlowArrow}>→</Text>
+            <MCIcon name="chevron-right" size={20} color="#d4789a" />
           </TouchableOpacity>
         </View>
 
         {/* ── Book a Consultation ── */}
-        <TouchableOpacity style={styles.consultBanner} activeOpacity={0.88} onPress={() => navigation.navigate('ConsultTab')}>
+        <TouchableOpacity
+          style={styles.consultBanner}
+          activeOpacity={0.88}
+          onPress={() => navigation.navigate('ConsultTab')}
+        >
           <View style={styles.consultLeft}>
-            <MCIcon name="calendar-month-outline" size={22} color={COLORS.white} style={styles.consultIcon} />
+            <View style={styles.consultIconCircle}>
+              <MCIcon name="calendar-month-outline" size={20} color={COLORS.white} />
+            </View>
             <View>
               <Text style={styles.consultTitle}>{STRINGS.CONSULT_TITLE}</Text>
               <Text style={styles.consultSub}>{STRINGS.CONSULT_SUB}</Text>
@@ -203,47 +216,56 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+
+  // Header
   header: {
     backgroundColor: COLORS.primary,
-    paddingTop: 50,
+    paddingTop: 56,
     paddingHorizontal: 20,
     paddingBottom: 28,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
   title: {
     fontSize: 26,
     color: COLORS.white,
-    fontWeight: 'bold',
-    letterSpacing: 0.3,
+    fontWeight: '800',
+    letterSpacing: 0.2,
   },
   subtitle: {
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(255,255,255,0.75)',
     fontSize: 13,
-    marginBottom: 16,
+    marginTop: 2,
+    marginBottom: 18,
   },
   banner: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.18)',
     borderRadius: 14,
     padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
-  bannerIcon: {
-    fontSize: 20,
-    marginRight: 6,
+  bannerIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   bannerTitle: {
     color: COLORS.white,
-    fontWeight: '600',
+    fontWeight: '700',
     fontSize: 14,
   },
   bannerSub: {
-    color: 'rgba(255,255,255,0.85)',
+    color: 'rgba(255,255,255,0.8)',
     fontSize: 12,
-    marginTop: 2,
+    marginTop: 1,
   },
+
+  // Sections
   section: {
     paddingHorizontal: 16,
     marginTop: 24,
@@ -262,13 +284,31 @@ const styles = StyleSheet.create({
   seeAll: {
     fontSize: 13,
     color: COLORS.primary,
-    fontWeight: '500',
+    fontWeight: '600',
   },
+
+  // Quick Relief Grid
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+    gap: 10,
   },
+  emptyBanner: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primaryLight,
+    borderRadius: 14,
+    padding: 16,
+  },
+  emptyBannerText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
+
+  // Wellness Rows
   wellnessRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -282,7 +322,13 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 1,
   },
-  wellnessIcon: {
+  wellnessIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: COLORS.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 12,
   },
   wellnessInfo: {
@@ -303,6 +349,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 8,
   },
+
+  // Face Glow Card
   faceGlowCard: {
     backgroundColor: '#fdf0f5',
     borderRadius: 14,
@@ -319,7 +367,7 @@ const styles = StyleSheet.create({
   faceGlowIconCircle: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: 12,
     backgroundColor: '#e8a0c0',
     alignItems: 'center',
     justifyContent: 'center',
@@ -335,16 +383,14 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     marginTop: 2,
   },
-  faceGlowArrow: {
-    fontSize: 18,
-    color: '#d4789a',
-  },
+
+  // Consult Banner
   consultBanner: {
     backgroundColor: COLORS.primary,
     borderRadius: 18,
     marginHorizontal: 16,
     marginTop: 24,
-    marginBottom: 10,
+    marginBottom: 8,
     padding: 18,
     flexDirection: 'row',
     alignItems: 'center',
@@ -353,9 +399,15 @@ const styles = StyleSheet.create({
   consultLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
-  consultIcon: {
-    fontSize: 22,
+  consultIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 12,
   },
   consultTitle: {
@@ -366,7 +418,7 @@ const styles = StyleSheet.create({
   consultSub: {
     color: 'rgba(255,255,255,0.8)',
     fontSize: 12,
-    marginTop: 2,
+    marginTop: 1,
   },
   consultArrowCircle: {
     width: 36,
@@ -375,10 +427,5 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.25)',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  consultArrow: {
-    color: COLORS.white,
-    fontSize: 18,
-    fontWeight: '600',
   },
 });
