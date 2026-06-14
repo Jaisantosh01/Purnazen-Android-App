@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,36 +8,42 @@ import {
   StatusBar,
   Alert,
 } from 'react-native';
+// @ts-ignore
+import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
+import apiClient from '../api/client';
+import { ENDPOINTS } from '../constants/apiEndpoints';
+import { RoutineCardSkeleton } from '../components/SkeletonLoader';
 import { COLORS } from '../constants/theme';
 
-const ROUTINES = [
-  { id: 1, icon: '🌅', title: 'Morning Glow Routine', duration: '10 min',
-    benefits: ['Reduces puffiness', 'Boosts circulation', 'Awakens skin tone'] },
-  { id: 2, icon: '💆', title: 'Facial Acupressure',   duration: '8 min',
-    benefits: ['Relieves tension headaches', 'Lifts cheekbones', 'Smooths fine lines'] },
-  { id: 3, icon: '🌙', title: 'Night Repair Routine', duration: '12 min',
-    benefits: ['Promotes cell renewal', 'Deep relaxation', 'Reduces dark circles'] },
-  { id: 4, icon: '✨', title: 'Gua Sha Flow',          duration: '15 min',
-    benefits: ['Sculpts jawline', 'Drains lymph nodes', 'Brightens complexion'] },
-];
-
+// Static — informational copy, not a DB resource
 const BENEFITS = [
   { id: 1, icon: '💫', title: 'Reduces Puffiness' },
-  { id: 2, icon: '🌸', title: 'Natural Glow'       },
-  { id: 3, icon: '🧬', title: 'Boosts Collagen'    },
+  { id: 2, icon: '🌸', title: 'Natural Glow' },
+  { id: 3, icon: '🧬', title: 'Boosts Collagen' },
   { id: 4, icon: '🩸', title: 'Better Circulation' },
-  { id: 5, icon: '😌', title: 'Stress Relief'      },
-  { id: 6, icon: '🌿', title: 'Detoxifies Skin'    },
+  { id: 5, icon: '😌', title: 'Stress Relief' },
+  { id: 6, icon: '🌿', title: 'Detoxifies Skin' },
 ];
 
 const FaceGlowScreen = ({ navigation }) => {
+  const [routines, setRoutines] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    apiClient
+      .get(ENDPOINTS.FACE_GLOW_ROUTINES)
+      .then(res => setRoutines(res?.data?.routines || []))
+      .catch(() => setRoutines([]))
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor="#C850C0" />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 30 }}
+        contentContainerStyle={{ paddingBottom: 36 }}
       >
         {/* ── Header ── */}
         <View style={styles.header}>
@@ -45,24 +51,23 @@ const FaceGlowScreen = ({ navigation }) => {
             style={styles.backBtn}
             onPress={() => navigation.goBack()}
           >
-            <Text style={styles.backIcon}>←</Text>
+            <MCIcon name="arrow-left" size={22} color={COLORS.white} />
           </TouchableOpacity>
+
           <View style={styles.headerText}>
             <Text style={styles.headerTitle}>Face Glow</Text>
-            <Text style={styles.headerSubtitle}>Radiant skin routine</Text>
+            <Text style={styles.headerSubtitle}>Radiant skin · acupressure routines</Text>
           </View>
 
           {/* ── Scan Card ── */}
           <View style={styles.scanCard}>
             <View style={styles.scanLeft}>
               <View style={styles.cameraCircle}>
-                <Text style={styles.cameraIcon}>📷</Text>
+                <MCIcon name="camera-outline" size={22} color={COLORS.white} />
               </View>
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={styles.scanTitle}>Scan Your Face</Text>
-                <Text style={styles.scanSubtitle}>
-                  Get personalized recommendations
-                </Text>
+                <Text style={styles.scanSubtitle}>Get personalised recommendations</Text>
               </View>
             </View>
             <TouchableOpacity
@@ -75,44 +80,53 @@ const FaceGlowScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {/* ── Recommended Routines ── */}
+        {/* ── Routines ── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>✨ Recommended Routines</Text>
 
-          {ROUTINES.map((routine) => (
-            <View key={routine.id} style={styles.routineCard}>
-              <View style={styles.routineTop}>
-                <Text style={styles.routineIcon}>{routine.icon}</Text>
-                <View style={styles.routineInfo}>
-                  <View style={styles.routineTitleRow}>
-                    <Text style={styles.routineTitle}>{routine.title}</Text>
-                    <Text style={styles.routineDuration}>
-                      🕐 {routine.duration}
-                    </Text>
+          {loading ? (
+            [1, 2, 3].map(i => <RoutineCardSkeleton key={i} />)
+          ) : routines.length > 0 ? (
+            routines.map(routine => (
+              <View key={routine.key} style={styles.routineCard}>
+                <View style={styles.routineTop}>
+                  <Text style={styles.routineIcon}>{routine.icon}</Text>
+                  <View style={styles.routineInfo}>
+                    <View style={styles.routineTitleRow}>
+                      <Text style={styles.routineTitle}>{routine.title}</Text>
+                      <View style={styles.durationChip}>
+                        <MCIcon name="clock-outline" size={12} color={COLORS.textMuted} />
+                        <Text style={styles.routineDuration}> {routine.duration}</Text>
+                      </View>
+                    </View>
+                    {routine.benefits.map((b, i) => (
+                      <Text key={i} style={styles.benefitItem}>• {b}</Text>
+                    ))}
                   </View>
-                  {routine.benefits.map((benefit, i) => (
-                    <Text key={i} style={styles.benefitItem}>
-                      • {benefit}
-                    </Text>
-                  ))}
+                  <TouchableOpacity
+                    style={styles.playBtn}
+                    onPress={() => Alert.alert(routine.title, 'Starting routine!')}
+                  >
+                    <MCIcon name="play" size={14} color="#C850C0" />
+                  </TouchableOpacity>
                 </View>
-                <TouchableOpacity
-                  style={styles.playBtn}
-                  onPress={() => Alert.alert(routine.title, 'Starting routine!')}
-                >
-                  <Text style={styles.playIcon}>▶</Text>
-                </TouchableOpacity>
               </View>
+            ))
+          ) : (
+            <View style={styles.emptyState}>
+              <MCIcon name="spa-outline" size={40} color={COLORS.borderStrong} />
+              <Text style={styles.emptyTitle}>No routines available</Text>
+              <Text style={styles.emptySub}>Check back soon for personalised face glow routines</Text>
             </View>
-          ))}
+          )}
         </View>
 
-        {/* ── Benefits of Face Acupressure ── */}
+        {/* ── Benefits ── */}
         <View style={styles.section}>
           <View style={styles.benefitsCard}>
             <Text style={styles.benefitsTitle}>Benefits of Face Acupressure</Text>
             <View style={styles.benefitsGrid}>
-              {BENEFITS.map((benefit) => (
+              {BENEFITS.map(benefit => (
                 <View key={benefit.id} style={styles.benefitBox}>
                   <Text style={styles.benefitIcon}>{benefit.icon}</Text>
                   <Text style={styles.benefitText}>{benefit.title}</Text>
@@ -137,33 +151,28 @@ const styles = StyleSheet.create({
 
   // Header
   header: {
-    background: '#C850C0',
     backgroundColor: '#C850C0',
-    paddingTop: 50,
+    paddingTop: 56,
     paddingHorizontal: 20,
     paddingBottom: 30,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    // Gradient simulation with overlay
-    backgroundImage: 'linear-gradient(135deg, #C850C0, #4158D0)',
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
   backBtn: {
-    width: 36,
-    height: 36,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
-  },
-  backIcon: {
-    fontSize: 22,
-    color: COLORS.white,
+    marginBottom: 14,
   },
   headerText: {
     marginBottom: 20,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 26,
+    fontWeight: '800',
     color: COLORS.white,
   },
   headerSubtitle: {
@@ -174,14 +183,15 @@ const styles = StyleSheet.create({
 
   // Scan Card
   scanCard: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: 18,
     padding: 16,
   },
   scanLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 14,
+    gap: 12,
   },
   cameraCircle: {
     width: 44,
@@ -190,10 +200,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
-  },
-  cameraIcon: {
-    fontSize: 22,
   },
   scanTitle: {
     fontSize: 15,
@@ -203,7 +209,7 @@ const styles = StyleSheet.create({
   scanSubtitle: {
     fontSize: 12,
     color: 'rgba(255,255,255,0.85)',
-    marginTop: 2,
+    marginTop: 1,
   },
   scanBtn: {
     backgroundColor: COLORS.white,
@@ -213,7 +219,7 @@ const styles = StyleSheet.create({
   },
   scanBtnText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#C850C0',
   },
 
@@ -255,17 +261,25 @@ const styles = StyleSheet.create({
   routineTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
     flexWrap: 'wrap',
     gap: 8,
+    marginBottom: 6,
   },
   routineTitle: {
     fontSize: 15,
     fontWeight: '700',
     color: COLORS.textPrimary,
   },
+  durationChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surfaceMuted,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 20,
+  },
   routineDuration: {
-    fontSize: 12,
+    fontSize: 11,
     color: COLORS.textMuted,
   },
   benefitItem: {
@@ -282,27 +296,41 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginLeft: 8,
   },
-  playIcon: {
-    fontSize: 14,
-    color: '#C850C0',
+
+  // Empty state
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    gap: 8,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+  },
+  emptySub: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    paddingHorizontal: 24,
   },
 
   // Benefits Card
   benefitsCard: {
     backgroundColor: '#fdf4ff',
     borderRadius: 16,
-    padding: 16,
+    padding: 18,
   },
   benefitsTitle: {
     fontSize: 15,
     fontWeight: '700',
     color: COLORS.textPrimary,
-    marginBottom: 14,
+    marginBottom: 16,
   },
   benefitsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 14,
   },
   benefitBox: {
     width: '45%',

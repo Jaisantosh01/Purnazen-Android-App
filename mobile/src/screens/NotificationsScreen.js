@@ -40,12 +40,6 @@ const NOTIFICATION_GROUPS = [
   },
 ];
 
-const RECENT_NOTIFICATIONS = [
-  { id: '1', icon: 'calendar-check', color: COLORS.primary, bg: COLORS.primaryLight, title: 'Appointment Confirmed', body: 'Your session with Dr. Sarah Chen is confirmed for tomorrow at 10:00 AM.', time: '2 hrs ago' },
-  { id: '2', icon: 'fire',           color: '#ea580c', bg: '#FFF3E0', title: '7-Day Streak! 🔥',      body: 'Amazing! You have completed 7 days in a row. Keep it up!',              time: '5 hrs ago' },
-  { id: '3', icon: 'yoga',           color: COLORS.accent, bg: COLORS.accentLight, title: 'Session Reminder',      body: 'Your Guided Meditation session starts in 30 minutes.',                 time: 'Yesterday'  },
-  { id: '4', icon: 'tag-outline',    color: COLORS.warning, bg: '#FFFBEB', title: 'Special Offer',         body: 'Get 30% off on Premium plan. Offer valid till end of this month.',      time: '2 days ago' },
-];
 
 const NotificationsScreen = ({ navigation }) => {
   const initState = {};
@@ -141,22 +135,10 @@ const NotificationsScreen = ({ navigation }) => {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Recent</Text>
-          <View style={styles.card}>
-            {RECENT_NOTIFICATIONS.map((n, index) => (
-              <View key={n.id}>
-                <View style={styles.notifRow}>
-                  <View style={[styles.notifIcon, { backgroundColor: n.bg }]}>
-                    <MCIcon name={n.icon} size={20} color={n.color} />
-                  </View>
-                  <View style={styles.notifInfo}>
-                    <Text style={styles.notifTitle}>{n.title}</Text>
-                    <Text style={styles.notifBody}>{n.body}</Text>
-                    <Text style={styles.notifTime}>{n.time}</Text>
-                  </View>
-                </View>
-                {index < RECENT_NOTIFICATIONS.length - 1 && <View style={styles.divider} />}
-              </View>
-            ))}
+          <View style={styles.emptyRecent}>
+            <MCIcon name="bell-sleep-outline" size={36} color={COLORS.borderStrong} />
+            <Text style={styles.emptyRecentTitle}>No recent activity</Text>
+            <Text style={styles.emptyRecentSub}>Your notification history will appear here</Text>
           </View>
         </View>
 
@@ -217,10 +199,18 @@ const styles = StyleSheet.create({
   rowTitle:{ fontSize: 14, fontWeight: '600', color: COLORS.textPrimary },
   rowSub:  { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
 
-  notifRow:  { flexDirection: 'row', padding: 14, alignItems: 'flex-start' },
-  notifIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  notifInfo: { flex: 1 },
-  notifTitle:{ fontSize: 14, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 3 },
-  notifBody: { fontSize: 12, color: COLORS.textSecondary, lineHeight: 18 },
-  notifTime: { fontSize: 11, color: COLORS.textMuted, marginTop: 5 },
+  emptyRecent: {
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
+    paddingVertical: 36,
+    alignItems: 'center',
+    gap: 6,
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  emptyRecentTitle: { fontSize: 15, fontWeight: '600', color: COLORS.textPrimary },
+  emptyRecentSub:   { fontSize: 12, color: COLORS.textMuted, textAlign: 'center', paddingHorizontal: 24 },
 });

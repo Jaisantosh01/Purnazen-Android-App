@@ -86,6 +86,55 @@ export const SessionPlayerSkeleton = () => (
   </View>
 );
 
+// Home screen — wellness row (icon + title + duration + chevron)
+export const WellnessRowSkeleton = () => (
+  <View style={[styles.card, { flexDirection: 'row', alignItems: 'center', gap: SPACING.md }]}>
+    <SkeletonBox width={44} height={44} borderRadius={RADIUS.sm} />
+    <View style={{ flex: 1, gap: SPACING.xs }}>
+      <SkeletonBox width="55%" height={14} />
+      <SkeletonBox width="35%" height={11} />
+    </View>
+    <SkeletonBox width={36} height={36} borderRadius={RADIUS.sm} />
+  </View>
+);
+
+// Home screen — quick relief square card
+export const QuickCardSkeleton = () => (
+  <View style={styles.quickCard}>
+    <SkeletonBox width={40} height={40} borderRadius={RADIUS.sm} style={{ marginBottom: SPACING.sm }} />
+    <SkeletonBox width="75%" height={13} />
+    <SkeletonBox width="55%" height={11} style={{ marginTop: SPACING.xs }} />
+  </View>
+);
+
+// Face Glow screen — routine card
+export const RoutineCardSkeleton = () => (
+  <View style={[styles.card, { marginBottom: SPACING.md }]}>
+    <View style={[styles.cardRow, { alignItems: 'flex-start' }]}>
+      <SkeletonBox width={44} height={44} borderRadius={RADIUS.sm} style={{ marginRight: SPACING.md }} />
+      <View style={{ flex: 1, gap: SPACING.xs }}>
+        <SkeletonBox width="65%" height={14} />
+        <SkeletonBox width="85%" height={11} />
+        <SkeletonBox width="70%" height={11} />
+        <SkeletonBox width="60%" height={11} />
+      </View>
+      <SkeletonBox width={36} height={36} borderRadius={18} style={{ marginLeft: SPACING.sm }} />
+    </View>
+  </View>
+);
+
+// Select Symptom screen — symptom list row
+export const SymptomRowSkeleton = () => (
+  <View style={[styles.cardRow, { paddingVertical: SPACING.md, paddingHorizontal: SPACING.lg, gap: SPACING.md }]}>
+    <SkeletonBox width={48} height={48} borderRadius={RADIUS.sm} />
+    <View style={{ flex: 1, gap: SPACING.xs }}>
+      <SkeletonBox width="50%" height={14} />
+      <SkeletonBox width="70%" height={11} />
+    </View>
+    <SkeletonBox width={20} height={20} borderRadius={RADIUS.sm} />
+  </View>
+);
+
 export default SkeletonBox;
 
 const styles = StyleSheet.create({
@@ -114,5 +163,12 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     gap: SPACING.xs,
+  },
+  quickCard: {
+    width: '47%',
+    backgroundColor: COLORS.surfaceMuted,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    marginBottom: SPACING.md,
   },
 });
