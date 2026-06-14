@@ -1,6 +1,216 @@
 # Task Backlog — Gap Features
 
-**Last updated:** 2026-06-13 (P0 T1–T5, P1 T6–T11, P2 T12/T15/T16/T17/T18/T19 **all completed** — see CHANGELOG; T13/T14 deferred pending backend decisions). Also completed this session: Toast/Snackbar, SkeletonLoader, src/data/ removal, folder rename (`wellness-frontend → mobile`, `wellness-backend → backend`), root README.md. Derived from the FEATURES.md scoreboard plus frontend work. Ordered by priority; each task lists scope, touched layers, and acceptance criteria. Conventions for backend tasks: model → import in `db/base.py` → `alembic revision --autogenerate` → schema → repository → service → endpoint → `router.py` → tests (see ARCHITECTURE.md).
+**Last updated:** 2026-06-14 (Sprint 1 of Face Analysis complete — T20–T27 done; see Face Analysis section below). P0 T1–T5, P1 T6–T11, P2 T12/T15/T16/T17/T18/T19 **all completed** — see CHANGELOG; T13/T14 deferred pending backend decisions. Derived from the FEATURES.md scoreboard plus frontend work. Conventions for backend tasks: model → import in `db/base.py` → `alembic revision --autogenerate` → schema → repository → service → endpoint → `router.py` → tests (see ARCHITECTURE.md).
+
+---
+
+## Face Analysis — 8-Sprint Plan
+
+**Full spec:** [FACE_ANALYSIS_SPEC.md](FACE_ANALYSIS_SPEC.md)
+
+### ✅ Sprint 1 — Weeks 1-2: DB Foundation + Routines DB + Consent API (2026-06-14)
+
+#### ✅ T20. Alembic migrations: OAuth fields, face_glow_routines, user_consents
+- Migrations `a1b2c3d4e5f6` → `b2c3d4e5f6a7` → `c3d4e5f6a7b8` written and chained from `e6f3a82d4c91`
+- OAuth: `oauth_provider`, `oauth_provider_id` columns on `users`; `password` made nullable
+- `face_glow_routines` table with inline seed of 4 existing routines
+- `user_consents` table with GDPR fields (`consent_type`, `granted`, `granted_at`, `revoked_at`, `ip_address`, `consent_version`)
+
+#### ✅ T21. FaceGlowRoutine model + repository + service
+- Model: `backend/app/models/face_glow_routine.py`
+- Repository: `backend/app/repositories/face_glow_routine_repository.py` — `get_all()`, `get_by_key()`
+- Service: `backend/app/services/face_glow_routine_service.py` — cache-aside (Redis 1h TTL, falls back to DB)
+
+#### ✅ T22. UserConsent model + repository + service
+- Model: `backend/app/models/user_consent.py` — `ALLOWED_CONSENT_TYPES = {scan_storage, ai_training, gdpr_data}`
+- Repository: `backend/app/repositories/consent_repository.py` — `upsert()`, `revoke_all()`, `delete_all()`
+- Service: `backend/app/services/consent_service.py` — validates type, lifecycle management
+
+#### ✅ T23. Migrate face_glow.py hardcode → DB
+- `GET /face-glow/routines` and `/routines/{key}` now read from `face_glow_routines` table via `FaceGlowRoutineService`
+- Response shape identical to previous hardcode — zero mobile changes needed
+
+#### ✅ T24. Consent API endpoint
+- `backend/app/api/v1/endpoints/consent.py` — `GET /`, `POST /`, `DELETE /{type}`
+- Registered in `router.py`
+- Records client IP and User-Agent on each grant
+
+#### ✅ T25. Config: Cloudinary + social auth env vars
+- `config.py`: `CLOUDINARY_CLOUD_NAME/API_KEY/API_SECRET`, `GOOGLE_CLIENT_ID`, `APPLE_APP_ID`, `SCAN_MAX_FILE_SIZE_MB`, `RATE_LIMIT_SCAN_UPLOAD`
+- `.env.example` updated with commented examples
+
+#### ✅ T26. requirements.txt: python-multipart + cloudinary
+- `python-multipart>=0.0.9` (active)
+- `cloudinary>=1.40.0` (active)
+- Sprint 3-7 dependencies added as commented stubs
+
+#### ✅ T27. db/base.py model registration
+- `FaceGlowRoutine` and `UserConsent` imported so Alembic sees them
+
+**Sprint 1 verification:**
+- [ ] Run `alembic upgrade head` — applies 3 new migrations cleanly
+- [ ] `GET /api/v1/face-glow/routines` → 4 routines from DB
+- [ ] `POST /api/v1/consent/` `{"consent_type": "scan_storage", "granted": true}` → 200
+- [ ] `GET /api/v1/consent/` → lists it
+- [ ] `DELETE /api/v1/consent/scan_storage` → 200, `granted: false`
+
+---
+
+### Sprint 2 — Weeks 3-4: Upload Pipeline + Mobile Camera (Mock AI)
+
+#### T28. Alembic migrations: face_scans, scan_results, scan_recommendations
+- Migrations `d4e5f6a7b8c9` → `e5f6a7b8c9d0` → `f6a7b8c9d0e1`
+- See [FACE_ANALYSIS_SPEC.md §3](FACE_ANALYSIS_SPEC.md) for full schemas
+
+#### T29. Models + repositories: FaceScan, ScanResult, ScanRecommendation
+- `backend/app/models/face_scan.py` — relationships to ScanResult, ScanRecommendation
+- `backend/app/repositories/face_scan_repository.py` — `create()`, `get_by_id()`, `get_by_user()`, `update_status()`, `delete()`, `get_trend_data()`
+- `backend/app/repositories/scan_result_repository.py`
+- `backend/app/repositories/scan_recommendation_repository.py` — `create_bulk()`
+
+#### T30. Upload service + mock pipeline
+- `backend/app/services/upload_service.py` — MIME validate (python-magic), size check, Cloudinary upload
+- `backend/app/services/scan_pipeline_service.py` stub — inserts mock scores = 75.0 for all metrics
+- BackgroundTask pattern: task creates own `SessionLocal()` (request session is closed by then)
+
+#### T31. face_scan.py endpoint
+- `backend/app/api/v1/endpoints/face_scan.py` (prefix `/face-glow`)
+- `POST /face-glow/scan/upload` (202, consent gate — 403 if no scan_storage consent)
+- `GET /face-glow/scan/{id}/status`, `GET /face-glow/history`, `DELETE /face-glow/scan/{id}`
+- Rate limit `5/minute` per user on upload
+- Register in `router.py`
+
+#### T32. Mobile: Vision Camera + capture screens
+- Install `react-native-vision-camera@4.6.4`, `react-native-image-resizer@3.0.10`, `react-native-svg^15`
+- Create `FaceScanScreen.js`, `ScanProcessingScreen.js`, `ScanResultsScreen.js`
+- Create `scanService.js`, `scanStore.js`
+- Create `MetricScoreRow.js`, `RecommendationCard.js`, `FaceOverlayGuide.js` components
+- Update `FaceGlowScreen.js` button → `navigation.navigate('FaceScan')`
+- Add new screens to `App.tsx` HomeStack
+
+---
+
+### Sprint 3 — Weeks 5-6: Real AI Pipeline (Face)
+
+#### T33. AI module structure
+- Create `backend/app/ai/` directory
+- `face_detector.py` — MediaPipe FaceLandmarker singleton, FastAPI lifespan init
+- `image_preprocessor.py` — resize_normalize, detect_blur, detect_lighting, extract_face_roi
+
+#### T34. 9 skin analyzers
+- `analyzers/hydration_analyzer.py` — Lab L* + GLCM homogeneity on cheek ROI
+- `analyzers/oiliness_analyzer.py` — HSV high-V pixel ratio on T-zone
+- `analyzers/wrinkle_analyzer.py` — Canny edge density + GLCM contrast, forehead/eye corners
+- `analyzers/pigmentation_analyzer.py` — Lab a*/b* std-dev across skin mask
+- `analyzers/dark_circle_analyzer.py` — Lab L* under-eye vs. cheek baseline delta
+- `analyzers/pore_analyzer.py` — Laplacian variance of high-pass cheek patch
+- `analyzers/elasticity_analyzer.py` — GLCM energy + jaw contour roundness
+- `analyzers/muscle_tone_analyzer.py` — bilateral landmark symmetry + jaw angle
+- `analyzers/inflammation_analyzer.py` — Lab mean a* + LBP spot count
+- `analyzers/glow_score_engine.py` — weighted composite (see §4 of spec)
+- `analyzers/toxin_indicator.py` — dark_circle + puffiness + dullness
+
+#### T35. Wire real AI into scan pipeline + TCM recommendation engine
+- Replace mock scores in `scan_pipeline_service.py` with real analyzer calls (ThreadPoolExecutor)
+- `recommendation_engine_service.py` — ≥15 TCM rules (see spec §8)
+- Add Python deps: `opencv-python-headless`, `mediapipe`, `Pillow`, `scikit-image`, `python-magic`, `numpy`
+- Test matrix: good lighting, poor lighting, 3+ skin tones, bad angle, no-face (→ graceful failure)
+
+---
+
+### Sprint 4 — Weeks 7-8: Tongue Analysis + Dashboard/Trends
+
+#### T36. Tongue pipeline
+- `backend/app/ai/tongue/segmenter.py` — GrabCut isolation
+- `backend/app/ai/tongue/color_analyzer.py` — Lab classification for TCM dimensions
+- `backend/app/ai/tongue/tcm_rules.py` — TCM combination → health indicators
+- `backend/app/services/tongue_pipeline_service.py`
+
+#### T37. scan_notifications table + notification records
+- Migration `a7b8c9d0e1f2`; model `scan_notification.py`
+- Created on every `status = "completed"` transition
+
+#### T38. Dashboard + trends + comparison endpoints
+- `scan_dashboard_service.py` — latest scores, 7-day rolling average
+- `GET /face-glow/dashboard`, `GET /face-glow/trends?metric=&days=`, `POST /face-glow/scan/{id}/compare`
+
+#### T39. Mobile: tongue scan + history + dashboard + comparison screens
+- `TongueScanScreen.js`, `ScanHistoryScreen.js`, `ScanDashboardScreen.js`, `ScanComparisonScreen.js`
+- `TrendChart.js` component; install `react-native-chart-kit`
+
+---
+
+### Sprint 5 — Weeks 9-10: Social Auth + Consent UI
+
+#### T40. Social auth backend
+- Add `google-auth`, `cryptography` to requirements
+- `social_auth_service.py` — Google JWKS validation + Apple identity token validation
+- `social_auth.py` endpoint (`POST /auth/social/google`, `POST /auth/social/apple`)
+- `UserRepository`: add `find_by_oauth()`, `create_oauth_user()`, `link_oauth_to_existing()`
+- `auth_service.login()`: guard against `user.password is None` for social-only users
+- `auth_service.delete_account()`: cascade-delete all scan data + consents
+
+#### T41. Mobile: social auth + consent UI
+- Install `@react-native-google-signin/google-signin@^13.0.0`
+- `socialAuthService.js`; Google Sign In button in `LoginScreen.js`
+- `ConsentScreen.js`, `ConsentModal.js`; "Privacy & Data" row in `SettingsScreen.js`
+- Consent gate in `FaceScanScreen.js` (shows `ConsentModal` if no `scan_storage` consent)
+
+---
+
+### Sprint 6 — Weeks 11-12: Security, Performance & Polish
+
+#### T42. Security hardening
+- Rate limit scan upload: `5/minute` per user (already in config; wire into endpoint)
+- Cloudinary signed URL delivery (authenticated; not public)
+- `POST /face-glow/data` — GDPR: delete all scans + revoke all consents
+- Server-side JPEG recompression before Cloudinary upload (Pillow quality=85)
+
+#### T43. Testing
+- pytest suite for all 9 analyzers with fixture images
+- API integration tests for all new endpoints (upload, status, history, delete, dashboard, trends)
+
+#### T44. Mobile polish
+- Upload progress bar; proper error states; `GlowScoreGauge.js` (animated SVG arc)
+- Share button (`react-native-view-shot`); deletion confirmation dialog
+- `ScanHistorySkeleton` added to `SkeletonLoader.js`
+
+---
+
+### Sprint 7 — Weeks 13-14: Celery + Production Infrastructure
+
+#### T45. Celery async task queue
+- Add `celery>=5.4.0` to requirements
+- `backend/app/worker/celery_app.py`, `backend/app/worker/tasks.py`
+- Switch `face_scan.py` from `background_tasks.add_task()` to `process_scan.delay()`
+- Add `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND` to `config.py`
+- `Dockerfile.worker` for the Celery worker service
+
+#### T46. Monitoring + observability
+- Add `sentry-sdk[fastapi]` for error tracking
+- Structured JSON logging across the pipeline (step timing)
+- `GET /health/detailed` — checks DB, Redis, and Cloudinary connectivity
+- Flower monitoring dashboard configuration
+
+---
+
+### Sprint 8 — Weeks 15-16: Premium + Analytics + Final QA
+
+#### T47. Analytics events
+- `analytics_events` table: `{user_id, event_type, scan_id, metadata, created_at}`
+- Emit events: `scan_started`, `scan_completed`, `scan_failed`, `recommendation_clicked`
+- `GET /admin/analytics` — admin role-gated aggregate counts
+
+#### T48. Premium gate
+- Gate comparison and extended trend features behind `is_premium` user field
+- Mobile: "Upgrade to Premium" stub screen for gated features
+
+#### T49. Final QA
+- Load test: 100 concurrent scan uploads, measure P95 latency
+- End-to-end test on physical Android device (minSdk 24)
+- Full UX pass: empty states, error states, skeleton loaders across all 7 new screens
+
+---
 
 P0 implementation notes (2026-06-12): visit-type slugs `video`/`home`/`clinic` map to the `consultation_types` lookup names in `app/services/doctor_service.py` (`VISIT_TYPE_PRESENTATION`); booking conflict check is app-level (no partial unique index); seed adds Mon–Sat 09–12 & 14–17 availability (30-min slots) per doctor; therapy stats = completed sessions only, `avgRelief = round(avg(painAfter − painBefore))`.
 

@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.api.v1.endpoints import (
     appointments,
     auth,
+    consent,
     doctors,
     face_glow,
     home,
@@ -23,3 +24,4 @@ api_router.include_router(sessions.router)
 api_router.include_router(payments.router)
 api_router.include_router(users.router)
 api_router.include_router(face_glow.router)
+api_router.include_router(consent.router)

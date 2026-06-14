@@ -2,6 +2,43 @@
 
 All notable changes to the Purnazen App are documented here.
 
+## [2026-06-14] — Face Analysis Sprint 1: DB Foundation + Routines DB + Consent API
+
+Begins the 8-sprint Face & Tongue Analysis system. Full spec: [docs/FACE_ANALYSIS_SPEC.md](FACE_ANALYSIS_SPEC.md). Sprint tracker: [docs/TASKS.md §Face Analysis](TASKS.md).
+
+### Backend
+
+**Added**
+
+- **T20 — Alembic migrations (3 new revisions):**
+  - `a1b2c3d4e5f6` — adds `oauth_provider VARCHAR(20)` and `oauth_provider_id VARCHAR(255)` to `users`; makes `password` nullable (required for social-only accounts). Index `ix_users_oauth` on both columns.
+  - `b2c3d4e5f6a7` — creates `face_glow_routines` table (key, icon, title, duration, benefits JSON, category, video_url, sort_order, is_active). Seeds all 4 existing hardcoded routines inside `upgrade()` so the mobile sees no change.
+  - `c3d4e5f6a7b8` — creates `user_consents` table with full GDPR fields (consent_type, granted, granted_at, revoked_at, ip_address, user_agent, consent_version). Unique constraint on `(user_id, consent_type)`.
+- **T21 — FaceGlowRoutine model + repository + service:**
+  - `app/models/face_glow_routine.py` — SQLAlchemy model, `to_dict()` returns same shape as previous hardcode.
+  - `app/repositories/face_glow_routine_repository.py` — `get_all(active_only=True)`, `get_by_key()`.
+  - `app/services/face_glow_routine_service.py` — cache-aside pattern: Redis with 1h TTL (`face_glow_routines:all` key), falls back to DB on miss or Redis error.
+- **T22 — UserConsent model + repository + service:**
+  - `app/models/user_consent.py` — `ALLOWED_CONSENT_TYPES = {"scan_storage", "ai_training", "gdpr_data"}`.
+  - `app/repositories/consent_repository.py` — `get_by_user()`, `upsert()` (create-or-update), `revoke_all()`, `delete_all()`.
+  - `app/services/consent_service.py` — validates type against allowed set; `get_all()`, `upsert()`, `revoke()`, `has_consent()`.
+- **T24 — Consent API endpoint** (`app/api/v1/endpoints/consent.py`):
+  - `GET /api/v1/consent/` — returns all consent records for the authenticated user.
+  - `POST /api/v1/consent/` — body: `{consent_type, granted}`; records client IP + User-Agent; creates or updates the record.
+  - `DELETE /api/v1/consent/{type}` — revokes a specific consent type.
+- **T25 — Config additions** (`app/core/config.py`):
+  - `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` — Sprint 2 image storage.
+  - `GOOGLE_CLIENT_ID`, `APPLE_APP_ID` — Sprint 5 social auth.
+  - `SCAN_MAX_FILE_SIZE_MB = 15`, `RATE_LIMIT_SCAN_UPLOAD = "5/minute"`.
+- **T26 — requirements.txt:** activated `python-multipart>=0.0.9` and `cloudinary>=1.40.0`; Sprint 3-7 dependencies added as commented stubs.
+- `.env.example` updated with Cloudinary and social auth variable examples.
+
+**Changed**
+
+- **T23 — face_glow.py:** replaced `_ROUTINES` hardcode list with `FaceGlowRoutineService.get_all(db)`. Both endpoints (`/routines`, `/routines/{key}`) now accept a `db: Session` dependency. Response shape is identical — zero mobile changes required.
+- **T27 — db/base.py:** added imports for `FaceGlowRoutine` and `UserConsent` so Alembic's autogenerate and test fixtures see both models.
+- **router.py:** registered `consent.router`.
+
 ## [2026-06-13] — P2 validation pass (test + token fixes)
 
 Validation of the P2 batch surfaced a few defects in the just-added work; fixed:

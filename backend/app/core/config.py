@@ -32,6 +32,21 @@ class Settings(BaseSettings):
     RAZORPAY_KEY_ID: str = ""
     RAZORPAY_KEY_SECRET: str = ""
 
+    # Cloudinary — used for session videos and (Sprint 2+) face scan image storage.
+    # When empty, image uploads in the scan pipeline will fail gracefully.
+    CLOUDINARY_CLOUD_NAME: str = ""
+    CLOUDINARY_API_KEY: str = ""
+    CLOUDINARY_API_SECRET: str = ""
+
+    # Social auth — Google client ID for ID token verification (Sprint 5)
+    GOOGLE_CLIENT_ID: str = ""
+    # Apple app bundle ID for Sign In with Apple identity token verification (Sprint 5)
+    APPLE_APP_ID: str = ""
+
+    # Scan upload limits
+    SCAN_MAX_FILE_SIZE_MB: int = 15
+    RATE_LIMIT_SCAN_UPLOAD: str = "5/minute"
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
