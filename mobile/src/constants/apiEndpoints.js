@@ -50,10 +50,17 @@ export const ENDPOINTS = {
   THERAPY_HISTORY: `${API_VERSION}/therapy-history`,
   SAVE_THERAPY_SESSION: `${API_VERSION}/therapy-history/save`,
 
-  // Face Glow
+  // Face Glow — routines
   FACE_GLOW_ROUTINES: `${API_VERSION}/face-glow/routines`,
   FACE_GLOW_ROUTINE: (key) => `${API_VERSION}/face-glow/routines/${key}`,
-  FACE_GLOW_SCAN: `${API_VERSION}/face-glow/scan`,
+
+  // Consent
+  CONSENT: `${API_VERSION}/consent`,
+
+  // Face Glow — scan pipeline (Sprint 2)
+  FACE_GLOW_SCAN_UPLOAD: `${API_VERSION}/face-glow/scan/upload`,
+  FACE_GLOW_SCAN_STATUS: (id) => `${API_VERSION}/face-glow/scan/${id}/status`,
   FACE_GLOW_SCAN_HISTORY: `${API_VERSION}/face-glow/history`,
+  FACE_GLOW_SCAN_DELETE: (id) => `${API_VERSION}/face-glow/scan/${id}`,
 
 };

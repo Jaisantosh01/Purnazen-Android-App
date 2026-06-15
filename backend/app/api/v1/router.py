@@ -6,6 +6,7 @@ from app.api.v1.endpoints import (
     consent,
     doctors,
     face_glow,
+    face_scan,
     home,
     payments,
     sessions,
@@ -24,4 +25,5 @@ api_router.include_router(sessions.router)
 api_router.include_router(payments.router)
 api_router.include_router(users.router)
 api_router.include_router(face_glow.router)
+api_router.include_router(face_scan.router)
 api_router.include_router(consent.router)

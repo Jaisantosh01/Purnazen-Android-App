@@ -73,7 +73,7 @@ const FaceGlowScreen = ({ navigation }) => {
             <TouchableOpacity
               style={styles.scanBtn}
               activeOpacity={0.85}
-              onPress={() => Alert.alert('Face Analysis', 'Coming soon!')}
+              onPress={() => navigation.navigate('FaceScan', { scanType: 'face' })}
             >
               <Text style={styles.scanBtnText}>Start Face Analysis</Text>
             </TouchableOpacity>

@@ -46,3 +46,5 @@ __pycache__/
 
 # SQLite dev fallback
 backend/*.db
+backend/uploads/*
+screenshots/

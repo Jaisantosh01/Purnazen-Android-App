@@ -47,6 +47,11 @@ class Settings(BaseSettings):
     SCAN_MAX_FILE_SIZE_MB: int = 15
     RATE_LIMIT_SCAN_UPLOAD: str = "5/minute"
 
+    # Local file storage fallback (used when Cloudinary is not configured)
+    # Set to the address the mobile/emulator uses to reach this server.
+    LOCAL_UPLOADS_BASE_URL: str = "http://10.0.2.2:5000"
+    LOCAL_UPLOADS_DIR: str = "uploads"
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]

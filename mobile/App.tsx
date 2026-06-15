@@ -29,6 +29,9 @@ import SubscriptionsScreen from './src/screens/SubscriptionsScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
 import SelectSymptomScreen from './src/screens/SelectSymptomScreen';
 import FaceGlowScreen from './src/screens/FaceGlowScreen';
+import FaceScanScreen from './src/screens/FaceScanScreen';
+import ScanProcessingScreen from './src/screens/ScanProcessingScreen';
+import ScanResultsScreen from './src/screens/ScanResultsScreen';
 import YogaSessionScreen from './src/screens/YogaSessionScreen';
 import ReliefSessionScreen from './src/screens/ReliefSessionScreen';
 import DoctorProfileScreen from './src/screens/DoctorProfileScreen';
@@ -57,9 +60,12 @@ function HomeStackNavigator() {
     <HomeStack.Navigator screenOptions={{ headerShown: false }}>
       <HomeStack.Screen name="HomeMain"       component={HomeScreen}          />
       <HomeStack.Screen name="SelectSymptom"  component={SelectSymptomScreen} />
-      <HomeStack.Screen name="FaceGlow"       component={FaceGlowScreen}      />
-      <HomeStack.Screen name="SessionScreen"  component={YogaSessionScreen}   />
-      <HomeStack.Screen name="ReliefSession"  component={ReliefSessionScreen} />
+      <HomeStack.Screen name="FaceGlow"        component={FaceGlowScreen}       />
+      <HomeStack.Screen name="FaceScan"        component={FaceScanScreen}       />
+      <HomeStack.Screen name="ScanProcessing"  component={ScanProcessingScreen} />
+      <HomeStack.Screen name="ScanResults"     component={ScanResultsScreen}    />
+      <HomeStack.Screen name="SessionScreen"   component={YogaSessionScreen}    />
+      <HomeStack.Screen name="ReliefSession"   component={ReliefSessionScreen}  />
     </HomeStack.Navigator>
   );
 }

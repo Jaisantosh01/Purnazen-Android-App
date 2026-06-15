@@ -1,6 +1,9 @@
+import os
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from slowapi.errors import RateLimitExceeded
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -87,6 +90,11 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(api_router, prefix=settings.API_V1_PREFIX)
+
+    # Serve locally-saved scan images in dev/test mode (no Cloudinary required).
+    uploads_dir = os.path.join(os.getcwd(), settings.LOCAL_UPLOADS_DIR)
+    os.makedirs(uploads_dir, exist_ok=True)
+    app.mount(f"/{settings.LOCAL_UPLOADS_DIR}", StaticFiles(directory=uploads_dir), name="uploads")
 
     @app.exception_handler(RateLimitExceeded)
     async def rate_limit_handler(request: Request, exc: RateLimitExceeded):

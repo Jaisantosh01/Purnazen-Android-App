@@ -21,6 +21,9 @@ from app.models.payment import Payment  # noqa: E402,F401
 from app.models.user_preference import UserPreference  # noqa: E402,F401
 from app.models.face_glow_routine import FaceGlowRoutine  # noqa: E402,F401
 from app.models.user_consent import UserConsent  # noqa: E402,F401
+from app.models.face_scan import FaceScan  # noqa: E402,F401
+from app.models.scan_result import ScanResult  # noqa: E402,F401
+from app.models.scan_recommendation import ScanRecommendation  # noqa: E402,F401
 from app.models.associations import (  # noqa: E402,F401
     doctor_consultation_types,
     doctor_expertise,
