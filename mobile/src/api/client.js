@@ -5,6 +5,9 @@ import { BASE_URL, ENDPOINTS } from '../constants/apiEndpoints';
 import { useAuthStore } from '../store/authStore';
 import { resetToLogin } from '../navigation/navigationRef';
 
+// Lazy import to avoid circular dependency (errorReportingService -> client -> errorReportingService)
+const getErrorReporter = () => require('../services/errorReportingService').default;
+
 const STATUS_MESSAGES = {
   401: 'Unauthorized. Please login again.',
   403: 'Access forbidden.',
@@ -74,19 +77,34 @@ async function handleSessionExpired() {
   resetToLogin();
 }
 
-function normalizeError(error) {
+function normalizeError(error, config) {
   const status = error.response?.status;
   const serverMessage =
     typeof error.response?.data?.message === 'string'
       ? error.response.data.message
       : null;
 
+  const isNetworkError = !error.response && !error.code?.includes('CANCEL');
+  const isServerError  = status && status >= 500;
+
   const message =
     serverMessage ||
     STATUS_MESSAGES[status] ||
-    (status
+    (isNetworkError
+      ? 'Network error. Please check your connection and try again.'
+      : status
       ? `Request failed with status ${status}`
-      : 'Network error. Please check your connection.');
+      : error.message || 'Something went wrong.');
+
+  // Report network errors and server 5xx to backend for debugging
+  // Skip reporting for expected 4xx flows (auth, validation)
+  if ((isNetworkError || isServerError) && !config?.url?.includes(ENDPOINTS.ERROR_REPORT)) {
+    getErrorReporter().warn(error, {
+      action:  `${config?.method?.toUpperCase() ?? 'REQUEST'} ${config?.url ?? ''}`,
+      status:  status ?? 'network',
+      message: serverMessage || error.message,
+    });
+  }
 
   return new Error(message);
 }
@@ -119,7 +137,7 @@ client.interceptors.response.use(
       }
     }
 
-    return Promise.reject(normalizeError(error));
+    return Promise.reject(normalizeError(error, config));
   },
 );
 

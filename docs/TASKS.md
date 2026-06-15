@@ -1,6 +1,6 @@
 # Task Backlog — Gap Features
 
-**Last updated:** 2026-06-14 (Sprint 1 of Face Analysis complete — T20–T27 done; see Face Analysis section below). P0 T1–T5, P1 T6–T11, P2 T12/T15/T16/T17/T18/T19 **all completed** — see CHANGELOG; T13/T14 deferred pending backend decisions. Derived from the FEATURES.md scoreboard plus frontend work. Conventions for backend tasks: model → import in `db/base.py` → `alembic revision --autogenerate` → schema → repository → service → endpoint → `router.py` → tests (see ARCHITECTURE.md).
+**Last updated:** 2026-06-15 (Face Analysis **Sprints 1–3 complete** — T20–T35 done; upload + mobile camera + **real OpenCV/MediaPipe AI pipeline** live. AI write-up: [FACE_ANALYSIS_AI.md](FACE_ANALYSIS_AI.md)). P0 T1–T5, P1 T6–T11, P2 T12/T15/T16/T17/T18/T19 **all completed** — see CHANGELOG; T13/T14 deferred pending backend decisions. Derived from the FEATURES.md scoreboard plus frontend work. Conventions for backend tasks: model → import in `db/base.py` → `alembic revision --autogenerate` → schema → repository → service → endpoint → `router.py` → tests (see ARCHITECTURE.md).
 
 ---
 
@@ -56,65 +56,67 @@
 
 ---
 
-### Sprint 2 — Weeks 3-4: Upload Pipeline + Mobile Camera (Mock AI)
+### ✅ Sprint 2 — Weeks 3-4: Upload Pipeline + Mobile Camera (2026-06-15)
 
-#### T28. Alembic migrations: face_scans, scan_results, scan_recommendations
-- Migrations `d4e5f6a7b8c9` → `e5f6a7b8c9d0` → `f6a7b8c9d0e1`
+#### ✅ T28. Alembic migrations: face_scans, scan_results, scan_recommendations
+- Migrations `d4e5f6a7b8c9` → `e5f6a7b8c9d0` → `f6a7b8c9d0e1` written and chained
+- `a7b8c9d0e1f2` adds `progress_stage` + `landmarks_json` to `face_scans` (live progress + client mesh overlay)
 - See [FACE_ANALYSIS_SPEC.md §3](FACE_ANALYSIS_SPEC.md) for full schemas
 
-#### T29. Models + repositories: FaceScan, ScanResult, ScanRecommendation
-- `backend/app/models/face_scan.py` — relationships to ScanResult, ScanRecommendation
-- `backend/app/repositories/face_scan_repository.py` — `create()`, `get_by_id()`, `get_by_user()`, `update_status()`, `delete()`, `get_trend_data()`
+#### ✅ T29. Models + repositories: FaceScan, ScanResult, ScanRecommendation
+- `backend/app/models/face_scan.py` — relationships to ScanResult, ScanRecommendation; `progress_stage`, `landmarks_json`, `face_detected`, `face_confidence`, `blur_score`, `lighting_quality`
+- `backend/app/repositories/face_scan_repository.py` — `create()`, `get_by_id()`, `get_by_user()`, `set_status()`, `set_progress()`, `delete()`
 - `backend/app/repositories/scan_result_repository.py`
-- `backend/app/repositories/scan_recommendation_repository.py` — `create_bulk()`
+- `backend/app/repositories/scan_recommendation_repository.py` — `bulk_create()`
 
-#### T30. Upload service + mock pipeline
-- `backend/app/services/upload_service.py` — MIME validate (python-magic), size check, Cloudinary upload
-- `backend/app/services/scan_pipeline_service.py` stub — inserts mock scores = 75.0 for all metrics
+#### ✅ T30. Upload service + pipeline entry point
+- `backend/app/services/upload_service.py` — MIME validate (python-magic), size check, Cloudinary upload (local-disk fallback when unconfigured)
+- `backend/app/services/scan_pipeline_service.py` — `run_scan_pipeline()` BackgroundTask entry point (own `SessionLocal()`); real AI landed in T35
 - BackgroundTask pattern: task creates own `SessionLocal()` (request session is closed by then)
 
-#### T31. face_scan.py endpoint
+#### ✅ T31. face_scan.py endpoint
 - `backend/app/api/v1/endpoints/face_scan.py` (prefix `/face-glow`)
 - `POST /face-glow/scan/upload` (202, consent gate — 403 if no scan_storage consent)
 - `GET /face-glow/scan/{id}/status`, `GET /face-glow/history`, `DELETE /face-glow/scan/{id}`
-- Rate limit `5/minute` per user on upload
-- Register in `router.py`
+- Registered in `router.py`
 
-#### T32. Mobile: Vision Camera + capture screens
-- Install `react-native-vision-camera@4.6.4`, `react-native-image-resizer@3.0.10`, `react-native-svg^15`
-- Create `FaceScanScreen.js`, `ScanProcessingScreen.js`, `ScanResultsScreen.js`
-- Create `scanService.js`, `scanStore.js`
-- Create `MetricScoreRow.js`, `RecommendationCard.js`, `FaceOverlayGuide.js` components
-- Update `FaceGlowScreen.js` button → `navigation.navigate('FaceScan')`
-- Add new screens to `App.tsx` HomeStack
+#### ✅ T32. Mobile: Vision Camera + capture screens
+- `react-native-vision-camera`, `react-native-image-resizer`, `react-native-svg` in `package.json`
+- `FaceScanScreen.js`, `ScanProcessingScreen.js` (polls status + live stage text), `ScanResultsScreen.js`, `ScanErrorScreen.js`
+- `scanService.js`, `scanStore.js` (Zustand)
+- `MetricScoreRow.js`, `RecommendationCard.js`, `FaceOverlayGuide.js`, `FaceMeshOverlay.js` components
+- Screens wired into `App.tsx`
 
 ---
 
-### Sprint 3 — Weeks 5-6: Real AI Pipeline (Face)
+### ✅ Sprint 3 — Weeks 5-6: Real AI Pipeline (Face) (2026-06-15)
 
-#### T33. AI module structure
-- Create `backend/app/ai/` directory
-- `face_detector.py` — MediaPipe FaceLandmarker singleton, FastAPI lifespan init
-- `image_preprocessor.py` — resize_normalize, detect_blur, detect_lighting, extract_face_roi
+> Full implementation write-up: **[FACE_ANALYSIS_AI.md](FACE_ANALYSIS_AI.md)**.
 
-#### T34. 9 skin analyzers
+#### ✅ T33. AI module structure
+- `backend/app/ai/` created
+- `face_detector.py` — MediaPipe FaceLandmarker singleton (478-pt mesh, auto-downloads `face_landmarker.task`); Haar-cascade fallback path
+- `image_preprocessor.py` — `resize_for_analysis`, `detect_blur` (Laplacian), `detect_lighting` (Lab L\*), `extract_rois` (landmark-indexed)
+
+#### ✅ T34. 9 skin analyzers
 - `analyzers/hydration_analyzer.py` — Lab L* + GLCM homogeneity on cheek ROI
-- `analyzers/oiliness_analyzer.py` — HSV high-V pixel ratio on T-zone
+- `analyzers/oiliness_analyzer.py` — HSV high-V (specular) pixel ratio on T-zone
 - `analyzers/wrinkle_analyzer.py` — Canny edge density + GLCM contrast, forehead/eye corners
-- `analyzers/pigmentation_analyzer.py` — Lab a*/b* std-dev across skin mask
+- `analyzers/pigmentation_analyzer.py` — Lab a*/b* std-dev across HSV skin mask
 - `analyzers/dark_circle_analyzer.py` — Lab L* under-eye vs. cheek baseline delta
-- `analyzers/pore_analyzer.py` — Laplacian variance of high-pass cheek patch
-- `analyzers/elasticity_analyzer.py` — GLCM energy + jaw contour roundness
-- `analyzers/muscle_tone_analyzer.py` — bilateral landmark symmetry + jaw angle
-- `analyzers/inflammation_analyzer.py` — Lab mean a* + LBP spot count
-- `analyzers/glow_score_engine.py` — weighted composite (see §4 of spec)
-- `analyzers/toxin_indicator.py` — dark_circle + puffiness + dullness
+- `analyzers/pore_analyzer.py` — high-pass (image − Gaussian) variance on cheeks
+- `analyzers/elasticity_analyzer.py` — GLCM energy on jawline/forehead
+- `analyzers/muscle_tone_analyzer.py` — bilateral landmark symmetry about the nose axis
+- `analyzers/inflammation_analyzer.py` — Lab mean a* (redness)
+- `analyzers/glow_score_engine.py` — weighted composite (spec §4)
+- `analyzers/toxin_indicator.py` — dark_circle + oiliness + (100 − glow)
 
-#### T35. Wire real AI into scan pipeline + TCM recommendation engine
-- Replace mock scores in `scan_pipeline_service.py` with real analyzer calls (ThreadPoolExecutor)
-- `recommendation_engine_service.py` — ≥15 TCM rules (see spec §8)
-- Add Python deps: `opencv-python-headless`, `mediapipe`, `Pillow`, `scikit-image`, `python-magic`, `numpy`
-- Test matrix: good lighting, poor lighting, 3+ skin tones, bad angle, no-face (→ graceful failure)
+#### ✅ T35. Wire real AI into scan pipeline + TCM recommendation engine
+- `scan_pipeline_service.py` runs real analyzers in a `ThreadPoolExecutor`; stages `preprocessing→detecting→analyzing→scoring→done`; computes glow/toxin/skin-age/overall-wellness; **graceful-degradation ladder** (MediaPipe → Haar → centred crop → friendly retake message)
+- `recommendation_engine_service.py` — ≥15 TCM rules → routines + tips (max 8, priority-sorted)
+- Python deps activated: `opencv-python-headless`, `mediapipe`, `Pillow`, `scikit-image`, `python-magic`, `numpy>=2`
+- Note: mediapipe/opencv/skimage wheels are Python ≤3.12; server boots without them and runs OpenCV-only fallback
+- Remaining: formal pytest matrix across lighting / skin tones / angles (→ T43)
 
 ---
 

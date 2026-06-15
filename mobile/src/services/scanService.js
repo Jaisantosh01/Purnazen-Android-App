@@ -1,7 +1,8 @@
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 
-const POLL_INTERVAL_MS = 3000;
+// Poll fast so the live mesh / per-feature checklist animates smoothly.
+const POLL_INTERVAL_MS = 800;
 const POLL_TIMEOUT_MS  = 60000;
 
 const scanService = {
@@ -21,7 +22,11 @@ const scanService = {
     const res = await apiClient.post(
       `${ENDPOINTS.FACE_GLOW_SCAN_UPLOAD}?scan_type=${scanType}`,
       form,
-      { headers: { 'Content-Type': 'multipart/form-data' } },
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        // Image uploads need longer than the default 15s on mobile networks.
+        timeout: 45000,
+      },
     );
     // apiClient already unwraps axios response.data → {success, message, data}
     return res.data;

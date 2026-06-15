@@ -73,24 +73,13 @@ const HomeScreen = ({ navigation }) => {
         <View style={styles.header}>
           <Text style={styles.title}>{STRINGS.HOME_TITLE}</Text>
           <Text style={styles.subtitle}>{STRINGS.HOME_SUBTITLE}</Text>
-
-          <TouchableOpacity style={styles.banner} activeOpacity={0.9}>
-            <View style={styles.bannerIconCircle}>
-              <MCIcon name="sparkles" size={18} color={COLORS.white} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.bannerTitle}>{STRINGS.BANNER_TITLE}</Text>
-              <Text style={styles.bannerSub}>{STRINGS.BANNER_SUB}</Text>
-            </View>
-            <MCIcon name="chevron-right" size={20} color="rgba(255,255,255,0.7)" />
-          </TouchableOpacity>
         </View>
 
         {/* ── Quick Relief ── */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Quick Relief</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('ReliefTab')}>
+            <TouchableOpacity onPress={() => navigation.navigate('Relief')}>
               <Text style={styles.seeAll}>{STRINGS.SEE_ALL}</Text>
             </TouchableOpacity>
           </View>
@@ -120,7 +109,7 @@ const HomeScreen = ({ navigation }) => {
               <TouchableOpacity
                 style={styles.emptyBanner}
                 activeOpacity={0.85}
-                onPress={() => navigation.navigate('ReliefTab')}
+                onPress={() => navigation.navigate('Relief')}
               >
                 <MCIcon name="hand-heart-outline" size={24} color={COLORS.primary} style={{ marginRight: 10 }} />
                 <Text style={styles.emptyBannerText}>Browse relief sessions →</Text>
@@ -235,34 +224,7 @@ const styles = StyleSheet.create({
   subtitle: {
     color: 'rgba(255,255,255,0.75)',
     fontSize: 13,
-    marginTop: 2,
-    marginBottom: 18,
-  },
-  banner: {
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    borderRadius: 14,
-    padding: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  bannerIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bannerTitle: {
-    color: COLORS.white,
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  bannerSub: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 12,
-    marginTop: 1,
+    marginTop: 4,
   },
 
   // Sections

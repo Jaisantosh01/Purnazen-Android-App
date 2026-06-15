@@ -41,7 +41,7 @@ describe('RegisterScreen', () => {
     expect(findButtonByText(tree.root, 'Sign Up')).toBeTruthy();
   });
 
-  it('registers and lands on Main on success', async () => {
+  it('registers on success (navigation handled by the auth-state listener)', async () => {
     authService.register.mockResolvedValueOnce({ id: 1 });
     let tree;
     await ReactTestRenderer.act(async () => {
@@ -63,7 +63,9 @@ describe('RegisterScreen', () => {
       'new@example.com',
       'secret123',
     );
-    expect(navigation.replace).toHaveBeenCalledWith('Main');
+    // On success the RootStack swaps to Main via the Zustand auth-state listener
+    // (isLoggedIn flips true), so the screen does not navigate imperatively.
+    expect(navigation.replace).not.toHaveBeenCalled();
   });
 
   it('blocks mismatched passwords without calling the API', async () => {

@@ -71,6 +71,16 @@ class UploadService:
 
         _check_mime(content[:8])
 
+        # Dimension check — reject images that are too small for analysis
+        from PIL import Image as PILImage
+        pil_img = PILImage.open(io.BytesIO(content))
+        w, h = pil_img.size
+        if w < 400 or h < 400:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Image too small ({w}×{h}). Minimum 400×400 pixels required.",
+            )
+
         if _configure_cloudinary():
             return await UploadService._upload_cloudinary(content, user_id, folder_suffix)
         return UploadService._save_local(content, user_id, folder_suffix)

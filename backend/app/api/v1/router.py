@@ -5,6 +5,7 @@ from app.api.v1.endpoints import (
     auth,
     consent,
     doctors,
+    error_report,
     face_glow,
     face_scan,
     home,
@@ -27,3 +28,4 @@ api_router.include_router(users.router)
 api_router.include_router(face_glow.router)
 api_router.include_router(face_scan.router)
 api_router.include_router(consent.router)
+api_router.include_router(error_report.router)

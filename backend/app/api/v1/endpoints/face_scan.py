@@ -1,3 +1,5 @@
+import json
+
 from fastapi import APIRouter, BackgroundTasks, Depends, UploadFile, File, Query
 from sqlalchemy.orm import Session
 
@@ -67,11 +69,22 @@ def get_scan_status(
     if not scan or scan.user_id != user.id:
         return error_response("Scan not found", status_code=404)
 
+    landmarks = None
+    if scan.landmarks_json:
+        try:
+            landmarks = json.loads(scan.landmarks_json)
+        except (ValueError, TypeError):
+            landmarks = None
+
     payload = {
         "scan_id": scan.id,
         "status": scan.status,
         "scan_type": scan.scan_type,
+        "progress_stage": scan.progress_stage,
         "error_message": scan.error_message,
+        "image_width": scan.image_width,
+        "image_height": scan.image_height,
+        "landmarks": landmarks,
         "created_at": scan.created_at.isoformat() if scan.created_at else None,
         "processing_completed_at": (
             scan.processing_completed_at.isoformat() if scan.processing_completed_at else None

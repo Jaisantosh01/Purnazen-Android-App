@@ -140,7 +140,9 @@ EXPO_PUBLIC_API_URL=http://10.0.2.2:5000     # emulator → host:5000 (default i
 ```
 
 For a **physical device** on the same Wi-Fi, use your machine's LAN IP, e.g.
-`http://192.168.1.42:5000`.
+`http://192.168.1.42:5000`. (Or skip the LAN IP entirely and use `adb reverse`
+— see **[§8 Physical device workflow](#8-physical-device-workflow-usb--adb)**,
+which covers wiring, installing, launching, screenshots, and re-deploying.)
 
 ### 2.2 Tell Gradle where the SDK is
 
@@ -295,3 +297,149 @@ npx react-native start --reset-cache
 cd mobile
 npx react-native run-android --no-packager
 ```
+
+---
+
+## 8. Physical device workflow (USB + adb)
+
+Running on a real Android phone instead of the emulator. Everything below uses
+`adb` directly so you can install, launch, screenshot, and re-deploy without
+Android Studio. The app's package id is **`com.wellness`** and its launchable
+activity is **`com.wellness/.MainActivity`**.
+
+### 8.1 One-time device setup
+
+1. On the phone: **Settings → About phone → tap "Build number" 7×** to unlock
+   Developer options.
+2. **Settings → System → Developer options →** enable **USB debugging** (and
+   **Install via USB** on some OEMs like Xiaomi/Oppo).
+3. Plug the phone into the PC over USB. The phone shows an **"Allow USB
+   debugging?"** prompt — tick *Always allow from this computer* and accept.
+4. Confirm the PC sees it:
+
+```powershell
+adb devices -l
+# List of devices attached
+# <SERIAL>   device  product:... model:... device:...
+```
+
+If it shows `unauthorized`, re-accept the on-phone prompt. If it shows nothing,
+try a different cable/port (some cables are charge-only) and `adb kill-server; adb start-server`.
+
+> **Multiple devices attached?** Every `adb` command below takes `-s <SERIAL>`
+> to target one device, e.g. `adb -s 1A2B3C4D shell ...`. Get `<SERIAL>` from
+> `adb devices`. With a single device you can omit `-s`.
+
+### 8.2 Let the device reach the backend
+
+The phone's `localhost` is *itself*, not your PC. Two options:
+
+- **`adb reverse` (simplest, USB only):** forward the device's ports to the PC,
+  then the app can use the default `http://10.0.2.2:5000`/`localhost:5000`-style
+  base URL over the cable:
+  ```powershell
+  adb reverse tcp:5000 tcp:5000      # device:5000  → PC:5000 (backend)
+  adb reverse tcp:8081 tcp:8081      # device:8081  → PC:8081 (Metro, debug builds)
+  ```
+  `adb reverse` is cleared on unplug/reboot — re-run after reconnecting.
+  Set `EXPO_PUBLIC_API_URL=http://localhost:5000` in `mobile/.env` for this path.
+- **LAN IP (no cable needed at runtime):** put your PC's Wi-Fi IP in
+  `mobile/.env` (`EXPO_PUBLIC_API_URL=http://192.168.x.y:5000`) and make sure
+  the backend binds `0.0.0.0` (it does — see `run.py`) and your firewall allows
+  inbound 5000. Rebuild after editing `.env` (it's inlined at bundle time).
+
+### 8.3 Build & install (inject) the APK
+
+```powershell
+# Easiest: build, install on the connected device, and launch in one step
+cd mobile
+npx react-native run-android --no-packager   # start Metro yourself first (§2.4)
+
+# Or build the APK by hand and push it with adb:
+cd mobile/android
+.\gradlew.bat assembleDebug                   # → app/build/outputs/apk/debug/app-debug.apk
+adb install -r app\build\outputs\apk\debug\app-debug.apk   # -r = replace/keep data
+#   -r  reinstall keeping data   -d  allow downgrade   -t  allow test APKs
+```
+
+A physical phone is usually `arm64-v8a`, so (unlike the x86_64 emulator) **don't**
+restrict the build to x86_64. Build all ABIs, or target the device's ABI:
+
+```powershell
+adb shell getprop ro.product.cpu.abi          # e.g. arm64-v8a
+.\gradlew.bat assembleDebug -PreactNativeArchitectures=arm64-v8a
+```
+
+### 8.4 Launch / stop / clear
+
+```powershell
+# Launch the app's main activity
+adb shell am start -n com.wellness/.MainActivity
+#   alt: adb shell monkey -p com.wellness -c android.intent.category.LAUNCHER 1
+
+# Force-stop (kill) the app
+adb shell am force-stop com.wellness
+
+# Clear all app data (logout, reset onboarding, wipe local DB/keystore cache)
+adb shell pm clear com.wellness
+
+# Uninstall completely
+adb uninstall com.wellness
+```
+
+### 8.5 Take a screenshot (and screen recording)
+
+```powershell
+# Screenshot straight to the PC (no temp file on the phone)
+adb exec-out screencap -p > screenshot.png
+
+# Or capture on device, then pull it off
+adb shell screencap -p /sdcard/shot.png
+adb pull /sdcard/shot.png .\shot.png
+adb shell rm /sdcard/shot.png
+
+# Screen recording (Ctrl-C to stop, max ~3 min per file)
+adb shell screenrecord /sdcard/demo.mp4
+adb pull /sdcard/demo.mp4 .\demo.mp4
+```
+
+### 8.6 Relaunch / update after a code change
+
+- **JS-only change (debug build, Metro running):** just **shake the device →
+  Reload**, or push a reload over adb:
+  ```powershell
+  adb shell input text "RR"          # double-R reload (RN dev menu shortcut)
+  # open the dev menu instead:
+  adb shell input keyevent 82
+  ```
+- **Native change, or to redeploy the whole app:** rebuild & reinstall, then
+  relaunch:
+  ```powershell
+  cd mobile/android
+  .\gradlew.bat assembleDebug
+  adb install -r app\build\outputs\apk\debug\app-debug.apk
+  adb shell am force-stop com.wellness
+  adb shell am start -n com.wellness/.MainActivity
+  ```
+
+### 8.7 Logs from the device
+
+```powershell
+adb logcat *:S ReactNative:V ReactNativeJS:V       # app JS logs only
+adb logcat --pid=$(adb shell pidof -s com.wellness)  # everything from the app process
+adb logcat -c                                       # clear the log buffer first
+```
+
+### 8.8 Wireless debugging (Android 11+, optional)
+
+Pair once over USB, then unplug and debug over Wi-Fi:
+
+```powershell
+adb tcpip 5555                       # restart adbd on TCP (device still plugged in)
+adb shell ip route                   # find the device's Wi-Fi IP (wlan0)
+adb connect 192.168.x.y:5555         # now you can unplug the cable
+adb devices                          # shows 192.168.x.y:5555  device
+```
+
+(Re-run `adb reverse` after connecting wirelessly if you use the reverse-tunnel
+backend path — though over pure Wi-Fi the LAN-IP base URL is simpler.)

@@ -46,7 +46,16 @@ const ProfileScreen = ({ navigation }) => {
         {
           text: 'Logout',
           style: 'destructive',
-          onPress: () => authService.logout(),
+          onPress: async () => {
+            try {
+              await authService.logout();
+              // Auth-state flip in authStore causes App.tsx navigator to
+              // unmount MainTabs and render Login automatically — no explicit
+              // navigation.replace() needed.
+            } catch {
+              // Logout already clears local state even if server call fails
+            }
+          },
         },
       ],
     );

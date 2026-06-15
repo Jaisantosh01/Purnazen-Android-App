@@ -18,12 +18,15 @@ python-multipart>=0.0.9
 cloudinary>=1.40.0
 
 # AI pipeline (Sprint 3+)
-# opencv-python-headless==4.10.0.84
-# mediapipe>=0.10.14
-# Pillow==10.4.0
-# scikit-image==0.24.0
-# python-magic==0.4.27
-# numpy==1.26.4
+# Note: mediapipe/opencv/scikit-image wheels are only available for Python <=3.12.
+# On Python 3.14 install these in a Python 3.12 venv or use conda.
+# The server starts without them (AI scans will fail gracefully).
+opencv-python-headless>=4.10.0
+mediapipe>=0.10.14
+Pillow>=10.4.0
+scikit-image>=0.24.0
+python-magic>=0.4.27  # Note: on Windows install python-magic-bin instead
+numpy>=2.0  # 2.x required for Python 3.14+
 
 # Social auth (Sprint 5+)
 # google-auth>=2.28.0

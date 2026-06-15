@@ -1,17 +1,4 @@
-/**
- * FaceScanScreen — testing stub.
- *
- * Vision Camera (react-native-vision-camera) requires a patch against RN 0.85
- * (currentActivity API change). Until patch-package is applied, this screen
- * uses the system image picker to select a photo from the gallery, which lets
- * us test the full upload → pipeline → results flow without the live camera.
- *
- * To restore live camera:
- *   1. Run:  npx patch-package react-native-vision-camera
- *            (patch the two currentActivity → getCurrentActivity() lines in CameraViewModule.kt)
- *   2. Replace this file with the Vision Camera version from git history.
- */
-import React, { useState } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -19,9 +6,11 @@ import {
   TouchableOpacity,
   Alert,
   StatusBar,
-  ScrollView,
   ActivityIndicator,
+  Linking,
+  Dimensions,
 } from 'react-native';
+import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
 import { launchImageLibrary } from 'react-native-image-picker';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -30,22 +19,14 @@ import scanService from '../services/scanService';
 import useScanStore from '../store/scanStore';
 import { COLORS } from '../constants/theme';
 import { ENDPOINTS } from '../constants/apiEndpoints';
+import FaceOverlayGuide from '../components/scan/FaceOverlayGuide';
 
-// Test image pre-loaded via: adb push face_test_1.jpg /data/local/tmp/test_face.jpg
-// then: adb shell run-as com.wellness cp /data/local/tmp/test_face.jpg /data/data/com.wellness/cache/test_face.jpg
+const { height: SCREEN_H } = Dimensions.get('window');
+
+// Dev: test image pre-loaded via:
+//   adb push face_test_1.jpg /data/local/tmp/test_face.jpg
+//   adb shell run-as com.wellness cp /data/local/tmp/test_face.jpg /data/data/com.wellness/cache/test_face.jpg
 const TEST_IMAGE_URI = 'file:///data/data/com.wellness/cache/test_face.jpg';
-
-async function pickImageFromGallery() {
-  return new Promise((resolve, reject) => {
-    launchImageLibrary({ mediaType: 'photo', quality: 0.85 }, (resp) => {
-      if (resp.didCancel) { reject(new Error('cancelled')); return; }
-      if (resp.errorCode) { reject(new Error(resp.errorMessage || 'picker error')); return; }
-      const asset = resp.assets?.[0];
-      if (!asset?.uri) { reject(new Error('no asset')); return; }
-      resolve(asset.uri);
-    });
-  });
-}
 
 const grantScanConsent = () =>
   apiClient.post(ENDPOINTS.CONSENT, { consent_type: 'scan_storage', granted: true });
@@ -54,53 +35,98 @@ const isConsentError = (msg = '') => msg.toLowerCase().includes('consent');
 
 const FaceScanScreen = ({ navigation, route }) => {
   const scanType = route?.params?.scanType ?? 'face';
+  const label = scanType === 'tongue' ? 'Tongue Scan' : 'Face Scan';
+
+  const cameraRef = useRef(null);
+  const device = useCameraDevice('front');
+  const { hasPermission, requestPermission } = useCameraPermission();
+
   const [uploading, setUploading] = useState(false);
+  const [capturing, setCapturing] = useState(false);
+  const [cameraActive, setCameraActive] = useState(true);
+  const [headerH, setHeaderH] = useState(106); // measured via onLayout
 
   const setProcessing = useScanStore(s => s.setProcessing);
   const setCurrentScanId = useScanStore(s => s.setCurrentScanId);
+
+  useEffect(() => {
+    if (!hasPermission) requestPermission();
+    return () => setCameraActive(false);
+  }, []);
 
   const doUpload = async (uri) => {
     const result = await scanService.uploadScan(uri, scanType);
     setCurrentScanId(result.scan_id);
     setProcessing(true);
-    navigation.replace('ScanProcessing', { scanId: result.scan_id, scanType });
+    // Pass the captured still so the analyzing screen can render the mesh over it.
+    navigation.replace('ScanProcessing', { scanId: result.scan_id, scanType, imageUri: uri });
   };
 
-  const handlePickAndUpload = async () => {
+  const uploadWithConsentRetry = async (uri) => {
+    try {
+      await doUpload(uri);
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || 'Upload failed';
+      if (isConsentError(msg)) {
+        Alert.alert(
+          'Storage Permission',
+          'Allow M-Heal to store your scan results securely?',
+          [
+            { text: 'Not Now', style: 'cancel' },
+            {
+              text: 'Allow',
+              onPress: async () => {
+                setUploading(true);
+                try {
+                  await grantScanConsent();
+                  await doUpload(uri);
+                } catch (e2) {
+                  Alert.alert('Error', e2?.response?.data?.message || e2?.message || 'Upload failed');
+                } finally {
+                  setUploading(false);
+                }
+              },
+            },
+          ],
+        );
+      } else {
+        Alert.alert('Error', msg);
+      }
+    }
+  };
+
+  const handleCapture = async () => {
+    if (capturing || uploading || !cameraRef.current) return;
+    setCapturing(true);
+    try {
+      const photo = await cameraRef.current.takePhoto({ flash: 'off' });
+      const uri = `file://${photo.path}`;
+      setCapturing(false);
+      setUploading(true);
+      await uploadWithConsentRetry(uri);
+    } catch (err) {
+      setCapturing(false);
+      Alert.alert('Error', err?.message || 'Failed to capture photo');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleGallery = async () => {
     if (uploading) return;
     setUploading(true);
+    let uri = null;
     try {
-      const uri = await pickImageFromGallery();
-      try {
-        await doUpload(uri);
-      } catch (err) {
-        const msg = err?.response?.data?.message || err?.message || 'Upload failed';
-        if (isConsentError(msg)) {
-          Alert.alert(
-            'Storage Permission',
-            'Allow Purnazen to store your scan results securely?',
-            [
-              { text: 'Not Now', style: 'cancel' },
-              {
-                text: 'Allow',
-                onPress: async () => {
-                  setUploading(true);
-                  try {
-                    await grantScanConsent();
-                    await doUpload(uri);
-                  } catch (e2) {
-                    Alert.alert('Error', e2?.response?.data?.message || e2?.message || 'Upload failed');
-                  } finally {
-                    setUploading(false);
-                  }
-                },
-              },
-            ],
-          );
-        } else {
-          Alert.alert('Error', msg);
-        }
-      }
+      uri = await new Promise((resolve, reject) => {
+        launchImageLibrary({ mediaType: 'photo', quality: 0.85 }, (resp) => {
+          if (resp.didCancel) { reject(new Error('cancelled')); return; }
+          if (resp.errorCode) { reject(new Error(resp.errorMessage || 'picker error')); return; }
+          const asset = resp.assets?.[0];
+          if (!asset?.uri) { reject(new Error('no asset')); return; }
+          resolve(asset.uri);
+        });
+      });
+      await uploadWithConsentRetry(uri);
     } catch (err) {
       if (err?.message !== 'cancelled') Alert.alert('Error', err?.message || 'Failed to pick image');
     } finally {
@@ -121,14 +147,94 @@ const FaceScanScreen = ({ navigation, route }) => {
     }
   };
 
-  const label = scanType === 'tongue' ? 'Tongue Scan' : 'Face Scan';
+  // ── Permission denied ────────────────────────────────────────────────────────
+  if (!hasPermission) {
+    return (
+      <View style={styles.root}>
+        <StatusBar barStyle="light-content" backgroundColor="#C850C0" />
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+            <MCIcon name="arrow-left" size={22} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{label}</Text>
+          <View style={{ width: 38 }} />
+        </View>
+        <View style={styles.permissionBody}>
+          <MCIcon name="camera-off" size={64} color="#e9d5ff" />
+          <Text style={styles.permTitle}>Camera Access Required</Text>
+          <Text style={styles.permSub}>
+            M-Heal needs camera access to scan your face and provide personalised wellness insights.
+          </Text>
+          <TouchableOpacity style={styles.permBtn} onPress={requestPermission}>
+            <Text style={styles.permBtnText}>Grant Camera Access</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.permBtnOutline} onPress={() => Linking.openSettings()}>
+            <Text style={styles.permBtnOutlineText}>Open Settings</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.permBtnOutline, { marginTop: 4 }]} onPress={handleGallery}>
+            <MCIcon name="image-multiple" size={16} color="#C850C0" />
+            <Text style={[styles.permBtnOutlineText, { marginLeft: 6 }]}>Use Gallery Instead</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
+  // ── No front camera ──────────────────────────────────────────────────────────
+  if (!device) {
+    return (
+      <View style={styles.root}>
+        <StatusBar barStyle="light-content" backgroundColor="#C850C0" />
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+            <MCIcon name="arrow-left" size={22} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{label}</Text>
+          <View style={{ width: 38 }} />
+        </View>
+        <View style={styles.permissionBody}>
+          <MCIcon name="camera-outline" size={64} color="#e9d5ff" />
+          <Text style={styles.permTitle}>No Front Camera Found</Text>
+          <TouchableOpacity style={styles.permBtn} onPress={handleGallery}>
+            <MCIcon name="image-plus" size={18} color="#fff" />
+            <Text style={[styles.permBtnText, { marginLeft: 8 }]}>Select from Gallery</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  // ── Camera view ──────────────────────────────────────────────────────────────
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor="#C850C0" />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+
+      {/* Full-screen camera */}
+      <Camera
+        ref={cameraRef}
+        style={StyleSheet.absoluteFill}
+        device={device}
+        isActive={cameraActive && !uploading}
+        photo
+        photoQualityBalance="balanced"
+      />
+
+      {/* Oval guide overlay — positioned between header and bottom bar */}
+      <FaceOverlayGuide
+        instruction={
+          scanType === 'tongue'
+            ? 'Stick out your tongue and centre it'
+            : 'Centre your face in the oval'
+        }
+        headerHeight={headerH}
+        bottomBarHeight={140}
+      />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View
+        style={styles.cameraHeader}
+        onLayout={e => setHeaderH(e.nativeEvent.layout.height)}
+      >
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <MCIcon name="arrow-left" size={22} color="#fff" />
         </TouchableOpacity>
@@ -136,56 +242,44 @@ const FaceScanScreen = ({ navigation, route }) => {
         <View style={{ width: 38 }} />
       </View>
 
-      {/* Body */}
-      <ScrollView
-        contentContainerStyle={styles.body}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.placeholderBox}>
-          <MCIcon name="camera-outline" size={64} color="#e9d5ff" />
-          <Text style={styles.placeholderTitle}>Live Camera</Text>
-          <Text style={styles.placeholderSub}>
-            Vision Camera requires a patch for RN 0.85.{'\n'}
-            Using gallery picker for testing.
-          </Text>
-        </View>
-
-        <View style={styles.tipBox}>
-          <MCIcon name="lightbulb-outline" size={16} color="#C850C0" />
-          <Text style={styles.tipText}>
-            For best results: good lighting, face centred, minimal shadows.
-          </Text>
-        </View>
-
+      {/* Bottom controls */}
+      <View style={styles.bottomBar}>
+        {/* Gallery */}
         <TouchableOpacity
-          style={[styles.uploadBtn, uploading && styles.btnDisabled]}
-          onPress={handlePickAndUpload}
-          activeOpacity={0.85}
-          disabled={uploading}
+          style={styles.sideBtn}
+          onPress={handleGallery}
+          disabled={uploading || capturing}
+          activeOpacity={0.7}
         >
-          {uploading ? (
-            <ActivityIndicator color="#fff" size="small" />
+          <MCIcon name="image-multiple-outline" size={26} color="#fff" />
+          <Text style={styles.sideBtnLabel}>Gallery</Text>
+        </TouchableOpacity>
+
+        {/* Capture */}
+        <TouchableOpacity
+          style={[styles.captureBtn, (uploading || capturing) && styles.captureBtnDisabled]}
+          onPress={handleCapture}
+          disabled={uploading || capturing}
+          activeOpacity={0.85}
+        >
+          {(uploading || capturing) ? (
+            <ActivityIndicator color="#C850C0" size="large" />
           ) : (
-            <>
-              <MCIcon name="image-plus" size={20} color="#fff" />
-              <Text style={styles.uploadBtnText}>
-                {scanType === 'tongue' ? 'Select Tongue Photo' : 'Select Face Photo'}
-              </Text>
-            </>
+            <View style={styles.captureInner} />
           )}
         </TouchableOpacity>
 
+        {/* Test image (dev) */}
         <TouchableOpacity
-          style={[styles.testBtn, uploading && styles.btnDisabled]}
+          style={styles.sideBtn}
           onPress={handleTestImage}
-          activeOpacity={0.85}
-          disabled={uploading}
+          disabled={uploading || capturing}
+          activeOpacity={0.7}
         >
-          <MCIcon name="test-tube" size={18} color="#C850C0" />
-          <Text style={styles.testBtnText}>Use Test Image (Dev)</Text>
+          <MCIcon name="test-tube" size={26} color="#fff" />
+          <Text style={styles.sideBtnLabel}>Test</Text>
         </TouchableOpacity>
-      </ScrollView>
+      </View>
     </View>
   );
 };
@@ -193,7 +287,9 @@ const FaceScanScreen = ({ navigation, route }) => {
 export default FaceScanScreen;
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+  root: { flex: 1, backgroundColor: '#000' },
+
+  // Shared header (opaque for permission screen, floating for camera)
   header: {
     backgroundColor: '#C850C0',
     paddingTop: 52,
@@ -205,73 +301,85 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
   },
+  cameraHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingTop: 52,
+    paddingBottom: 16,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
   backBtn: {
     width: 38, height: 38, borderRadius: 19,
     backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center', justifyContent: 'center',
   },
   headerTitle: { fontSize: 18, fontWeight: '800', color: '#fff' },
-  body: {
-    flexGrow: 1,
+
+  // Bottom camera controls
+  bottomBar: {
+    position: 'absolute',
+    bottom: 0, left: 0, right: 0,
+    height: 140,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingBottom: 24,
+    paddingHorizontal: 24,
+  },
+  captureBtn: {
+    width: 76, height: 76,
+    borderRadius: 38,
+    borderWidth: 4,
+    borderColor: '#fff',
+    backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 28,
-    paddingVertical: 32,
-    gap: 24,
   },
-  placeholderBox: {
-    width: '100%',
-    backgroundColor: '#fdf4ff',
-    borderRadius: 24,
-    padding: 40,
-    alignItems: 'center',
-    gap: 12,
-    borderWidth: 2,
-    borderColor: '#e9d5ff',
-    borderStyle: 'dashed',
-  },
-  placeholderTitle: { fontSize: 18, fontWeight: '700', color: '#C850C0' },
-  placeholderSub: {
-    fontSize: 13, color: COLORS.textMuted,
-    textAlign: 'center', lineHeight: 19,
-  },
-  tipBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
+  captureBtnDisabled: { opacity: 0.5 },
+  captureInner: {
+    width: 58, height: 58, borderRadius: 29,
     backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 14,
-    borderLeftWidth: 3,
-    borderLeftColor: '#C850C0',
-    width: '100%',
   },
-  tipText: { flex: 1, fontSize: 13, color: COLORS.textSecondary, lineHeight: 18 },
-  uploadBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: '#C850C0',
-    borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    alignSelf: 'stretch',
-    justifyContent: 'center',
+  sideBtn: {
+    alignItems: 'center', gap: 4, minWidth: 56,
   },
-  btnDisabled: { opacity: 0.6 },
-  uploadBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  testBtn: {
-    flexDirection: 'row',
+  sideBtnLabel: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 11,
+    fontWeight: '500',
+  },
+
+  // Permission / no-camera screens
+  permissionBody: {
+    flex: 1,
     alignItems: 'center',
-    gap: 8,
-    borderWidth: 1.5,
-    borderColor: '#C850C0',
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    alignSelf: 'stretch',
     justifyContent: 'center',
+    paddingHorizontal: 36,
+    gap: 16,
+    backgroundColor: COLORS.background,
+  },
+  permTitle: { fontSize: 20, fontWeight: '800', color: COLORS.textPrimary, textAlign: 'center' },
+  permSub: { fontSize: 14, color: COLORS.textMuted, textAlign: 'center', lineHeight: 21 },
+  permBtn: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#C850C0', borderRadius: 16,
+    paddingVertical: 14, paddingHorizontal: 32,
+    alignSelf: 'stretch', justifyContent: 'center',
+  },
+  permBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  permBtnOutline: {
+    flexDirection: 'row', alignItems: 'center',
+    borderWidth: 1.5, borderColor: '#C850C0',
+    borderRadius: 12, paddingVertical: 10, paddingHorizontal: 24,
+    alignSelf: 'stretch', justifyContent: 'center',
     backgroundColor: '#fdf4ff',
   },
-  testBtnText: { color: '#C850C0', fontSize: 14, fontWeight: '600' },
+  permBtnOutlineText: { color: '#C850C0', fontSize: 14, fontWeight: '600' },
 });

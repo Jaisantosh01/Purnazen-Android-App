@@ -57,6 +57,9 @@ export const ENDPOINTS = {
   // Consent
   CONSENT: `${API_VERSION}/consent`,
 
+  // Error reporting
+  ERROR_REPORT: `${API_VERSION}/errors/report`,
+
   // Face Glow — scan pipeline (Sprint 2)
   FACE_GLOW_SCAN_UPLOAD: `${API_VERSION}/face-glow/scan/upload`,
   FACE_GLOW_SCAN_STATUS: (id) => `${API_VERSION}/face-glow/scan/${id}/status`,

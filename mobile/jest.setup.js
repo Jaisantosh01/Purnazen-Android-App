@@ -5,6 +5,19 @@ jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest'),
 );
 
+// react-native-vision-camera has a native TurboModule that throws on import
+// under jest. Stub the surface the scan screens use.
+jest.mock('react-native-vision-camera', () => ({
+  Camera: () => null,
+  useCameraDevice: () => undefined,
+  useCameraPermission: () => ({ hasPermission: false, requestPermission: jest.fn() }),
+}));
+
+jest.mock('react-native-image-picker', () => ({
+  launchImageLibrary: jest.fn(),
+  launchCamera: jest.fn(),
+}));
+
 jest.mock('react-native-keychain', () => {
   const store = {};
   return {

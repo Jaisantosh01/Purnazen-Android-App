@@ -1,6 +1,8 @@
 export const STRINGS = {
-  HOME_TITLE: 'PurnaZen',
-  HOME_SUBTITLE: 'Your wellness journey starts here',
+  HOME_TITLE: 'M-Heal',
+  HOME_SUBTITLE: 'AI Assisted Acupressure & Wellness',
+  APP_NAME: 'M-Heal',
+  APP_TAGLINE: 'AI Assisted Acupressure & Wellness App',
   BANNER_TITLE: 'Premium Wellness Plan',
   BANNER_SUB: 'Unlock all sessions',
   WELLNESS_SECTION: 'Wellness',

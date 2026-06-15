@@ -1,6 +1,6 @@
 # Features Tracker
 
-**Last updated:** 2026-06-12 (post P2 first batch: T12, T15, T18, T19)
+**Last updated:** 2026-06-15 (Face Analysis Sprints 2–3 live — upload + camera + **real OpenCV/MediaPipe AI pipeline**; how it works: [FACE_ANALYSIS_AI.md](FACE_ANALYSIS_AI.md). App renamed **M-Heal**; SRS audit: [SRS_AUDIT.md](SRS_AUDIT.md))
 
 > Detailed, prioritized task breakdown of every gap below: **[TASKS.md](TASKS.md)** (T1–T19).
 
@@ -62,7 +62,10 @@ Single source of truth for what is built, what is stubbed, and what is missing �
 
 | Feature | Frontend | Backend | Status | Notes |
 |---------|----------|---------|--------|-------|
-| Face Glow routines | `FaceGlowScreen` | — | 🎨 | Scan button shows alert; endpoints defined, no backend (→ T13) |
+| Face Glow routines | `FaceGlowScreen` | `GET /api/v1/face-glow/routines` | ✅ | DB-backed routines (Redis cache-aside) |
+| Face scan (9 metrics + glow) | `FaceScanScreen`, `ScanProcessingScreen`, `ScanResultsScreen`, `ScanErrorScreen` | `POST /face-glow/scan/upload`, `GET /scan/:id/status`, `/history`, `DELETE /scan/:id` | ✅ | Real classical-CV pipeline — MediaPipe FaceLandmarker + 9 OpenCV/skimage analyzers → glow/toxin/skin-age + TCM recommendations; live progress stages; mesh overlay; consent-gated; graceful-degradation ladder so scans don't hard-fail ([FACE_ANALYSIS_AI.md](FACE_ANALYSIS_AI.md)) |
+| Tongue scan | (shares scan screens) | same endpoints (`scan_type=tongue`) | ⚠️ | Mock TCM scores for now; real GrabCut + Lab classification pipeline is Sprint 4 |
+| Error reporting | `ErrorBoundary`, `ServiceUnavailable`, `errorReportingService` | `POST /api/v1/errors/report` | ✅ | App-wide boundary + client crash/error reports posted for triage |
 | Subscriptions | `SubscriptionsScreen` | — | 🎨 | Static plans; no billing (→ T14) |
 | Notification preferences | `NotificationsScreen`, `SettingsScreen` | `GET/PUT /api/v1/users/me/preferences` | ✅ | Master + granular toggles persisted (T15); push *delivery* (FCM) still open |
 | Help & Support | `HelpSupportScreen` | — | ✅ | External links only — no backend needed |
@@ -81,8 +84,9 @@ Single source of truth for what is built, what is stubbed, and what is missing �
 | Sessions/Relief | 4 | 4 | — |
 | Therapy | 2 | 2 | — |
 | Users/Preferences | 2 | 2 | — |
-| Face Glow | 4 | 0 | routines, scan, history |
-| **Total** | **34** | **30** | **4** |
+| Face Glow | 4 | 4 | routines + scan upload/status/history/delete |
+| Error reporting | 1 | 1 | `POST /errors/report` |
+| **Total** | **35** | **35** | **—** |
 
 (Plus `GET /api/v1/appointments` — implemented as part of booking, not counted in "needed".)
 

@@ -1,6 +1,104 @@
 # Changelog
 
-All notable changes to the Purnazen App are documented here.
+All notable changes to the M-Heal App (formerly Purnazen) are documented here.
+
+## [2026-06-15] — Face Analysis Sprints 2–3: upload + camera + **real AI pipeline**, error reporting, auth UI redesign
+
+Lands the upload pipeline, mobile capture, and the **real OpenCV/MediaPipe face
+analysis** (Sprints 2–3 of [FACE_ANALYSIS_SPEC.md](FACE_ANALYSIS_SPEC.md)).
+Full AI write-up: **[FACE_ANALYSIS_AI.md](FACE_ANALYSIS_AI.md)**.
+
+### Backend — Sprint 2 (upload + persistence)
+
+- **Migrations** `d4e5f6a7b8c9` (`face_scans`) → `e5f6a7b8c9d0` (`scan_results`)
+  → `f6a7b8c9d0e1` (`scan_recommendations`); `a7b8c9d0e1f2` adds `progress_stage`
+  and `landmarks_json` to `face_scans` (live progress + client mesh overlay).
+- **Models + repositories:** `FaceScan`, `ScanResult`, `ScanRecommendation`;
+  `FaceScanRepository` (incl. `set_status`, `set_progress`), `ScanResultRepository`,
+  `ScanRecommendationRepository.bulk_create`.
+- **`upload_service.py`** — MIME validation (python-magic), size gate, Cloudinary
+  upload (local-disk fallback when Cloudinary unconfigured).
+- **`face_scan.py` endpoint** (prefix `/face-glow`): `POST /scan/upload` (202,
+  `scan_storage` consent gate → 403), `GET /scan/{id}/status`, `GET /history`,
+  `DELETE /scan/{id}` — runs the pipeline as a FastAPI BackgroundTask with its
+  own DB session.
+
+### Backend — Sprint 3 (real AI pipeline)
+
+- **`app/ai/` module:** `face_detector.py` (MediaPipe **FaceLandmarker** singleton,
+  478-point mesh, auto-downloads `face_landmarker.task`), `image_preprocessor.py`
+  (resize, blur via Laplacian, lighting via Lab L\*, landmark-indexed ROI extraction).
+- **9 analyzers** (`app/ai/analyzers/`) — hydration, oiliness, wrinkle,
+  pigmentation, dark-circle, pore, elasticity, muscle-tone, inflammation — plus
+  `glow_score_engine` (weighted composite) and `toxin_indicator`. Classical CV
+  (Lab/HSV stats, Canny, GLCM via scikit-image, high-pass variance, landmark
+  symmetry); each returns 0–100 and fails soft to a neutral default.
+- **`scan_pipeline_service.py` rewritten** to run the real pipeline: stages
+  `preprocessing → detecting → analyzing → scoring → done`; analyzers run in a
+  `ThreadPoolExecutor`; computes glow / toxin / skin-age / overall-wellness.
+  **Graceful-degradation ladder:** MediaPipe landmarks → OpenCV Haar cascade →
+  centred crop → friendly retake message (never a raw exception). Blur gate
+  relaxed to <30 so phone selfies pass.
+- **`recommendation_engine_service.py`** — transparent TCM rule engine (≥15 rules
+  on the metric thresholds → routines + wellness tips, max 8, priority-sorted).
+- **`requirements.txt`:** activated `opencv-python-headless`, `mediapipe`,
+  `Pillow`, `scikit-image`, `numpy>=2`, `python-magic` (note: mediapipe/opencv/
+  skimage wheels are Python ≤3.12 — the server boots without them and runs in
+  OpenCV-only fallback mode).
+
+### Backend — Error reporting
+
+- **`error_report.py` endpoint** (`POST /api/v1/errors/report`) — accepts client
+  crash/error reports for triage; registered in `router.py`. `main.py` gained
+  startup wiring for the AI/scan stack.
+
+### Mobile — capture, processing, results, errors
+
+- **New screens:** `FaceScanScreen` (Vision Camera capture + `FaceOverlayGuide`
+  oval), `ScanProcessingScreen` (polls status, shows live stage text),
+  `ScanResultsScreen` (metrics + recommendations + `FaceMeshOverlay` over the
+  still), `ScanErrorScreen` (actionable failure state). `scanStore.js` (Zustand);
+  `scanService.js`; `MetricScoreRow`, `RecommendationCard`, `FaceMeshOverlay` components.
+- **Resilience:** `ErrorBoundary` (app-wide), `ServiceUnavailable` fallback, and
+  `errorReportingService` (posts to the new backend endpoint); wired in `App.tsx`.
+  `api/client.js` hardened (timeouts/error normalization for the scan flow).
+
+### Mobile — Auth UI redesign + intelligent keyboard focus
+
+- **LoginScreen & RegisterScreen** restyled into one cohesive sheet-card design
+  (decorative hero blobs, rounded logo badge, focus-highlighted inputs, arrow CTA).
+- **Intelligent focus** now on **both** screens: `KeyboardAvoidingView` (iOS) +
+  scroll-to-focused-field, per-field focus highlight, and `returnKeyType` chaining
+  (`next`/`done`) so the keyboard never covers the active field. RegisterScreen
+  previously used a no-op `KeyboardAvoidingView` on Android — fixed.
+- RegisterScreen now relies on the auth-state listener for navigation (removed the
+  latent `navigation.replace('Main')` — `Main` isn't in the logged-out stack);
+  its jest test updated to match.
+
+### Docs
+
+- **New [FACE_ANALYSIS_AI.md](FACE_ANALYSIS_AI.md)** — libraries, models, ROI map,
+  per-analyzer techniques, scoring formulas, degradation ladder, TCM rules, caveats.
+- **[RUNNING.md](RUNNING.md) §8** — full physical-device workflow over `adb`
+  (wiring/authorisation, `adb reverse`, build & install, launch/stop/clear,
+  screenshots & recording, JS-vs-native relaunch, logcat, wireless debugging).
+- Updated FEATURES, TASKS (Sprints 2–3 marked done), and ARCHITECTURE.
+
+## [2026-06-15] — M-Heal rebrand, scan reliability, UI polish, SRS audit
+
+### Branding
+- Renamed app to **M-Heal** — *AI Assisted Acupressure & Wellness App*: launcher label (`strings.xml`), `app.json` displayName, Login/Register hero, Home header, scan permission copy. Android package id `com.wellness` unchanged (cosmetic name only).
+
+### Face Scan reliability (fixes "technical error" / "network error" on upload)
+- `scan_pipeline_service.py`: relaxed blur gate `100 → 30` (phone selfies were failing the old threshold); Haar cascade now uses histogram-equalised gray + relaxed params + alt cascade; **graceful degradation** — when detection misses, analyse a centred crop instead of hard-failing; friendly user-facing error message instead of raw exception text.
+- `scanService.js`: upload timeout `15s → 45s` (default was too short for image uploads on mobile networks).
+
+### UI
+- Bottom tab bar now respects the device safe-area inset (`useSafeAreaInsets`) — no longer flush against the gesture bar.
+- Home page decluttered — removed the dead "Premium Wellness Plan" promo banner (no action) from the header.
+
+### Docs
+- Added **[SRS_AUDIT.md](SRS_AUDIT.md)** mapping the official `SRS_MHeal.pdf` to implementation status; updated `FEATURES.md` (Face Scan live, endpoint scoreboard 34/34). Notable gap surfaced: only 5 of 9 MVP symptoms seeded.
 
 ## [2026-06-14] — Face Analysis Sprint 1: DB Foundation + Routines DB + Consent API
 

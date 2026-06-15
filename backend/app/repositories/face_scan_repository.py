@@ -72,6 +72,13 @@ class FaceScanRepository:
         return scan
 
     @staticmethod
+    def set_progress(db: Session, scan: FaceScan, stage: str) -> FaceScan:
+        """Record the current pipeline stage so the client can animate progress."""
+        scan.progress_stage = stage
+        db.commit()
+        return scan
+
+    @staticmethod
     def update_processed_image(
         db: Session,
         scan: FaceScan,
