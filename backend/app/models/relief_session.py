@@ -12,7 +12,7 @@ class ReliefSession(Base):
     id = Column(Integer, primary_key=True)
     key = Column(String(100), nullable=False, unique=True)
     title = Column(String(150), nullable=False)
-    duration_label = Column(String(30), nullable=False)
+    duration = Column(String(30), nullable=False)
     icon = Column(String(20))
     video_url = Column(String(500))
     total_cycles = Column(Integer, nullable=False, default=1)
@@ -27,7 +27,7 @@ class ReliefSession(Base):
         return {
             "key": self.key,
             "title": self.title,
-            "duration": self.duration_label,
+            "duration": self.duration,
             "icon": self.icon,
             "videoUrl": self.video_url,
             "totalCycles": self.total_cycles,

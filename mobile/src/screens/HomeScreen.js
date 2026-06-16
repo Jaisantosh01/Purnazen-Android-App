@@ -17,18 +17,8 @@ import { ENDPOINTS } from '../constants/apiEndpoints';
 import wellnessService from '../services/wellnessService';
 import { COLORS } from '../constants/theme';
 
-// The catalog API carries emoji icons (player header); the Home rows render
-// MaterialCommunityIcons, so map by session key.
-const WELLNESS_ROW_ICONS = {
-  YogaSession: 'yoga',
-  MeditationSession: 'meditation',
-  BreathingSession: 'lungs',
-  MorningRoutineSession: 'weather-sunny',
-  EveningWindDown: 'weather-night',
-  FullBodyStretch: 'human-handsup',
-};
-
-const HOME_WELLNESS_ROWS = 3; // teaser only — "See All" opens the Wellness tab
+const HOME_WELLNESS_ROWS = 3; 
+const HOME_QUICK_RELIEF_LIMIT = 3; 
 
 const HomeScreen = ({ navigation }) => {
   const [quickRelief, setQuickRelief] = useState([]);
@@ -49,10 +39,11 @@ const HomeScreen = ({ navigation }) => {
         const sessions = (data?.sessions || []).slice(0, HOME_WELLNESS_ROWS);
         setWellness(
           sessions.map(s => ({
-            key: s.key,
+            id: s.id,
             title: s.title,
             duration: s.duration,
-            icon: WELLNESS_ROW_ICONS[s.key] || 'heart-pulse',
+            icon: 'heart-pulse',
+            videoGroupId: s.videoGroupId,
           })),
         );
       })
@@ -90,7 +81,7 @@ const HomeScreen = ({ navigation }) => {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Quick Relief</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('ReliefTab')}>
+            <TouchableOpacity onPress={() => navigation.navigate('Relief')}>
               <Text style={styles.seeAll}>{STRINGS.SEE_ALL}</Text>
             </TouchableOpacity>
           </View>
@@ -99,7 +90,7 @@ const HomeScreen = ({ navigation }) => {
             {reliefLoading ? (
               [1, 2, 3, 4].map(i => <QuickCardSkeleton key={i} />)
             ) : quickRelief.length > 0 ? (
-              quickRelief.map(item => (
+              quickRelief.slice(0, HOME_QUICK_RELIEF_LIMIT).map(item => (
                 <QuickCard
                   key={item.id}
                   title={item.title}
@@ -107,20 +98,27 @@ const HomeScreen = ({ navigation }) => {
                   bg={item.background_color}
                   color={item.text_color}
                   sub={item.subtitle}
-                  onPress={() =>
-                    navigation.navigate('ReliefSession', {
-                      reliefId: item.id,
-                      reliefSlug: item.slug,
-                      reliefTitle: item.title,
-                    })
-                  }
+                  onPress={() => {
+                    if (item.chatQuestionId) {
+                      navigation.navigate('ChatAssistant', {
+                        startQuestionId: item.chatQuestionId,
+                        reliefTitle: item.title,
+                      });
+                    } else {
+                      navigation.navigate('ReliefSession', {
+                        reliefId: item.id,
+                        reliefSlug: item.slug,
+                        reliefTitle: item.title,
+                      });
+                    }
+                  }}
                 />
               ))
             ) : (
               <TouchableOpacity
                 style={styles.emptyBanner}
                 activeOpacity={0.85}
-                onPress={() => navigation.navigate('ReliefTab')}
+                onPress={() => navigation.navigate('Relief')}
               >
                 <MCIcon name="hand-heart-outline" size={24} color={COLORS.primary} style={{ marginRight: 10 }} />
                 <Text style={styles.emptyBannerText}>Browse relief sessions →</Text>
@@ -143,10 +141,17 @@ const HomeScreen = ({ navigation }) => {
           ) : wellness.length > 0 ? (
             wellness.map((item, index) => (
               <TouchableOpacity
-                key={item.key ?? index}
+                key={item.id ?? index}
                 style={styles.wellnessRow}
                 activeOpacity={0.85}
-                onPress={() => navigation.navigate('SessionScreen', { sessionKey: item.key })}
+                onPress={() => {
+                  if (item.videoGroupId) {
+                    navigation.navigate('VideoPlayer', {
+                      groupId: item.videoGroupId,
+                      groupTitle: item.title,
+                    });
+                  }
+                }}
               >
                 <View style={styles.wellnessIconCircle}>
                   <MCIcon name={item.icon} size={22} color={COLORS.primary} />

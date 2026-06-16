@@ -10,7 +10,6 @@ from app.api.v1.endpoints import (
     sessions,
     therapy_history,
     users,
-    doctor_availability,
 )
 from app.api.v1.endpoints import languages
 from app.api.v1.endpoints import expertises
@@ -30,4 +29,3 @@ api_router.include_router(sessions.router)
 api_router.include_router(payments.router)
 api_router.include_router(users.router)
 api_router.include_router(face_glow.router)
-api_router.include_router(doctor_availability.router)

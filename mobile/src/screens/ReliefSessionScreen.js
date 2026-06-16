@@ -10,13 +10,13 @@ import {
 } from 'react-native';
 import Video from 'react-native-video';
 import reliefService from '../services/reliefService';
-import therapyService from '../services/therapyService';
 import { SessionPlayerSkeleton } from '../components/SkeletonLoader';
 import { COLORS, SPACING, RADIUS } from '../constants/theme';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { syncVideoProgress } from '../utils/videoTracker';
 
-const ReliefPlayer = ({ session, navigation }) => {
+const ReliefPlayer = ({ session, navigation, reliefId }) => {
   const [isPlaying, setIsPlaying]           = useState(false);
   const [currentStep, setCurrentStep]       = useState(0);
   const [timeLeft, setTimeLeft]             = useState(session.steps[0].duration);
@@ -27,6 +27,8 @@ const ReliefPlayer = ({ session, navigation }) => {
 
   const steps      = session.steps;
   const totalSteps = steps.length;
+  
+  const videoProgressRef = useRef({ watchedTime: 0 });
 
   const handleStepComplete = useCallback(() => {
     setCompletedSteps(prev => [...prev, currentStep]);
@@ -41,13 +43,10 @@ const ReliefPlayer = ({ session, navigation }) => {
     } else {
       setIsPlaying(false);
       clearInterval(timerRef.current);
-      therapyService.saveSession({
-        title: session.title, type: 'relief',
-        date: new Date().toISOString(), duration: session.duration,
-        status: 'Completed', painBefore: null, painAfter: null,
-      }).catch(err => console.log('Save session failed:', err.message));
+      // Sync completed on end
+      syncVideoProgress(reliefId, session.id || reliefId, 'Completed', session.duration / 60, 'quick_relief');
     }
-  }, [currentStep, totalSteps, steps, currentCycle, session, progressAnim]);
+  }, [currentStep, totalSteps, steps, currentCycle, session, progressAnim, reliefId]);
 
   useEffect(() => {
     if (isPlaying) {
@@ -57,11 +56,13 @@ const ReliefPlayer = ({ session, navigation }) => {
           return prev - 1;
         });
       }, 1000);
+      // Initial pending sync on play start
+      syncVideoProgress(reliefId, session.id || reliefId, 'Pending', 0, 'quick_relief');
     } else {
       clearInterval(timerRef.current);
     }
     return () => clearInterval(timerRef.current);
-  }, [isPlaying, currentStep, handleStepComplete, steps]);
+  }, [isPlaying, currentStep, handleStepComplete, steps, reliefId, session.id]);
 
   useEffect(() => {
     const stepDuration = steps[currentStep]?.duration || 30;
@@ -70,6 +71,17 @@ const ReliefPlayer = ({ session, navigation }) => {
       duration: 500, useNativeDriver: false,
     }).start();
   }, [timeLeft, currentStep, progressAnim, steps]);
+  
+  const onVideoProgress = (data) => {
+    const watchedTime = data.currentTime;
+    const duration = session.duration; // Total duration of video in seconds
+
+    // Send completed if > 90%
+    if (watchedTime / duration > 0.9 && videoProgressRef.current.watchedTime / duration <= 0.9) {
+      syncVideoProgress(reliefId, session.id || reliefId, 'Completed', duration / 60, 'quick_relief');
+    }
+    videoProgressRef.current.watchedTime = watchedTime;
+  };
 
   const handleRestart = () => {
     clearInterval(timerRef.current);
@@ -97,7 +109,7 @@ const ReliefPlayer = ({ session, navigation }) => {
         <View style={styles.animationArea}>
           {session.videoUrl ? (
             <Video source={{ uri: session.videoUrl }} style={styles.video}
-              paused={!isPlaying} resizeMode="contain" repeat={false} onEnd={handleStepComplete} />
+              paused={!isPlaying} resizeMode="contain" repeat={false} onProgress={onVideoProgress} onEnd={handleStepComplete} />
           ) : (
             <View style={styles.iconCircle}>
               <Text style={styles.poseIcon}>{session.icon}</Text>
@@ -107,6 +119,7 @@ const ReliefPlayer = ({ session, navigation }) => {
             <Text style={styles.floatingPlayIcon}>{isPlaying ? '⏸' : '▶'}</Text>
           </TouchableOpacity>
         </View>
+        {/* ... Rest of the UI remains the same ... */}
 
         <View style={styles.progressCard}>
           <View style={styles.progressHeader}>
