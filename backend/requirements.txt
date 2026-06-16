@@ -11,6 +11,8 @@ psycopg2-binary>=2.9.10
 python-dotenv>=1.0
 slowapi>=0.1.9
 redis>=5.0
+azure-core==1.41.0
+azure-storage-blob==12.30.0
 
 # Dev / test
 pytest>=8.3

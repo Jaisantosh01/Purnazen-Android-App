@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   StatusBar,
   RefreshControl,
+  Alert,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -44,16 +45,16 @@ const WellnessScreen = ({ navigation }) => {
       const data = await wellnessService.getAllSessions();
       const sessions = data?.sessions || [];
       setPrograms(sessions.map(s => ({
-        id: s.id || s.key,
+        id: s.id,
         title: s.title,
-        subtitle: s.subtitle || s.description || '',
-        icon: ICON_MAP[s.key]?.icon       || 'star-four-points-outline',
-        iconColor: ICON_MAP[s.key]?.color || COLORS.primary,
-        iconBg:    ICON_MAP[s.key]?.bg    || COLORS.primaryLight,
+        subtitle: s.subtitle || '',
+        icon: 'star-four-points-outline', 
+        iconColor: COLORS.primary,
+        iconBg:    COLORS.primaryLight,
         duration:  s.duration,
-        level:     s.level || 'All levels',
-        completed: s.completed_count || 0,
-        sessionKey: s.key,
+        level:     'All levels',
+        completed: 0,
+        videoGroupId: s.videoGroupId,
       })));
       if (data?.stats) setStats(data.stats);
     } catch (err) {
@@ -67,8 +68,17 @@ const WellnessScreen = ({ navigation }) => {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleProgram = (program) => {
-    if (program.sessionKey) {
-      navigation.navigate('SessionScreen', { sessionKey: program.sessionKey });
+    if (program.videoGroupId) {
+      navigation.navigate('VideoPlayer', {
+        groupId: program.videoGroupId,
+        groupTitle: program.title
+      });
+    } else {
+      Alert.alert(
+        "Navigation Debug Info",
+        "Program data:\n" + JSON.stringify(program, null, 2),
+        [{ text: "OK" }]
+      );
     }
   };
 

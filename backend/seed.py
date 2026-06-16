@@ -18,15 +18,54 @@ from app.db.base import (
     Specialty,
     User,
     WellnessSession,
+    VideoGroups,
+    Videos,
+    VideoGroupMapping,
+    ChatQuestion,
+    ChatOption,
+    QuickRelief
 )
 from app.db.session import SessionLocal, engine
-from seed_data import RELIEF_SESSIONS, WELLNESS_SESSIONS
+from seed_data import RELIEF_SESSIONS, WELLNESS_SESSIONS, VIDEO_GROUPS, VIDEOS, CHAT_FLOW, QUICK_RELIEFS
 
 Base.metadata.create_all(bind=engine)
 
 db = SessionLocal()
 
 try:
+    # ------------------------
+    # Admin & Doctor users
+    # ------------------------
+    if not db.query(User).filter_by(email="admin@example.com").first():
+        db.add(
+            User(
+                full_name="Admin User",
+                email="admin@example.com",
+                password=hash_password("admin123"),
+                role="admin",
+            )
+        )
+    
+    doctor_users = [
+        ("Dr Sarah Chen", "sarah@example.com"),
+        ("Dr Rajesh Kumar", "rajesh@example.com"),
+        ("Dr Priya Sharma", "priya@example.com"),
+    ]
+
+    for full_name, email in doctor_users:
+        if not db.query(User).filter_by(email=email).first():
+            db.add(
+                User(
+                    full_name=full_name,
+                    email=email,
+                    password=hash_password("123456"),
+                    role="doctor",
+                )
+            )
+
+    db.commit()
+    admin = db.query(User).filter_by(email="admin@example.com").first()
+
     # ------------------------
     # Specialties
     # ------------------------
@@ -92,28 +131,6 @@ try:
     db.commit()
 
     # ------------------------
-    # Doctor users (passwords properly bcrypt-hashed)
-    # ------------------------
-    doctor_users = [
-        ("Dr Sarah Chen", "sarah@example.com"),
-        ("Dr Rajesh Kumar", "rajesh@example.com"),
-        ("Dr Priya Sharma", "priya@example.com"),
-    ]
-
-    for full_name, email in doctor_users:
-        if not db.query(User).filter_by(email=email).first():
-            db.add(
-                User(
-                    full_name=full_name,
-                    email=email,
-                    password=hash_password("123456"),
-                    role="doctor",
-                )
-            )
-
-    db.commit()
-
-    # ------------------------
     # Doctor profiles
     # ------------------------
     sarah = db.query(User).filter_by(email="sarah@example.com").first()
@@ -149,7 +166,7 @@ try:
     db.commit()
 
     # ------------------------
-    # Doctor ↔ consultation types (drives visit-types + the T6 filter endpoints)
+    # Doctor ↔ consultation types
     # ------------------------
     type_links = {
         "sarah@example.com": ["Video Call", "Clinic Visit"],
@@ -173,7 +190,7 @@ try:
     db.commit()
 
     # ------------------------
-    # Weekly availability (drives /doctors/:id/time-slots)
+    # Weekly availability
     # ------------------------
     weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
     windows = [(time(9, 0), time(12, 0)), (time(14, 0), time(17, 0))]
@@ -197,20 +214,151 @@ try:
     db.commit()
 
     # ------------------------
-    # Session catalogs (wellness + relief players)
+    # Video Groups
     # ------------------------
-    for sort_order, (key, content) in enumerate(WELLNESS_SESSIONS.items()):
-        if not db.query(WellnessSession).filter_by(key=key).first():
+    for group_data in VIDEO_GROUPS:
+        if not db.query(VideoGroups).filter_by(title=group_data["title"]).first():
+            db.add(
+                VideoGroups(
+                    title=group_data["title"],
+                    description=group_data["description"],
+                    icon=group_data["icon"],
+                    sort_order=group_data["sort_order"],
+                    created_by=admin.id,
+                    updated_by=admin.id
+                )
+            )
+    db.commit()
+
+    # ------------------------
+    # Videos & Mappings
+    # ------------------------
+    for video_data in VIDEOS:
+        if not db.query(Videos).filter_by(title=video_data["title"]).first():
+            video = Videos(
+                title=video_data["title"],
+                description=video_data["description"],
+                duration=video_data["duration"],
+                icon=video_data["icon"],
+                video_url=video_data["video_url"],
+                created_by=admin.id,
+                updated_by=admin.id
+            )
+            db.add(video)
+            db.flush()
+
+            group = db.query(VideoGroups).filter_by(title=video_data["group_title"]).first()
+            if group:
+                db.add(
+                    VideoGroupMapping(
+                        video_group_id=group.id,
+                        video_id=video.id,
+                        sort_order=video_data["sort_order"],
+                        created_by=admin.id,
+                        updated_by=admin.id
+                    )
+                )
+    db.commit()
+
+    # ------------------------
+    # Chat Flow
+    # ------------------------
+    question_map = {}
+    for q_data in CHAT_FLOW:
+        q_text = q_data["question"]
+        question = db.query(ChatQuestion).filter_by(question_text=q_text).first()
+        if not question:
+            question = ChatQuestion(
+                question_text=q_text,
+                is_start=q_data["is_start"],
+                created_by=admin.id,
+                updated_by=admin.id
+            )
+            db.add(question)
+            db.flush()
+        question_map[q_text] = question
+
+    for q_data in CHAT_FLOW:
+        question = question_map[q_data["question"]]
+        for opt_data in q_data["options"]:
+            if not db.query(ChatOption).filter_by(question_id=question.id, option_text=opt_data["text"]).first():
+                next_q_id = None
+                if opt_data.get("next_question"):
+                    next_q_id = question_map[opt_data["next_question"]].id
+                
+                v_group_id = None
+                if opt_data.get("video_group_key"):
+                    group = db.query(VideoGroups).filter_by(key=opt_data["video_group_key"]).first()
+                    v_group_id = group.id if group else None
+
+                db.add(
+                    ChatOption(
+                        question_id=question.id,
+                        option_text=opt_data["text"],
+                        next_question_id=next_q_id,
+                        video_group_id=v_group_id
+                    )
+                )
+    db.commit()
+
+    # ------------------------
+    # Quick Reliefs
+    # ------------------------
+    for qr_data in QUICK_RELIEFS:
+        existing_qr = db.query(QuickRelief).filter_by(slug=qr_data["slug"]).first()
+        
+        q_id = None
+        if qr_data.get("chat_question"):
+            question = db.query(ChatQuestion).filter_by(question_text=qr_data["chat_question"]).first()
+            q_id = question.id if question else None
+        
+        if not existing_qr:
+            db.add(
+                QuickRelief(
+                    name=qr_data["name"],
+                    slug=qr_data["slug"],
+                    title=qr_data["title"],
+                    subtitle=qr_data["subtitle"],
+                    chat_question_id=q_id,
+                    icon_name=qr_data["icon_name"],
+                    background_color=qr_data["background_color"],
+                    text_color=qr_data["text_color"],
+                    sort_order=qr_data["sort_order"]
+                )
+            )
+        else:
+            # Update existing to link to chat and ensure all styling is fresh
+            existing_qr.chat_question_id = q_id
+            existing_qr.title = qr_data["title"]
+            existing_qr.subtitle = qr_data["subtitle"]
+            existing_qr.icon_name = qr_data["icon_name"]
+            existing_qr.background_color = qr_data["background_color"]
+            existing_qr.text_color = qr_data["text_color"]
+            existing_qr.sort_order = qr_data["sort_order"]
+    db.commit()
+
+    # ------------------------
+    # Session catalogs
+    # ------------------------
+    wellness_group = db.query(VideoGroups).filter_by(title="Wellness & Prevention").first()
+    
+    # Updated Wellness seeding (no key/steps, now group-based)
+    wellness_sessions_data = [
+        {"title": "Morning Yoga", "duration": "20 min", "icon": "🧘", "sort_order": 0},
+        {"title": "Mindful Meditation", "duration": "15 min", "icon": "🧠", "sort_order": 1},
+    ]
+    
+    for session_data in wellness_sessions_data:
+        if not db.query(WellnessSession).filter_by(title=session_data["title"]).first():
             db.add(
                 WellnessSession(
-                    key=key,
-                    title=content["title"],
-                    duration_label=content["duration"],
-                    icon=content["icon"],
-                    video_url=content["videoUrl"],
-                    total_cycles=content["totalCycles"],
-                    steps=content["steps"],
-                    sort_order=sort_order,
+                    title=session_data["title"],
+                    duration=session_data["duration"],
+                    icon=session_data["icon"],
+                    sort_order=session_data["sort_order"],
+                    video_group_id=wellness_group.id if wellness_group else None,
+                    created_by=admin.id,
+                    updated_by=admin.id
                 )
             )
 
@@ -220,7 +368,7 @@ try:
                 ReliefSession(
                     key=key,
                     title=content["title"],
-                    duration_label=content["duration"],
+                    duration=content["duration"],
                     icon=content["icon"],
                     video_url=content["videoUrl"],
                     total_cycles=content["totalCycles"],
