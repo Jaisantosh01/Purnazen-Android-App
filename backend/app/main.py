@@ -60,6 +60,10 @@ OPENAPI_TAGS = [
         "description": "Per-user settings (notification preferences).",
     },
     {
+        "name": "Videos",
+        "description": "Manage video categories (Quick Relief, Wellness, etc.) and their associated video content.",
+    },
+    {
         "name": "Health",
         "description": "Liveness probe.",
     },

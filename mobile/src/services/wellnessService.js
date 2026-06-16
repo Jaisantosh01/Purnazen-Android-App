@@ -16,15 +16,6 @@ class WellnessService {
     }
   }
 
-  async getSession(sessionKey) {
-    try {
-      const json = await this.get(ENDPOINTS.SESSION(sessionKey));
-      return json?.data;
-    } catch (err) {
-      throw new Error(err?.message ?? 'Failed to fetch session');
-    }
-  }
-
 }
 
 export default new WellnessService();
