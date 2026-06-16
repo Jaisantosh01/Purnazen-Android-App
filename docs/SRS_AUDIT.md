@@ -1,4 +1,4 @@
-# SRS Audit — M-Heal
+# SRS Audit — Purnazen
 
 **Audited against:** `SRS_MHeal.pdf` (Calypsion Innovations) — *AI Assisted Acupressure & Wellness App*
 **Date:** 2026-06-15
@@ -19,7 +19,7 @@
 
 | SRS item | Status | Notes |
 |----------|--------|-------|
-| App name **M-Heal** / tagline *AI Assisted Acupressure & Wellness App* | ✅ | Applied 2026-06-15: launcher label (`strings.xml`), `app.json` displayName, Login/Register hero, Home header. Android package id stays `com.wellness` (renaming it would break installed builds — cosmetic name only changed). |
+| App name **Purnazen** / tagline *AI Assisted Acupressure & Wellness App* | ✅ | Renamed to **Purnazen** 2026-06-16 (was "M-Heal", originally applied 2026-06-15): launcher label (`strings.xml`), `app.json` displayName, Login/Register hero, Home header, new lotus app icon. Android package id stays `com.wellness` (renaming it would break installed builds — cosmetic name only changed; native icon/label change requires an Android rebuild). |
 | User mobile application | ✅ | This repo (`mobile/`). |
 | Backend system with AI-assisted logic | ✅ | `backend/` FastAPI + OpenCV scan pipeline. |
 | Admin dashboard (component) | ❌ | Backend role-gate exists (`GET /auth/admin/dashboard`); no admin web UI in this repo. |

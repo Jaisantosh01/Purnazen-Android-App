@@ -1,8 +1,8 @@
 # Face & Tongue Analysis — Technical Specification
 
 **Feature:** Face Glow Scan — AI-powered skin analysis, TCM tongue diagnosis, and personalised wellness recommendations
-**Status:** Sprint 1 of 8 complete (2026-06-14)
-**Tracking:** See [TASKS.md](TASKS.md) § Face Analysis for sprint-by-sprint progress
+**Status:** Sprints 1–4 of 8 complete + Cycle 5 enhancements (2026-06-16). Consent UI (Sprint 5 slice) shipped. Remaining: social auth (Sprint 5), security/polish (Sprint 6), Celery (Sprint 7), premium/analytics (Sprint 8).
+**Tracking:** See [TASKS.md](TASKS.md) § Face Analysis for sprint-by-sprint progress; per-cycle detail in [CHANGELOG.md](CHANGELOG.md); AI write-up in [FACE_ANALYSIS_AI.md](FACE_ANALYSIS_AI.md)
 
 ---
 
@@ -42,18 +42,20 @@ Both face scans (9 skin metrics) and tongue scans (5 TCM dimensions) flow throug
 
 ## 3. Database Migrations
 
-All 7 new migrations chain from existing head `e6f3a82d4c91`:
+All 7 new migrations chain from existing head `e6f3a82d4c91`. **Current head: `a7b8c9d0e1f2`** — all applied.
 
 ```
-e6f3a82d4c91  (user_preferences — current head)
+e6f3a82d4c91  (user_preferences — previous head)
   └── a1b2c3d4e5f6  add_oauth_fields_to_users              ✅ Sprint 1
        └── b2c3d4e5f6a7  create_face_glow_routines_table   ✅ Sprint 1
             └── c3d4e5f6a7b8  create_user_consents_table   ✅ Sprint 1
-                 └── d4e5f6a7b8c9  create_face_scans_table          Sprint 2
-                      └── e5f6a7b8c9d0  create_scan_results_table   Sprint 2
-                           └── f6a7b8c9d0e1  create_scan_recommendations_table  Sprint 2
-                                └── a7b8c9d0e1f2  create_scan_notifications_table  Sprint 4
+                 └── d4e5f6a7b8c9  create_face_scans_table          ✅ Sprint 2
+                      └── e5f6a7b8c9d0  create_scan_results_table   ✅ Sprint 2
+                           └── f6a7b8c9d0e1  create_scan_recommendations_table  ✅ Sprint 2
+                                └── a7b8c9d0e1f2  add_progress_and_landmarks_to_face_scans  ✅ Sprint 2
 ```
+
+> **Note:** `a7b8c9d0e1f2` was **repurposed**. The original plan was `create_scan_notifications_table` (Sprint 4 / T37), but notifications were deferred (low value until FCM push delivery exists). This revision instead adds `progress_stage` + `landmarks_json` to `face_scans` (live progress stages + client-side mesh overlay). The `scan_notifications` table below is **not yet created**.
 
 ### Table Schemas
 
@@ -116,6 +118,8 @@ blur_score               NUMERIC(6,4)   -- Laplacian variance; < 100 = too blurr
 error_message            VARCHAR(500)
 processing_started_at    TIMESTAMP
 processing_completed_at  TIMESTAMP
+progress_stage           VARCHAR(20)    -- live stage: preprocessing|detecting|analyzing|scoring|done (a7b8c9d0e1f2)
+landmarks_json           JSON           -- 478-pt mesh for client overlay (a7b8c9d0e1f2)
 created_at / updated_at  TIMESTAMP
 INDEX ix_face_scans_user_created ON (user_id, created_at DESC)
 INDEX ix_face_scans_status ON (status)
@@ -166,7 +170,8 @@ created_at          TIMESTAMP
 INDEX ix_scan_recommendations_scan_id ON (scan_id)
 ```
 
-#### `scan_notifications` (a7b8c9d0e1f2)
+#### `scan_notifications` (DEFERRED — T37, not yet created)
+> Planned for `a7b8c9d0e1f2`, but that revision was repurposed (see note above). Deferred until FCM push delivery exists.
 ```sql
 id                SERIAL PK
 user_id           FK → users.id
@@ -187,35 +192,39 @@ backend/app/
 ├── models/
 │   ├── face_glow_routine.py         ✅ Sprint 1
 │   ├── user_consent.py              ✅ Sprint 1
-│   ├── face_scan.py                          Sprint 2
-│   ├── scan_result.py                        Sprint 2
-│   ├── scan_recommendation.py                Sprint 2
-│   └── scan_notification.py                  Sprint 4
+│   ├── face_scan.py                 ✅ Sprint 2
+│   ├── scan_result.py               ✅ Sprint 2
+│   ├── scan_recommendation.py       ✅ Sprint 2
+│   └── scan_notification.py            ⏳ DEFERRED (T37)
 │
 ├── schemas/
-│   ├── scan.py                               Sprint 2  -- ScanUploadResponse, ScanStatusResponse, ScanHistoryItem
-│   └── social_auth.py                        Sprint 5  -- GoogleAuthRequest, AppleAuthRequest
+│   ├── scan.py                      ✅ Sprint 2  -- ScanUploadResponse, ScanStatusResponse, ScanHistoryItem
+│   └── social_auth.py                 ⏳ Sprint 5 (not started)  -- GoogleAuthRequest, AppleAuthRequest
 │
 ├── repositories/
 │   ├── face_glow_routine_repository.py  ✅ Sprint 1  -- get_all(), get_by_key()
 │   ├── consent_repository.py            ✅ Sprint 1  -- get_by_user(), upsert(), revoke_all(), delete_all()
-│   ├── face_scan_repository.py                  Sprint 2
-│   ├── scan_result_repository.py                Sprint 2
-│   └── scan_recommendation_repository.py        Sprint 2
+│   ├── face_scan_repository.py          ✅ Sprint 2  -- create/get_by_id/get_by_user/set_status/set_progress/delete
+│   ├── scan_result_repository.py        ✅ Sprint 2  -- incl. get_user_results (trends)
+│   └── scan_recommendation_repository.py ✅ Sprint 2  -- bulk_create()
 │
 ├── services/
 │   ├── face_glow_routine_service.py  ✅ Sprint 1  -- cache-aside (Redis 1h TTL)
 │   ├── consent_service.py            ✅ Sprint 1  -- grant/revoke/check
-│   ├── upload_service.py                      Sprint 2  -- MIME validate + Cloudinary upload
-│   ├── scan_pipeline_service.py               Sprint 2/3  -- orchestrates AI pipeline (BackgroundTask)
-│   ├── tongue_pipeline_service.py             Sprint 4  -- TCM tongue analysis
-│   ├── recommendation_engine_service.py       Sprint 3  -- TCM rule table → sorted recommendations
-│   ├── social_auth_service.py                 Sprint 5  -- Google + Apple token validation
-│   └── scan_dashboard_service.py              Sprint 4  -- latest scores + trend arrays
+│   ├── upload_service.py             ✅ Sprint 2  -- MIME validate + Cloudinary upload (local-disk fallback)
+│   ├── scan_pipeline_service.py      ✅ Sprint 2/3  -- orchestrates AI pipeline (BackgroundTask); graceful-degradation ladder
+│   ├── recommendation_engine_service.py ✅ Sprint 3  -- TCM rule table → sorted recommendations (≥15 rules)
+│   ├── scan_dashboard_service.py     ✅ Sprint 4  -- latest scores + trend arrays + compare
+│   └── social_auth_service.py          ⏳ Sprint 5 (not started)  -- Google + Apple token validation
+│   -- Note: tongue analysis was folded into ai/tongue/__init__.py + scan_pipeline_service
+│      (no separate tongue_pipeline_service.py)
 │
-├── ai/                                                  Sprint 3
-│   ├── face_detector.py                       -- MediaPipe FaceLandmarker singleton (app.state init)
-│   ├── image_preprocessor.py                  -- resize, blur_score, lighting, ROI extraction
+├── ai/                                                  ✅ Sprint 3 (+ Cycle 5 additions)
+│   ├── face_detector.py             ✅  -- MediaPipe FaceLandmarker singleton; Haar-cascade fallback
+│   ├── image_preprocessor.py        ✅  -- resize, blur_score, lighting, ROI extraction
+│   ├── quality.py                   ✅ Cycle 5  -- MediaPipe-primary quality gate; tongue path (no_tongue check)
+│   ├── enhance.py                   ✅ Cycle 5  -- background removal + crop for results display
+│   ├── skin_model.py                ✅  -- optional trained-model hook (CV fallback when absent)
 │   ├── analyzers/
 │   │   ├── hydration_analyzer.py              -- Lab L* + GLCM homogeneity on cheek ROI
 │   │   ├── oiliness_analyzer.py               -- HSV high-V pixel ratio on T-zone
@@ -227,18 +236,19 @@ backend/app/
 │   │   ├── muscle_tone_analyzer.py            -- bilateral landmark symmetry + jaw angle
 │   │   ├── inflammation_analyzer.py           -- Lab mean a* (redness) + LBP spot count
 │   │   ├── glow_score_engine.py               -- weighted composite (see weights below)
-│   │   └── toxin_indicator.py                 -- dark_circle + puffiness + dullness
-│   └── tongue/                                          Sprint 4
-│       ├── segmenter.py                       -- GrabCut isolation of tongue region
-│       ├── color_analyzer.py                  -- Lab color space TCM classification
-│       └── tcm_rules.py                       -- TCM combination → health indicator lookup table
+│   │   └── toxin_indicator.py                 -- dark_circle + oiliness + (100 − glow)
+│   └── tongue/                                          ✅ Sprint 4
+│       ├── segmenter.py             ✅  -- GrabCut isolation of tongue region (reddish-mask refine, ellipse fallback)
+│       ├── color_analyzer.py        ✅  -- Lab/HSV TCM classification
+│       ├── tcm_rules.py             ✅  -- TCM combination → health indicator lookup table
+│       └── __init__.py              ✅  -- analyze() orchestrator
 │
 ├── api/v1/endpoints/
-│   ├── face_scan.py     Sprint 2  -- all scan CRUD + dashboard/trends (prefix: /face-glow)
+│   ├── face_scan.py     ✅ Sprint 2/4  -- all scan CRUD + dashboard/trends/compare + quality-preview (prefix: /face-glow)
 │   ├── consent.py       ✅ Sprint 1  -- GDPR consent CRUD (prefix: /consent)
-│   └── social_auth.py             Sprint 5  -- Google/Apple token exchange (prefix: /auth)
+│   └── social_auth.py      ⏳ Sprint 5 (not started)  -- Google/Apple token exchange (prefix: /auth)
 │
-└── worker/                        Sprint 7  -- Celery migration
+└── worker/                 ⏳ Sprint 7 (not started)  -- Celery migration
     ├── celery_app.py
     └── tasks.py
 ```
@@ -268,14 +278,15 @@ All endpoints require a valid access token (`Authorization: Bearer {token}`).
 
 | Method | Path | Sprint | Description |
 |--------|------|--------|-------------|
-| POST | `/face-glow/scan/upload` | 2 | Multipart JPEG upload; validates consent; returns `scan_id` + `status: "queued"` (202) |
-| GET | `/face-glow/scan/{id}/status` | 2 | Poll for results; returns scores + recommendations when `status = "completed"` |
-| GET | `/face-glow/history` | 2 | Paginated scan history; `?scan_type=face\|tongue\|all&page=1&limit=20` |
-| DELETE | `/face-glow/scan/{id}` | 2 | Hard-delete scan + Cloudinary images (GDPR) |
-| GET | `/face-glow/dashboard` | 4 | Latest scores, 7-day trend, delta vs. previous scan |
-| GET | `/face-glow/trends` | 4 | `?metric=glow_score&days=30` → `[{date, value}]` for charts |
-| POST | `/face-glow/scan/{id}/compare` | 4 | Body: `{compare_scan_id}` → metric delta object |
-| DELETE | `/face-glow/data` | 5 | GDPR: delete ALL scans for user + revoke all consents |
+| POST | `/face-glow/scan/upload` | ✅ 2 | Multipart JPEG upload; validates consent; returns `scan_id` + `status: "queued"` (202) |
+| GET | `/face-glow/scan/{id}/status` | ✅ 2 | Poll for results; returns scores + recommendations + `progress_stage` when processing |
+| GET | `/face-glow/history` | ✅ 2 | Paginated scan history; `?scan_type=face\|tongue\|all&page=1&limit=20` |
+| DELETE | `/face-glow/scan/{id}` | ✅ 2 | Hard-delete scan + Cloudinary images (GDPR) |
+| POST | `/face-glow/quality-preview` | ✅ Cycle 5 | Live camera quality check on a frame; **no scan created** (backs in-viewfinder hints) |
+| GET | `/face-glow/dashboard` | ✅ 4 | Latest scores, 7-day rolling glow, delta vs. previous scan |
+| GET | `/face-glow/trends` | ✅ 4 | `?metric=glow_score&days=30` → `[{date, value}]` for charts |
+| POST | `/face-glow/scan/{id}/compare` | ✅ 4 | Body: `{compare_to_id}` → metric delta object |
+| DELETE | `/face-glow/data` | ⏳ 5 | GDPR: delete ALL scans for user + revoke all consents (not started) |
 
 ### Routine Endpoints (existing, now DB-backed)
 
@@ -292,7 +303,7 @@ All endpoints require a valid access token (`Authorization: Bearer {token}`).
 | POST | `/consent/` | ✅ 1 | Grant/update: `{consent_type, granted}` |
 | DELETE | `/consent/{type}` | ✅ 1 | Revoke specific consent type |
 
-### Social Auth Endpoints (Sprint 5)
+### Social Auth Endpoints (Sprint 5 — ⏳ not started)
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -409,54 +420,56 @@ Minimum 15 rules mapping score thresholds to recommendations:
 ```
 mobile/src/
 ├── screens/
-│   ├── FaceScanScreen.js          Sprint 2  -- Vision Camera, oval guide, consent gate
-│   ├── ScanProcessingScreen.js    Sprint 2  -- 3s poll loop, animated indicator
-│   ├── ScanResultsScreen.js       Sprint 2  -- GlowScoreGauge, 9 metric rows, recommendations
-│   ├── ScanHistoryScreen.js       Sprint 4  -- FlatList + pagination, filter tabs
-│   ├── ScanComparisonScreen.js    Sprint 4  -- Before/after delta view
-│   ├── ScanDashboardScreen.js     Sprint 4  -- Trend charts, radar, Start Scan CTA
-│   ├── ConsentScreen.js           Sprint 5  -- GDPR toggles + "Delete All My Scan Data"
-│   └── TongueScanScreen.js        Sprint 4  -- Tongue framing guide, same flow as FaceScan
+│   ├── FaceScanScreen.js          ✅ Sprint 2  -- Vision Camera, oval guide, consent gate, live quality hints
+│   ├── ScanProcessingScreen.js    ✅ Sprint 2  -- poll loop, live stage text, animated indicator
+│   ├── ScanResultsScreen.js       ✅ Sprint 2  -- glow score, 9 metric rows, recommendations, enhanced image
+│   ├── ScanErrorScreen.js         ✅ Sprint 2  -- friendly retake message on failed/timeout
+│   ├── ScanHistoryScreen.js       ✅ Sprint 4  -- FlatList + pagination, filter tabs
+│   ├── ScanComparisonScreen.js    ✅ Sprint 4  -- Before/after delta view
+│   ├── ScanDashboardScreen.js     ✅ Sprint 4  -- Trend charts, Start Scan CTA
+│   ├── ConsentScreen.js           ✅ Sprint 5  -- GDPR toggles (scan_storage / ai_training / gdpr_data)
+│   └── TongueScanScreen.js        ✅ Cycle 5  -- separate tongue framing guide + flow (was shared with FaceScan)
 │
 ├── components/scan/
-│   ├── GlowScoreGauge.js          Sprint 6  -- SVG circular arc (react-native-svg), animated
-│   ├── MetricScoreRow.js          Sprint 2  -- Label + color bar + score (green/amber/red)
-│   ├── RecommendationCard.js      Sprint 2  -- type, title, description, onPressRoutine
-│   ├── ScanHistoryCard.js         Sprint 4  -- date, scan_type badge, glow score, thumbnail
-│   ├── ConsentModal.js            Sprint 5  -- Bottom sheet before first scan
-│   ├── FaceOverlayGuide.js        Sprint 2  -- SVG oval guide on camera preview
-│   └── TrendChart.js              Sprint 4  -- Line chart wrapper [{date, value}]
+│   ├── MetricScoreRow.js          ✅ Sprint 2  -- Label + color bar + score (green/amber/red)
+│   ├── RecommendationCard.js      ✅ Sprint 2  -- type, title, description, onPressRoutine
+│   ├── FaceOverlayGuide.js        ✅ Sprint 2  -- SVG oval guide on camera preview (status-coloured)
+│   ├── FaceMeshOverlay.js         ✅ Sprint 2  -- 478-pt mesh overlay from landmarks_json
+│   ├── TongueOverlayGuide.js      ✅ Cycle 5  -- tongue framing guide on camera preview
+│   ├── TrendChart.js              ✅ Sprint 4  -- SVG line chart [{date, value}] (no chart-kit dep)
+│   ├── GlowScoreGauge.js             ⏳ Sprint 6 (not started)  -- animated SVG circular arc
+│   └── ScanHistoryCard.js            ⏳ Sprint 6 (not started; history uses inline rows)
 │
 ├── services/
-│   ├── scanService.js             Sprint 2  -- uploadScan(), getScanStatus(), getHistory(), delete()
-│   ├── consentService.js          Sprint 5  -- getConsents(), grantConsent(), hasConsent()
-│   └── socialAuthService.js       Sprint 5  -- loginWithGoogle(), loginWithApple()
+│   ├── scanService.js             ✅ Sprint 2  -- uploadScan(), getScanStatus(), getHistory(), delete(), qualityPreview()
+│   ├── consentService.js          ✅ Sprint 5  -- getConsents(), grantConsent(), hasConsent()
+│   └── socialAuthService.js          ⏳ Sprint 5 (not started)  -- loginWithGoogle(), loginWithApple()
 │
 └── store/
-    └── scanStore.js               Sprint 2  -- Zustand: latestScan, scanHistory, isProcessing
+    └── scanStore.js               ✅ Sprint 2  -- Zustand: latestScan, scanHistory, isProcessing
 ```
 
 ### Mobile: Files Modified
 
 | File | Change | Sprint |
 |------|--------|--------|
-| `screens/FaceGlowScreen.js` | Replace `Alert.alert('Coming soon!')` with `navigation.navigate('FaceScan')` | 2 |
-| `constants/apiEndpoints.js` | Add scan/consent/social-auth endpoint constants | 2 |
-| `screens/LoginScreen.js` | Add Google Sign In button | 5 |
-| `screens/SettingsScreen.js` | Add "Privacy & Data" row → ConsentScreen | 5 |
-| `App.tsx` | Add 7 new screens to HomeStack | 2 |
+| `screens/FaceGlowScreen.js` | Replace `Alert.alert('Coming soon!')` with scan entry (face + tongue) | ✅ 2 |
+| `constants/apiEndpoints.js` | Add scan/consent endpoint constants (+ quality-preview) | ✅ 2 |
+| `screens/SettingsScreen.js` | Add "Privacy & Data Consent" row → ConsentScreen | ✅ 5 |
+| `App.tsx` | Add new scan screens to HomeStack | ✅ 2 |
+| `screens/LoginScreen.js` | Add Google Sign In button | ⏳ 5 (not started) |
 
 ### New npm Packages
 
-| Package | Version | Sprint |
-|---------|---------|--------|
-| `react-native-vision-camera` | `4.6.4` | 2 |
-| `react-native-image-resizer` | `3.0.10` | 2 |
-| `react-native-svg` | `^15.0.0` | 2 |
-| `react-native-chart-kit` | `^6.12.0` | 4 |
-| `@react-native-google-signin/google-signin` | `^13.0.0` | 5 |
-| `@invertase/react-native-apple-authentication` | `^2.4.0` | 5 |
-| `react-native-view-shot` | `^3.8.0` | 6 |
+| Package | Version | Sprint | Status |
+|---------|---------|--------|--------|
+| `react-native-vision-camera` | `4.6.4` | 2 | ✅ |
+| `react-native-image-resizer` | `3.0.10` | 2 | ✅ |
+| `react-native-svg` | `^15.0.0` | 2 | ✅ |
+| `react-native-chart-kit` | `^6.12.0` | 4 | ❌ dropped — TrendChart uses react-native-svg directly |
+| `@react-native-google-signin/google-signin` | `^13.0.0` | 5 | ⏳ not started |
+| `@invertase/react-native-apple-authentication` | `^2.4.0` | 5 | ⏳ not started |
+| `react-native-view-shot` | `^3.8.0` | 6 | ⏳ not started |
 
 ---
 
@@ -466,15 +479,17 @@ mobile/src/
 |---------|---------|--------|---------|
 | `python-multipart` | `>=0.0.9` | ✅ 1/2 | Multipart file upload parsing |
 | `cloudinary` | `>=1.40.0` | ✅ 1/2 | Image storage |
-| `opencv-python-headless` | `4.10.0.84` | 3 | Face detection, image analysis |
-| `mediapipe` | `>=0.10.14` | 3 | Face Landmarker (478 3D landmarks) |
-| `Pillow` | `10.4.0` | 3 | Image open/resize/convert |
-| `scikit-image` | `0.24.0` | 3 | GLCM texture features |
-| `python-magic` | `0.4.27` | 3 | Byte-level MIME type verification |
-| `numpy` | `1.26.4` | 3 | Array operations |
-| `google-auth` | `>=2.28.0` | 5 | Google ID token verification |
-| `cryptography` | `>=42.0.0` | 5 | Apple Sign In JWKS validation |
-| `celery` | `>=5.4.0` | 7 | Async task queue |
+| `opencv-python-headless` | `4.10.0.84` | ✅ 3 | Face detection, image analysis |
+| `mediapipe` | `>=0.10.14` | ✅ 3 | Face Landmarker (478 3D landmarks) |
+| `Pillow` | `10.4.0` | ✅ 3 | Image open/resize/convert |
+| `scikit-image` | `0.24.0` | ✅ 3 | GLCM texture features |
+| `python-magic` | `0.4.27` | ✅ 3 | Byte-level MIME type verification |
+| `numpy` | `>=2` | ✅ 3 | Array operations |
+| `google-auth` | `>=2.28.0` | ⏳ 5 | Google ID token verification (not started) |
+| `cryptography` | `>=42.0.0` | ⏳ 5 | Apple Sign In JWKS validation (not started) |
+| `celery` | `>=5.4.0` | ⏳ 7 | Async task queue (not started) |
+
+> **Runtime note:** the mediapipe/opencv/scikit-image wheels target Python ≤3.12. The server **boots without them** and runs an OpenCV-only fallback; full MediaPipe analysis requires a Python ≤3.12 environment with the wheels installed.
 
 > Note: Use `opencv-python-headless` (not `opencv-python`) on the server — no Qt/GUI dependencies, works on headless Linux.
 
@@ -503,28 +518,42 @@ mobile/src/
 ## 12. Verification Checklist by Sprint
 
 ### Sprint 1 ✅
-- [ ] `GET /api/v1/face-glow/routines` returns 4 routines from DB (not hardcode)
-- [ ] `POST /api/v1/consent/` `{consent_type: "scan_storage", granted: true}` → 200
-- [ ] `GET /api/v1/consent/` returns the created record
-- [ ] `DELETE /api/v1/consent/scan_storage` → 200, `granted: false`
+- [x] `GET /api/v1/face-glow/routines` returns 4 routines from DB (not hardcode)
+- [x] `POST /api/v1/consent/` `{consent_type: "scan_storage", granted: true}` → 200
+- [x] `GET /api/v1/consent/` returns the created record
+- [x] `DELETE /api/v1/consent/scan_storage` → 200, `granted: false`
 
-### Sprint 2
-- [ ] `POST /face-glow/scan/upload` with JPEG → `{scan_id: N, status: "queued"}` (202)
-- [ ] `GET /face-glow/scan/N/status` → eventually `{status: "completed", results: {glow_score: 75.0}}` (mock)
-- [ ] `GET /face-glow/history` shows the scan
-- [ ] `DELETE /face-glow/scan/N` → 200; Cloudinary image deleted; DB row gone
-- [ ] Mobile camera screen opens, captures, shows spinner, then results with mock 75.0 scores
+### Sprint 2 ✅
+- [x] `POST /face-glow/scan/upload` with JPEG → `{scan_id: N, status: "queued"}` (202)
+- [x] `GET /face-glow/scan/N/status` → eventually `{status: "completed", results: {...}}`
+- [x] `GET /face-glow/history` shows the scan
+- [x] `DELETE /face-glow/scan/N` → 200; Cloudinary image deleted; DB row gone
+- [x] Mobile camera screen opens, captures, shows live stages, then results
 
-### Sprint 3
-- [ ] Well-lit frontal face → realistic `glow_score` (not 75.0 mock)
-- [ ] Dark/blurry image → `status: "failed"`, `error_message` set
-- [ ] No-face image → `face_detected: false`, descriptive error
+### Sprint 3 ✅
+- [x] Well-lit frontal face → realistic `glow_score` (real CV, not 75.0 mock)
+- [x] Dark/blurry image → `status: "failed"`, `error_message` set
+- [x] No-face image → `face_detected: false`, descriptive error
+- [ ] Formal pytest matrix across lighting / skin tones / angles (→ T43, Sprint 6)
 
-### Sprint 5
+### Sprint 4 ✅ (T37 deferred)
+- [x] Tongue scan → real GrabCut segmentation + Lab/HSV TCM classification (not mock)
+- [x] `GET /face-glow/dashboard` → latest scores + 7-day trend + delta
+- [x] `GET /face-glow/trends?metric=glow_score&days=30` → `[{date, value}]`
+- [x] `POST /face-glow/scan/{id}/compare` → metric delta object
+
+### Cycle 5 ✅
+- [x] Photo of an empty wall is **rejected** (`no_face`) — MediaPipe-primary quality gate
+- [x] `POST /face-glow/quality-preview` returns assessment with **no scan created**
+- [x] Live viewfinder colours (oval/brackets/pill/button) track the quality status
+- [x] Separate `TongueScanScreen` with its own framing guide
+- [x] App launcher label shows "Purnazen" (requires Android rebuild)
+
+### Sprint 5 (⏳ social auth not started; Consent UI done)
 - [ ] `POST /auth/social/google` with valid Google ID token → `{access_token, refresh_token, user}`
-- [ ] Returned user has `auth_provider: "google"`
-- [ ] ConsentModal appears before first scan
+- [ ] Returned user has `oauth_provider: "google"`
+- [x] ConsentScreen reachable from Settings → "Privacy & Data Consent"; scan upload 403s without `scan_storage` consent
 
-### Sprint 7
+### Sprint 7 (⏳ not started)
 - [ ] `GET /health/detailed` → `{"celery": "ok", "redis": "ok", "cloudinary": "ok"}`
 - [ ] Flower dashboard shows tasks processed from `scan_processing` queue
