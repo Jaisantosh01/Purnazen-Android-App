@@ -1,6 +1,6 @@
 # Task Backlog — Gap Features
 
-**Last updated:** 2026-06-15 (Face Analysis **Sprints 1–3 complete** — T20–T35 done; upload + mobile camera + **real OpenCV/MediaPipe AI pipeline** live. AI write-up: [FACE_ANALYSIS_AI.md](FACE_ANALYSIS_AI.md)). P0 T1–T5, P1 T6–T11, P2 T12/T15/T16/T17/T18/T19 **all completed** — see CHANGELOG; T13/T14 deferred pending backend decisions. Derived from the FEATURES.md scoreboard plus frontend work. Conventions for backend tasks: model → import in `db/base.py` → `alembic revision --autogenerate` → schema → repository → service → endpoint → `router.py` → tests (see ARCHITECTURE.md).
+**Last updated:** 2026-06-16 (Face Analysis **Sprints 1–4 complete** — T20–T39 done except T37 deferred; real tongue analysis + dashboard/trends/compare live; plus the **Consent UI** slice of T41. **Cycle 5** shipped 2026-06-16: separate Tongue Scan screen, MediaPipe-primary quality gate (fixes empty-wall false-pass) + tongue quality checks, `quality-preview` endpoint with live in-viewfinder hints, background-removed/cropped display enhancement, cropped+zoomed mesh preview, and **app rebrand to "Purnazen"** + new icon. Earlier accuracy/UX work (all-metric CV calibration, animated processing screen, enhanced preview, reports/history, TCM combination rules) shipped 2026-06-16 — see CHANGELOG. AI write-up: [FACE_ANALYSIS_AI.md](FACE_ANALYSIS_AI.md)). P0 T1–T5, P1 T6–T11, P2 T12/T15/T16/T17/T18/T19 **all completed** — see CHANGELOG; T13/T14 deferred pending backend decisions. Derived from the FEATURES.md scoreboard plus frontend work. Conventions for backend tasks: model → import in `db/base.py` → `alembic revision --autogenerate` → schema → repository → service → endpoint → `router.py` → tests (see ARCHITECTURE.md).
 
 ---
 
@@ -120,25 +120,26 @@
 
 ---
 
-### Sprint 4 — Weeks 7-8: Tongue Analysis + Dashboard/Trends
+### ✅ Sprint 4 — Weeks 7-8: Tongue Analysis + Dashboard/Trends (2026-06-16) — T37 deferred
 
-#### T36. Tongue pipeline
-- `backend/app/ai/tongue/segmenter.py` — GrabCut isolation
-- `backend/app/ai/tongue/color_analyzer.py` — Lab classification for TCM dimensions
-- `backend/app/ai/tongue/tcm_rules.py` — TCM combination → health indicators
-- `backend/app/services/tongue_pipeline_service.py`
+#### ✅ T36. Tongue pipeline
+- `backend/app/ai/tongue/segmenter.py` — GrabCut isolation (reddish-mask refine, ellipse fallback)
+- `backend/app/ai/tongue/color_analyzer.py` — Lab/HSV classification of TCM dimensions
+- `backend/app/ai/tongue/tcm_rules.py` — markers → wellness score; `tongue/__init__.py` `analyze()` orchestrator
+- Wired into `scan_pipeline_service` (replaces the tongue mock); existing recommendation-engine tongue rules now fire on real markers
 
-#### T37. scan_notifications table + notification records
-- Migration `a7b8c9d0e1f2`; model `scan_notification.py`
-- Created on every `status = "completed"` transition
+#### ⏳ T37. scan_notifications table + notification records — DEFERRED
+- Low value until push delivery (FCM) exists, which is also unbuilt. Revisit with Sprint 7/notifications work. (Note: `a7b8c9d0e1f2` was already used for face-scan progress/landmark columns.)
 
-#### T38. Dashboard + trends + comparison endpoints
-- `scan_dashboard_service.py` — latest scores, 7-day rolling average
+#### ✅ T38. Dashboard + trends + comparison endpoints
+- `scan_dashboard_service.py` — latest scores, 7-day rolling glow, glow trend; `ScanResultRepository.get_user_results`
 - `GET /face-glow/dashboard`, `GET /face-glow/trends?metric=&days=`, `POST /face-glow/scan/{id}/compare`
+- Tests: `tests/test_scan_dashboard.py`
 
-#### T39. Mobile: tongue scan + history + dashboard + comparison screens
-- `TongueScanScreen.js`, `ScanHistoryScreen.js`, `ScanDashboardScreen.js`, `ScanComparisonScreen.js`
-- `TrendChart.js` component; install `react-native-chart-kit`
+#### ✅ T39. Mobile: tongue scan + history + dashboard + comparison screens
+- Tongue scan reuses the capture flow (`scanType:'tongue'`) — entry from FaceGlow + dashboard
+- `ScanHistoryScreen.js` (done earlier), `ScanDashboardScreen.js`, `ScanComparisonScreen.js`
+- `components/scan/TrendChart.js` (react-native-svg — no chart-kit dependency needed)
 
 ---
 
@@ -152,11 +153,11 @@
 - `auth_service.login()`: guard against `user.password is None` for social-only users
 - `auth_service.delete_account()`: cascade-delete all scan data + consents
 
-#### T41. Mobile: social auth + consent UI
-- Install `@react-native-google-signin/google-signin@^13.0.0`
-- `socialAuthService.js`; Google Sign In button in `LoginScreen.js`
-- `ConsentScreen.js`, `ConsentModal.js`; "Privacy & Data" row in `SettingsScreen.js`
-- Consent gate in `FaceScanScreen.js` (shows `ConsentModal` if no `scan_storage` consent)
+#### ⚠️ T41. Mobile: social auth + consent UI — Consent UI DONE (2026-06-16); social auth deferred
+- ✅ `ConsentScreen.js` (Settings → "Privacy & Data Consent") + `consentService.js` — toggles for scan_storage / ai_training / gdpr_data against the existing consent API
+- ✅ Consent gate already present in `FaceScanScreen.js` (403 → grant prompt)
+- ⏳ Google/Apple sign-in deferred — needs `@react-native-google-signin/google-signin`, real OAuth client IDs, and the backend `social_auth_service` (T40); not verifiable without credentials
+- ⏳ `socialAuthService.js` + Google button in `LoginScreen.js` (with T40)
 
 ---
 

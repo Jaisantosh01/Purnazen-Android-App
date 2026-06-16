@@ -481,6 +481,15 @@ const SettingsScreen = ({ navigation }) => {
             />
             <View style={styles.rowDivider} />
             <ArrowRow
+              icon="shield-account-outline"
+              iconColor="#7C3AED"
+              iconBg="#F3EEFF"
+              title="Privacy & Data Consent"
+              subtitle="Manage scan storage & AI consents"
+              onPress={() => navigation.navigate('Consent')}
+            />
+            <View style={styles.rowDivider} />
+            <ArrowRow
               icon="download-outline"
               iconColor="#0284c7"
               iconBg="#E0F2FE"
@@ -515,7 +524,7 @@ const SettingsScreen = ({ navigation }) => {
           </View>
         </View>
 
-        <Text style={styles.version}>M-Heal v1.0.0</Text>
+        <Text style={styles.version}>Purnazen v1.0.0</Text>
       </ScrollView>
 
       {/* Edit Profile modal */}

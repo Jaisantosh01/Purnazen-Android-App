@@ -78,7 +78,7 @@ const LoginScreen = ({ navigation }) => {
             <View style={styles.logoBadge}>
               <MCIcon name="leaf" size={38} color={COLORS.white} />
             </View>
-            <Text style={styles.appName}>M-Heal</Text>
+            <Text style={styles.appName}>Purnazen</Text>
             <Text style={styles.tagline}>AI Assisted Acupressure & Wellness</Text>
           </View>
 

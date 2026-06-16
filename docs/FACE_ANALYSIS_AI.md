@@ -12,21 +12,33 @@ selfie into skin metrics, a glow score, and TCM-based wellness recommendations.
 
 ## 1. Design philosophy
 
-This pipeline is **classical computer vision, not a deep-learning skin model**.
-Every metric is computed from interpretable colour-space statistics and texture
-descriptors over precise facial regions. The only neural network involved is
-Google's **MediaPipe FaceLandmarker** (used purely for *where the face is*, not
-*how healthy the skin is*).
+The pipeline runs a **hybrid scorer** with two tiers (details in §12):
 
-Why this approach:
+1. **Trained CNN (preferred)** — a multi-head model validated on a labeled
+   dataset, served via ONNX Runtime (`app/ai/skin_model.py`). This is the
+   accurate, validated path. Trained in `backend/ml/` (see that project's README).
+2. **Recalibrated classical CV (fallback)** — interpretable colour-space +
+   texture analyzers (`app/ai/analyzers/`). Used automatically whenever the
+   trained model file isn't present, so the app always works.
 
-- **Explainable & deterministic** — each score traces back to a concrete formula
-  (e.g. "oiliness = ratio of specular-highlight pixels in the T-zone"). No
-  opaque black box, no per-skin-condition training set to curate or bias-audit.
-- **Cheap & fast** — runs on CPU in a background task; no GPU, no model serving.
-- **Degrades gracefully** — when the landmark model is unavailable it falls back
-  to OpenCV face detection, and finally to a centred crop, so a scan almost
-  never hard-fails (see §6).
+`raw_metrics.scoring_method` records which tier produced a given result
+(`"model"` or `"cv"`).
+
+> **Why a fallback at all?** The CV analyzers were originally the *only* scorer
+> and were uncalibrated — e.g. oiliness counted only blown-out specular pixels,
+> so oily skin scored *low*. Cycle 1 recalibrated them (white balance, skin-tone
+> baselines, adaptive gloss) AND added the trained-model path. The model owns
+> accuracy; CV guarantees graceful operation.
+
+Cross-cutting properties:
+
+- **Explainable CV tier** — each CV score traces to a concrete formula.
+- **Tone & lighting robust** — every colour metric runs on a white-balanced image
+  (Shades-of-Gray) and tone-sensitive metrics use an ITA° skin-tone baseline (§12).
+- **Degrades gracefully** — model → CV; MediaPipe landmarks → OpenCV face
+  detection → centred crop. A scan almost never hard-fails (§6).
+- **Quality-gated** — blurry / dark / multi-face / off-centre photos are rejected
+  *before* analysis with specific retake guidance (§12).
 
 ⚠️ **Wellness, not diagnosis.** Outputs are wellness indicators framed in
 Traditional Chinese Medicine (TCM) terms, **not** medical measurements or a
@@ -260,6 +272,8 @@ shape) → TCM combination rules.
 
 ## 11. Limitations & honest caveats
 
+### 11.1 General caveats (always apply)
+
 - **Not a medical device.** Wellness indicators only; no diagnostic claim.
 - **Lighting/white-balance sensitive.** Colour-space metrics (pigmentation,
   inflammation, dark circles) shift with ambient light and phone auto-white-balance.
@@ -271,3 +285,135 @@ shape) → TCM combination rules.
   T35) before relying on cross-tone comparability.
 - **Fallback mode is coarser.** Proportional ROIs from a bounding box are less
   precise than landmark ROIs, and muscle tone is neutralised without landmarks.
+
+### 11.2 Specific limitations of the current CV + MediaPipe approach
+
+The CV tier scores are **uncalibrated pixel statistics**, not measurements of
+skin health validated against human judgment. This matters in practice:
+
+| Metric | What we actually measure | Why it falls short |
+|---|---|---|
+| **Oiliness** | Specular-highlight ratio + saturation drop in the T-zone | Camera sensor, distance, and ambient light all change specular intensity independently of oiliness — two identical faces under different bulbs get different scores |
+| **Hydration** | Lab L\* brightness + GLCM texture homogeneity on cheeks | L\* is heavily influenced by lighting and skin tone; no direct optical proxy for trans-epidermal water loss exists in RGB |
+| **Wrinkles** | Canny edge density + GLCM contrast on forehead & eye-corners | Fine lines in a compressed JPEG or with slight motion blur disappear; edges from expression creases and shadow are indistinguishable |
+| **Pigmentation** | Std-dev of a\*/b\* in a skin-masked region | Captures colour unevenness, not dark-spot burden — a uniformly tanned face scores well; a pale face with one birthmark scores poorly |
+| **Elasticity** | GLCM energy (texture uniformity) on jawline/forehead | Tissue elasticity is a mechanical property; texture uniformity is a weak, indirect proxy that also responds to hair stubble, makeup, and JPEG artifacts |
+| **Muscle tone** | Bilateral landmark symmetry around the nose-tip axis | Detects gross structural asymmetry (e.g. stroke, injury), not muscular tone — a perfectly symmetrical face with zero tone scores 100 |
+| **Dark circles** | Lab L\* delta: cheek brightness − under-eye brightness | Absolute value depends on cheek baseline, which varies with lighting and blush/SPF; shadow from orbital bone is not distinguishable from pigmentation |
+| **Inflammation** | Mean Lab a\* (redness) on cheeks & forehead | a\* responds to warm ambient light and darker skin tones as well as redness; the ITA° baseline correction helps but doesn't fully resolve it |
+| **Pore visibility** | High-pass (image − Gaussian blur) variance on cheeks | Variance picks up any fine texture — beard stubble, product residue, JPEG block artifacts — not just pores |
+
+**Cross-session consistency:** the same person photographed two days apart under
+different lighting may receive scores that differ by 10–20 points on
+colour-sensitive metrics (oiliness, pigmentation, inflammation) even if their
+skin hasn't changed at all. This makes longitudinal trend tracking unreliable
+with CV alone.
+
+**No learning from data:** the formulas are fixed at write-time. If they
+consistently over-score oiliness for darker skin tones, no amount of usage data
+will correct them — the code must be manually reworked.
+
+### 11.3 How training the CNN model addresses these limitations
+
+The `backend/ml/` training project (`prepare_dataset → train → eval →
+export_onnx`) replaces or supplements CV scores with a **MobileNetV3-Small
+model trained on dermatologist-annotated severity labels**:
+
+| Problem | CV approach | Trained model |
+|---|---|---|
+| Scores not grounded in human judgment | Fixed formula → pixel stat | Trained on 0–5 human severity labels from the killa92 dataset; scores reflect what trained annotators actually called "mild", "moderate", "severe" |
+| Lighting / camera variance | Only partially corrected by white balance | ImageNet normalization + training on diverse lighting conditions embeds robustness implicitly; learned features de-emphasise absolute brightness |
+| Wrong proxy features | Hard-coded (e.g. GLCM energy for elasticity) | Backbone learns which spatial patterns actually correlate with each label in the training population |
+| No validation | Formulas are never tested against ground truth | `eval.py` reports per-head MAE + Pearson/Spearman on a held-out test set; the model is only promoted once it demonstrably beats the CV baseline |
+| Can't improve with data | Code must be rewritten | Re-run training on expanded or corrected labels to improve any head |
+| Partial coverage | All 9 heads always run | Masked-loss design: heads with no labeled data in the training set are masked out of the loss — they keep using CV. Accuracy improves head-by-head as labeled data arrives |
+
+**What the model does not fix:**
+- Truly unmeasurable metrics from 2D RGB (hydration, elasticity, muscle tone)
+  will remain approximate until either a specialized dataset or a modality beyond
+  RGB is used.
+- The model inherits annotator bias from the training dataset — if the dataset
+  under-represents certain skin tones or ages, those groups will be scored less
+  accurately.
+- Small dataset size (~200 labeled rows in killa92) limits generalization; the
+  model path is only enabled in production once `eval.py` confirms it beats CV
+  on the held-out test set.
+
+---
+
+## 12. Cycle-1 foundation upgrades (2026-06-16)
+
+Strengthening the foundation so results stop being arbitrary. Four pieces:
+
+### 12.1 Hybrid scoring (trained model + CV fallback)
+
+- **`app/ai/skin_model.py`** — lazy ONNX Runtime singleton. Input `1×3×224×224`
+  ImageNet-normalized RGB face crop → `1×9` sigmoid outputs in `METRIC_ORDER`,
+  scaled ×100. Returns `None` (→ CV) if `app/ai/models/skin_model.onnx` is absent
+  or `onnxruntime` isn't installed.
+- The pipeline (`scan_pipeline_service._run_face_pipeline`) tries the model first,
+  falls back to the recalibrated CV analyzers, and records
+  `raw_metrics.scoring_method` (`"model"` | `"cv"`).
+- **Training project: [`backend/ml/`](../backend/ml/README.md)** — `prepare_dataset →
+  train → eval → export_onnx`. Multi-head MobileNetV3-Small, masked loss for
+  partially-labeled datasets, MAE + Pearson/Spearman validation. The model is only
+  promoted into the backend once it beats the CV baseline on the held-out test set.
+
+### 12.2 White balance + skin-tone fairness
+
+- `image_preprocessor.normalize_white_balance` (Shades-of-Gray, p=6) neutralises
+  the lighting cast before colour analysis; detection still uses the original image.
+- `image_preprocessor.estimate_skin_tone` computes the **Individual Typology
+  Angle (ITA°)** from cheek/forehead ROIs → tone bucket + an `baseline_a` that the
+  inflammation analyzer subtracts so warmer/darker complexions aren't over-flagged
+  as red. Stored in `raw_metrics.skin_tone`.
+
+### 12.3 Oiliness rewrite (the reported bug)
+
+Old: fraction of pixels with HSV V > 220 — missed oily-but-not-blown-out skin, so
+oily faces scored *low*. New: an **adaptive gloss** measure (specular ratio vs the
+ROI's own `mean+k·std`, high-pass specular-blob density, and saturation drop in
+highlights — the dichromatic cue). See `analyzers/oiliness_analyzer.py`.
+
+### 12.4 Capture-quality gate
+
+- **`app/ai/quality.py` `assess_quality(img, scan_type)`** — blur, brightness,
+  face count, face-area ratio, and centering for **face**; blur, brightness, and a
+  reddish/pink-region check (`no_tongue`) for **tongue**. Returns prioritized issue
+  codes + friendly guidance.
+- **Face detection uses MediaPipe FaceLandmarker first** (Haar cascade only when
+  MediaPipe is unavailable). This is what reliably rejects empty-wall / no-face
+  frames — Haar alone was lenient enough to let some through and run a full,
+  meaningless analysis.
+- Runs **synchronously in `POST /face-glow/scan/upload`** for **both face and
+  tongue** *before* storing/enqueuing; a blocking issue returns **422** with
+  `reason` + `guidance` (`error_response` carries these). The app shows the guidance
+  and lets the user retake. No bad photo is ever stored or analysed.
+- **`POST /face-glow/quality-preview`** runs the same assessment on a frame
+  **without creating a scan** — it backs the mobile **live in-viewfinder hints**
+  (both scan screens snapshot every ~2.2–2.5 s and show a colour-coded badge).
+
+### 12.5 Confidence
+
+`scan_pipeline_service._compute_confidence` records a per-metric + overall
+confidence in `raw_metrics.confidence` (from sharpness, lighting, ROI
+availability, and scoring method) so the UI/report can flag low-trust scores.
+
+### 12.6 Display enhancement & cropped mesh preview
+
+- **`app/ai/enhance.py` `enhance_for_display`** (display-only, never fed to the
+  analyzers): detect the face → **blur + darken the background** behind an
+  elliptical mask → **crop to the face** with padding → bilateral denoise → CLAHE →
+  vignette. Saved as `processed_image_url` (a tight portrait crop).
+- **Cropped + zoomed mesh preview** (mobile `ScanProcessingScreen`): the processing
+  screen derives a crop box from the **same landmarks it draws** (or the tongue
+  bbox), then sizes a zoomed "stage" that holds the image **and** the mesh/outline
+  in one coordinate system — so the face/tongue fills the card and the overlay
+  stays aligned. The tongue path reuses `landmarks_json` `{type:'bbox',rect}` from
+  `raw_metrics.tongue_bbox`.
+
+> **Done in Cycle 5:** live in-viewfinder quality checks, separate tongue scan
+> screen, MediaPipe-primary quality gate, background-removed/cropped enhancement,
+> and the cropped+zoomed mesh preview.
+> **Still deferred (later cycles):** true ML-segmentation background removal,
+> trained ONNX skin model (user-run training), and TCM rule expansion.

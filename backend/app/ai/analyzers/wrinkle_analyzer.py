@@ -32,7 +32,12 @@ def _analyze_roi(roi: np.ndarray) -> float:
     )
     contrast = float(graycoprops(glcm, "contrast").mean())
 
-    roi_score = float(np.clip(edge_density * 500.0 + contrast * 5.0, 0.0, 100.0))
+    # Edge density dominates (lines = wrinkles); contrast is a secondary cue.
+    # Real fine lines occupy a small edge fraction; brows/hairline/harsh-angle
+    # selfies push edge density much higher, so we (a) cap the edge contribution
+    # so stray hair can't alone slam the score to 100, and (b) use softened gains.
+    capped_edge = min(edge_density, 0.24)
+    roi_score = float(np.clip(capped_edge * 200.0 + contrast * 0.9, 0.0, 100.0))
     return roi_score
 
 

@@ -1,7 +1,11 @@
 import json
+import logging
 
 from fastapi import APIRouter, BackgroundTasks, Depends, UploadFile, File, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 from app.api.deps import get_current_user, get_db
 from app.models.user import User
@@ -9,11 +13,46 @@ from app.repositories.face_scan_repository import FaceScanRepository
 from app.repositories.scan_recommendation_repository import ScanRecommendationRepository
 from app.repositories.scan_result_repository import ScanResultRepository
 from app.services.consent_service import ConsentService
+from app.services.scan_dashboard_service import ScanDashboardService
 from app.services.scan_pipeline_service import run_scan_pipeline
 from app.services.upload_service import UploadService
 from app.utils.responses import error_response, success_response
 
 router = APIRouter(prefix="/face-glow", tags=["Face Scan"])
+
+
+def _quality_gate(content: bytes, scan_type: str = "face"):
+    """Run the capture-quality assessment on raw image bytes.
+
+    Returns a 422 ``error_response`` (with reason + guidance) if the photo has a
+    blocking quality issue, or ``None`` to proceed. Degrades to None (no gate) if
+    the CV stack isn't installed, so uploads still work without the AI deps.
+    """
+    try:
+        import cv2
+        import numpy as np
+
+        from app.ai.image_preprocessor import resize_for_analysis
+        from app.ai.quality import assess_quality, first_blocking_issue
+    except ImportError:
+        logger.warning("CV stack not available; quality gate bypassed for scan_type=%s", scan_type)
+        return None
+
+    img = cv2.imdecode(np.frombuffer(content, np.uint8), cv2.IMREAD_COLOR)
+    if img is None:
+        return None
+
+    assessment = assess_quality(resize_for_analysis(img), scan_type=scan_type)
+    blocking = first_blocking_issue(assessment)
+    if blocking:
+        return error_response(
+            blocking["guidance"],
+            status_code=422,
+            reason=blocking["code"],
+            guidance=blocking["guidance"],
+            extra={"quality": assessment["metrics"]},
+        )
+    return None
 
 
 @router.post(
@@ -35,7 +74,15 @@ async def upload_scan(
     if not ConsentService.has_consent(db, user.id, "scan_storage"):
         return error_response("Scan storage consent required", status_code=403)
 
-    upload = await UploadService.validate_and_upload(file, user_id=user.id, folder_suffix="raw")
+    content = await file.read()
+
+    # Capture-quality gate — fast, synchronous, before we store or enqueue anything.
+    # Returns specific retake guidance so the user can fix it.
+    gate = _quality_gate(content, scan_type=scan_type)
+    if gate is not None:
+        return gate
+
+    upload = await UploadService.validate_and_upload_bytes(content, user_id=user.id, folder_suffix="raw")
 
     scan = FaceScanRepository.create(
         db,
@@ -82,6 +129,8 @@ def get_scan_status(
         "scan_type": scan.scan_type,
         "progress_stage": scan.progress_stage,
         "error_message": scan.error_message,
+        "image_url": scan.image_url,
+        "processed_image_url": scan.processed_image_url,
         "image_width": scan.image_width,
         "image_height": scan.image_height,
         "landmarks": landmarks,
@@ -154,3 +203,72 @@ def delete_scan(
     FaceScanRepository.delete(db, scan)
 
     return success_response("Scan deleted successfully")
+
+
+@router.get("/dashboard", summary="Skin dashboard (latest + rolling glow + trend)")
+def get_dashboard(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return success_response("Dashboard fetched", ScanDashboardService.dashboard(db, user.id))
+
+
+@router.get("/trends", summary="Time series for a single metric")
+def get_trends(
+    metric: str = Query("glow_score"),
+    days: int = Query(0, ge=0, le=365),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    data = ScanDashboardService.trends(db, user.id, metric, days or None)
+    if data.get("error"):
+        return error_response(data["error"], status_code=400)
+    return success_response("Trends fetched", data)
+
+
+class _CompareBody(BaseModel):
+    compare_to_id: int | None = None
+
+
+@router.post(
+    "/quality-preview",
+    summary="Live camera quality check (no scan created)",
+    description=(
+        "Accepts a JPEG/PNG snapshot and returns a quality assessment without "
+        "persisting anything. Used by the mobile camera view for live feedback."
+    ),
+)
+async def quality_preview(
+    file: UploadFile = File(...),
+    scan_type: str = Query("face", pattern="^(face|tongue)$"),
+    user: User = Depends(get_current_user),
+):
+    content = await file.read()
+    try:
+        import cv2
+        import numpy as np
+
+        from app.ai.image_preprocessor import resize_for_analysis
+        from app.ai.quality import assess_quality
+    except ImportError:
+        return success_response("Quality check unavailable", {"ok": True, "issues": []})
+
+    img = cv2.imdecode(np.frombuffer(content, np.uint8), cv2.IMREAD_COLOR)
+    if img is None:
+        return error_response("Could not decode image", status_code=422)
+
+    assessment = assess_quality(resize_for_analysis(img), scan_type=scan_type)
+    return success_response("Quality assessed", assessment)
+
+
+@router.post("/scan/{scan_id}/compare", summary="Compare a scan to a baseline scan")
+def compare_scan(
+    scan_id: int,
+    body: _CompareBody = _CompareBody(),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    data = ScanDashboardService.compare(db, user.id, scan_id, body.compare_to_id)
+    if data is None:
+        return error_response("Scan not found", status_code=404)
+    return success_response("Comparison ready", data)

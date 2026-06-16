@@ -17,6 +17,64 @@ from app.repositories.scan_result_repository import ScanResultRepository
 
 logger = logging.getLogger(__name__)
 
+# Canonical metric order (matches the trained model's output heads).
+_METRIC_KEYS = (
+    "hydration_score",
+    "oiliness_score",
+    "wrinkle_score",
+    "pigmentation_score",
+    "dark_circle_score",
+    "pore_score",
+    "elasticity_score",
+    "muscle_tone_score",
+    "inflammation_score",
+)
+
+# Which ROI patches each metric depends on (for confidence estimation).
+# muscle_tone depends on landmarks instead and is handled specially.
+_METRIC_ROIS = {
+    "hydration_score":    ("left_cheek", "right_cheek"),
+    "oiliness_score":     ("t_zone",),
+    "wrinkle_score":      ("forehead", "eye_corners_l"),
+    "pigmentation_score": ("left_cheek", "right_cheek"),
+    "dark_circle_score":  ("under_eye_l", "under_eye_r", "left_cheek", "right_cheek"),
+    "pore_score":         ("left_cheek", "right_cheek"),
+    "elasticity_score":   ("jawline", "forehead"),
+    "inflammation_score": ("left_cheek", "right_cheek", "forehead"),
+}
+
+
+def _compute_confidence(metric_keys, rois, blur_score, lighting, landmarks, scoring_method):
+    """Per-metric + overall analysis confidence in [0, 1].
+
+    Combines a global image-quality factor (sharpness, lighting, scoring method)
+    with how many of each metric's required ROIs were actually available. Lets the
+    UI/report flag low-trust scores instead of presenting them as gospel.
+    """
+    import numpy as _np
+
+    # Sharpness: blur_score < 30 is already rejected upstream; 120+ is crisp.
+    sharp = float(_np.clip((blur_score - 30.0) / 90.0, 0.3, 1.0))
+    light = {"good": 1.0, "poor": 0.65}.get(lighting, 0.8)
+    method = 1.0 if scoring_method == "model" else 0.75
+    global_factor = sharp * light * method
+
+    rois = rois or {}
+    out = {}
+    for key in metric_keys:
+        if key == "muscle_tone_score":
+            roi_avail = 1.0 if landmarks else 0.4
+        else:
+            needed = _METRIC_ROIS.get(key, ())
+            present = sum(1 for r in needed if rois.get(r) is not None)
+            roi_avail = (present / len(needed)) if needed else 1.0
+            roi_avail = 0.4 + 0.6 * roi_avail  # floor so a default score isn't 0-trust
+        out[key] = round(global_factor * roi_avail, 2)
+
+    out["overall"] = round(float(_np.mean(list(out.values()))) if out else 0.0, 2)
+    return out
+
+
 _MOCK_TONGUE_SCORES = {
     "tongue_body_color": "normal",
     "tongue_coat_color": "white",
@@ -157,6 +215,12 @@ def _run_face_pipeline(db, scan, img: "np.ndarray") -> dict:
         glow_score_engine,
         toxin_indicator,
     )
+    from app.ai.image_preprocessor import normalize_white_balance, estimate_skin_tone
+
+    # Colour-constancy: neutralise the lighting cast once so every colour-based
+    # analyzer (redness, pigmentation, dark circles) sees comparable colours.
+    # Detection still runs on the original image; only analysis ROIs use WB.
+    img_wb = normalize_white_balance(img)
 
     # Try full MediaPipe landmark pipeline first; fall back to OpenCV Haar cascade
     landmarks = []
@@ -176,7 +240,7 @@ def _run_face_pipeline(db, scan, img: "np.ndarray") -> dict:
         if landmarks:
             scan.landmarks_json = _serialize_landmarks(landmarks, img)
             db.commit()
-            rois = extract_rois(img, landmarks)
+            rois = extract_rois(img_wb, landmarks)
         else:
             db.commit()
     except RuntimeError:
@@ -197,7 +261,7 @@ def _run_face_pipeline(db, scan, img: "np.ndarray") -> dict:
         x, y, w, h = bbox
         scan.landmarks_json = _serialize_bbox(img, x, y, w, h)
         db.commit()
-        rois = _rois_from_bbox(img, x, y, w, h)
+        rois = _rois_from_bbox(img_wb, x, y, w, h)
         landmarks = []
 
     # MediaPipe loaded but found no landmarks — degrade to a bbox crop too.
@@ -207,55 +271,74 @@ def _run_face_pipeline(db, scan, img: "np.ndarray") -> dict:
         x, y, w, h = bbox
         scan.landmarks_json = _serialize_bbox(img, x, y, w, h)
         db.commit()
-        rois = _rois_from_bbox(img, x, y, w, h)
+        rois = _rois_from_bbox(img_wb, x, y, w, h)
         landmarks = []
 
     FaceScanRepository.set_progress(db, scan, "analyzing")
 
-    # Run analyzers in parallel (up to 4 workers)
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-        fut_hydration    = executor.submit(hydration_analyzer.analyze,    rois["left_cheek"],  rois["right_cheek"])
-        fut_oiliness     = executor.submit(oiliness_analyzer.analyze,     rois["t_zone"])
-        fut_wrinkle      = executor.submit(wrinkle_analyzer.analyze,      rois["forehead"],    rois["eye_corners_l"])
-        fut_pigmentation = executor.submit(pigmentation_analyzer.analyze,  img,                 rois["left_cheek"],  rois["right_cheek"])
-        fut_dark_circle  = executor.submit(dark_circle_analyzer.analyze,   rois["under_eye_l"], rois["under_eye_r"], rois["left_cheek"], rois["right_cheek"])
-        fut_pore         = executor.submit(pore_analyzer.analyze,          rois["left_cheek"],  rois["right_cheek"])
-        fut_elasticity   = executor.submit(elasticity_analyzer.analyze,    rois["jawline"],     rois["forehead"])
-        # muscle_tone requires landmarks; use 60 (neutral) when using fallback
-        fut_muscle_tone  = (
-            executor.submit(muscle_tone_analyzer.analyze, landmarks, img.shape[0], img.shape[1])
-            if landmarks else None
-        )
-        fut_inflammation = executor.submit(inflammation_analyzer.analyze,  rois["left_cheek"],  rois["right_cheek"], rois["forehead"])
+    # Tone-aware baselines (fairness across complexions) from the WB ROIs.
+    skin_tone = estimate_skin_tone(rois)
 
-        hydration_score    = round(fut_hydration.result(),    2)
-        oiliness_score     = round(fut_oiliness.result(),     2)
-        wrinkle_score      = round(fut_wrinkle.result(),      2)
-        pigmentation_score = round(fut_pigmentation.result(), 2)
-        dark_circle_score  = round(fut_dark_circle.result(),  2)
-        pore_score         = round(fut_pore.result(),         2)
-        elasticity_score   = round(fut_elasticity.result(),   2)
-        muscle_tone_score  = round(fut_muscle_tone.result(), 2) if fut_muscle_tone else 60.0
-        inflammation_score = round(fut_inflammation.result(), 2)
+    # ── Trained model first, recalibrated CV as the fallback ──────────────────
+    # The ONNX skin model (when present) is the validated scorer; CV is the
+    # graceful fallback until a model is trained and dropped in.
+    scoring_method = "cv"
+    model_scores = None
+    try:
+        from app.ai.skin_model import get_skin_model
+        model = get_skin_model()
+        if model is not None:
+            model_scores = model.predict(img_wb, rois=rois, landmarks=landmarks)
+    except Exception as exc:  # never let model issues fail the scan
+        logger.warning("Skin model inference unavailable (%s); using CV", exc)
 
-    partial_scores = {
-        "hydration_score":    hydration_score,
-        "oiliness_score":     oiliness_score,
-        "wrinkle_score":      wrinkle_score,
-        "pigmentation_score": pigmentation_score,
-        "dark_circle_score":  dark_circle_score,
-        "pore_score":         pore_score,
-        "elasticity_score":   elasticity_score,
-        "muscle_tone_score":  muscle_tone_score,
-        "inflammation_score": inflammation_score,
-    }
+    if model_scores:
+        partial_scores = {k: round(float(model_scores[k]), 2) for k in _METRIC_KEYS}
+        scoring_method = "model"
+    else:
+        # Run CV analyzers in parallel (up to 4 workers)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            fut_hydration    = executor.submit(hydration_analyzer.analyze,    rois["left_cheek"],  rois["right_cheek"])
+            fut_oiliness     = executor.submit(oiliness_analyzer.analyze,     rois["t_zone"])
+            fut_wrinkle      = executor.submit(wrinkle_analyzer.analyze,      rois["forehead"],    rois["eye_corners_l"])
+            fut_pigmentation = executor.submit(pigmentation_analyzer.analyze,  img_wb,              rois["left_cheek"],  rois["right_cheek"])
+            fut_dark_circle  = executor.submit(dark_circle_analyzer.analyze,   rois["under_eye_l"], rois["under_eye_r"], rois["left_cheek"], rois["right_cheek"])
+            fut_pore         = executor.submit(pore_analyzer.analyze,          rois["left_cheek"],  rois["right_cheek"])
+            fut_elasticity   = executor.submit(elasticity_analyzer.analyze,    rois["jawline"],     rois["forehead"])
+            # muscle_tone requires landmarks; use 60 (neutral) when using fallback
+            fut_muscle_tone  = (
+                executor.submit(muscle_tone_analyzer.analyze, landmarks, img.shape[0], img.shape[1])
+                if landmarks else None
+            )
+            fut_inflammation = executor.submit(
+                inflammation_analyzer.analyze,
+                rois["left_cheek"], rois["right_cheek"], rois["forehead"],
+                skin_tone["baseline_a"],
+            )
+
+            partial_scores = {
+                "hydration_score":    round(fut_hydration.result(),    2),
+                "oiliness_score":     round(fut_oiliness.result(),     2),
+                "wrinkle_score":      round(fut_wrinkle.result(),      2),
+                "pigmentation_score": round(fut_pigmentation.result(), 2),
+                "dark_circle_score":  round(fut_dark_circle.result(),  2),
+                "pore_score":         round(fut_pore.result(),         2),
+                "elasticity_score":   round(fut_elasticity.result(),   2),
+                "muscle_tone_score":  round(fut_muscle_tone.result(), 2) if fut_muscle_tone else 60.0,
+                "inflammation_score": round(fut_inflammation.result(), 2),
+            }
 
     computed_glow = glow_score_engine.compute(partial_scores)
-    computed_toxin = toxin_indicator.compute(dark_circle_score, oiliness_score, computed_glow)
+    computed_toxin = toxin_indicator.compute(
+        partial_scores["dark_circle_score"], partial_scores["oiliness_score"], computed_glow
+    )
 
+    # Gentler slope + tighter clamp so a single saturating metric can't push a
+    # young, clear face into the 50s. Anchored at 28 with modest wrinkle/elasticity
+    # influence; capped at 58 (a heuristic estimate, not a medical claim).
     skin_age = int(np.clip(
-        30 + (wrinkle_score - 40) * 0.3 - (elasticity_score - 60) * 0.2,
-        18, 70,
+        28 + (partial_scores["wrinkle_score"] - 45) * 0.18 - (partial_scores["elasticity_score"] - 55) * 0.14,
+        18, 58,
     ))
 
     overall_wellness_score = round(computed_glow * 0.7 + (100.0 - computed_toxin) * 0.3, 2)
@@ -263,12 +346,21 @@ def _run_face_pipeline(db, scan, img: "np.ndarray") -> dict:
     blur_score = float(getattr(scan, "blur_score", 0.0) or 0.0)
     lighting   = str(getattr(scan, "lighting_quality", "unknown") or "unknown")
 
+    # Per-metric + overall confidence so the UI/report can flag low-trust scores.
+    confidence = _compute_confidence(
+        partial_scores.keys(), rois, blur_score, lighting,
+        landmarks=landmarks, scoring_method=scoring_method,
+    )
+
     raw_metrics = {
         "sprint":          3,
+        "scoring_method":  scoring_method,
         "blur_score":      blur_score,
         "lighting":        lighting,
         "landmark_count":  len(landmarks),
         "cv_fallback":     using_fallback,
+        "skin_tone":       skin_tone,
+        "confidence":      confidence,
     }
 
     return {
@@ -287,6 +379,7 @@ def run_scan_pipeline(scan_id: int, scan_type: str) -> None:
 
     from app.ai.image_preprocessor import detect_blur, detect_lighting, resize_for_analysis
     from app.services import recommendation_engine_service
+    from app.services.upload_service import UploadService
 
     db = SessionLocal()
     try:
@@ -333,6 +426,23 @@ def run_scan_pipeline(scan_id: int, scan_type: str) -> None:
         scan.lighting_quality = lighting
         db.commit()
 
+        # 8b. Enhancement stage. Produce a cleaned-up preview for the user (display
+        # only — analyzers use their own white-balanced image, see _run_face_pipeline)
+        # and persist it so the results screen can show the enhanced photo.
+        FaceScanRepository.set_progress(db, scan, "enhancing")
+        if scan_type == "face":
+            try:
+                from app.ai.enhance import enhance_for_display
+                processed = enhance_for_display(img)
+                ok, buf = cv2.imencode(".jpg", processed, [int(cv2.IMWRITE_JPEG_QUALITY), 88])
+                if ok:
+                    stored = UploadService.store_processed(buf.tobytes(), user_id=scan.user_id)
+                    scan.processed_image_url = stored["url"]
+                    scan.processed_image_public_id = stored["public_id"]
+                    db.commit()
+            except Exception as exc:  # never fail the scan over a display preview
+                logger.warning("Enhanced preview generation failed for scan %d: %s", scan_id, exc)
+
         # 9 / 10. Branch on scan type
         if scan_type == "face":
             scores = _run_face_pipeline(db, scan, img)
@@ -340,8 +450,20 @@ def run_scan_pipeline(scan_id: int, scan_type: str) -> None:
                 # set_status already called inside _run_face_pipeline
                 return
         else:
-            # Tongue scan — Sprint 4 will add real analysis
-            scores = dict(_MOCK_TONGUE_SCORES)
+            # Tongue scan — real GrabCut + Lab classification pipeline (Sprint 4).
+            try:
+                from app.ai.tongue import analyze as analyze_tongue
+                scores = analyze_tongue(img)
+            except Exception as exc:
+                logger.warning("Tongue pipeline failed (%s); using neutral defaults", exc)
+                scores = dict(_MOCK_TONGUE_SCORES)
+
+            # Serialize the detected tongue bbox so the mobile processing screen
+            # can crop+zoom to it and outline the tongue (parallels the face mesh).
+            tongue_bbox = (scores.get("raw_metrics") or {}).get("tongue_bbox")
+            if tongue_bbox:
+                scan.landmarks_json = json.dumps({"type": "bbox", "rect": tongue_bbox})
+                db.commit()
 
         # 11. Persist scan result
         FaceScanRepository.set_progress(db, scan, "scoring")

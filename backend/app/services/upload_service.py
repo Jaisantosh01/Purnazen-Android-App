@@ -54,15 +54,26 @@ class UploadService:
         user_id: int,
         folder_suffix: str = "raw",
     ) -> dict:
-        """Validate MIME + size then upload.
+        """Read an UploadFile then validate + store. See ``validate_and_upload_bytes``."""
+        content = await file.read()
+        return await UploadService.validate_and_upload_bytes(content, user_id, folder_suffix)
+
+    @staticmethod
+    async def validate_and_upload_bytes(
+        content: bytes,
+        user_id: int,
+        folder_suffix: str = "raw",
+    ) -> dict:
+        """Validate MIME + size + dimensions then upload already-read bytes.
+
+        Split out so the endpoint can run the capture-quality gate on the same
+        bytes (without re-reading the consumed UploadFile) before storing.
 
         When Cloudinary is configured, uploads there.
         Otherwise falls back to local filesystem storage (dev/test mode).
 
         Returns ``{"url": str, "public_id": str, "bytes": int, "width": None, "height": None}``.
         """
-        content = await file.read()
-
         if len(content) > _MAX_BYTES:
             raise HTTPException(
                 status_code=413,
@@ -130,6 +141,22 @@ class UploadService:
             "width": None,
             "height": None,
         }
+
+    @staticmethod
+    def store_processed(content: bytes, user_id: int, folder_suffix: str = "processed") -> dict:
+        """Synchronously store an already-generated image (e.g. the enhanced preview).
+
+        Used by the background pipeline (a sync task), so it can't await the async
+        upload path. Skips MIME/dimension validation — we generated these bytes.
+        Returns ``{"url": str, "public_id": str}``.
+        """
+        if _configure_cloudinary():
+            import cloudinary.uploader
+            folder = f"face_scans/{user_id}/{folder_suffix}"
+            result = cloudinary.uploader.upload(io.BytesIO(content), folder=folder, resource_type="image")
+            return {"url": result.get("secure_url", ""), "public_id": result.get("public_id", "")}
+        saved = UploadService._save_local(content, user_id, folder_suffix)
+        return {"url": saved["url"], "public_id": saved["public_id"]}
 
     @staticmethod
     def delete_image(public_id: str) -> None:

@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
   StatusBar,
+  Share,
   Alert,
 } from 'react-native';
 // @ts-ignore
@@ -13,6 +15,36 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import MetricScoreRow from '../components/scan/MetricScoreRow';
 import RecommendationCard from '../components/scan/RecommendationCard';
 import { COLORS } from '../constants/theme';
+
+const METRIC_LABELS = {
+  hydrationScore: 'Hydration',
+  oilinessScore: 'Oiliness',
+  wrinkleScore: 'Fine lines',
+  pigmentationScore: 'Pigmentation',
+  darkCircleScore: 'Dark circles',
+  poreScore: 'Pores',
+  elasticityScore: 'Elasticity',
+  muscleToneScore: 'Muscle tone',
+  inflammationScore: 'Inflammation',
+  toxinIndicator: 'Toxin indicator',
+};
+
+function buildShareText(results, glowScore, recommendations) {
+  const lines = ['My Purnazen skin analysis ✨', ''];
+  if (glowScore != null) lines.push(`Glow Score: ${Math.round(glowScore)}/100`);
+  if (results.overallWellnessScore != null) lines.push(`Wellness: ${Math.round(results.overallWellnessScore)}/100`);
+  if (results.skinAgeEstimate != null) lines.push(`Skin age estimate: ${results.skinAgeEstimate}`);
+  lines.push('', 'Metrics:');
+  Object.keys(METRIC_LABELS).forEach(k => {
+    if (results[k] != null) lines.push(`• ${METRIC_LABELS[k]}: ${Math.round(results[k])}`);
+  });
+  if (recommendations.length) {
+    lines.push('', 'Top tips:');
+    recommendations.slice(0, 3).forEach(r => lines.push(`• ${r.title}`));
+  }
+  lines.push('', 'Analyzed with Purnazen.');
+  return lines.join('\n');
+}
 
 const FACE_METRIC_KEYS = [
   'hydrationScore',
@@ -35,15 +67,34 @@ function glowColor(score) {
 }
 
 const ScanResultsScreen = ({ navigation, route }) => {
-  const { scan } = route.params;
+  const { scan, imageUri } = route.params;
   const results = scan?.results ?? {};
   const recommendations = scan?.recommendations ?? [];
   const glowScore = results.glowScore ?? null;
   const color = glowColor(glowScore);
   const scanType = scan?.scan_type ?? 'face';
 
+  // Enhanced (server) vs original (local capture) preview.
+  // Default to the locally-captured image — it always loads instantly. The
+  // server-enhanced URL can fail to load (e.g. dev host unreachable); if it does
+  // we fall back to the original via onError instead of showing a black frame.
+  const enhancedUri = scan?.processed_image_url ?? null;
+  const originalUri = imageUri ?? scan?.image_url ?? null;
+  const [showEnhanced, setShowEnhanced] = useState(false);
+  const [enhancedFailed, setEnhancedFailed] = useState(false);
+  const canShowEnhanced = !!enhancedUri && !enhancedFailed;
+  const shownUri = showEnhanced && canShowEnhanced ? enhancedUri : originalUri;
+
   const handleRoutinePress = (routineKey) => {
     Alert.alert('Routine', `Opening ${routineKey} routine…`);
+  };
+
+  const handleShare = async () => {
+    try {
+      await Share.share({ message: buildShareText(results, glowScore, recommendations) });
+    } catch (e) {
+      // user dismissed — no-op
+    }
   };
 
   const isTongue = scanType === 'tongue';
@@ -60,13 +111,44 @@ const ScanResultsScreen = ({ navigation, route }) => {
             <MCIcon name="arrow-left" size={22} color={COLORS.white} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Scan Results</Text>
-          <TouchableOpacity
-            style={styles.backBtn}
-            onPress={() => navigation.navigate('FaceGlow')}
-          >
-            <MCIcon name="home-outline" size={22} color={COLORS.white} />
+          <TouchableOpacity style={styles.backBtn} onPress={handleShare}>
+            <MCIcon name="share-variant" size={20} color={COLORS.white} />
           </TouchableOpacity>
         </View>
+
+        {/* Enhanced / original preview */}
+        {shownUri && !isTongue && (
+          <View style={styles.previewWrap}>
+            <Image
+              source={{ uri: shownUri }}
+              style={styles.previewImg}
+              resizeMode="cover"
+              onError={() => {
+                // The enhanced (remote) image failed — drop back to the original
+                // and hide the toggle so we never show a black frame.
+                if (showEnhanced) setShowEnhanced(false);
+                setEnhancedFailed(true);
+              }}
+            />
+            {canShowEnhanced && (
+              <View style={styles.toggleRow}>
+                <TouchableOpacity
+                  style={[styles.toggleBtn, showEnhanced && styles.toggleBtnOn]}
+                  onPress={() => setShowEnhanced(true)}
+                >
+                  <MCIcon name="auto-fix" size={13} color={showEnhanced ? COLORS.white : COLORS.textSecondary} />
+                  <Text style={[styles.toggleText, showEnhanced && styles.toggleTextOn]}>Enhanced</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.toggleBtn, !showEnhanced && styles.toggleBtnOn]}
+                  onPress={() => setShowEnhanced(false)}
+                >
+                  <Text style={[styles.toggleText, !showEnhanced && styles.toggleTextOn]}>Original</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* Glow Score / Overall */}
         <View style={styles.scoreSection}>
@@ -145,8 +227,30 @@ const ScanResultsScreen = ({ navigation, route }) => {
           </View>
         )}
 
-        {/* Done button */}
+        {/* Actions */}
         <View style={styles.section}>
+          <TouchableOpacity style={styles.shareBtn} onPress={handleShare} activeOpacity={0.85}>
+            <MCIcon name="share-variant" size={18} color="#C850C0" />
+            <Text style={styles.shareBtnText}>Share report</Text>
+          </TouchableOpacity>
+          {!isTongue && scan?.scan_id != null && (
+            <TouchableOpacity
+              style={[styles.shareBtn, { marginTop: 10 }]}
+              onPress={() => navigation.navigate('ScanComparison', { scanId: scan.scan_id })}
+              activeOpacity={0.85}
+            >
+              <MCIcon name="compare" size={18} color="#C850C0" />
+              <Text style={styles.shareBtnText}>Compare to previous</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={styles.historyLink}
+            onPress={() => navigation.navigate('ScanHistory')}
+            activeOpacity={0.7}
+          >
+            <MCIcon name="history" size={16} color={COLORS.textSecondary} />
+            <Text style={styles.historyLinkText}>View past scans</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.doneBtn}
             onPress={() => navigation.navigate('FaceGlow')}
@@ -300,11 +404,70 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 12,
   },
   doneBtnText: {
     color: COLORS.white,
     fontSize: 16,
     fontWeight: '700',
   },
+
+  // Preview
+  previewWrap: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 18,
+    overflow: 'hidden',
+    backgroundColor: '#000',
+    height: 360,
+  },
+  // Fill the fixed-height wrap; resizeMode="cover" crops the overflow. Setting
+  // width:'100%' + aspectRatio + maxHeight together makes Yoga shrink the width
+  // (leaving a black bar) — a fixed-height container avoids that entirely.
+  previewImg: {
+    width: '100%',
+    height: '100%',
+  },
+  toggleRow: {
+    position: 'absolute',
+    bottom: 10,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    borderRadius: 999,
+    padding: 3,
+  },
+  toggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  toggleBtnOn: { backgroundColor: '#C850C0' },
+  toggleText: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.85)' },
+  toggleTextOn: { color: COLORS.white },
+
+  // Share / history actions
+  shareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1.5,
+    borderColor: '#C850C0',
+    borderRadius: 14,
+    paddingVertical: 13,
+    backgroundColor: '#fdf4ff',
+  },
+  shareBtnText: { color: '#C850C0', fontSize: 15, fontWeight: '700' },
+  historyLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+  },
+  historyLinkText: { color: COLORS.textSecondary, fontSize: 14, fontWeight: '600' },
 });

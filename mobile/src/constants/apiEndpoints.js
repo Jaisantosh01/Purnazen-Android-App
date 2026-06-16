@@ -61,9 +61,15 @@ export const ENDPOINTS = {
   ERROR_REPORT: `${API_VERSION}/errors/report`,
 
   // Face Glow — scan pipeline (Sprint 2)
+  FACE_GLOW_QUALITY_PREVIEW: `${API_VERSION}/face-glow/quality-preview`,
   FACE_GLOW_SCAN_UPLOAD: `${API_VERSION}/face-glow/scan/upload`,
   FACE_GLOW_SCAN_STATUS: (id) => `${API_VERSION}/face-glow/scan/${id}/status`,
   FACE_GLOW_SCAN_HISTORY: `${API_VERSION}/face-glow/history`,
   FACE_GLOW_SCAN_DELETE: (id) => `${API_VERSION}/face-glow/scan/${id}`,
+
+  // Face Glow — dashboard / trends / compare (Sprint 4)
+  FACE_GLOW_DASHBOARD: `${API_VERSION}/face-glow/dashboard`,
+  FACE_GLOW_TRENDS: `${API_VERSION}/face-glow/trends`,
+  FACE_GLOW_SCAN_COMPARE: (id) => `${API_VERSION}/face-glow/scan/${id}/compare`,
 
 };

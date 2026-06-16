@@ -1,6 +1,242 @@
 # Changelog
 
-All notable changes to the M-Heal App (formerly Purnazen) are documented here.
+All notable changes to the Purnazen App are documented here.
+
+## [2026-06-16] — Face Analysis Cycle 5.1: on-device fixes from live testing
+
+Found by driving the app on a physical device (capture → results) and inspecting
+the real pipeline output:
+
+### Fixed
+
+- **Results image half-black:** `ScanResultsScreen` set `width:'100%'` +
+  `aspectRatio` + `maxHeight` together, which made Yoga shrink the image width and
+  left-align it, exposing the black container on the right. Now a fixed-height
+  (360) wrap + `width/height:'100%'` + `resizeMode:'cover'` — fills cleanly.
+- **Enhanced preview showed black / unreachable images:** local image URLs were
+  built with `http://10.0.2.2:5000` (Android-emulator alias) but the app reaches
+  the API via `http://localhost:5000` (adb reverse). Added
+  `LOCAL_UPLOADS_BASE_URL=http://localhost:5000` to backend `.env` so uploaded/
+  enhanced images load on a physical device. Results screen also defaults to the
+  reliably-loading local capture and falls back via `onError`.
+- **Live viewfinder falsely showed "Ready":** a failed/404 quality-preview check
+  defaulted the indicator to ready. Now it keeps the last known state (or
+  "Detecting…") and never claims ready on error. (The 404 was also a stale-server
+  symptom — the backend must be restarted to pick up new endpoints.)
+- **Over-saturated CV scores:** on a real young face the CV analyzers returned
+  wrinkle 100, pigmentation 94, skin-age 51. Recalibrated (ranking preserved):
+  wrinkle caps the edge-density contribution + softer gains (forehead/eye ROIs
+  catch hair/brows); pigmentation clips specular spikes + softer gains; `skin_age`
+  uses a gentler slope and clamps to 18–58. Live re-test: wrinkle 68, pigmentation
+  58, glow 39→51. (Precise per-metric accuracy still needs the trained model.)
+
+### Enhanced live in-viewfinder (both face & tongue)
+
+- The guide **oval, corner brackets, instruction pill, and capture button now
+  change colour with the live status** — white "Detecting…", **green** "Perfect —
+  hold still & tap to capture", **amber** with specific, oval-centric guidance
+  ("Bring your face into the oval", "Move a little closer", "Align your face
+  inside the oval", "Find brighter lighting", "Hold still"). Verified on device.
+
+## [2026-06-16] — Face Analysis Cycle 5: separate tongue scan, live capture quality, cropped+zoomed mesh preview, app rebrand to Purnazen
+
+### Branding
+
+- **App renamed to "Purnazen"** (`android/.../values/strings.xml`, was "M-Heal").
+- **New app icon** across all five mipmap densities (+ round variants): a
+  purple→violet radial-gradient disc with a white lotus motif (generated with
+  Pillow). **Native resource change — requires an Android rebuild to take effect.**
+
+### Backend
+
+- **Quality gate rewrite** (`app/ai/quality.py`): face detection now uses
+  **MediaPipe FaceLandmarker as the primary detector** (Haar cascade only as a
+  fallback when MediaPipe is unavailable). This fixes the reported bug where a
+  photo of an empty wall passed validation and ran a full analysis — empty/no-face
+  frames are now reliably rejected with `no_face`. `assess_quality(img, scan_type)`
+  gained a `scan_type` arg and a **tongue path** (`no_tongue` check via reddish/pink
+  region detection in the lower frame; skips face checks).
+- **`POST /face-glow/quality-preview`** (`endpoints/face_scan.py`): runs the quality
+  assessment on a frame **without creating a scan** — backs the live in-viewfinder
+  hints. The upload gate now runs for **both face and tongue** (was face-only).
+- **Tongue bbox** (`app/ai/tongue/__init__.py`): `analyze()` now returns the
+  segmented tongue's normalized bounding box in `raw_metrics.tongue_bbox`; the
+  pipeline serializes it to `landmarks_json` (`{type:'bbox',rect}`) so the mobile
+  preview can crop+zoom to the detected tongue and outline it.
+- **Display enhancement** (`app/ai/enhance.py`): rewritten to **detect the face,
+  blur+darken the background** behind an elliptical mask, **crop to the face**
+  (with padding), then denoise → CLAHE → vignette. The saved `processed_image_url`
+  is now a tight portrait-style crop, not a full-frame filter.
+
+### Mobile
+
+- **Live capture quality hints:** both scan screens take a silent low-res snapshot
+  every ~2.2–2.5 s, call `quality-preview`, and show a colour-coded badge
+  (green "Ready to scan" / amber-red issue with icon — too dark, blurry, no face,
+  move closer, centre, no tongue). `scanService.qualityPreview()` +
+  `FACE_GLOW_QUALITY_PREVIEW` endpoint added.
+- **Separate Tongue Scan screen** (`screens/TongueScanScreen.js`): standalone from
+  the face flow — orange theme, `TongueOverlayGuide` (wider/shorter oval), cycling
+  capture tips, a TCM explainer, and its own live quality hints. Registered as
+  `TongueScan` in the Home stack.
+- **FaceGlow** now shows **two distinct cards** — "AI Face Analysis" (purple) and
+  "TCM Tongue Analysis" (orange) — instead of a face card with a tongue sub-link.
+- **Cropped + zoomed mesh preview** (`ScanProcessingScreen.js`): the processing
+  screen now **crops and zooms into the detected face/tongue so it fills the card**,
+  with the **mesh/outline drawn on the zoomed image** (image and overlay share one
+  coordinate system via the landmark-derived crop box, so they stay aligned), plus
+  a radial background scrim. Tongue scans get their own 8 TCM-marker chips. This is
+  the "enlarged, background-removed, cropped mesh preview" that was previously only
+  approximated by widening the card.
+
+### Verified
+
+- Backend: 135 passed. Smoke-checked empty-wall rejection, tongue detection,
+  enhance crop, and tongue bbox on synthetic images.
+- Mobile: `tsc` clean, eslint 0 errors, 64 jest tests pass.
+
+## [2026-06-16] — Face Analysis Sprint 4 + Consent UI: real tongue analysis, dashboard/trends/compare, GDPR consent screen
+
+### Backend — Sprint 4
+
+- **Real tongue pipeline** (`app/ai/tongue/`): GrabCut `segmenter` (reddish-mask
+  refined, central-ellipse fallback) → Lab/HSV `color_analyzer` (body colour, coat
+  colour/thickness, moisture, shape) → `tcm_rules` wellness score. Wired into
+  `scan_pipeline_service` (replaces the tongue mock); the existing TCM tongue
+  recommendation rules now fire on real markers.
+- **Dashboard / trends / comparison:** `ScanResultRepository.get_user_results`
+  (completed result+scan pairs), `scan_dashboard_service`, and endpoints
+  `GET /face-glow/dashboard`, `GET /face-glow/trends?metric=&days=`,
+  `POST /face-glow/scan/{id}/compare` (vs explicit id or the previous scan).
+- Tests: `tests/test_scan_dashboard.py` (dashboard/trends/compare + tongue markers).
+
+### Mobile — Sprint 4
+
+- **ScanDashboardScreen:** latest glow gauge, 7-day rolling glow, scan count, a
+  metric trend chart with a Glow/Hydration/Oil/Lines selector, and new-scan
+  actions. New reusable `components/scan/TrendChart.js` (react-native-svg).
+- **ScanComparisonScreen:** per-metric current-vs-previous deltas, colour-coded by
+  whether each change is an improvement (direction-aware). Opened from results via
+  "Compare to previous".
+- **Tongue scan** reachable from FaceGlow ("or scan your tongue") and the dashboard
+  (reuses the existing capture flow with `scanType: 'tongue'`).
+- FaceGlow header gains Dashboard + History entry points. Endpoints + `scanService`
+  methods (`getDashboard`, `getTrends`, `compareScan`) added.
+
+### Mobile — Consent UI (Sprint 5 slice; OAuth deferred)
+
+- **ConsentScreen** (Settings → "Privacy & Data Consent"): toggles for
+  `scan_storage`, `ai_training`, `gdpr_data` against the existing consent API,
+  optimistic with revert on failure. New `consentService.js`.
+
+## [2026-06-16] — Face Analysis Cycles 2–4: all-metric calibration, animated processing UI, enhanced preview, history/reports, onboarding + TCM patterns
+
+### Backend — analysis correctness (all metrics, not just oiliness)
+
+- Empirically fixed analyzer **direction/scaling** (verified with synthetic
+  condition patches, locked by `test_all_metrics_rank_correctly`):
+  - **Pigmentation was inverted** — its narrow HSV skin-mask excluded the very
+    spots it should measure, so pigmented skin scored *lower*. Rewritten to
+    high-pass L* unevenness + Lab a*/b* spread over the cheeks.
+  - **Pores** badly under-scaled (`variance/2` → ~0 everywhere) → recalibrated to
+    fine high-pass std with a usable gain.
+  - **Wrinkle / elasticity / dark-circle** gains softened so they spread across
+    0–100 instead of slamming to 100.
+
+### Backend — enhanced preview + pipeline
+
+- New `app/ai/enhance.py` `enhance_for_display` (white balance → edge-preserving
+  denoise → CLAHE → soft vignette) — **display only**, never fed to analyzers.
+- Pipeline emits an `enhancing` stage and saves the enhanced image
+  (`UploadService.store_processed`, sync) to `processed_image_url`; failures never
+  fail the scan. Status payload now returns `image_url` + `processed_image_url`.
+
+### Backend — recommendations (TCM)
+
+- Added **combination/pattern rules** (surface ahead of single-metric tips):
+  dehydrated-oily combination skin, congested/Damp-heat, fatigue (Qi-Blood
+  depletion), ageing (Yin-Blood deficiency), post-inflammatory pigmentation.
+  New `tests/test_recommendation_engine.py`.
+
+### Mobile — Cycle 2: animated processing screen
+
+- Rebuilt `ScanProcessingScreen`: large image, **colourful staggered pulse rings**
+  + sweeping scan line, **professional icon chips** (no emojis) that fill green as
+  each feature completes, **tap-to-reveal** what each measures, and a **transient
+  label** flashing the just-finished feature. Progress stays honest (gated by the
+  real backend stage).
+
+### Mobile — Cycle 3: reports & history
+
+- `ScanResultsScreen`: enhanced/original **before-after toggle**, **Share report**
+  (native Share, text summary), and a "View past scans" link.
+- New `ScanHistoryScreen`: past scans with a **glow-score trend sparkline**
+  (react-native-svg), tap to reopen a scan as a report, long-press to delete,
+  pull-to-refresh. Registered in the Home stack; reachable from FaceGlow (history
+  icon) and results.
+
+### Mobile — Cycle 4: onboarding
+
+- `FaceGlowScreen`: "these are general routines — scan to personalise" banner and
+  a history entry point; routines section relabelled **General Routines**.
+
+### Verification
+
+- Backend pytest, mobile **64 jest** + tsc + eslint all green.
+
+## [2026-06-16] — Face Analysis accuracy foundation (Cycle 1): trained-model path, recalibrated CV, capture-quality gate
+
+Fixes untrustworthy scores (e.g. oily skin reading as *low* oiliness) and adds
+capture-quality gating. Full write-up: [FACE_ANALYSIS_AI.md §12](FACE_ANALYSIS_AI.md).
+
+### Backend — accuracy
+
+- **Hybrid scorer.** New `app/ai/skin_model.py` — lazy ONNX Runtime singleton
+  (`1×3×224×224` → `1×9`); the pipeline uses the trained model when
+  `app/ai/models/skin_model.onnx` is present, else falls back to the recalibrated
+  CV analyzers. `raw_metrics.scoring_method` records which ran. `onnxruntime` added
+  to `requirements.txt`; model artifacts git-ignored.
+- **Oiliness rewrite** (`oiliness_analyzer.py`) — replaced the fixed HSV V>220
+  count (missed oily-but-not-blown-out skin) with an adaptive gloss measure
+  (specular ratio vs the ROI's own mean+k·std, specular-blob density, highlight
+  desaturation).
+- **Colour constancy + skin-tone fairness** (`image_preprocessor.py`) —
+  `normalize_white_balance` (Shades-of-Gray) neutralises lighting cast before
+  colour analysis; `estimate_skin_tone` (ITA°) drives a tone baseline so
+  inflammation isn't over-flagged on warmer/darker skin. Stored in
+  `raw_metrics.skin_tone`.
+- **Per-metric + overall confidence** in `raw_metrics.confidence` (sharpness,
+  lighting, ROI availability, scoring method).
+
+### Backend — capture-quality gate
+
+- New `app/ai/quality.py` `assess_quality` (blur / brightness / face-count /
+  face-size / centering). `POST /face-glow/scan/upload` runs it **synchronously**
+  for face scans before storing; blocking issues return **422** with `reason` +
+  `guidance` (`error_response` extended). `upload_service` split out
+  `validate_and_upload_bytes` so the gate reuses the already-read bytes.
+
+### Backend — ML training scaffold (run by the user)
+
+- New `backend/ml/` project: `prepare_dataset.py` (label→metric mapping, masked
+  partial labels, train/val/test split), `train.py` (multi-head MobileNetV3-Small,
+  masked loss, `--smoke`), `eval.py` (MAE + Pearson/Spearman gate), `export_onnx.py`
+  (→ `app/ai/models/skin_model.onnx` + parity check), `requirements-train.txt`,
+  `README.md`.
+
+### Mobile
+
+- `api/client.js` `normalizeError` now preserves `reason`/`guidance`/`status` on
+  the thrown Error; `FaceScanScreen` shows the quality-gate guidance and keeps the
+  user on the camera to retake (instead of a generic error).
+
+### Tests
+
+- Rewrote the stale `tests/test_face_scan.py` (it asserted the removed mock-75
+  scores and used an undecodable 20-byte JPEG) to exercise the real pipeline +
+  quality gate; new `tests/test_ai_foundation.py` (oiliness ranking, white balance,
+  ITA ordering, confidence, model-absent fallback). Backend **117 passed**; mobile
+  **64 passed**, tsc + eslint clean. Added jest mocks for vision-camera/image-picker.
 
 ## [2026-06-15] — Face Analysis Sprints 2–3: upload + camera + **real AI pipeline**, error reporting, auth UI redesign
 

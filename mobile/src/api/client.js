@@ -106,7 +106,14 @@ function normalizeError(error, config) {
     });
   }
 
-  return new Error(message);
+  // Preserve structured fields (e.g. capture-quality gate's reason/guidance)
+  // so callers can react specifically; err.message stays the human string.
+  const normalized = new Error(message);
+  normalized.status = status;
+  normalized.reason = error.response?.data?.reason;
+  normalized.guidance = error.response?.data?.guidance;
+  normalized.data = error.response?.data;
+  return normalized;
 }
 
 // 401 → silent token refresh + replay; everything else → normalized Error

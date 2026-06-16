@@ -47,27 +47,43 @@ const FaceGlowScreen = ({ navigation }) => {
       >
         {/* ── Header ── */}
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backBtn}
-            onPress={() => navigation.goBack()}
-          >
-            <MCIcon name="arrow-left" size={22} color={COLORS.white} />
-          </TouchableOpacity>
+          <View style={styles.headerTopRow}>
+            <TouchableOpacity
+              style={styles.backBtn}
+              onPress={() => navigation.goBack()}
+            >
+              <MCIcon name="arrow-left" size={22} color={COLORS.white} />
+            </TouchableOpacity>
+            <View style={styles.headerActions}>
+              <TouchableOpacity
+                style={styles.backBtn}
+                onPress={() => navigation.navigate('ScanDashboard')}
+              >
+                <MCIcon name="chart-line" size={22} color={COLORS.white} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.backBtn}
+                onPress={() => navigation.navigate('ScanHistory')}
+              >
+                <MCIcon name="history" size={22} color={COLORS.white} />
+              </TouchableOpacity>
+            </View>
+          </View>
 
           <View style={styles.headerText}>
             <Text style={styles.headerTitle}>Face Glow</Text>
             <Text style={styles.headerSubtitle}>Radiant skin · acupressure routines</Text>
           </View>
 
-          {/* ── Scan Card ── */}
+          {/* ── Face Scan Card ── */}
           <View style={styles.scanCard}>
             <View style={styles.scanLeft}>
               <View style={styles.cameraCircle}>
-                <MCIcon name="camera-outline" size={22} color={COLORS.white} />
+                <MCIcon name="face-recognition" size={22} color={COLORS.white} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.scanTitle}>Scan Your Face</Text>
-                <Text style={styles.scanSubtitle}>Get personalised recommendations</Text>
+                <Text style={styles.scanTitle}>AI Face Analysis</Text>
+                <Text style={styles.scanSubtitle}>Hydration · oil · fine lines · glow score</Text>
               </View>
             </View>
             <TouchableOpacity
@@ -75,14 +91,48 @@ const FaceGlowScreen = ({ navigation }) => {
               activeOpacity={0.85}
               onPress={() => navigation.navigate('FaceScan', { scanType: 'face' })}
             >
-              <Text style={styles.scanBtnText}>Start Face Analysis</Text>
+              <Text style={styles.scanBtnText}>Start Face Scan</Text>
             </TouchableOpacity>
+          </View>
+
+          {/* ── Tongue Scan Card ── */}
+          <View style={[styles.scanCard, styles.tongueCard]}>
+            <View style={styles.scanLeft}>
+              <View style={[styles.cameraCircle, styles.tongueCameraCircle]}>
+                <MCIcon name="emoticon-tongue-outline" size={22} color={COLORS.white} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.scanTitle}>TCM Tongue Analysis</Text>
+                <Text style={styles.scanSubtitle}>Qi · organ health · wellness score</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={[styles.scanBtn, styles.tongueScanBtn]}
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate('TongueScan')}
+            >
+              <Text style={[styles.scanBtnText, styles.tongueScanBtnText]}>Start Tongue Scan</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* ── Onboarding: basic now → personalized after a scan ── */}
+        <View style={styles.section}>
+          <View style={styles.personalizeBanner}>
+            <MCIcon name="lightbulb-on-outline" size={20} color="#C850C0" />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.personalizeTitle}>These are general routines</Text>
+              <Text style={styles.personalizeText}>
+                Scan your face and our AI tailors the routines and wellness tips to your
+                skin — hydration, oil, fine lines and more.
+              </Text>
+            </View>
           </View>
         </View>
 
         {/* ── Routines ── */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>✨ Recommended Routines</Text>
+          <Text style={styles.sectionTitle}>✨ General Routines</Text>
 
           {loading ? (
             [1, 2, 3].map(i => <RoutineCardSkeleton key={i} />)
@@ -158,6 +208,16 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
   },
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
   backBtn: {
     width: 38,
     height: 38,
@@ -165,7 +225,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 14,
   },
   headerText: {
     marginBottom: 20,
@@ -221,6 +280,45 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#C850C0',
+  },
+  tongueCard: {
+    marginTop: 10,
+    backgroundColor: 'rgba(250,121,33,0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+  },
+  tongueCameraCircle: {
+    backgroundColor: 'rgba(250,121,33,0.6)',
+  },
+  tongueScanBtn: {
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.55)',
+  },
+  tongueScanBtnText: {
+    color: COLORS.white,
+  },
+
+  // Onboarding banner
+  personalizeBanner: {
+    flexDirection: 'row',
+    gap: 12,
+    backgroundColor: '#fdf4ff',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#f3e8ff',
+  },
+  personalizeTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+    marginBottom: 2,
+  },
+  personalizeText: {
+    fontSize: 12.5,
+    color: COLORS.textSecondary,
+    lineHeight: 18,
   },
 
   // Sections

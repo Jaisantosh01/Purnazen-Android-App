@@ -43,5 +43,7 @@ def analyze(
         return 30.0
 
     mean_delta = float(np.mean(deltas))
-    score = float(np.clip(mean_delta * 3.0, 0.0, 100.0))
+    # Under-eye darker than cheek by ~25 L* units (OpenCV 0-255 scale) = maxed.
+    # Softened from ×3 so a mild shadow doesn't read as severe dark circles.
+    score = float(np.clip(mean_delta * 2.2, 0.0, 100.0))
     return score

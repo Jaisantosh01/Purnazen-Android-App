@@ -7,6 +7,24 @@ const POLL_TIMEOUT_MS  = 60000;
 
 const scanService = {
   /**
+   * Run a quality check on a captured frame without creating a scan.
+   * Returns { ok, issues: [{code, guidance, blocking}], metrics }.
+   * @param {string} filePath  Local file URI (takeSnapshot result)
+   * @param {'face'|'tongue'} scanType
+   */
+  async qualityPreview(filePath, scanType = 'face') {
+    const fileName = filePath.split('/').pop() || 'preview.jpg';
+    const form = new FormData();
+    form.append('file', { uri: filePath, name: fileName, type: 'image/jpeg' });
+    const res = await apiClient.post(
+      `${ENDPOINTS.FACE_GLOW_QUALITY_PREVIEW}?scan_type=${scanType}`,
+      form,
+      { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 8000 },
+    );
+    return res.data;
+  },
+
+  /**
    * Upload a scan image. Returns { scan_id, status, estimated_seconds }.
    * @param {string} filePath  Local file URI
    * @param {'face'|'tongue'} scanType
@@ -72,6 +90,27 @@ const scanService = {
    */
   async deleteScan(scanId) {
     return apiClient.delete(ENDPOINTS.FACE_GLOW_SCAN_DELETE(scanId));
+  },
+
+  /** Skin dashboard: latest result + rolling glow + glow trend. */
+  async getDashboard() {
+    const res = await apiClient.get(ENDPOINTS.FACE_GLOW_DASHBOARD);
+    return res.data;
+  },
+
+  /** Time series for a single metric (e.g. 'glow_score'). */
+  async getTrends({ metric = 'glow_score', days = 0 } = {}) {
+    const res = await apiClient.get(ENDPOINTS.FACE_GLOW_TRENDS, { params: { metric, days } });
+    return res.data;
+  },
+
+  /** Compare a scan to a baseline (defaults to the previous scan). */
+  async compareScan(scanId, compareToId = null) {
+    const res = await apiClient.post(
+      ENDPOINTS.FACE_GLOW_SCAN_COMPARE(scanId),
+      compareToId ? { compare_to_id: compareToId } : {},
+    );
+    return res.data;
   },
 };
 

@@ -59,6 +59,94 @@ def generate(scan_result: Any) -> list[dict]:
     tongue_moisture    = _get_str(scan_result, "tongue_moisture")
     tongue_body_color  = _get_str(scan_result, "tongue_body_color")
 
+    def hi(v, t):
+        return v is not None and v > t
+
+    def lo(v, t):
+        return v is not None and v < t
+
+    # =======================================================================
+    # Combination / pattern rules (added first → priority 0, so co-occurring
+    # patterns surface ahead of single-metric tips). These read more like a TCM
+    # practitioner's holistic assessment than isolated thresholds.
+    # =======================================================================
+
+    # Dehydrated-oily "combination skin" → Yin deficiency with Damp-heat
+    if lo(hydration, 45) and hi(oiliness, 60):
+        recs.append({
+            "recommendation_type": "routine",
+            "priority": 0,
+            "title": "Balance Combination Skin",
+            "description": (
+                "Low hydration with excess oil points to Yin deficiency alongside "
+                "Damp-heat — your skin overproduces oil to compensate for dryness. "
+                "Hydrate with light, water-based care and use Gua Sha to move stagnation "
+                "rather than stripping the skin."
+            ),
+            "routine_key": "GuaShaFlow",
+            "tip_category": "hydration",
+        })
+
+    # Congested / breakout-prone → Damp-heat accumulation
+    if hi(oiliness, 60) and hi(pore, 55) and hi(inflammation, 50):
+        recs.append({
+            "recommendation_type": "wellness_tip",
+            "priority": 0,
+            "title": "Clarify Congested Skin",
+            "description": (
+                "Oiliness, enlarged pores and redness together signal Damp-heat. "
+                "Reduce dairy, fried and sugary foods, favour cooling bitter greens, "
+                "and cleanse gently twice daily to calm congestion."
+            ),
+            "routine_key": "GuaShaFlow",
+            "tip_category": "nutrition",
+        })
+
+    # Fatigue pattern → Qi & Blood depletion
+    if hi(dark_circle, 55) and lo(glow, 55):
+        recs.append({
+            "recommendation_type": "routine",
+            "priority": 1,
+            "title": "Restore Radiance",
+            "description": (
+                "Pronounced dark circles with a low glow score reflect Qi and Blood "
+                "depletion — often from poor sleep or overwork. Prioritise rest and "
+                "this circulation-boosting routine to bring back radiance."
+            ),
+            "routine_key": "NightRepair",
+            "tip_category": "sleep",
+        })
+
+    # Ageing pattern → Yin & Blood deficiency
+    if hi(wrinkle, 55) and lo(elasticity, 50):
+        recs.append({
+            "recommendation_type": "routine",
+            "priority": 1,
+            "title": "Firm & Renew",
+            "description": (
+                "Fine lines with reduced elasticity indicate Yin and Blood deficiency. "
+                "Support collagen with bone broth, fish and vitamin-C foods, and lift "
+                "with daily facial acupressure."
+            ),
+            "routine_key": "FacialAcupressure",
+            "tip_category": "nutrition",
+        })
+
+    # Post-inflammatory pigmentation → Heat with Blood stasis
+    if hi(inflammation, 55) and hi(pigmentation, 55):
+        recs.append({
+            "recommendation_type": "wellness_tip",
+            "priority": 1,
+            "title": "Calm, Then Even Tone",
+            "description": (
+                "Redness together with uneven tone suggests Heat in the Blood leading "
+                "to stasis (post-inflammatory marks). Calm first with cooling foods, "
+                "then even tone with gentle Gua Sha once the redness settles."
+            ),
+            "routine_key": "GuaShaFlow",
+            "tip_category": "nutrition",
+        })
+
     # -----------------------------------------------------------------------
     # Rule 4 (priority 0): Low glow → Qi/Blood stagnation
     # -----------------------------------------------------------------------

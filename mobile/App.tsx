@@ -36,9 +36,15 @@ import NotificationsScreen from './src/screens/NotificationsScreen';
 import SelectSymptomScreen from './src/screens/SelectSymptomScreen';
 import FaceGlowScreen from './src/screens/FaceGlowScreen';
 import FaceScanScreen from './src/screens/FaceScanScreen';
+// @ts-ignore
+import TongueScanScreen from './src/screens/TongueScanScreen';
 import ScanProcessingScreen from './src/screens/ScanProcessingScreen';
 import ScanResultsScreen from './src/screens/ScanResultsScreen';
+import ScanHistoryScreen from './src/screens/ScanHistoryScreen';
+import ScanDashboardScreen from './src/screens/ScanDashboardScreen';
+import ScanComparisonScreen from './src/screens/ScanComparisonScreen';
 import ScanErrorScreen from './src/screens/ScanErrorScreen';
+import ConsentScreen from './src/screens/ConsentScreen';
 import YogaSessionScreen from './src/screens/YogaSessionScreen';
 import ReliefSessionScreen from './src/screens/ReliefSessionScreen';
 import DoctorProfileScreen from './src/screens/DoctorProfileScreen';
@@ -69,8 +75,12 @@ function HomeStackNavigator() {
       <HomeStack.Screen name="SelectSymptom"  component={SelectSymptomScreen} />
       <HomeStack.Screen name="FaceGlow"       component={FaceGlowScreen}      />
       <HomeStack.Screen name="FaceScan"       component={FaceScanScreen}      />
+      <HomeStack.Screen name="TongueScan"    component={TongueScanScreen}    />
       <HomeStack.Screen name="ScanProcessing" component={ScanProcessingScreen}/>
       <HomeStack.Screen name="ScanResults"    component={ScanResultsScreen}   />
+      <HomeStack.Screen name="ScanHistory"    component={ScanHistoryScreen}   />
+      <HomeStack.Screen name="ScanDashboard"  component={ScanDashboardScreen} />
+      <HomeStack.Screen name="ScanComparison" component={ScanComparisonScreen}/>
       <HomeStack.Screen name="ScanError"      component={ScanErrorScreen}     />
       <HomeStack.Screen name="SessionScreen"  component={YogaSessionScreen}   />
       <HomeStack.Screen name="ReliefSession"  component={ReliefSessionScreen} />
@@ -115,6 +125,7 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="TherapyHistory" component={TherapyHistoryScreen} />
       <ProfileStack.Screen name="HelpSupport"    component={HelpSupportScreen}    />
       <ProfileStack.Screen name="Settings"       component={SettingsScreen}       />
+      <ProfileStack.Screen name="Consent"        component={ConsentScreen}        />
       <ProfileStack.Screen name="Subscriptions"  component={SubscriptionsScreen}  />
       <ProfileStack.Screen name="Notifications"  component={NotificationsScreen}  />
     </ProfileStack.Navigator>

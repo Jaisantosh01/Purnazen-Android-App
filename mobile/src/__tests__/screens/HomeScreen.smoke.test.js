@@ -38,7 +38,7 @@ describe('HomeScreen', () => {
     });
     const json = tree.toJSON();
     const allText = JSON.stringify(json);
-    expect(allText).toContain('M-Heal');
+    expect(allText).toContain('Purnazen');
   });
 
   it('shows wellness section heading after load', async () => {

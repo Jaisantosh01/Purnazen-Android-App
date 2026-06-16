@@ -27,8 +27,9 @@ def _analyze_roi(roi: np.ndarray) -> float:
     )
     energy = float(graycoprops(glcm, "energy").mean())
 
-    # energy ~0.2 maps to 100
-    roi_score = float(np.clip(energy * 500.0, 0.0, 100.0))
+    # Smooth, uniform texture = better elasticity. Gain softened + a floor so
+    # firm-but-textured skin doesn't read as zero elasticity.
+    roi_score = float(np.clip(30.0 + energy * 320.0, 0.0, 100.0))
     return roi_score
 
 

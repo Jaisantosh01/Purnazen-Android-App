@@ -1,6 +1,16 @@
-"""Pigmentation analyzer — measures color unevenness via Lab a*/b* std-dev.
+"""Pigmentation analyzer — measures tonal unevenness (spots, blotches, melasma).
 
 Score 0-100 where 100 = very uneven pigmentation.
+
+Rewrite rationale: the previous version computed Lab a*/b* std *inside a narrow
+HSV skin mask*. Pigment spots are often darker/shifted enough to fall **outside**
+that mask, so they were excluded — and after blurring, the remaining clean skin
+looked *more* uniform, making pigmented faces score *lower* than even ones (the
+direction was inverted). We instead measure unevenness directly:
+
+  1. Local luminance unevenness — std of the high-pass L* (illumination gradient
+     removed), which captures spots/blotches without confusing them with shading.
+  2. Colour-channel spread — std of Lab a*/b* across the whole ROI (no hue mask).
 """
 import cv2
 import numpy as np
@@ -11,30 +21,24 @@ def _analyze_roi(roi: np.ndarray) -> float:
     if roi.shape[0] < 5 or roi.shape[1] < 5:
         return 25.0
 
-    lab = cv2.cvtColor(roi, cv2.COLOR_BGR2Lab)
-    hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+    lab = cv2.cvtColor(roi, cv2.COLOR_BGR2Lab).astype(np.float32)
+    L, a, b = lab[:, :, 0], lab[:, :, 1], lab[:, :, 2]
 
-    h_ch = hsv[:, :, 0].astype(float)
-    s_ch = hsv[:, :, 1].astype(float)
-    v_ch = hsv[:, :, 2].astype(float)
+    # Remove the low-frequency lighting gradient so we measure true tonal
+    # unevenness (spots/blotches), not the smooth shading across the cheek.
+    L_blur = cv2.GaussianBlur(L, (0, 0), 15)
+    high_pass = L - L_blur
+    # Clip the high-pass so specular glints / shine (which spike L locally on
+    # oily skin) don't masquerade as pigment unevenness and pin the score at 100.
+    high_pass = np.clip(high_pass, -25.0, 25.0)
+    l_unevenness = float(np.std(high_pass))
 
-    # Skin mask in HSV: H in [0,25] union [160,180], S in [30,255], V in [50,255]
-    mask_h = ((h_ch <= 25) | (h_ch >= 160)) & (h_ch <= 180)
-    mask_s = (s_ch >= 30) & (s_ch <= 255)
-    mask_v = (v_ch >= 50) & (v_ch <= 255)
-    skin_mask = mask_h & mask_s & mask_v
+    # Colour spread across the whole ROI (spots ARE skin — don't mask them out).
+    a_std = float(np.std(a))
+    b_std = float(np.std(b))
 
-    a_channel = lab[:, :, 1].astype(float)
-    b_channel = lab[:, :, 2].astype(float)
-
-    if np.sum(skin_mask) > 100:
-        a_std = float(np.std(a_channel[skin_mask]))
-        b_std = float(np.std(b_channel[skin_mask]))
-    else:
-        a_std = float(np.std(a_channel))
-        b_std = float(np.std(b_channel))
-
-    roi_score = float(np.clip((a_std + b_std) * 3.0, 0.0, 100.0))
+    # Softened gains so clear skin lands mid-low instead of saturating.
+    roi_score = float(np.clip(l_unevenness * 3.0 + (a_std + b_std) * 1.4, 0.0, 100.0))
     return roi_score
 
 
@@ -45,10 +49,11 @@ def analyze(
 ) -> float:
     """Return pigmentation score 0-100.
 
-    Averages across all non-None ROIs.  Returns 25.0 if all are None.
+    Averages across the cheek ROIs (the full-face frame is ignored — it includes
+    hair/background/shadows that inflate unevenness). Returns 25.0 if no cheek ROI.
     """
     scores: list[float] = []
-    for roi in (full_face, left_cheek, right_cheek):
+    for roi in (left_cheek, right_cheek):
         if roi is not None:
             try:
                 scores.append(_analyze_roi(roi))

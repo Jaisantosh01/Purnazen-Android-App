@@ -1,6 +1,12 @@
-"""Pore analyzer — estimates pore visibility via high-pass frequency variance.
+"""Pore analyzer — estimates pore visibility via high-pass detail energy.
 
 Score 0-100 where 100 = very visible pores.
+
+Recalibrated: the previous gain (variance / 2) left almost every face near 0 —
+pores never registered. Pores are small, evenly-distributed high-frequency
+structures, so we measure the std of a fine high-pass image (which scales linearly
+with visible texture) with a gain tuned so smooth skin lands low and visibly
+porey skin lands mid/high.
 """
 import cv2
 import numpy as np
@@ -11,15 +17,13 @@ def _analyze_roi(roi: np.ndarray) -> float:
     if roi.shape[0] < 10 or roi.shape[1] < 10:
         return 25.0
 
-    gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+    gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY).astype(np.float32)
+    # Fine high-pass: isolate pore-scale detail (sigma ~2 px).
+    high_pass = gray - cv2.GaussianBlur(gray, (0, 0), 2)
+    detail = float(np.std(high_pass))
 
-    # High-pass filter: subtract Gaussian blur from original
-    blurred = cv2.GaussianBlur(gray, (7, 7), 0)
-    high_pass = cv2.subtract(gray, blurred)
-
-    variance = float(np.var(high_pass.astype(float)))
-    # variance ~200 maps to 100
-    roi_score = float(np.clip(variance / 2.0, 0.0, 100.0))
+    # detail std ~10 (smooth) … ~35+ (very porey); gain spreads that over 0-100.
+    roi_score = float(np.clip(detail * 3.0, 0.0, 100.0))
     return roi_score
 
 

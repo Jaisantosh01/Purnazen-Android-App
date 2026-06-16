@@ -39,6 +39,78 @@ def resize_for_analysis(img_bgr: np.ndarray, max_width: int = 800) -> np.ndarray
     return cv2.resize(img_bgr, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
 
+def normalize_white_balance(img_bgr: np.ndarray, p: int = 6) -> np.ndarray:
+    """Neutralize the colour cast of an image (Shades-of-Gray colour constancy).
+
+    Phone selfies are taken under wildly varying white balance (warm tungsten,
+    cool daylight, green fluorescents). Every colour-based skin metric — redness,
+    pigmentation, dark circles — is corrupted by that cast. Shades-of-Gray (a
+    generalisation of Gray-World using a Minkowski-p norm, p=6 is the standard
+    robust choice) estimates the illuminant per channel and divides it out so
+    downstream analyzers see roughly the same colours regardless of lighting.
+
+    Gains are clipped to [0.5, 2.0] so a strongly tinted background can't blow
+    out the correction.
+    """
+    img = img_bgr.astype(np.float32)
+    # Per-channel Minkowski-p mean = illuminant estimate.
+    illum = np.power(np.mean(np.power(img, p), axis=(0, 1)), 1.0 / p)
+    illum = np.where(illum < 1e-6, 1e-6, illum)
+    gray = float(np.mean(illum))
+    gains = np.clip(gray / illum, 0.5, 2.0)
+    out = img * gains
+    return np.clip(out, 0, 255).astype(np.uint8)
+
+
+# Individual Typology Angle (ITA°) skin-tone buckets — Chardon/Fitzpatrick proxy.
+# Higher ITA = lighter skin. Used to make tone-sensitive metrics fairer.
+_ITA_BUCKETS = [
+    (55.0, "very_light"),
+    (41.0, "light"),
+    (28.0, "intermediate"),
+    (10.0, "tan"),
+    (-30.0, "brown"),
+    (-1e9, "dark"),
+]
+
+
+def _ita_from_roi(roi_bgr: "np.ndarray | None") -> "float | None":
+    """Median Individual Typology Angle (degrees) over the skin pixels of an ROI."""
+    if roi_bgr is None or roi_bgr.shape[0] < 5 or roi_bgr.shape[1] < 5:
+        return None
+    lab = cv2.cvtColor(roi_bgr, cv2.COLOR_BGR2Lab).astype(np.float32)
+    # OpenCV packs Lab into 0-255: L scaled by 255/100, a/b offset by +128.
+    L = lab[:, :, 0] * (100.0 / 255.0)
+    b = lab[:, :, 2] - 128.0
+    # Restrict to plausible skin-luminance pixels to avoid shadows/highlights.
+    mask = (L > 20.0) & (L < 95.0)
+    if np.count_nonzero(mask) < 30:
+        mask = np.ones_like(L, dtype=bool)
+    ita = np.degrees(np.arctan2(L[mask] - 50.0, b[mask]))
+    return float(np.median(ita))
+
+
+def estimate_skin_tone(rois: dict) -> dict:
+    """Estimate skin tone from cheek/forehead ROIs.
+
+    Returns ``{"ita": float|None, "bucket": str, "baseline_a": float}`` where
+    ``baseline_a`` is the expected (tone-driven) neutral redness used by the
+    inflammation analyzer to avoid flagging naturally warmer/darker skin as
+    inflamed. Falls back to a neutral "intermediate" bucket when no usable ROI.
+    """
+    candidates = [rois.get("left_cheek"), rois.get("right_cheek"), rois.get("forehead")]
+    itas = [v for v in (_ita_from_roi(r) for r in candidates) if v is not None]
+    if not itas:
+        return {"ita": None, "bucket": "intermediate", "baseline_a": 8.0}
+
+    ita = float(np.median(itas))
+    bucket = next(name for thresh, name in _ITA_BUCKETS if ita >= thresh)
+    # Darker skin (lower ITA) carries a higher baseline a* (warmth); map ITA→a*
+    # offset above neutral. ~5 (very light) … ~18 (dark) in OpenCV a*-128 units.
+    baseline_a = float(np.clip(13.0 - ita * 0.12, 4.0, 20.0))
+    return {"ita": ita, "bucket": bucket, "baseline_a": baseline_a}
+
+
 def detect_blur(img_bgr: np.ndarray) -> float:
     """Return Laplacian variance of grayscale image.
 

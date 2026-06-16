@@ -27,6 +27,9 @@ Pillow>=10.4.0
 scikit-image>=0.24.0
 python-magic>=0.4.27  # Note: on Windows install python-magic-bin instead
 numpy>=2.0  # 2.x required for Python 3.14+
+# Trained skin-analysis model inference (CPU). Model file is dropped at
+# app/ai/models/skin_model.onnx; pipeline falls back to CV when absent.
+onnxruntime>=1.18.0
 
 # Social auth (Sprint 5+)
 # google-auth>=2.28.0
