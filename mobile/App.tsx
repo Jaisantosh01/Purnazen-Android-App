@@ -106,6 +106,8 @@ function ProfileStackNavigator() {
     <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
       <ProfileStack.Screen name="ProfileMain"    component={ProfileScreen}        />
       <ProfileStack.Screen name="TherapyHistory" component={TherapyHistoryScreen} />
+      <ProfileStack.Screen name="VideoPlayer"    component={VideoPlayerScreen}    />
+      <ProfileStack.Screen name="ReliefSession"  component={ReliefSessionScreen}  />
       <ProfileStack.Screen name="HelpSupport"    component={HelpSupportScreen}    />
       <ProfileStack.Screen name="Settings"       component={SettingsScreen}       />
       <ProfileStack.Screen name="Subscriptions"  component={SubscriptionsScreen}  />

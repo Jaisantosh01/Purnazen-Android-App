@@ -8,10 +8,12 @@ import {
   StatusBar,
   ActivityIndicator,
 } from 'react-native';
+// @ts-ignore
+import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import therapyService from '../services/therapyService';
 import { COLORS } from '../constants/theme';
 
-const EMPTY_STATS = { sessions: 0, minutes: 0, avgRelief: 0 };
+const EMPTY_STATS = { sessions: 0, minutes: 0 };
 
 const TherapyHistoryScreen = ({ navigation }) => {
   const [history, setHistory]     = useState(null);
@@ -35,8 +37,24 @@ const TherapyHistoryScreen = ({ navigation }) => {
     fetchHistory();
   }, [fetchHistory]);
 
-  const stats = history?.stats ?? EMPTY_STATS;
   const sessions = history?.sessions ?? [];
+  // Calculate total sessions started and total duration
+  const totalSessions = sessions.length;
+  const totalMinutes = sessions.reduce((sum, s) => sum + (parseInt(s.duration) || 0), 0);
+
+  const navigateToSession = (session) => {
+    if (session.type === 'wellness') {
+      navigation.navigate('VideoPlayer', {
+        groupId: session.groupId,
+        groupTitle: session.groupTitle
+      });
+    } else if (session.type === 'quick_relief') {
+      navigation.navigate('ReliefSession', {
+        reliefId: session.groupId, // Assuming reliefId maps to groupId
+        reliefTitle: session.groupTitle,
+      });
+    }
+  };
 
   return (
     <View style={styles.root}>
@@ -44,10 +62,7 @@ const TherapyHistoryScreen = ({ navigation }) => {
 
       {/* ── Header ── */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => navigation.goBack()}
-        >
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Therapy History</Text>
@@ -75,16 +90,12 @@ const TherapyHistoryScreen = ({ navigation }) => {
         {/* ── Stats Row ── */}
         <View style={styles.statsRow}>
           <View style={[styles.statBox, styles.statBorder]}>
-            <Text style={styles.statValue}>{stats.sessions}</Text>
-            <Text style={styles.statLabel}>Sessions</Text>
-          </View>
-          <View style={[styles.statBox, styles.statBorder]}>
-            <Text style={styles.statValue}>{stats.minutes}</Text>
-            <Text style={styles.statLabel}>Minutes</Text>
+            <Text style={styles.statValue}>{totalSessions}</Text>
+            <Text style={styles.statLabel}>Sessions Started</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statValue}>{stats.avgRelief}</Text>
-            <Text style={styles.statLabel}>Avg Relief</Text>
+            <Text style={styles.statValue}>{totalMinutes}</Text>
+            <Text style={styles.statLabel}>Minutes Watched</Text>
           </View>
         </View>
 
@@ -99,16 +110,32 @@ const TherapyHistoryScreen = ({ navigation }) => {
         ) : (
         <View style={styles.sessionList}>
           {sessions.map((session, index) => (
-            <View
+            <TouchableOpacity
               key={session.id}
               style={[
                 styles.sessionCard,
+                { backgroundColor: COLORS.white },
                 index < sessions.length - 1 && styles.sessionBorder,
               ]}
+              onPress={() => navigateToSession(session)}
+              activeOpacity={0.7}
             >
-              {/* Title + Status */}
+              {/* Header: Video Name + Progress */}
               <View style={styles.sessionHeader}>
-                <Text style={styles.sessionTitle}>{session.title}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sessionTitle}>{session.videoTitle}</Text>
+                  <Text style={styles.groupTitleText}>{session.groupTitle}</Text>
+                </View>
+                <Text style={styles.progressText}>
+                  {session.totalSessionsInGroup}/{session.totalVideosInGroup}
+                </Text>
+              </View>
+
+              {/* Separator */}
+              <View style={styles.separator} />
+
+              {/* Footer: Status + Time */}
+              <View style={styles.sessionFooter}>
                 <View style={[
                   styles.statusBadge,
                   session.status === 'Completed'
@@ -121,37 +148,21 @@ const TherapyHistoryScreen = ({ navigation }) => {
                       ? styles.statusTextCompleted
                       : styles.statusTextCancelled,
                   ]}>
-                    {session.status === 'Completed' ? '✓ ' : ''}{session.status}
+                    {session.status}
                   </Text>
                 </View>
-              </View>
-
-              {/* Date + Duration */}
-              <View style={styles.sessionMeta}>
-                <Text style={styles.sessionMetaText}>📅 {session.date}</Text>
-                <Text style={styles.sessionMetaText}>  🕐 {session.duration}</Text>
-              </View>
-
-              {/* Pain Progress — only for completed sessions */}
-              {session.painBefore !== null && session.painAfter !== null && (
-                <View style={styles.painSection}>
-                  <Text style={styles.painLabel}>Pain Level Progress</Text>
-                  <View style={styles.painRow}>
-                    <View>
-                      <Text style={styles.painSubLabel}>Before</Text>
-                      <Text style={styles.painValue}>{session.painBefore}/10</Text>
-                    </View>
-                    <View style={styles.painDivider} />
-                    <View style={styles.painAfter}>
-                      <Text style={styles.painSubLabel}>After</Text>
-                      <Text style={[styles.painValue, styles.painValueAfter]}>
-                        {session.painAfter}/10
-                      </Text>
-                    </View>
-                  </View>
+                <View style={styles.timeContainer}>
+                  <Text style={styles.timeText}>
+                    {session.modifiedAt || session.createdAt
+                      ? new Date(session.modifiedAt || session.createdAt).toLocaleString([], {
+                          month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                        })
+                      : ''}
+                  </Text>
+                  <MCIcon name="calendar-clock-outline" size={14} color={COLORS.textMuted} style={{ marginLeft: 4 }} />
                 </View>
-              )}
-            </View>
+              </View>
+            </TouchableOpacity>
           ))}
         </View>
         )}
@@ -166,7 +177,7 @@ export default TherapyHistoryScreen;
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    backgroundColor: '#E8F5E9', // Light green
   },
 
   // Header
@@ -240,130 +251,109 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 20,
     marginBottom: 8,
-    borderWidth: 1,
-    borderColor: COLORS.surfaceMuted,
-    borderRadius: 14,
-    overflow: 'hidden',
+    gap: 16,
   },
   statBox: {
     flex: 1,
     alignItems: 'center',
     paddingVertical: 16,
     backgroundColor: COLORS.white,
-  },
-  statBorder: {
-    borderRightWidth: 1,
-    borderRightColor: COLORS.surfaceMuted,
+    borderRadius: 14, // Rounded
+    elevation: 2,
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
   },
   statValue: {
     fontSize: 22,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: COLORS.primary,
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: COLORS.textPrimary,
   },
 
   // Session List
   sessionList: {
-    marginHorizontal: 16,
+    paddingHorizontal: 16,
     marginTop: 16,
-    borderWidth: 1,
-    borderColor: COLORS.surfaceMuted,
-    borderRadius: 14,
-    overflow: 'hidden',
   },
   sessionCard: {
     padding: 16,
-    backgroundColor: COLORS.white,
-  },
-  sessionBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.surfaceMuted,
+    backgroundColor: COLORS.white, // White
+    borderRadius: 14,
+    marginBottom: 16,
+    elevation: 2,
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
   },
 
   // Session Header
   sessionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 8,
   },
   sessionTitle: {
     fontSize: 15,
     fontWeight: '600',
     color: COLORS.textPrimary,
-    flex: 1,
   },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
+  groupTitleText: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    marginTop: 2,
   },
-  statusCompleted: {
-    backgroundColor: COLORS.primaryFaint,
+  progressText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+    marginLeft: 8,
   },
-  statusCancelled: {
+  separator: {
+    height: 1,
     backgroundColor: COLORS.surfaceMuted,
+    marginVertical: 8,
   },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  statusTextCompleted: {
-    color: COLORS.primary,
-  },
-  statusTextCancelled: {
-    color: COLORS.textMuted,
-  },
-
-  // Session Meta
-  sessionMeta: {
+  sessionFooter: {
     flexDirection: 'row',
-    marginBottom: 12,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
   },
-  sessionMetaText: {
+  timeText: {
     fontSize: 12,
     color: COLORS.textMuted,
   },
-
-  // Pain Progress
-  painSection: {
-    backgroundColor: '#f9fafb',
-    borderRadius: 10,
-    padding: 12,
-  },
-  painLabel: {
-    fontSize: 12,
-    color: COLORS.textMuted,
-    marginBottom: 8,
-  },
-  painRow: {
+  timeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  painSubLabel: {
-    fontSize: 11,
-    color: COLORS.textMuted,
-    marginBottom: 2,
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
   },
-  painValue: {
-    fontSize: 18,
+  statusCompleted: {
+    backgroundColor: '#E8F5E9',
+  },
+  statusCancelled: {
+    backgroundColor: '#F5F5F5',
+  },
+  statusText: {
+    fontSize: 12,
     fontWeight: '700',
-    color: COLORS.textPrimary,
   },
-  painDivider: {
-    flex: 1,
-    height: 1,
-    backgroundColor: COLORS.border,
-    marginHorizontal: 12,
+  statusTextCompleted: {
+    color: '#2E7D32',
   },
-  painAfter: {
-    alignItems: 'flex-end',
-  },
-  painValueAfter: {
-    color: COLORS.primary,
+  statusTextCancelled: {
+    color: '#616161',
   },
 });

@@ -2,31 +2,74 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.therapy_session import TherapySession
+from app.models.videos import Videos as Video
+from app.models.video_groups import VideoGroups as VideoGroup
+from app.models.video_group_mapping import VideoGroupMapping
 
 
 class TherapySessionRepository:
 
     @staticmethod
-    def create(db: Session, **fields) -> TherapySession:
-        session = TherapySession(**fields)
-        db.add(session)
+    def upsert(db: Session, user_id: int, data: dict) -> TherapySession:
+        # Map 'type' to 'session_type' for the model
+        if "type" in data:
+            data["session_type"] = data.pop("type")
+
+        # Find if session exists for this user, group, video, and type
+        session = (
+            db.query(TherapySession)
+            .filter(
+                TherapySession.user_id == user_id,
+                TherapySession.group_id == data["group_id"],
+                TherapySession.video_id == data["video_id"],
+                TherapySession.session_type == data["session_type"],
+            )
+            .first()
+        )
+
+        if session:
+            for key, value in data.items():
+                setattr(session, key, value)
+            session.modified_by = user_id
+        else:
+            session = TherapySession(**data, user_id=user_id, created_by=user_id, modified_by=user_id)
+            db.add(session)
+
         db.commit()
         db.refresh(session)
         return session
 
     @staticmethod
     def get_user_sessions(db: Session, user_id: int, page: int, limit: int):
+        # Query sessions and join with related tables for additional info
         query = (
             db.query(TherapySession)
             .filter(TherapySession.user_id == user_id)
-            .order_by(TherapySession.completed_at.desc())
+            .order_by(TherapySession.modified_at.desc())
         )
         total = query.count()
         sessions = query.offset((page - 1) * limit).limit(limit).all()
-        return sessions, total
+
+        results = []
+        for session in sessions:
+            # Query counts using VideoGroupMapping
+            total_videos_in_group = db.query(VideoGroupMapping).filter(VideoGroupMapping.video_group_id == session.group_id).count()
+            total_sessions_in_group = (
+                db.query(TherapySession)
+                .filter(TherapySession.user_id == user_id, TherapySession.group_id == session.group_id)
+                .count()
+            )
+
+            data = session.to_dict()
+            data["totalVideosInGroup"] = total_videos_in_group
+            data["totalSessionsInGroup"] = total_sessions_in_group
+            results.append(data)
+
+        return results, total
 
     @staticmethod
     def get_user_stats(db: Session, user_id: int) -> dict:
+        # Note: This might need adjustment based on the new model structure if stats are still needed
         completed = (
             TherapySession.user_id == user_id,
             TherapySession.status == "Completed",

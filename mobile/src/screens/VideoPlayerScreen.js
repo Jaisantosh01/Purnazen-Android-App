@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { COLORS, SPACING, RADIUS } from '../constants/theme';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { syncVideoProgress } from '../utils/videoTracker';
 
 const VideoPlayerScreen = ({ route, navigation }) => {
   const { groupId, groupTitle } = route.params;
@@ -23,6 +24,39 @@ const VideoPlayerScreen = ({ route, navigation }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  const videoProgressRef = useRef({
+    lastVideoId: null,
+    watchedTime: 0
+  });
+
+  // Track progress when playing
+  const onProgress = (data) => {
+    if (!catalog) return;
+    const currentVideo = catalog.videos[currentVideoIndex];
+    const watchedTime = data.currentTime;
+    const duration = currentVideo.duration;
+
+    // Send completed if > 90%
+    if (watchedTime / duration > 0.9 && videoProgressRef.current.watchedTime / duration <= 0.9) {
+      syncVideoProgress(groupId, currentVideo.id, 'Completed', duration / 60, 'wellness');
+    }
+    videoProgressRef.current.watchedTime = watchedTime;
+  };
+
+  const changeVideo = (index) => {
+    // Mark previous as Pending before switching
+    if (catalog && catalog.videos[currentVideoIndex]) {
+        syncVideoProgress(groupId, catalog.videos[currentVideoIndex].id, 'Pending', videoProgressRef.current.watchedTime / 60, 'wellness');
+    }
+    
+    setCurrentVideoIndex(index);
+    setIsPlaying(true);
+    videoProgressRef.current.watchedTime = 0;
+    
+    // Mark new as Pending on start
+    syncVideoProgress(groupId, catalog.videos[index].id, 'Pending', 0, 'wellness');
+  };
 
   useEffect(() => {
     apiClient
@@ -35,6 +69,13 @@ const VideoPlayerScreen = ({ route, navigation }) => {
       })
       .finally(() => setLoading(false));
   }, [groupId]);
+
+  // Initial sync on mount if catalog loads
+  useEffect(() => {
+    if (catalog && catalog.videos.length > 0) {
+      syncVideoProgress(groupId, catalog.videos[currentVideoIndex].id, 'Pending', 0, 'wellness');
+    }
+  }, [catalog, groupId]);
 
   if (loading) {
     return (
@@ -83,6 +124,7 @@ const VideoPlayerScreen = ({ route, navigation }) => {
               paused={!isPlaying}
               resizeMode="contain"
               repeat={false}
+              onProgress={onProgress}
               onEnd={() => setIsPlaying(false)}
             />
           ) : (
@@ -118,10 +160,7 @@ const VideoPlayerScreen = ({ route, navigation }) => {
               <TouchableOpacity
                 key={video.id}
                 style={[styles.videoRow, isActive && styles.videoRowActive]}
-                onPress={() => {
-                  setCurrentVideoIndex(index);
-                  setIsPlaying(true);
-                }}
+                onPress={() => changeVideo(index)}
               >
                 <View style={[styles.rowNumberCircle, isActive && styles.rowNumberActive]}>
                    {isActive ? (
