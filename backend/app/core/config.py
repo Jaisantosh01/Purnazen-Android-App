@@ -6,7 +6,7 @@ class Settings(BaseSettings):
 
     SECRET_KEY: str = "dev-only-secret-key-change-this-in-production!!"
     JWT_SECRET_KEY: str = "dev-only-jwt-secret-key-change-this-in-production!!"
-    DATABASE_URL: str = "sqlite:///./wellness.db"
+    DATABASE_URL: str = "postgresql://postgres:sneha1234@localhost:5432/Wellness_db_v1"
 
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15

@@ -46,3 +46,7 @@ __pycache__/
 
 # SQLite dev fallback
 backend/*.db
+
+# Python virtual environments
+**/.venv/
+**/venv/
