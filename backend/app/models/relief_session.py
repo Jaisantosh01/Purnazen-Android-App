@@ -21,6 +21,8 @@ class ReliefSession(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_by = Column(Integer, nullable=True)
+    updated_by = Column(Integer, nullable=True)
 
     def to_dict(self):
         # Shape consumed by ReliefSessionScreen (matches the old mock objects)

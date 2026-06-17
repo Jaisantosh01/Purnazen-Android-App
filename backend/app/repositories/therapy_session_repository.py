@@ -30,9 +30,9 @@ class TherapySessionRepository:
         if session:
             for key, value in data.items():
                 setattr(session, key, value)
-            session.modified_by = user_id
+            session.updated_by = user_id
         else:
-            session = TherapySession(**data, user_id=user_id, created_by=user_id, modified_by=user_id)
+            session = TherapySession(**data, user_id=user_id, created_by=user_id, updated_by=user_id)
             db.add(session)
 
         db.commit()
@@ -45,7 +45,7 @@ class TherapySessionRepository:
         query = (
             db.query(TherapySession)
             .filter(TherapySession.user_id == user_id)
-            .order_by(TherapySession.modified_at.desc())
+            .order_by(TherapySession.updated_at.desc())
         )
         total = query.count()
         sessions = query.offset((page - 1) * limit).limit(limit).all()

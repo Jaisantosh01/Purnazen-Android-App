@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, Integer, String, func
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, func
 
 from app.db.base_class import Base
 
@@ -15,6 +15,10 @@ class User(Base):
     # Bumped on password change; tokens carry it as "ver" and older ones are rejected
     token_version = Column(Integer, nullable=False, default=0, server_default="0")
     created_at = Column(DateTime, server_default=func.now())
+    created_by = Column(Integer, nullable=True)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    updated_by = Column(Integer, nullable=True)
+    is_active = Column(Boolean, default=True)
 
     def to_dict(self):
         return {

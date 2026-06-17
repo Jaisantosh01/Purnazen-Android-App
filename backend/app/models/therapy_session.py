@@ -19,12 +19,12 @@ class TherapySession(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
-    modified_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-    modified_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), name="modified_at")
+    updated_by = Column(Integer, ForeignKey("users.id"), nullable=False, name="modified_by")
 
     user = relationship("User", foreign_keys=[user_id], backref="therapy_sessions")
     creator = relationship("User", foreign_keys=[created_by])
-    modifier = relationship("User", foreign_keys=[modified_by])
+    modifier = relationship("User", foreign_keys=[updated_by])
     video_group = relationship("VideoGroups")
     video = relationship("Videos")
 
@@ -47,5 +47,5 @@ class TherapySession(Base):
             "painAfter": self.pain_after,
             "isActive": self.is_active,
             "createdAt": self.created_at.isoformat() if self.created_at else None,
-            "modifiedAt": self.modified_at.isoformat() if self.modified_at else None,
+            "updatedAt": self.updated_at.isoformat() if self.updated_at else None,
         }
