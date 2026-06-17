@@ -10,7 +10,7 @@ class RoleService:
 
     @staticmethod
     def create(db: Session, data: dict, user):
-        role = Role(name=data["name"], created_by=user.id)
+        role = Role(name=data["name"], icon=data.get("icon"), created_by=user.id)
         db.add(role)
         db.commit()
         db.refresh(role)
@@ -22,6 +22,7 @@ class RoleService:
         if not role:
             return None
         role.name = data["name"]
+        role.icon = data.get("icon", role.icon)
         role.updated_at = datetime.utcnow()
         role.updated_by = user.id
         db.commit()

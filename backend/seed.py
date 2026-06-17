@@ -37,10 +37,19 @@ try:
     # ------------------------
     # Roles
     # ------------------------
-    role_names = ["admin", "doctor", "patient"]
-    for name in role_names:
-        if not db.query(Role).filter_by(name=name).first():
-            db.add(Role(name=name))
+    roles_data = [
+        {"name": "admin", "icon": "shield-account"},
+        {"name": "doctor", "icon": "doctor"},
+        {"name": "patient", "icon": "account-heart"},
+    ]
+    for role in roles_data:
+        existing_role = db.query(Role).filter_by(name=role["name"]).first()
+        if not existing_role:
+            db.add(Role(name=role["name"], icon=role["icon"]))
+        elif not existing_role.icon:
+            # Update existing role if icon is missing
+            existing_role.icon = role["icon"]
+            
     db.commit()
 
     admin_role = db.query(Role).filter_by(name="admin").first()

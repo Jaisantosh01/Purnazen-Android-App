@@ -156,6 +156,22 @@ def get_visit_types(doctor_id: int, db: Session = Depends(get_db)):
     )
 
 
+@router.post(
+    "/doctors",
+    summary="Create a new doctor",
+    dependencies=[Depends(require_role("admin"))],
+)
+def create_doctor(
+    data: dict, 
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    new_doctor = DoctorService.create(db, data, user)
+    if not new_doctor:
+        return error_response("Failed to create doctor", 400)
+    return success_response("Doctor created successfully", doctor_card(new_doctor))
+
+
 @router.put(
     "/doctors/{doctor_id}",
     summary="Update doctor details",

@@ -52,6 +52,30 @@ const EditDoctorScreen = ({ route, navigation }) => {
   const [allLanguages, setAllLanguages] = useState([]);
 
   useEffect(() => {
+    if (!doctorId) {
+      setEditedDoctor({
+        name: 'New Doctor',
+        about: '',
+        education: '',
+        experience: 0,
+        fee: 0,
+        specialty_ids: [],
+        expertise_ids: [],
+        language_ids: []
+      });
+      // Fetch metadata for new doctor
+      Promise.all([
+        apiClient.get(ENDPOINTS.SPECIALTIES),
+        apiClient.get(ENDPOINTS.EXPERTISES),
+        apiClient.get(ENDPOINTS.LANGUAGES),
+      ]).then(([specRes, expRes, langRes]) => {
+        setSpecialties(specRes.data || specRes || []);
+        setAllExpertise(expRes.data || expRes || []);
+        setAllLanguages(langRes.data || langRes || []);
+      }).finally(() => setLoading(false));
+      return;
+    }
+
     Promise.all([
       apiClient.get(ENDPOINTS.DOCTOR_DETAIL(doctorId)),
       apiClient.get(ENDPOINTS.SPECIALTIES),
@@ -61,7 +85,7 @@ const EditDoctorScreen = ({ route, navigation }) => {
       const doc = docRes.data || docRes;
       setEditedDoctor({
         ...doc,
-        specialty_ids: doc.specialty_ids || [], // Assuming backend returns specialty_ids as list now
+        specialty_ids: doc.specialty_ids || [], 
         expertise_ids: doc.expertise_ids || [],
         language_ids: doc.language_ids || [],
         about: doc.about || '',
@@ -78,20 +102,23 @@ const EditDoctorScreen = ({ route, navigation }) => {
 
   const handleSave = () => {
     setLoading(true);
-    // Ensure we are passing the specialty_ids list to the backend
     const payload = {
         ...editedDoctor,
         specialty_ids: editedDoctor.specialty_ids || []
     };
     
-    apiClient.put(ENDPOINTS.DOCTOR_DETAIL(doctorId), payload)
+    const request = doctorId 
+        ? apiClient.put(ENDPOINTS.DOCTOR_DETAIL(doctorId), payload)
+        : apiClient.post(ENDPOINTS.DOCTORS, payload); // Assumes creation endpoint exists
+    
+    request
       .then((res) => {
-        Alert.alert('Success', 'Doctor updated successfully');
+        Alert.alert('Success', `Doctor ${doctorId ? 'updated' : 'created'} successfully`);
         navigation.goBack();
       })
       .catch((error) => {
         console.error("Save error:", error);
-        Alert.alert('Error', error.message || 'Failed to update doctor details. Please try again.');
+        Alert.alert('Error', error.message || 'Failed to save doctor details. Please try again.');
       })
       .finally(() => setLoading(false));
   };
@@ -136,6 +163,13 @@ const EditDoctorScreen = ({ route, navigation }) => {
         <Text style={styles.label}>Full Name</Text>
         <TextInput style={[styles.input, styles.disabled]} value={editedDoctor.name} editable={false} />
         
+        {!doctorId && (
+            <>
+                <Text style={styles.label}>User ID (To link doctor profile)</Text>
+                <TextInput style={styles.input} value={String(editedDoctor.user_id || '')} onChangeText={(val) => setEditedDoctor({...editedDoctor, user_id: parseInt(val) || 0})} placeholder="User ID" keyboardType="numeric" />
+            </>
+        )}
+
         <Text style={styles.label}>Specialties</Text>
         <TouchableOpacity style={styles.input} onPress={() => setModalType('specialty')}>
             <Text>{editedDoctor.specialty_ids?.length ? `${editedDoctor.specialty_ids.length} selected` : 'Select Specialties'}</Text>

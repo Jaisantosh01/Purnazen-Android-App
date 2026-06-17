@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,8 @@ import {
   StatusBar,
   TextInput,
   ScrollView,
+  Alert,
+  Modal,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -15,31 +17,55 @@ import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { COLORS } from '../constants/theme';
 
-const ROLES = [
-  { name: 'All', color: '#666' },
-  { name: 'admin', color: '#FF4D4D' },
-  { name: 'doctor', color: '#4A90E2' },
-  { name: 'patient', color: '#50C878' },
-];
+const ROLE_COLORS = {
+  'admin': '#FF4D4D',
+  'doctor': '#4A90E2',
+  'patient': '#50C878'
+};
 
 const UserManagementScreen = ({ navigation }) => {
   const [users, setUsers] = useState([]);
+  const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedRole, setSelectedRole] = useState('All');
+  
+  // Menu state
   const [menuVisible, setMenuVisible] = useState(null);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, right: 20 });
+  const [isMenuOpenTop, setIsMenuOpenTop] = useState(false);
+  const menuButtonRefs = useRef({});
 
   useEffect(() => {
-    fetchUsers();
+    fetchData();
   }, []);
 
-  const fetchUsers = () => {
+  const fetchData = () => {
     setLoading(true);
-    apiClient
-      .get(ENDPOINTS.USERS)
-      .then(res => setUsers(res?.data || []))
-      .catch(() => setUsers([]))
+    Promise.all([
+      apiClient.get(ENDPOINTS.USERS),
+      apiClient.get(ENDPOINTS.ROLES),
+    ])
+      .then(([usersRes, rolesRes]) => {
+        setUsers(usersRes?.data || []);
+        setRoles([{ name: 'All', icon: 'account-group' }, ...(rolesRes?.data || [])]);
+      })
+      .catch((err) => {
+        console.error('Fetch error:', err);
+        setUsers([]);
+        setRoles([{ name: 'All', icon: 'account-group' }]);
+      })
       .finally(() => setLoading(false));
+  };
+
+  const openMenu = (userId) => {
+    menuButtonRefs.current[userId]?.measure((x, y, width, height, pageX, pageY) => {
+      const screenHeight = 800; // Approximate
+      const showTop = pageY > screenHeight / 2;
+      setMenuPosition({ top: showTop ? pageY - 100 : pageY + height });
+      setIsMenuOpenTop(showTop);
+      setMenuVisible(userId);
+    });
   };
 
   const filteredUsers = users.filter(u => 
@@ -69,55 +95,78 @@ const UserManagementScreen = ({ navigation }) => {
                 placeholder="Search by name or email..."
                 value={search}
                 onChangeText={setSearch}
+                placeholderTextColor={COLORS.textMuted}
               />
             </View>
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsContainer} contentContainerStyle={styles.tabsContent}>
-              {ROLES.map(role => (
-                <TouchableOpacity 
-                  key={role.name}
-                  style={[
-                    styles.tab, 
-                    selectedRole === role.name && { borderColor: role.color, borderWidth: 2, backgroundColor: role.color + '10' }
-                  ]}
-                  onPress={() => setSelectedRole(role.name)}
-                >
-                  <Text style={[styles.tabText, selectedRole === role.name && { color: role.color }]}>{role.name}</Text>
-                </TouchableOpacity>
-              ))}
+              {roles.map(role => {
+                const roleColor = ROLE_COLORS[role.name.toLowerCase()] || '#666';
+                const isSelected = selectedRole === role.name;
+                return (
+                  <TouchableOpacity 
+                    key={role.name}
+                    style={[
+                      styles.tab, 
+                      { borderColor: roleColor },
+                      isSelected && { backgroundColor: roleColor }
+                    ]}
+                    onPress={() => setSelectedRole(role.name)}
+                  >
+                    <MCIcon 
+                      name={role.icon} 
+                      size={18} 
+                      color={isSelected ? COLORS.white : roleColor} 
+                      style={{marginRight: 6}} 
+                    />
+                    <Text style={[styles.tabText, isSelected && { color: COLORS.white }]}>{role.name}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
           </>
         }
         renderItem={({ item }) => {
-          const roleColor = ROLES.find(r => r.name.toLowerCase() === (item.role || '').toLowerCase())?.color || '#ccc';
+          const roleData = roles.find(r => r.name.toLowerCase() === (item.role || '').toLowerCase());
           return (
-            <View style={[styles.userCard, { borderColor: roleColor, borderWidth: 1 }]}>
-              <View style={styles.userInfo}>
-                <Text style={styles.userName}>{item.full_name}</Text>
-                <Text style={styles.userEmail}>{item.email}</Text>
-                <Text style={styles.userRole}>Role: {item.role || 'N/A'}</Text>
+            <View style={styles.userCard}>
+              <View style={[styles.avatar, { backgroundColor: COLORS.primaryLight }]}>
+                  <MCIcon name={roleData?.icon || 'account'} size={28} color={COLORS.primary} />
               </View>
-              <TouchableOpacity onPress={() => setMenuVisible(menuVisible === item.id ? null : item.id)}>
+              <View style={styles.userCardContent}>
+                <View style={styles.userNameContainer}>
+                  <Text style={styles.userName}>{item.full_name}</Text>
+                </View>
+                <Text style={styles.userEmail}>{item.email}</Text>
+              </View>
+              <TouchableOpacity 
+                ref={(ref) => menuButtonRefs.current[item.id] = ref}
+                onPress={() => openMenu(item.id)} 
+                style={styles.menuButton}
+              >
                 <MCIcon name="dots-vertical" size={24} color={COLORS.textMuted} />
               </TouchableOpacity>
-              {menuVisible === item.id && (
-                <View style={styles.menu}>
-                  <TouchableOpacity style={styles.menuItem} onPress={() => Alert.alert('Edit', 'Edit user coming soon')}>
-                    <MCIcon name="pencil" size={18} color={COLORS.primary} />
-                    <Text style={styles.menuItemText}>Edit</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.menuItem} onPress={() => Alert.alert('Delete', 'Delete user coming soon')}>
-                    <MCIcon name="delete" size={18} color="#FF4D4D" />
-                    <Text style={[styles.menuItemText, { color: '#FF4D4D' }]}>Delete</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
+              
+              <Modal transparent visible={menuVisible === item.id} onRequestClose={() => setMenuVisible(null)}>
+                <TouchableOpacity style={styles.modalOverlay} onPress={() => setMenuVisible(null)} activeOpacity={1}>
+                  <View style={[styles.menu, { top: menuPosition.top, right: 12 }]}>
+                    <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuVisible(null); Alert.alert('Edit', 'Edit user coming soon'); }}>
+                      <MCIcon name="pencil" size={18} color={COLORS.primary} />
+                      <Text style={styles.menuItemText}>Edit</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuVisible(null); Alert.alert('Delete', 'Delete user coming soon'); }}>
+                      <MCIcon name="delete" size={18} color="#FF4D4D" />
+                      <Text style={[styles.menuItemText, { color: '#FF4D4D' }]}>Delete</Text>
+                    </TouchableOpacity>
+                  </View>
+                </TouchableOpacity>
+              </Modal>
             </View>
           );
         }}
         contentContainerStyle={styles.listContainer}
         refreshing={loading}
-        onRefresh={fetchUsers}
+        onRefresh={fetchData}
       />
     </View>
   );
@@ -127,7 +176,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
   header: { 
     paddingTop: 56, 
-    paddingHorizontal: 20, 
+    paddingHorizontal: 12, 
     paddingBottom: 16, 
     backgroundColor: COLORS.white, 
     borderBottomWidth: 1, 
@@ -137,35 +186,48 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   headerTitle: { fontSize: 22, fontWeight: '800', color: COLORS.textPrimary },
+  manageBtn: { padding: 4 },
   searchContainer: { 
-    marginHorizontal: 16, 
+    marginHorizontal: 12, 
     marginTop: 16,
-    marginBottom: 8, 
+    marginBottom: 16, 
     flexDirection: 'row', 
     alignItems: 'center', 
     backgroundColor: COLORS.white, 
     borderRadius: 12, 
     paddingHorizontal: 12, 
-    height: 44, 
+    height: 48, 
     borderWidth: 1, 
     borderColor: '#eee' 
   },
-  searchIcon: { marginRight: 8 },
+  searchIcon: { marginRight: 10 },
   searchInput: { flex: 1, fontSize: 14, color: COLORS.textPrimary },
-  tabsContainer: { paddingHorizontal: 16, marginBottom: 16 },
-  tabsContent: { gap: 8 },
-  tab: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#ccc' },
-  tabText: { fontWeight: '600' },
-  listContainer: { paddingHorizontal: 16, paddingBottom: 16 },
-  userCard: { backgroundColor: COLORS.white, padding: 16, borderRadius: 12, marginBottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  userInfo: { flex: 1 },
-  userName: { fontSize: 16, fontWeight: '700' },
+  tabsContainer: { paddingHorizontal: 12, marginBottom: 16 },
+  tabsContent: { gap: 10 },
+  tab: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, borderWidth: 1, backgroundColor: '#f5f5f5' },
+  tabText: { fontWeight: '600', color: COLORS.textSecondary },
+  listContainer: { paddingHorizontal: 12, paddingBottom: 16 },
+  userCard: { 
+    backgroundColor: COLORS.white, 
+    padding: 16, 
+    borderRadius: 16, 
+    marginBottom: 12, 
+    marginHorizontal: 12,
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    borderWidth: 1, 
+    borderColor: '#f0f0f0' 
+  },
+  avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: COLORS.primaryLight, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
+  userCardContent: { flex: 1, marginRight: 12 },
+  userNameContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
+  userName: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
   userEmail: { fontSize: 13, color: COLORS.textMuted },
-  userRole: { fontSize: 13, color: COLORS.primary, marginTop: 4 },
-  editBtn: { padding: 8 },
-  menu: { position: 'absolute', right: 40, top: 16, backgroundColor: COLORS.white, borderRadius: 8, padding: 8, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, zIndex: 10 },
+  menuButton: { padding: 4 },
+  menu: { position: 'absolute', backgroundColor: COLORS.white, borderRadius: 8, padding: 8, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, zIndex: 10 },
   menuItem: { flexDirection: 'row', alignItems: 'center', padding: 8, gap: 8 },
   menuItemText: { fontSize: 14, fontWeight: '500' },
+  modalOverlay: { flex: 1, backgroundColor: 'transparent' }
 });
 
 export default UserManagementScreen;

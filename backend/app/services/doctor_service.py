@@ -130,3 +130,40 @@ class DoctorService:
         db.commit()
         db.refresh(doctor)
         return doctor
+
+    @staticmethod
+    def create(db: Session, data: dict, user):
+        # Assuming data contains 'user_id' to link the doctor profile to
+        if not data.get("user_id"):
+            return None
+            
+        new_doctor = Doctor(
+            user_id=data["user_id"],
+            specialty_id=data.get("specialty_ids", [None])[0] if data.get("specialty_ids") else None,
+            about=data.get("about", ""),
+            education=data.get("education", ""),
+            experience_years=data.get("experience", 0),
+            consultation_fee=data.get("fee", 0),
+            created_by=user.id
+        )
+        db.add(new_doctor)
+        db.commit()
+        db.refresh(new_doctor)
+        
+        # Initialize mappings
+        if "expertise_ids" in data:
+            for exp_id in data["expertise_ids"]:
+                db.add(DoctorExpertiseMapping(doctor_id=new_doctor.id, expertise_id=exp_id, created_by=user.id))
+        
+        if "language_ids" in data:
+            for lang_id in data["language_ids"]:
+                db.add(DoctorLanguageMapping(doctor_id=new_doctor.id, language_id=lang_id, created_by=user.id))
+        
+        if "specialty_ids" in data:
+            for spec_id in data["specialty_ids"]:
+                db.add(DoctorSpecialityMapping(doctor_id=new_doctor.id, speciality_id=spec_id, created_by=user.id))
+
+        db.commit()
+        db.refresh(new_doctor)
+        return new_doctor
+

@@ -99,7 +99,7 @@ const DoctorManagementScreen = ({ navigation }) => {
         <Text style={styles.headerTitle}>Doctor Management</Text>
         <TouchableOpacity 
           style={styles.addBtn}
-          onPress={() => navigation.navigate('CreateDoctor')}
+          onPress={() => navigation.navigate('EditDoctor', { doctorId: null })}
         >
           <MCIcon name="plus" size={24} color={COLORS.white} />
         </TouchableOpacity>

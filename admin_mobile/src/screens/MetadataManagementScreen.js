@@ -9,19 +9,23 @@ import {
   TextInput,
   Alert,
   Modal,
+  ScrollView,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { COLORS } from '../constants/theme';
+import { ROLE_ICONS } from '../constants/icons';
 
 const MetadataManagementScreen = ({ route, navigation }) => {
   const { title, endpoint } = route.params;
+  const isRole = title === 'Roles';
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newItemName, setNewItemName] = useState('');
+  const [selectedIcon, setSelectedIcon] = useState(ROLE_ICONS[0]);
   const [editingItem, setEditingItem] = useState(null);
-  const [menuVisible, setMenuVisible] = useState(null); // stores ID of item with open menu
+  const [menuVisible, setMenuVisible] = useState(null); 
   const [modalVisible, setModalVisible] = useState(false);
 
   useEffect(() => {
@@ -45,13 +49,15 @@ const MetadataManagementScreen = ({ route, navigation }) => {
 
   const handleSave = () => {
     if (!newItemName.trim()) return;
+    const payload = isRole ? { name: newItemName, icon: selectedIcon } : { name: newItemName };
     const promise = editingItem 
-      ? apiClient.put(`${endpoint}/${editingItem.id}`, { name: newItemName })
-      : apiClient.post(endpoint, { name: newItemName });
+      ? apiClient.put(`${endpoint}/${editingItem.id}`, payload)
+      : apiClient.post(endpoint, payload);
 
     promise
       .then(() => {
         setNewItemName('');
+        setSelectedIcon(ROLE_ICONS[0]);
         setEditingItem(null);
         setModalVisible(false);
         fetchItems();
@@ -62,6 +68,7 @@ const MetadataManagementScreen = ({ route, navigation }) => {
   const startEdit = (item) => {
     setEditingItem(item);
     setNewItemName(item.name);
+    setSelectedIcon(item.icon || ROLE_ICONS[0]);
     setMenuVisible(null);
     setModalVisible(true);
   };
@@ -69,6 +76,7 @@ const MetadataManagementScreen = ({ route, navigation }) => {
   const openAddModal = () => {
     setEditingItem(null);
     setNewItemName('');
+    setSelectedIcon(ROLE_ICONS[0]);
     setModalVisible(true);
   }
 
@@ -90,7 +98,10 @@ const MetadataManagementScreen = ({ route, navigation }) => {
 
   const renderItem = ({ item }) => (
     <View style={styles.itemCard}>
-      <Text style={styles.itemName}>{item.name}</Text>
+      <View style={{flexDirection: 'row', alignItems: 'center'}}>
+        {isRole && item.icon && <MCIcon name={item.icon} size={20} color={COLORS.primary} style={{marginRight: 10}} />}
+        <Text style={styles.itemName}>{item.name}</Text>
+      </View>
       <TouchableOpacity onPress={() => setMenuVisible(menuVisible === item.id ? null : item.id)}>
         <MCIcon name="dots-vertical" size={24} color={COLORS.textMuted} />
       </TouchableOpacity>
@@ -143,6 +154,22 @@ const MetadataManagementScreen = ({ route, navigation }) => {
                     value={newItemName}
                     onChangeText={setNewItemName}
                 />
+                {isRole && (
+                    <View style={styles.iconPicker}>
+                        <Text style={styles.label}>Select Icon:</Text>
+                        <View style={styles.iconContainer}>
+                            {ROLE_ICONS.map(icon => (
+                                <TouchableOpacity 
+                                    key={icon} 
+                                    style={[styles.iconOption, selectedIcon === icon && styles.selectedIcon]}
+                                    onPress={() => setSelectedIcon(icon)}
+                                >
+                                    <MCIcon name={icon} size={24} color={selectedIcon === icon ? COLORS.primary : COLORS.textPrimary} />
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </View>
+                )}
                 <View style={styles.modalButtons}>
                     <TouchableOpacity style={[styles.btn, styles.cancelBtn]} onPress={() => setModalVisible(false)}><Text>Cancel</Text></TouchableOpacity>
                     <TouchableOpacity style={[styles.btn, styles.saveBtn]} onPress={handleSave}><Text style={styles.saveBtnText}>Save</Text></TouchableOpacity>
@@ -158,9 +185,6 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
   header: { paddingTop: 56, paddingHorizontal: 20, paddingBottom: 16, backgroundColor: COLORS.white, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerTitle: { fontSize: 20, fontWeight: '800', color: COLORS.textPrimary },
-  inputContainer: { flexDirection: 'row', padding: 16, gap: 10 },
-  input: { flex: 1, backgroundColor: COLORS.white, borderRadius: 8, paddingHorizontal: 12, height: 44, borderWidth: 1, borderColor: '#ddd' },
-  addBtn: { backgroundColor: COLORS.primary, width: 44, height: 44, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   listContainer: { padding: 16 },
   itemCard: { backgroundColor: COLORS.white, padding: 16, borderRadius: 12, marginBottom: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', position: 'relative' },
   itemName: { fontSize: 16, fontWeight: '600' },
@@ -172,7 +196,12 @@ const styles = StyleSheet.create({
   modalContent: { backgroundColor: COLORS.white, borderRadius: 12, padding: 20 },
   modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15 },
   modalInput: { backgroundColor: COLORS.background, borderRadius: 8, paddingHorizontal: 12, height: 44, marginBottom: 15, borderWidth: 1, borderColor: '#ddd' },
+  iconPicker: { marginBottom: 15 },
+  label: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
+  iconOption: { padding: 10, borderRadius: 8, marginRight: 8, backgroundColor: '#f0f0f0' },
+  selectedIcon: { backgroundColor: COLORS.primaryLight, borderWidth: 1, borderColor: COLORS.primary },
   modalButtons: { flexDirection: 'row', gap: 10 },
+  iconContainer: { flexDirection: 'row', flexWrap: 'wrap' },
   btn: { flex: 1, padding: 12, borderRadius: 8, alignItems: 'center' },
   cancelBtn: { backgroundColor: '#eee' },
   saveBtn: { backgroundColor: COLORS.primary },
