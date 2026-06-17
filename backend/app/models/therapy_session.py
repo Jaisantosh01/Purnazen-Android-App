@@ -19,8 +19,8 @@ class TherapySession(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), name="modified_at")
-    updated_by = Column(Integer, ForeignKey("users.id"), nullable=False, name="modified_by")
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), name="updated_at")
+    updated_by = Column(Integer, ForeignKey("users.id"), nullable=False, name="updated_by")
 
     user = relationship("User", foreign_keys=[user_id], backref="therapy_sessions")
     creator = relationship("User", foreign_keys=[created_by])
