@@ -36,19 +36,19 @@ def get_preferences(
     )
 
 
-@router.put(
-    "/me/preferences",
-    summary="Update notification preferences",
-    description=(
-        "Partial update: `pushEnabled` toggles everything; `notifications` is a "
-        "dict of toggle-id → bool and is merged with the stored values."
-    ),
-)
-def update_preferences(
-    body: UpdatePreferencesRequest,
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    return success_response(
-        "Preferences updated successfully", PreferenceService.update(db, user, body)
-    )
+@router.put("/{user_id}", summary="Update user (admin only)", dependencies=[Depends(require_role("admin"))])
+def update_user(user_id: int, data: dict, db: Session = Depends(get_db)):
+    user = db.get(User, user_id)
+    if not user:
+        return error_response("User not found", 404)
+    
+    if "full_name" in data:
+        user.full_name = data["full_name"]
+    if "email" in data:
+        user.email = data["email"]
+    if "role_id" in data:
+        user.role_id = data["role_id"]
+        
+    db.commit()
+    db.refresh(user)
+    return success_response("User updated successfully", user.to_dict())

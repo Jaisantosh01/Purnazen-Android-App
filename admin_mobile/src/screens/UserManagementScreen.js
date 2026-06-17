@@ -150,7 +150,7 @@ const UserManagementScreen = ({ navigation }) => {
               <Modal transparent visible={menuVisible === item.id} onRequestClose={() => setMenuVisible(null)}>
                 <TouchableOpacity style={styles.modalOverlay} onPress={() => setMenuVisible(null)} activeOpacity={1}>
                   <View style={[styles.menu, { top: menuPosition.top, right: 12 }]}>
-                    <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuVisible(null); Alert.alert('Edit', 'Edit user coming soon'); }}>
+                    <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuVisible(null); navigation.navigate('EditUser', { user: item }); }}>
                       <MCIcon name="pencil" size={18} color={COLORS.primary} />
                       <Text style={styles.menuItemText}>Edit</Text>
                     </TouchableOpacity>

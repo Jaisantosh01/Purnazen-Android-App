@@ -23,6 +23,7 @@ import DoctorDetailScreen from './src/screens/DoctorDetailScreen';
 import EditDoctorScreen from './src/screens/EditDoctorScreen';
 import MetadataManagementScreen from './src/screens/MetadataManagementScreen';
 import UserManagementScreen from './src/screens/UserManagementScreen';
+import EditUserScreen from './src/screens/EditUserScreen';
 import ManageRolesScreen from './src/screens/ManageRolesScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
@@ -67,6 +68,7 @@ function UsersStackNavigator() {
     <UsersStack.Navigator screenOptions={{ headerShown: false }}>
       <UsersStack.Screen name="UsersMain" component={UserManagementScreen} />
       <UsersStack.Screen name="ManageRoles" component={MetadataManagementScreen} />
+      <UsersStack.Screen name="EditUser" component={EditUserScreen} />
     </UsersStack.Navigator>
   );
 }
