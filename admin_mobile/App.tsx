@@ -148,8 +148,8 @@ function MainTabs() {
       })}
     >
       <Tab.Screen name="Home"        component={HomeStackNavigator}    />
-      <Tab.Screen name="Relief"      component={}  />
-      <Tab.Screen
+      {/* <Tab.Screen name="Relief"      component={}  /> */}
+      {/* <Tab.Screen
         name="WellnessTab"
         component={}
         options={{ tabBarLabel: 'Wellness' }}
@@ -158,7 +158,7 @@ function MainTabs() {
         name="ConsultTab"
         component={}
         options={{ tabBarLabel: 'Consult' }}
-      />
+      /> */}
       <Tab.Screen name="Profile"     component={ProfileStackNavigator} />
     </Tab.Navigator>
   );

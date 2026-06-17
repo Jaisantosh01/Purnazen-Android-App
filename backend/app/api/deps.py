@@ -76,7 +76,7 @@ def get_current_user(
 
 def require_role(required_role: str):
     def checker(user: User = Depends(get_current_user)) -> User:
-        if user.role != required_role:
+        if not user.role or user.role.name != required_role:
             raise HTTPException(status_code=403, detail="Access denied")
         return user
 

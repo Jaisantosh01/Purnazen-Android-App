@@ -14,7 +14,7 @@ import QuickCard from '../components/QuickCards';
 import { WellnessRowSkeleton, QuickCardSkeleton } from '../components/SkeletonLoader';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
-import wellnessService from '../services/wellnessService';
+// import wellnessService from '../services/wellnessService';
 import { COLORS } from '../constants/theme';
 
 const HOME_WELLNESS_ROWS = 3; 
@@ -33,22 +33,22 @@ const HomeScreen = ({ navigation }) => {
       .catch(() => setQuickRelief([]))
       .finally(() => setReliefLoading(false));
 
-    wellnessService
-      .getAllSessions()
-      .then(data => {
-        const sessions = (data?.sessions || []).slice(0, HOME_WELLNESS_ROWS);
-        setWellness(
-          sessions.map(s => ({
-            id: s.id,
-            title: s.title,
-            duration: s.duration,
-            icon: 'heart-pulse',
-            videoGroupId: s.videoGroupId,
-          })),
-        );
-      })
-      .catch(() => setWellness([]))
-      .finally(() => setWellnessLoading(false));
+    // wellnessService
+    //   .getAllSessions()
+    //   .then(data => {
+    //     const sessions = (data?.sessions || []).slice(0, HOME_WELLNESS_ROWS);
+    //     setWellness(
+    //       sessions.map(s => ({
+    //         id: s.id,
+    //         title: s.title,
+    //         duration: s.duration,
+    //         icon: 'heart-pulse',
+    //         videoGroupId: s.videoGroupId,
+    //       })),
+    //     );
+    //   })
+      // .catch(() => setWellness([]))
+      // .finally(() => setWellnessLoading(false));
   }, []);
 
   return (

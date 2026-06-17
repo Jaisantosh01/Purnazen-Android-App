@@ -12,7 +12,7 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAuthStore } from '../store/authStore';
 import authService from '../services/authService';
-import therapyService from '../services/therapyService';
+// import therapyService from '../services/therapyService';
 import { StatsSkeleton } from '../components/SkeletonLoader';
 import { COLORS } from '../constants/theme';
 
@@ -29,13 +29,13 @@ const ProfileScreen = ({ navigation }) => {
   const [stats, setStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(true);
 
-  useEffect(() => {
-    therapyService
-      .getTherapyHistory()
-      .then(data => setStats(data?.stats ?? null))
-      .catch(() => setStats(null))
-      .finally(() => setStatsLoading(false));
-  }, []);
+  // useEffect(() => {
+  //   therapyService
+  //     .getTherapyHistory()
+  //     .then(data => setStats(data?.stats ?? null))
+  //     .catch(() => setStats(null))
+  //     .finally(() => setStatsLoading(false));
+  // }, []);
 
   const handleLogout = () => {
     Alert.alert(

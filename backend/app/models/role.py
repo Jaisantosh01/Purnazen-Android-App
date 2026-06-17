@@ -3,10 +3,10 @@ from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, f
 from app.db.base_class import Base
 
 
-class ConsultationType(Base):
-    __tablename__ = "consultation_types"
+class Role(Base):
+    __tablename__ = "roles"
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, index=True)
     name = Column(String(50), nullable=False, unique=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())

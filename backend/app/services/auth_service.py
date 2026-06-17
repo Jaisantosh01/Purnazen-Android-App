@@ -59,7 +59,7 @@ class AuthService:
                 "id": user.id,
                 "email": user.email,
                 "full_name": user.full_name,
-                "role": user.role,
+                "role": user.role.name if user.role else None,
             },
         }, 200
 

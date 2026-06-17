@@ -15,6 +15,7 @@ from app.db.base import (
     Expertise,
     Language,
     ReliefSession,
+    Role,
     Specialty,
     User,
     WellnessSession,
@@ -34,6 +35,19 @@ db = SessionLocal()
 
 try:
     # ------------------------
+    # Roles
+    # ------------------------
+    role_names = ["admin", "doctor", "patient"]
+    for name in role_names:
+        if not db.query(Role).filter_by(name=name).first():
+            db.add(Role(name=name))
+    db.commit()
+
+    admin_role = db.query(Role).filter_by(name="admin").first()
+    doctor_role = db.query(Role).filter_by(name="doctor").first()
+    patient_role = db.query(Role).filter_by(name="patient").first()
+
+    # ------------------------
     # Admin & Doctor users
     # ------------------------
     if not db.query(User).filter_by(email="admin@example.com").first():
@@ -42,7 +56,7 @@ try:
                 full_name="Admin User",
                 email="admin@example.com",
                 password=hash_password("admin123"),
-                role="admin",
+                role_id=admin_role.id,
             )
         )
     
@@ -59,7 +73,7 @@ try:
                     full_name=full_name,
                     email=email,
                     password=hash_password("123456"),
-                    role="doctor",
+                    role_id=doctor_role.id,
                 )
             )
 
