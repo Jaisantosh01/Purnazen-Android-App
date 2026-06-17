@@ -16,14 +16,14 @@ import authService from '../services/authService';
 import { COLORS } from '../constants/theme';
 
 const LoginScreen = ({ navigation }) => {
-  const [email, setEmail]               = useState('');
-  const [password, setPassword]         = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError]               = useState('');
-  const [isLoading, setIsLoading]       = useState(false);
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!email.trim())    { setError('Please enter your email.');    return; }
+    if (!email.trim()) { setError('Please enter your email.'); return; }
     if (!password.trim()) { setError('Please enter your password.'); return; }
     setError('');
     setIsLoading(true);
@@ -46,19 +46,19 @@ const LoginScreen = ({ navigation }) => {
 
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
-        {/* Top green section */}
+        {/* Top admin branding section */}
         <View style={styles.topSection}>
           <View style={styles.logoCircle}>
-            <MCIcon name="leaf" size={40} color={COLORS.white} />
+            <MCIcon name="shield-check" size={40} color={COLORS.white} />
           </View>
-          <Text style={styles.appName}>Wellness</Text>
-          <Text style={styles.tagline}>Your health, our priority</Text>
+          <Text style={styles.appName}>Wellness Admin</Text>
+          <Text style={styles.tagline}>Secure Access Portal</Text>
         </View>
 
         {/* Form card */}
         <View style={styles.card}>
           <Text style={styles.title}>Welcome Back</Text>
-          <Text style={styles.subtitle}>Login to your account</Text>
+          <Text style={styles.subtitle}>Enter your credentials to continue</Text>
 
           {error.length > 0 && (
             <View style={styles.errorBox}>
@@ -72,7 +72,7 @@ const LoginScreen = ({ navigation }) => {
             <MCIcon name="email-outline" size={20} color={COLORS.textMuted} style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="Enter your email"
+              placeholder="admin@example.com"
               placeholderTextColor={COLORS.textMuted}
               value={email}
               onChangeText={text => { setEmail(text); setError(''); }}
@@ -86,7 +86,7 @@ const LoginScreen = ({ navigation }) => {
             <MCIcon name="lock-outline" size={20} color={COLORS.textMuted} style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="Enter your password"
+              placeholder="••••••••"
               placeholderTextColor={COLORS.textMuted}
               value={password}
               onChangeText={text => { setPassword(text); setError(''); }}
@@ -111,15 +111,8 @@ const LoginScreen = ({ navigation }) => {
             onPress={handleLogin}
             disabled={isLoading}
           >
-            <Text style={styles.loginBtnText}>{isLoading ? 'Logging in...' : 'Login'}</Text>
+            <Text style={styles.loginBtnText}>{isLoading ? 'Authenticating...' : 'Login'}</Text>
           </TouchableOpacity>
-
-          <View style={styles.signupRow}>
-            <Text style={styles.signupHint}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-              <Text style={styles.signupLink}>Sign Up</Text>
-            </TouchableOpacity>
-          </View>
         </View>
 
       </ScrollView>
@@ -131,7 +124,6 @@ export default LoginScreen;
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.primary },
-
   scroll: { flexGrow: 1 },
 
   topSection: {
@@ -142,7 +134,7 @@ const styles = StyleSheet.create({
   logoCircle: {
     width: 80,
     height: 80,
-    borderRadius: 40,
+    borderRadius: 20, // Slightly more modern square-ish circle
     backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -150,13 +142,14 @@ const styles = StyleSheet.create({
   },
   appName: {
     fontSize: 28,
-    fontWeight: '700',
+    fontWeight: '800',
     color: COLORS.white,
     marginBottom: 6,
   },
   tagline: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(255,255,255,0.9)',
+    fontWeight: '500'
   },
 
   card: {
@@ -176,14 +169,14 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
-    color: COLORS.textMuted,
+    color: COLORS.textSecondary,
     marginBottom: 28,
   },
 
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#fff0f0',
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -194,13 +187,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.danger,
     flex: 1,
+    fontWeight: '500'
   },
 
   label: {
     fontSize: 13,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: COLORS.textSecondary,
     marginBottom: 8,
+    marginLeft: 4
   },
   inputContainer: {
     flexDirection: 'row',
@@ -210,11 +205,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 14,
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#f0f0f0'
   },
   inputIcon: { marginRight: 10 },
   input: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 15,
     color: COLORS.textPrimary,
     padding: 0,
   },
@@ -226,6 +223,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 8,
+    elevation: 2,
   },
   loginBtnDisabled: {
     opacity: 0.7,
@@ -234,20 +232,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: COLORS.white,
-  },
-
-  signupRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 20,
-  },
-  signupHint: {
-    fontSize: 13,
-    color: COLORS.textMuted,
-  },
-  signupLink: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: COLORS.primary,
   },
 });
