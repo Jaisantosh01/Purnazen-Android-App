@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
-import reliefService from '../services/reliefService';
+import apiClient from '../api/client';
+import { ENDPOINTS } from '../constants/apiEndpoints';
 import SkeletonBox from '../components/SkeletonLoader';
 import { COLORS, SPACING, RADIUS } from '../constants/theme';
 
@@ -25,10 +26,10 @@ const ReliefScreen = ({ navigation }) => {
     else setIsLoading(true);
     setError(null);
     try {
-      const data = await reliefService.getAllReliefSessions();
-      setItems(data?.sessions || []);
+      const res = await apiClient.get(ENDPOINTS.HOME_QUICK_RELIEF);
+      setItems(res?.data || []);
     } catch (err) {
-      setError(err.message || 'Failed to load relief sessions');
+      setError(err.message || 'Failed to load relief categories');
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -96,12 +97,21 @@ const ReliefScreen = ({ navigation }) => {
                 key={item.id || item.key}
                 style={[styles.card, { backgroundColor: item.background_color || item.bgColor || COLORS.primaryLight }]}
                 activeOpacity={0.8}
-                onPress={() => navigation.navigate('ReliefSession', {
-                  reliefKey: item.title || item.key,
-                  reliefId: item.id,
-                  reliefSlug: item.slug || item.key,
-                  reliefTitle: item.title,
-                })}
+                onPress={() => {
+                  if (item.chatQuestionId) {
+                    navigation.navigate('ChatAssistant', {
+                      startQuestionId: item.chatQuestionId,
+                      reliefTitle: item.title,
+                    });
+                  } else {
+                    navigation.navigate('ReliefSession', {
+                      reliefKey: item.title || item.key,
+                      reliefId: item.id,
+                      reliefSlug: item.slug || item.key,
+                      reliefTitle: item.title,
+                    });
+                  }
+                }}
               >
                 <MCIcon
                   name={item.icon_name || item.icon || 'heart-pulse'}

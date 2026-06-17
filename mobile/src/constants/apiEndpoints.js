@@ -72,4 +72,11 @@ export const ENDPOINTS = {
   FACE_GLOW_TRENDS: `${API_VERSION}/face-glow/trends`,
   FACE_GLOW_SCAN_COMPARE: (id) => `${API_VERSION}/face-glow/scan/${id}/compare`,
 
+  // Video Groups
+  VIDEO_GROUPS: `${API_VERSION}/videos/groups`,
+  VIDEO_GROUP_CATALOG: (id) => `${API_VERSION}/videos/groups/${id}/catalog`,
+
+  // Chat
+  CHAT_FLOW: (startId) => `${API_VERSION}/chat/flow/${startId}`,
+
 };

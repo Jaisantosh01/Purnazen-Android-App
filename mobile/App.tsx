@@ -47,6 +47,8 @@ import ScanErrorScreen from './src/screens/ScanErrorScreen';
 import ConsentScreen from './src/screens/ConsentScreen';
 import YogaSessionScreen from './src/screens/YogaSessionScreen';
 import ReliefSessionScreen from './src/screens/ReliefSessionScreen';
+import ChatAssistantScreen from './src/screens/ChatAssistantScreen';
+import VideoPlayerScreen from './src/screens/VideoPlayerScreen';
 import DoctorProfileScreen from './src/screens/DoctorProfileScreen';
 import BookAppointmentScreen from './src/screens/BookAppointmentScreen';
 import BookingConfirmedScreen from './src/screens/BookingConfirmedScreen';
@@ -84,6 +86,8 @@ function HomeStackNavigator() {
       <HomeStack.Screen name="ScanError"      component={ScanErrorScreen}     />
       <HomeStack.Screen name="SessionScreen"  component={YogaSessionScreen}   />
       <HomeStack.Screen name="ReliefSession"  component={ReliefSessionScreen} />
+      <HomeStack.Screen name="ChatAssistant"  component={ChatAssistantScreen} />
+      <HomeStack.Screen name="VideoPlayer"    component={VideoPlayerScreen}   />
     </HomeStack.Navigator>
   );
 }
@@ -93,6 +97,8 @@ function ReliefStackNavigator() {
     <ReliefStack.Navigator screenOptions={{ headerShown: false }}>
       <ReliefStack.Screen name="ReliefMain"    component={ReliefScreen}        />
       <ReliefStack.Screen name="ReliefSession" component={ReliefSessionScreen} />
+      <ReliefStack.Screen name="ChatAssistant" component={ChatAssistantScreen} />
+      <ReliefStack.Screen name="VideoPlayer"   component={VideoPlayerScreen}   />
     </ReliefStack.Navigator>
   );
 }
@@ -102,6 +108,7 @@ function WellnessStackNavigator() {
     <WellnessStack.Navigator screenOptions={{ headerShown: false }}>
       <WellnessStack.Screen name="WellnessMain"  component={WellnessScreen}    />
       <WellnessStack.Screen name="SessionScreen" component={YogaSessionScreen} />
+      <WellnessStack.Screen name="VideoPlayer"   component={VideoPlayerScreen} />
     </WellnessStack.Navigator>
   );
 }
@@ -123,6 +130,8 @@ function ProfileStackNavigator() {
     <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
       <ProfileStack.Screen name="ProfileMain"    component={ProfileScreen}        />
       <ProfileStack.Screen name="TherapyHistory" component={TherapyHistoryScreen} />
+      <ProfileStack.Screen name="VideoPlayer"    component={VideoPlayerScreen}    />
+      <ProfileStack.Screen name="ReliefSession"  component={ReliefSessionScreen}  />
       <ProfileStack.Screen name="HelpSupport"    component={HelpSupportScreen}    />
       <ProfileStack.Screen name="Settings"       component={SettingsScreen}       />
       <ProfileStack.Screen name="Consent"        component={ConsentScreen}        />

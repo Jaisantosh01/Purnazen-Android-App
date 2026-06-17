@@ -60,3 +60,7 @@ backend/*.db
 backend/uploads/*
 screenshots/
 backend/server.log*
+
+# Python virtual environments
+**/.venv/
+**/venv/

@@ -14,11 +14,19 @@ from app.api.v1.endpoints import (
     therapy_history,
     users,
 )
+from app.api.v1.endpoints import doctor_availability
+from app.api.v1.endpoints import languages
+from app.api.v1.endpoints import expertises
+from app.api.v1.endpoints import specialties
 
 api_router = APIRouter()
 
 api_router.include_router(auth.router)
 api_router.include_router(doctors.router)
+api_router.include_router(doctor_availability.router)
+api_router.include_router(specialties.router)
+api_router.include_router(expertises.router)
+api_router.include_router(languages.router)
 api_router.include_router(home.router)
 api_router.include_router(appointments.router)
 api_router.include_router(therapy_history.router)

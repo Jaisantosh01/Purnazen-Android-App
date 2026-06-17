@@ -10,11 +10,11 @@ import {
 } from 'react-native';
 import Video from 'react-native-video';
 import wellnessService from '../services/wellnessService';
-import therapyService from '../services/therapyService';
 import { SessionPlayerSkeleton } from '../components/SkeletonLoader';
 import { COLORS, SPACING, RADIUS } from '../constants/theme';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { syncVideoProgress } from '../utils/videoTracker';
 
 const SessionPlayer = ({ session, navigation }) => {
   const [isPlaying, setIsPlaying]       = useState(false);
@@ -27,6 +27,8 @@ const SessionPlayer = ({ session, navigation }) => {
 
   const steps      = session.steps;
   const totalSteps = steps.length;
+  
+  const videoProgressRef = useRef({ watchedTime: 0 });
 
   const handleStepComplete = useCallback(() => {
     setCompletedSteps(prev => [...prev, currentStep]);
@@ -42,15 +44,8 @@ const SessionPlayer = ({ session, navigation }) => {
     } else {
       setIsPlaying(false);
       clearInterval(timerRef.current);
-      therapyService.saveSession({
-        title:      session.title,
-        type:       'wellness',
-        date:       new Date().toISOString(),
-        duration:   session.duration,
-        status:     'Completed',
-        painBefore: null,
-        painAfter:  null,
-      }).catch(err => console.log('Save session failed:', err.message));
+      // Sync completed
+      syncVideoProgress(session.videoGroupId || session.id, session.id, 'Completed', session.duration / 60, 'wellness');
     }
   }, [currentStep, totalSteps, steps, currentCycle, session, progressAnim]);
 
@@ -62,11 +57,13 @@ const SessionPlayer = ({ session, navigation }) => {
           return prev - 1;
         });
       }, 1000);
+      // Pending sync on play
+      syncVideoProgress(session.videoGroupId || session.id, session.id, 'Pending', 0, 'wellness');
     } else {
       clearInterval(timerRef.current);
     }
     return () => clearInterval(timerRef.current);
-  }, [isPlaying, currentStep, handleStepComplete, steps]);
+  }, [isPlaying, currentStep, handleStepComplete, steps, session]);
 
   useEffect(() => {
     const stepDuration = steps[currentStep]?.duration || 60;
@@ -75,6 +72,16 @@ const SessionPlayer = ({ session, navigation }) => {
       toValue: progress, duration: 500, useNativeDriver: false,
     }).start();
   }, [timeLeft, currentStep, progressAnim, steps]);
+  
+  const onVideoProgress = (data) => {
+    const watchedTime = data.currentTime;
+    const duration = session.duration; // Total duration of video in seconds
+
+    if (watchedTime / duration > 0.9 && videoProgressRef.current.watchedTime / duration <= 0.9) {
+      syncVideoProgress(session.videoGroupId || session.id, session.id, 'Completed', duration / 60, 'wellness');
+    }
+    videoProgressRef.current.watchedTime = watchedTime;
+  };
 
   const handleRestart = () => {
     clearInterval(timerRef.current);
@@ -102,7 +109,7 @@ const SessionPlayer = ({ session, navigation }) => {
         <View style={styles.animationArea}>
           {session.videoUrl ? (
             <Video source={{ uri: session.videoUrl }} style={styles.video}
-              paused={!isPlaying} resizeMode="cover" repeat={false} onEnd={handleStepComplete} />
+              paused={!isPlaying} resizeMode="cover" repeat={false} onProgress={onVideoProgress} onEnd={handleStepComplete} />
           ) : (
             <View style={styles.iconCircle}>
               <Text style={styles.poseIcon}>{session.icon}</Text>
@@ -112,6 +119,7 @@ const SessionPlayer = ({ session, navigation }) => {
             <Text style={styles.floatingPlayIcon}>{isPlaying ? '⏸' : '▶'}</Text>
           </TouchableOpacity>
         </View>
+        {/* ... Rest of the UI remains the same ... */}
 
         <View style={styles.progressCard}>
           <View style={styles.progressHeader}>

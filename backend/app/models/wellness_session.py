@@ -1,7 +1,8 @@
-from sqlalchemy import JSON, Boolean, Column, DateTime, Integer, String, func
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, JSON, func
+from sqlalchemy.orm import relationship
 
 from app.db.base_class import Base
-
+from app.models.video_groups import VideoGroups  # Import explicitly
 
 class WellnessSession(Base):
     """Wellness player content (yoga/meditation/breathing), keyed by the
@@ -10,26 +11,28 @@ class WellnessSession(Base):
     __tablename__ = "wellness_sessions"
 
     id = Column(Integer, primary_key=True)
-    key = Column(String(100), nullable=False, unique=True)
     title = Column(String(150), nullable=False)
-    duration_label = Column(String(30), nullable=False)
+    duration = Column(String(30), nullable=False)
     icon = Column(String(20))
-    video_url = Column(String(500))
-    total_cycles = Column(Integer, nullable=False, default=1)
-    steps = Column(JSON, nullable=False, default=list)
+    video_group_id = Column(Integer, ForeignKey("video_groups.id"), nullable=True)
     sort_order = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    updated_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    video_group = relationship("VideoGroups")
+    creator = relationship("User", foreign_keys=[created_by])
+    updater = relationship("User", foreign_keys=[updated_by])
 
     def to_dict(self):
-        # Shape consumed by YogaSessionScreen (matches the old mock objects)
         return {
-            "key": self.key,
+            "id": self.id,
             "title": self.title,
-            "duration": self.duration_label,
+            "duration": self.duration,
             "icon": self.icon,
-            "videoUrl": self.video_url,
-            "totalCycles": self.total_cycles,
-            "steps": self.steps or [],
+            "videoGroupId": self.video_group_id,
+            "sortOrder": self.sort_order,
+            "isActive": self.is_active,
         }

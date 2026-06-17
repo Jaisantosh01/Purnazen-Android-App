@@ -15,14 +15,6 @@ class WellnessSessionRepository:
             .all()
         )
 
-    @staticmethod
-    def get_by_key(db: Session, key: str) -> WellnessSession | None:
-        return (
-            db.query(WellnessSession)
-            .filter(WellnessSession.key == key, WellnessSession.is_active.is_(True))
-            .first()
-        )
-
 
 class ReliefSessionRepository:
 

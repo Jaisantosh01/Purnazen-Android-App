@@ -33,6 +33,10 @@ class Doctor(Base):
     reviews_count = Column(Integer, default=0)
     is_available_today = Column(Boolean, default=False)
     created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, nullable=True)
+    created_by = Column(Integer, nullable=True)
+    updated_by = Column(Integer, nullable=True)
+    is_active = Column(Boolean, default=True)
 
     user = relationship("User", backref="doctor_profile")
     specialty = relationship("Specialty", backref="doctors")

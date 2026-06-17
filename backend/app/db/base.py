@@ -19,6 +19,11 @@ from app.models.wellness_session import WellnessSession  # noqa: E402,F401
 from app.models.relief_session import ReliefSession  # noqa: E402,F401
 from app.models.payment import Payment  # noqa: E402,F401
 from app.models.user_preference import UserPreference  # noqa: E402,F401
+from app.models.video_groups import VideoGroups  # noqa: E402,F401
+from app.models.videos import Videos  # noqa: E402,F401
+from app.models.video_group_mapping import VideoGroupMapping  # noqa: E402,F401
+from app.models.chat_question import ChatQuestion  # noqa: E402,F401
+from app.models.chat_option import ChatOption  # noqa: E402,F401
 from app.models.face_glow_routine import FaceGlowRoutine  # noqa: E402,F401
 from app.models.user_consent import UserConsent  # noqa: E402,F401
 from app.models.face_scan import FaceScan  # noqa: E402,F401

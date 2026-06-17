@@ -6,7 +6,7 @@ class Settings(BaseSettings):
 
     SECRET_KEY: str = "dev-only-secret-key-change-this-in-production!!"
     JWT_SECRET_KEY: str = "dev-only-jwt-secret-key-change-this-in-production!!"
-    DATABASE_URL: str = "sqlite:///./wellness.db"
+    DATABASE_URL: str = "postgresql://postgres:sneha1234@localhost:5432/Wellness_db_v1"
 
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
@@ -32,11 +32,17 @@ class Settings(BaseSettings):
     RAZORPAY_KEY_ID: str = ""
     RAZORPAY_KEY_SECRET: str = ""
 
-    # Cloudinary — used for session videos and (Sprint 2+) face scan image storage.
-    # When empty, image uploads in the scan pipeline will fail gracefully.
-    CLOUDINARY_CLOUD_NAME: str = ""
-    CLOUDINARY_API_KEY: str = ""
-    CLOUDINARY_API_SECRET: str = ""
+    # Azure Storage Settings
+    AZURE_STORAGE_ACCOUNT_NAME: str = ""
+    AZURE_STORAGE_ACCOUNT_KEY: str = ""
+    AZURE_BLOB_CONTAINER_NAME: str = ""
+    AZURE_SAS_EXPIRY_MINUTES: int = 60
+
+    # # Cloudinary — used for session videos and (Sprint 2+) face scan image storage.
+    # # When empty, image uploads in the scan pipeline will fail gracefully.
+    # CLOUDINARY_CLOUD_NAME: str = ""
+    # CLOUDINARY_API_KEY: str = ""
+    # CLOUDINARY_API_SECRET: str = ""
 
     # Social auth — Google client ID for ID token verification (Sprint 5)
     GOOGLE_CLIENT_ID: str = ""
