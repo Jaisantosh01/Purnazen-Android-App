@@ -221,7 +221,7 @@ try:
                             start_time=start,
                             end_time=end,
                             slot_duration_minutes=30,
-                            is_available=True,
+                            is_active=True,
                         )
                     )
 

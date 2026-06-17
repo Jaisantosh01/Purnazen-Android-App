@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.api.v1.endpoints import (
     appointments,
     auth,
+    chat,
     doctors,
     face_glow,
     home,
@@ -10,6 +11,7 @@ from app.api.v1.endpoints import (
     sessions,
     therapy_history,
     users,
+    videos,
 )
 from app.api.v1.endpoints import doctor_availability
 from app.api.v1.endpoints import languages
@@ -31,3 +33,5 @@ api_router.include_router(sessions.router)
 api_router.include_router(payments.router)
 api_router.include_router(users.router)
 api_router.include_router(face_glow.router)
+api_router.include_router(chat.router)
+api_router.include_router(videos.router)
