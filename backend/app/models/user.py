@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.orm import relationship
 
 from app.db.base_class import Base
@@ -15,6 +15,7 @@ class User(Base):
     role_id = Column(Integer, ForeignKey("roles.id"))
     # Bumped on password change; tokens carry it as "ver" and older ones are rejected
     token_version = Column(Integer, nullable=False, default=0, server_default="0")
+    is_active = Column(Boolean, default=True, server_default="true")
     created_at = Column(DateTime, server_default=func.now())
 
     role = relationship("Role", foreign_keys=[role_id])
@@ -27,6 +28,7 @@ class User(Base):
             "email": self.email,
             "role_id": self.role_id,
             "role": self.role.name if self.role else None,
+            "is_active": self.is_active,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 

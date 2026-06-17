@@ -18,39 +18,26 @@ import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 
 import HomeScreen from './src/screens/HomeScreen';
-// import ReliefScreen from './src/screens/ReliefScreen';
-// import WellnessScreen from './src/screens/WellnessScreen';
-// import ConsultScreen from './src/screens/ConsultScreen';
+import DoctorManagementScreen from './src/screens/DoctorManagementScreen';
+import DoctorDetailScreen from './src/screens/DoctorDetailScreen';
+import EditDoctorScreen from './src/screens/EditDoctorScreen';
+import MetadataManagementScreen from './src/screens/MetadataManagementScreen';
+import UserManagementScreen from './src/screens/UserManagementScreen';
+import ManageRolesScreen from './src/screens/ManageRolesScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
-// import TherapyHistoryScreen from './src/screens/TherapyHistoryScreen';
-// import HelpSupportScreen from './src/screens/HelpSupportScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
-// import SubscriptionsScreen from './src/screens/SubscriptionsScreen';
-// import NotificationsScreen from './src/screens/NotificationsScreen';
-// import SelectSymptomScreen from './src/screens/SelectSymptomScreen';
-// import FaceGlowScreen from './src/screens/FaceGlowScreen';
-// import YogaSessionScreen from './src/screens/YogaSessionScreen';
-// import ReliefSessionScreen from './src/screens/ReliefSessionScreen';
-// import ChatAssistantScreen from './src/screens/ChatAssistantScreen';
-// import VideoPlayerScreen from './src/screens/VideoPlayerScreen';
-// import DoctorProfileScreen from './src/screens/DoctorProfileScreen';
-// import BookAppointmentScreen from './src/screens/BookAppointmentScreen';
-// import BookingConfirmedScreen from './src/screens/BookingConfirmedScreen';
-// import PaymentScreen from './src/screens/PaymentScreen';
 
 const RootStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 const HomeStack = createNativeStackNavigator();
+const DoctorsStack = createNativeStackNavigator();
+const UsersStack = createNativeStackNavigator();
 const ProfileStack = createNativeStackNavigator();
-const WellnessStack = createNativeStackNavigator();
-const ReliefStack   = createNativeStackNavigator();
-const ConsultStack  = createNativeStackNavigator();
 
 const TAB_ICONS: Record<string, { active: string; inactive: string }> = {
   Home:        { active: 'home',                    inactive: 'home-outline'                  },
-  Relief:      { active: 'heart',                   inactive: 'heart-outline'                 },
-  WellnessTab: { active: 'star-four-points',        inactive: 'star-four-points-outline'      },
-  ConsultTab:  { active: 'calendar-month',          inactive: 'calendar-month-outline'        },
+  Doctors:     { active: 'doctor',                  inactive: 'doctor'                        },
+  Users:       { active: 'account-group',           inactive: 'account-group-outline'         },
   Profile:     { active: 'account-circle',          inactive: 'account-circle-outline'        },
 };
 
@@ -58,60 +45,37 @@ function HomeStackNavigator() {
   return (
     <HomeStack.Navigator screenOptions={{ headerShown: false }}>
       <HomeStack.Screen name="HomeMain"       component={HomeScreen}          />
-      {/* <HomeStack.Screen name="SelectSymptom"  component={SelectSymptomScreen} />
-      <HomeStack.Screen name="FaceGlow"       component={FaceGlowScreen}      />
-      <HomeStack.Screen name="SessionScreen"  component={YogaSessionScreen}   />
-      <HomeStack.Screen name="ReliefSession"  component={ReliefSessionScreen} />
-      <HomeStack.Screen name="ChatAssistant"  component={ChatAssistantScreen} />
-      <HomeStack.Screen name="VideoPlayer"    component={VideoPlayerScreen}   /> */}
     </HomeStack.Navigator>
   );
 }
 
-// function ReliefStackNavigator() {
-//   return (
-//     <ReliefStack.Navigator screenOptions={{ headerShown: false }}>
-//       {/* <ReliefStack.Screen name="ReliefMain"    component={ReliefScreen}        />
-//       <ReliefStack.Screen name="ReliefSession" component={ReliefSessionScreen} />
-//       <ReliefStack.Screen name="ChatAssistant" component={ChatAssistantScreen} />
-//       <ReliefStack.Screen name="VideoPlayer"   component={VideoPlayerScreen}   /> */}
-//     </ReliefStack.Navigator>
-//   );
-// }
+function DoctorsStackNavigator() {
+  return (
+    <DoctorsStack.Navigator screenOptions={{ headerShown: false }}>
+      <DoctorsStack.Screen name="DoctorsMain"      component={DoctorManagementScreen} />
+      <DoctorsStack.Screen name="DoctorDetail"     component={DoctorDetailScreen} />
+      <DoctorsStack.Screen name="EditDoctor"       component={EditDoctorScreen} />
+      <DoctorsStack.Screen name="ManageExpertise"  component={MetadataManagementScreen} />
+      <DoctorsStack.Screen name="ManageLanguages"  component={MetadataManagementScreen} />
+      <DoctorsStack.Screen name="ManageSpecialties" component={MetadataManagementScreen} />
+    </DoctorsStack.Navigator>
+  );
+}
 
-// function WellnessStackNavigator() {
-//   return (
-//     // <WellnessStack.Navigator screenOptions={{ headerShown: false }}>
-//       {/* <WellnessStack.Screen name="WellnessMain"  component={WellnessScreen}    />
-//       <WellnessStack.Screen name="SessionScreen" component={YogaSessionScreen} />
-//       <WellnessStack.Screen name="VideoPlayer"   component={VideoPlayerScreen} /> */}
-//     {/* </WellnessStack.Navigator> */}
-//   );
-// }
-
-// function ConsultStackNavigator() {
-//   return (
-//     <ConsultStack.Navigator screenOptions={{ headerShown: false }}>
-//       <ConsultStack.Screen name="ConsultMain"       component={ConsultScreen}          />
-//       <ConsultStack.Screen name="DoctorProfile"     component={DoctorProfileScreen}    />
-//       <ConsultStack.Screen name="BookAppointment"   component={BookAppointmentScreen}  />
-//       <ConsultStack.Screen name="BookingConfirmed"  component={BookingConfirmedScreen} />
-//       <ConsultStack.Screen name="Payment"           component={PaymentScreen}          />
-//     </ConsultStack.Navigator>
-//   );
-// }
+function UsersStackNavigator() {
+  return (
+    <UsersStack.Navigator screenOptions={{ headerShown: false }}>
+      <UsersStack.Screen name="UsersMain" component={UserManagementScreen} />
+      <UsersStack.Screen name="ManageRoles" component={MetadataManagementScreen} />
+    </UsersStack.Navigator>
+  );
+}
 
 function ProfileStackNavigator() {
   return (
     <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
       <ProfileStack.Screen name="ProfileMain"    component={ProfileScreen}        />
-      {/* <ProfileStack.Screen name="TherapyHistory" component={TherapyHistoryScreen} />
-      <ProfileStack.Screen name="VideoPlayer"    component={VideoPlayerScreen}    />
-      <ProfileStack.Screen name="ReliefSession"  component={ReliefSessionScreen}  />
-      <ProfileStack.Screen name="HelpSupport"    component={HelpSupportScreen}    /> */}
       <ProfileStack.Screen name="Settings"       component={SettingsScreen}       />
-      {/* <ProfileStack.Screen name="Subscriptions"  component={SubscriptionsScreen}  />
-      <ProfileStack.Screen name="Notifications"  component={NotificationsScreen}  /> */}
     </ProfileStack.Navigator>
   );
 }
@@ -148,17 +112,8 @@ function MainTabs() {
       })}
     >
       <Tab.Screen name="Home"        component={HomeStackNavigator}    />
-      {/* <Tab.Screen name="Relief"      component={}  /> */}
-      {/* <Tab.Screen
-        name="WellnessTab"
-        component={}
-        options={{ tabBarLabel: 'Wellness' }}
-      />
-      <Tab.Screen
-        name="ConsultTab"
-        component={}
-        options={{ tabBarLabel: 'Consult' }}
-      /> */}
+      <Tab.Screen name="Doctors"     component={DoctorsStackNavigator} />
+      <Tab.Screen name="Users"       component={UsersStackNavigator} />
       <Tab.Screen name="Profile"     component={ProfileStackNavigator} />
     </Tab.Navigator>
   );

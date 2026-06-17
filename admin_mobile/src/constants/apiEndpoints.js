@@ -63,4 +63,13 @@ export const ENDPOINTS = {
   // Chat
   CHAT_FLOW: (startId) => `${API_VERSION}/chat/flow/${startId}`,
 
+  // Admin
+  ADMIN_STATS: `${API_VERSION}/admin/stats`,
+  DOCTOR_STATS: `${API_VERSION}/admin/doctors/stats`,
+  EXPERTISES: `${API_VERSION}/expertises`,
+  LANGUAGES: `${API_VERSION}/languages`,
+  SPECIALTIES: `${API_VERSION}/specialties`,
+  USERS: `${API_VERSION}/users`,
+  ROLES: `${API_VERSION}/roles`,
+
 };

@@ -12,6 +12,8 @@ from app.api.v1.endpoints import (
     therapy_history,
     users,
     videos,
+    dashboard,
+    roles,
 )
 from app.api.v1.endpoints import doctor_availability
 from app.api.v1.endpoints import languages
@@ -35,3 +37,5 @@ api_router.include_router(users.router)
 api_router.include_router(face_glow.router)
 api_router.include_router(chat.router)
 api_router.include_router(videos.router)
+api_router.include_router(dashboard.router)
+api_router.include_router(roles.router)

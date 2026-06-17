@@ -1,4 +1,5 @@
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, func
+from sqlalchemy.orm import relationship
 
 from app.db.base_class import Base
 
@@ -7,18 +8,20 @@ class DoctorLanguageMapping(Base):
     __tablename__ = "doctor_language_mapping"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    doctor_id = Column(Integer, ForeignKey("doctors.id"), nullable=False)
     language_id = Column(Integer, ForeignKey("languages.id"), nullable=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())
     created_by = Column(Integer, ForeignKey("users.id"))
     updated_by = Column(Integer, ForeignKey("users.id"))
+    
+    language = relationship("Language")
 
     def to_dict(self):
         return {
             "id": self.id,
-            "user_id": self.user_id,
+            "doctor_id": self.doctor_id,
             "language_id": self.language_id,
             "is_active": self.is_active,
             "created_at": self.created_at.isoformat() if self.created_at else None,

@@ -1,0 +1,226 @@
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  StatusBar,
+  ScrollView,
+  Alert,
+  TextInput,
+  Modal,
+  FlatList,
+} from 'react-native';
+// @ts-ignore
+import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
+import apiClient from '../api/client';
+import { ENDPOINTS } from '../constants/apiEndpoints';
+import { COLORS } from '../constants/theme';
+
+const SelectionModal = ({ visible, onClose, title, data, selectedIds, onToggle }) => (
+  <Modal visible={visible} animationType="slide" transparent={true}>
+    <View style={styles.modalOverlay}>
+      <View style={styles.modalContent}>
+        <Text style={styles.modalTitle}>{title}</Text>
+        <FlatList
+          data={data}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item }) => (
+            <TouchableOpacity 
+              style={[styles.modalItem, selectedIds.includes(item.id) && styles.tagSelected]} 
+              onPress={() => onToggle(item.id)}
+            >
+              <Text>{item.name}</Text>
+              {selectedIds.includes(item.id) && <MCIcon name="check" size={20} color={COLORS.primary} />}
+            </TouchableOpacity>
+          )}
+        />
+        <TouchableOpacity style={styles.closeButton} onPress={onClose}><Text style={styles.closeButtonText}>Done</Text></TouchableOpacity>
+      </View>
+    </View>
+  </Modal>
+);
+
+const EditDoctorScreen = ({ route, navigation }) => {
+  const { doctorId } = route.params;
+  const [loading, setLoading] = useState(true);
+  const [editedDoctor, setEditedDoctor] = useState(null);
+  const [modalType, setModalType] = useState(null); 
+  
+  const [specialties, setSpecialties] = useState([]);
+  const [allExpertise, setAllExpertise] = useState([]);
+  const [allLanguages, setAllLanguages] = useState([]);
+
+  useEffect(() => {
+    Promise.all([
+      apiClient.get(ENDPOINTS.DOCTOR_DETAIL(doctorId)),
+      apiClient.get(ENDPOINTS.SPECIALTIES),
+      apiClient.get(ENDPOINTS.EXPERTISES),
+      apiClient.get(ENDPOINTS.LANGUAGES),
+    ]).then(([docRes, specRes, expRes, langRes]) => {
+      const doc = docRes.data || docRes;
+      setEditedDoctor({
+        ...doc,
+        specialty_ids: doc.specialty_ids || [], // Assuming backend returns specialty_ids as list now
+        expertise_ids: doc.expertise_ids || [],
+        language_ids: doc.language_ids || [],
+        about: doc.about || '',
+        education: doc.education || '',
+        experience: doc.experience || 0,
+        fee: doc.fee || 0,
+      });
+      setSpecialties(specRes.data || specRes || []);
+      setAllExpertise(expRes.data || expRes || []);
+      setAllLanguages(langRes.data || langRes || []);
+    }).catch(() => Alert.alert('Error', 'Failed to load data'))
+      .finally(() => setLoading(false));
+  }, [doctorId]);
+
+  const handleSave = () => {
+    setLoading(true);
+    // Ensure we are passing the specialty_ids list to the backend
+    const payload = {
+        ...editedDoctor,
+        specialty_ids: editedDoctor.specialty_ids || []
+    };
+    
+    apiClient.put(ENDPOINTS.DOCTOR_DETAIL(doctorId), payload)
+      .then((res) => {
+        Alert.alert('Success', 'Doctor updated successfully');
+        navigation.goBack();
+      })
+      .catch((error) => {
+        console.error("Save error:", error);
+        Alert.alert('Error', error.message || 'Failed to update doctor details. Please try again.');
+      })
+      .finally(() => setLoading(false));
+  };
+
+  const toggleSelection = (key, itemId) => {
+    const current = editedDoctor[key] || [];
+    const updated = current.includes(itemId) 
+      ? current.filter(id => id !== itemId)
+      : [...current, itemId];
+    setEditedDoctor({...editedDoctor, [key]: updated});
+  };
+
+  const renderSelectedTags = (key, dataList) => {
+    const selectedIds = editedDoctor[key] || [];
+    if (selectedIds.length === 0) return null;
+    return (
+      <ScrollView horizontal style={styles.tagScroll} showsHorizontalScrollIndicator={false}>
+        {selectedIds.map(id => {
+          const item = dataList.find(i => i.id === id);
+          return item ? (
+            <View key={id} style={styles.tag}>
+              <Text style={styles.tagText}>{item.name}</Text>
+            </View>
+          ) : null;
+        })}
+      </ScrollView>
+    );
+  };
+
+  if (loading) return <View style={styles.root}><Text style={styles.loading}>Loading...</Text></View>;
+
+  return (
+    <View style={styles.root}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}><MCIcon name="arrow-left" size={24} color={COLORS.textPrimary} /></TouchableOpacity>
+        <Text style={styles.headerTitle}>Edit Doctor Details</Text>
+        <View style={{ width: 24 }} />
+      </View>
+
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={styles.label}>Full Name</Text>
+        <TextInput style={[styles.input, styles.disabled]} value={editedDoctor.name} editable={false} />
+        
+        <Text style={styles.label}>Specialties</Text>
+        <TouchableOpacity style={styles.input} onPress={() => setModalType('specialty')}>
+            <Text>{editedDoctor.specialty_ids?.length ? `${editedDoctor.specialty_ids.length} selected` : 'Select Specialties'}</Text>
+        </TouchableOpacity>
+        {renderSelectedTags('specialty_ids', specialties)}
+        
+        <Text style={styles.label}>About</Text>
+        <TextInput style={styles.input} value={editedDoctor.about} onChangeText={(val) => setEditedDoctor({...editedDoctor, about: val})} placeholder="Enter doctor's biography" multiline />
+        
+        <Text style={styles.label}>Education</Text>
+        <TextInput style={styles.input} value={editedDoctor.education} onChangeText={(val) => setEditedDoctor({...editedDoctor, education: val})} placeholder="e.g. MBBS, MD" />
+        
+        <Text style={styles.label}>Experience (Years)</Text>
+        <TextInput style={styles.input} value={String(editedDoctor.experience || '')} onChangeText={(val) => setEditedDoctor({...editedDoctor, experience: parseInt(val) || 0})} placeholder="Years of experience" keyboardType="numeric" />
+        
+        <Text style={styles.label}>Consultation Fee</Text>
+        <TextInput style={styles.input} value={String(editedDoctor.fee || '')} onChangeText={(val) => setEditedDoctor({...editedDoctor, fee: parseInt(val) || 0})} placeholder="Fee per consultation" keyboardType="numeric" />
+
+        <Text style={styles.label}>Expertise</Text>
+        <TouchableOpacity style={styles.input} onPress={() => setModalType('expertise')}>
+            <Text>{editedDoctor.expertise_ids?.length ? `${editedDoctor.expertise_ids.length} selected` : 'Select Expertise'}</Text>
+        </TouchableOpacity>
+        {renderSelectedTags('expertise_ids', allExpertise)}
+        
+        <Text style={styles.label}>Languages</Text>
+        <TouchableOpacity style={styles.input} onPress={() => setModalType('language')}>
+            <Text>{editedDoctor.language_ids?.length ? `${editedDoctor.language_ids.length} selected` : 'Select Languages'}</Text>
+        </TouchableOpacity>
+        {renderSelectedTags('language_ids', allLanguages)}
+      </ScrollView>
+
+      <View style={styles.footer}>
+        <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={() => navigation.goBack()}>
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={handleSave}>
+            <Text style={styles.saveButtonText}>Save</Text>
+        </TouchableOpacity>
+      </View>
+
+      <SelectionModal 
+        visible={!!modalType}
+        onClose={() => setModalType(null)}
+        title={`Select ${modalType || ''}`}
+        data={modalType === 'specialty' ? specialties : modalType === 'expertise' ? allExpertise : allLanguages}
+        selectedIds={modalType === 'specialty' ? editedDoctor.specialty_ids : modalType === 'expertise' ? editedDoctor.expertise_ids : editedDoctor.language_ids}
+        onToggle={(id) => toggleSelection(modalType === 'specialty' ? 'specialty_ids' : modalType === 'expertise' ? 'expertise_ids' : 'language_ids', id)}
+      />
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: COLORS.background },
+  header: { paddingTop: 56, paddingHorizontal: 20, paddingBottom: 16, backgroundColor: COLORS.white, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  headerTitle: { fontSize: 20, fontWeight: '800', color: COLORS.textPrimary },
+  content: { padding: 20 },
+  label: { fontSize: 14, fontWeight: '600', color: COLORS.textSecondary, marginBottom: 8, marginTop: 12 },
+  input: { backgroundColor: COLORS.white, borderRadius: 8, padding: 12, borderWidth: 1, borderColor: '#ddd' },
+  disabled: { backgroundColor: '#f0f0f0' },
+  tagScroll: { marginTop: 8, marginBottom: 4 },
+  tag: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: COLORS.primaryLight, borderRadius: 16, marginRight: 8 },
+  tagText: { color: COLORS.primary, fontSize: 13, fontWeight: '500' },
+  loading: { textAlign: 'center', marginTop: 100 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
+  modalContent: { backgroundColor: COLORS.white, borderRadius: 12, padding: 15, maxHeight: '80%' },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, paddingHorizontal: 5 },
+  modalItem: { 
+      flexDirection: 'row', 
+      justifyContent: 'space-between', 
+      paddingVertical: 15, 
+      paddingHorizontal: 10,
+      borderBottomWidth: 1, 
+      borderBottomColor: '#eee',
+      marginVertical: 2
+  },
+  tagSelected: { backgroundColor: '#e6f7ff' },
+  closeButton: { marginTop: 20, backgroundColor: COLORS.primary, padding: 15, borderRadius: 8, alignItems: 'center' },
+  closeButtonText: { color: COLORS.white, fontWeight: 'bold' },
+  footer: { flexDirection: 'row', padding: 20, backgroundColor: COLORS.white, borderTopWidth: 1, borderTopColor: '#eee' },
+  button: { flex: 1, padding: 15, borderRadius: 8, alignItems: 'center' },
+  cancelButton: { backgroundColor: '#eee', marginRight: 10 },
+  saveButton: { backgroundColor: COLORS.primary },
+  cancelButtonText: { color: COLORS.textPrimary, fontWeight: 'bold' },
+  saveButtonText: { color: COLORS.white, fontWeight: 'bold' }
+});
+
+export default EditDoctorScreen;
