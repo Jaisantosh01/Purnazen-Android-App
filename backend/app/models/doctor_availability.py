@@ -1,4 +1,6 @@
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, DateTime, String, Time, func
+from sqlalchemy.dialects.postgresql import UUID
+import uuid
 
 from app.db.base_class import Base
 
@@ -6,16 +8,16 @@ from app.db.base_class import Base
 class DoctorAvailability(Base):
     __tablename__ = "doctor_availability"
 
-    id = Column(Integer, primary_key=True)
-    doctor_id = Column(Integer, ForeignKey("doctors.id"), nullable=False)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    doctor_id = Column(UUID(as_uuid=True), ForeignKey("doctors.id"), nullable=False)
     day_of_week = Column(String(10))
     start_time = Column(Time, nullable=False)
     end_time = Column(Time, nullable=False)
     slot_duration_minutes = Column(Integer, default=30)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, nullable=True)
-    created_by = Column(Integer, nullable=True)
-    updated_by = Column(Integer, nullable=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    updated_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     is_active = Column(Boolean, default=True)
 
     def to_dict(self):

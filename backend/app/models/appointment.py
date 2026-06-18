@@ -11,18 +11,20 @@ from sqlalchemy import (
     Boolean,
     func,
 )
+from sqlalchemy.dialects.postgresql import UUID
+import uuid
 from sqlalchemy.orm import relationship
 
 from app.db.base_class import Base
 
 
 class Appointment(Base):
-    __tablename__ = "appointments"
+    __tablename__ = "appointments" 
 
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    doctor_id = Column(Integer, ForeignKey("doctors.id"), nullable=False)
-    consultation_type_id = Column(Integer, ForeignKey("consultation_types.id"))
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    doctor_id = Column(UUID(as_uuid=True), ForeignKey("doctors.id"), nullable=False)
+    consultation_type_id = Column(UUID(as_uuid=True), ForeignKey("consultation_types.id"))
     visit_type = Column(String(20), nullable=False)
     date = Column(Date, nullable=False)
     slot_start = Column(Time, nullable=False)
@@ -34,9 +36,9 @@ class Appointment(Base):
     )  # unpaid | paid
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
-    created_by = Column(Integer, nullable=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-    updated_by = Column(Integer, nullable=True)
+    updated_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
 
     user = relationship("User", backref="appointments")
     doctor = relationship("Doctor", backref="appointments")
@@ -46,7 +48,8 @@ class Appointment(Base):
 
     @property
     def reference(self):
-        return f"APT-{self.id:06d}"
+        # id is a UUID; produce a short readable reference
+        return f"APT-{str(self.id)[:8].upper()}"
 
     def to_dict(self):
         return {
