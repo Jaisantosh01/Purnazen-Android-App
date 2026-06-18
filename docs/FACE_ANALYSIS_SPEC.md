@@ -418,7 +418,7 @@ Minimum 15 rules mapping score thresholds to recommendations:
 ## 9. Mobile: New Files
 
 ```
-mobile/src/
+mobile-users/src/
 ├── screens/
 │   ├── FaceScanScreen.js          ✅ Sprint 2  -- Vision Camera, oval guide, consent gate, live quality hints
 │   ├── ScanProcessingScreen.js    ✅ Sprint 2  -- poll loop, live stage text, animated indicator

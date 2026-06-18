@@ -38,11 +38,11 @@ class Settings(BaseSettings):
     AZURE_BLOB_CONTAINER_NAME: str = ""
     AZURE_SAS_EXPIRY_MINUTES: int = 60
 
-    # # Cloudinary — used for session videos and (Sprint 2+) face scan image storage.
-    # # When empty, image uploads in the scan pipeline will fail gracefully.
-    # CLOUDINARY_CLOUD_NAME: str = ""
-    # CLOUDINARY_API_KEY: str = ""
-    # CLOUDINARY_API_SECRET: str = ""
+    # Cloudinary — used for session videos and (Sprint 2+) face scan image storage.
+    # When empty, image uploads in the scan pipeline will fail gracefully.
+    CLOUDINARY_CLOUD_NAME: str = ""
+    CLOUDINARY_API_KEY: str = ""
+    CLOUDINARY_API_SECRET: str = ""
 
     # Social auth — Google client ID for ID token verification (Sprint 5)
     GOOGLE_CLIENT_ID: str = ""

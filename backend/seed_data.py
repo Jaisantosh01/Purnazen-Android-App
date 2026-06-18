@@ -2,8 +2,8 @@
 
 Ported from the (now removed) frontend mock data so the players can run from
 API content:
-- mobile/src/data/yogaSessionData.js  -> WELLNESS_SESSIONS
-- mobile/src/data/reliefSessionData.js -> RELIEF_SESSIONS
+- mobile-users/src/data/yogaSessionData.js  -> WELLNESS_SESSIONS
+- mobile-users/src/data/reliefSessionData.js -> RELIEF_SESSIONS
 
 Keys match the sessionKey/reliefKey values the screens navigate with.
 """
