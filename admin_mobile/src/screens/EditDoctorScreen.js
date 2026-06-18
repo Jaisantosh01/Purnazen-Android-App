@@ -148,6 +148,24 @@ const EditDoctorScreen = ({ route, navigation }) => {
     );
   };
 
+  const addAward = () => {
+    setEditedDoctor({
+        ...editedDoctor,
+        awards: [...(editedDoctor.awards || []), { title: '', issuer: '', year: new Date().getFullYear(), description: '' }]
+    });
+  };
+
+  const updateAward = (index, key, value) => {
+    const updatedAwards = [...(editedDoctor.awards || [])];
+    updatedAwards[index] = { ...updatedAwards[index], [key]: value };
+    setEditedDoctor({ ...editedDoctor, awards: updatedAwards });
+  };
+
+  const removeAward = (index) => {
+    const updatedAwards = (editedDoctor.awards || []).filter((_, i) => i !== index);
+    setEditedDoctor({ ...editedDoctor, awards: updatedAwards });
+  };
+
   if (loading) return <View style={styles.root}><Text style={styles.loading}>Loading...</Text></View>;
 
   return (
@@ -199,6 +217,37 @@ const EditDoctorScreen = ({ route, navigation }) => {
             <Text>{editedDoctor.language_ids?.length ? `${editedDoctor.language_ids.length} selected` : 'Select Languages'}</Text>
         </TouchableOpacity>
         {renderSelectedTags('language_ids', allLanguages)}
+
+        <Text style={styles.sectionLabel}>Awards</Text>
+        {editedDoctor.awards?.map((award, index) => (
+            <View key={index} style={styles.awardInputCard}>
+                <Text style={styles.label}>Award Title</Text>
+                <TextInput style={styles.input} placeholder="e.g. Best Doctor" value={award.title} onChangeText={(val) => updateAward(index, 'title', val)} />
+                
+                <View style={styles.row}>
+                    <View style={{flex: 1}}>
+                        <Text style={styles.label}>Issuer</Text>
+                        <TextInput style={styles.input} placeholder="e.g. Health Assoc" value={award.issuer} onChangeText={(val) => updateAward(index, 'issuer', val)} />
+                    </View>
+                    <View style={{width: 80, marginLeft: 8}}>
+                        <Text style={styles.label}>Year</Text>
+                        <TextInput style={styles.input} placeholder="2024" value={String(award.year || '')} onChangeText={(val) => updateAward(index, 'year', parseInt(val))} keyboardType="numeric" />
+                    </View>
+                </View>
+                
+                <Text style={styles.label}>Description</Text>
+                <TextInput style={styles.input} placeholder="Brief description" value={award.description} onChangeText={(val) => updateAward(index, 'description', val)} multiline />
+                
+                <TouchableOpacity style={styles.removeBtn} onPress={() => removeAward(index)}>
+                    <Text style={{color: COLORS.danger, fontWeight: '600'}}>Remove Award</Text>
+                </TouchableOpacity>
+            </View>
+        ))}
+        <TouchableOpacity style={styles.addBtn} onPress={addAward}>
+            <MCIcon name="plus" size={18} color={COLORS.primary} style={{marginRight: 8}} />
+            <Text style={{color: COLORS.primary, fontWeight: '700'}}>Add Award</Text>
+        </TouchableOpacity>
+
       </ScrollView>
 
       <View style={styles.footer}>
@@ -227,6 +276,7 @@ const styles = StyleSheet.create({
   header: { paddingTop: 56, paddingHorizontal: 20, paddingBottom: 16, backgroundColor: COLORS.white, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerTitle: { fontSize: 20, fontWeight: '800', color: COLORS.textPrimary },
   content: { padding: 20 },
+  sectionLabel: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary, marginTop: 20, marginBottom: 8 },
   label: { fontSize: 14, fontWeight: '600', color: COLORS.textSecondary, marginBottom: 8, marginTop: 12 },
   input: { backgroundColor: COLORS.white, borderRadius: 8, padding: 12, borderWidth: 1, borderColor: '#ddd' },
   disabled: { backgroundColor: '#f0f0f0' },
@@ -254,7 +304,12 @@ const styles = StyleSheet.create({
   cancelButton: { backgroundColor: '#eee', marginRight: 10 },
   saveButton: { backgroundColor: COLORS.primary },
   cancelButtonText: { color: COLORS.textPrimary, fontWeight: 'bold' },
-  saveButtonText: { color: COLORS.white, fontWeight: 'bold' }
+  saveButtonText: { color: COLORS.white, fontWeight: 'bold' },
+  awardInputCard: { backgroundColor: '#f9f9f9', padding: 12, borderRadius: 8, marginBottom: 12, borderWidth: 1, borderColor: '#eee' },
+  subLabel: { fontSize: 12, fontWeight: '600', color: COLORS.textSecondary, marginBottom: 4 },
+  row: { flexDirection: 'row' },
+  removeBtn: { marginTop: 8, alignSelf: 'flex-end' },
+  addBtn: { padding: 12, backgroundColor: '#f0f0f0', borderRadius: 8, alignItems: 'center', marginBottom: 20, flexDirection: 'row', justifyContent: 'center' }
 });
 
 export default EditDoctorScreen;
