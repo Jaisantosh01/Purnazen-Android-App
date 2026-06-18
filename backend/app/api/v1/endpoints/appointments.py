@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.models.user import User
-from app.schemas.appointment import BookAppointmentRequest
+from app.schemas.appointment import BookAppointmentRequest, UpdateAppointmentRequest
 from app.services.appointment_service import AppointmentService
 from app.utils.responses import error_response, success_response
 
@@ -30,6 +30,22 @@ def book_appointment(
         return error_response(response["message"], status_code)
 
     return success_response(response["message"], response["appointment"], status_code)
+
+
+@router.put(
+    "/{appointment_id}",
+    summary="Update an appointment",
+)
+def update_appointment(
+    appointment_id: int,
+    body: UpdateAppointmentRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    appointment = AppointmentService.update(db, user, appointment_id, body)
+    if not appointment:
+        return error_response("Appointment not found", 404)
+    return success_response("Appointment updated successfully", appointment.to_dict())
 
 
 @router.get(

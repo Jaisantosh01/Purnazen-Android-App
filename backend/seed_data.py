@@ -182,3 +182,51 @@ QUICK_RELIEFS = [
         "sort_order": 2
     }
 ]
+
+AWARDS = [
+    {
+        "doctor_email": "sarah@example.com",
+        "title": "Best Acupressure Practitioner",
+        "issuer": "Global Wellness Society",
+        "year": 2024,
+        "description": "Recognized for excellence in acupressure techniques."
+    },
+    {
+        "doctor_email": "sarah@example.com",
+        "title": "Wellness Innovator Award",
+        "issuer": "HealthTech Council",
+        "year": 2025,
+        "description": "For innovative approaches to holistic health."
+    },
+    {
+        "doctor_email": "priya@example.com",
+        "title": "Pain Management Excellence",
+        "issuer": "Pain Relief Association",
+        "year": 2023,
+        "description": "Outstanding contributions to chronic pain management."
+    }
+]
+
+DAYS_OF_WEEK = [
+    {"day_number": 0, "day": "Sunday"},
+    {"day_number": 1, "day": "Monday"},
+    {"day_number": 2, "day": "Tuesday"},
+    {"day_number": 3, "day": "Wednesday"},
+    {"day_number": 4, "day": "Thursday"},
+    {"day_number": 5, "day": "Friday"},
+    {"day_number": 6, "day": "Saturday"},
+]
+
+# Generate 1-hour slots from 9am to 6pm for Mon-Sat
+SLOT_TIMINGS = []
+for day in DAYS_OF_WEEK:
+    if day["day"] == "Sunday":
+        continue
+    
+    # 9:00 to 18:00
+    for hour in range(9, 18):
+        SLOT_TIMINGS.append({
+            "day_number": day["day_number"],
+            "start_time": f"{hour:02d}:00:00",
+            "end_time": f"{hour+1:02d}:00:00"
+        })

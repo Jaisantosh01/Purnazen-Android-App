@@ -10,6 +10,7 @@ class Role(Base):
     name = Column(String(50), nullable=False, unique=True)
     icon = Column(String(50))
     is_active = Column(Boolean, default=True)
+    is_default = Column(Boolean, default=False)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())
     created_by = Column(Integer, ForeignKey("users.id"))
@@ -20,6 +21,7 @@ class Role(Base):
             "id": self.id,
             "name": self.name,
             "icon": self.icon,
+            "is_default": self.is_default,
             "is_active": self.is_active,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,

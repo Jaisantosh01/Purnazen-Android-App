@@ -33,6 +33,8 @@ class RoleService:
         role = db.get(Role, role_id)
         if not role:
             return None
+        if role.is_default:
+            return None # Or raise an error
         role.is_active = False
         role.updated_at = datetime.utcnow()
         role.updated_by = user.id

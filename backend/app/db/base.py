@@ -2,6 +2,8 @@
 
 from app.db.base_class import Base  # noqa: F401
 
+from app.models.day_of_week import DayOfWeek  # noqa: E402,F401
+from app.models.slot_timings import SlotTimings  # noqa: E402,F401
 from app.models.user import User  # noqa: E402,F401
 from app.models.token_blocklist import TokenBlocklist  # noqa: E402,F401
 from app.models.specialty import Specialty  # noqa: E402,F401

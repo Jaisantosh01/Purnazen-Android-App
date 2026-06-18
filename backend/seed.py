@@ -24,10 +24,13 @@ from app.db.base import (
     VideoGroupMapping,
     ChatQuestion,
     ChatOption,
-    QuickRelief
+    QuickRelief,
+    Award,
+    DayOfWeek,
+    SlotTimings
 )
 from app.db.session import SessionLocal, engine
-from seed_data import RELIEF_SESSIONS, WELLNESS_SESSIONS, VIDEO_GROUPS, VIDEOS, CHAT_FLOW, QUICK_RELIEFS
+from seed_data import RELIEF_SESSIONS, WELLNESS_SESSIONS, VIDEO_GROUPS, VIDEOS, CHAT_FLOW, QUICK_RELIEFS, AWARDS, DAYS_OF_WEEK, SLOT_TIMINGS
 
 Base.metadata.create_all(bind=engine)
 
@@ -399,6 +402,59 @@ try:
                     sort_order=sort_order,
                 )
             )
+
+    # ------------------------
+    # Awards
+    # ------------------------
+    for award_data in AWARDS:
+        user = db.query(User).filter_by(email=award_data["doctor_email"]).first()
+        if user:
+            doctor = db.query(Doctor).filter_by(user_id=user.id).first()
+            if doctor:
+                if not db.query(Award).filter_by(doctor_id=doctor.id, title=award_data["title"]).first():
+                    db.add(
+                        Award(
+                            doctor_id=doctor.id,
+                            title=award_data["title"],
+                            issuer=award_data["issuer"],
+                            year=award_data["year"],
+                            description=award_data["description"],
+                            created_by=admin.id,
+                            updated_by=admin.id
+                        )
+                    )
+
+    # ------------------------
+    # Days of Week
+    # ------------------------
+    for day_data in DAYS_OF_WEEK:
+        if not db.query(DayOfWeek).filter_by(day_number=day_data["day_number"]).first():
+            db.add(DayOfWeek(day_number=day_data["day_number"], day=day_data["day"]))
+
+    db.commit()
+
+    # ------------------------
+    # Slot Timings
+    # ------------------------
+    for slot_data in SLOT_TIMINGS:
+        day_of_week = db.query(DayOfWeek).filter_by(day_number=slot_data["day_number"]).first()
+        if day_of_week:
+            # Parse time string to time object
+            start_time = time.fromisoformat(slot_data["start_time"])
+            end_time = time.fromisoformat(slot_data["end_time"])
+            
+            if not db.query(SlotTimings).filter_by(
+                day_of_week_id=day_of_week.id,
+                start_time=start_time,
+                end_time=end_time
+            ).first():
+                db.add(SlotTimings(
+                    day_of_week_id=day_of_week.id,
+                    start_time=start_time,
+                    end_time=end_time,
+                    created_by=admin.id,
+                    updated_by=admin.id
+                ))
 
     db.commit()
 

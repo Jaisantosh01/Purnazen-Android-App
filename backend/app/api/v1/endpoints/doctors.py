@@ -36,7 +36,16 @@ def doctor_card(doctor):
         "expertise_ids": [mapping.expertise_id for mapping in doctor.expertise_mappings],
         "languages": [mapping.language.name for mapping in doctor.language_mappings],
         "language_ids": [mapping.language_id for mapping in doctor.language_mappings],
-        "awards": [award.title for award in doctor.awards],
+        "awards": [
+            {
+                "id": award.id,
+                "title": award.title,
+                "issuer": award.issuer,
+                "year": award.year,
+                "description": award.description,
+            }
+            for award in doctor.awards
+        ],
     }
 
 

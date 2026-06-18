@@ -49,10 +49,7 @@ def create_availability(
     availability = DoctorAvailabilityService.create(
         db,
         body.doctor_id,
-        body.day_of_week,
-        body.start_time,
-        body.end_time,
-        body.slot_duration_minutes,
+        body.slot_timing_id,
         user,
     )
 
@@ -75,10 +72,7 @@ def update_availability(
     availability = DoctorAvailabilityService.update(
         db,
         availability_id,
-        body.day_of_week,
-        body.start_time,
-        body.end_time,
-        body.slot_duration_minutes,
+        body.slot_timing_id,
         user,
     )
 

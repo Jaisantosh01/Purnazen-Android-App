@@ -88,6 +88,15 @@ const HomeScreen = ({ navigation }) => {
           </View>
         </View>
 
+        {/* ── Management ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Management</Text>
+          <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('SlotManagement')}>
+            <MCIcon name="clock-outline" size={32} color={COLORS.primary} />
+            <Text style={styles.managementText}>Manage Slots</Text>
+          </TouchableOpacity>
+        </View>
+
       </ScrollView>
     </View>
   );
@@ -175,5 +184,23 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: 'center',
     fontWeight: '600',
+  },
+  managementCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
+    padding: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  managementText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
   },
 });

@@ -1,5 +1,5 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, DateTime, String, Time, func
-
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, DateTime, func
+from sqlalchemy.dialects.postgresql import UUID
 from app.db.base_class import Base
 
 
@@ -8,10 +8,7 @@ class DoctorAvailability(Base):
 
     id = Column(Integer, primary_key=True)
     doctor_id = Column(Integer, ForeignKey("doctors.id"), nullable=False)
-    day_of_week = Column(String(10))
-    start_time = Column(Time, nullable=False)
-    end_time = Column(Time, nullable=False)
-    slot_duration_minutes = Column(Integer, default=30)
+    slot_timing_id = Column(UUID(as_uuid=True), ForeignKey("slot_timings.id"), nullable=False)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, nullable=True)
     created_by = Column(Integer, nullable=True)
@@ -22,10 +19,7 @@ class DoctorAvailability(Base):
         return {
         "id": self.id,
         "doctor_id": self.doctor_id,
-        "day_of_week": self.day_of_week,
-        "start_time": self.start_time.strftime("%H:%M"),
-        "end_time": self.end_time.strftime("%H:%M"),
-        "slot_duration_minutes": self.slot_duration_minutes,
+        "slot_timing_id": str(self.slot_timing_id),
         "is_active": self.is_active,
         "created_at": (
             self.created_at.isoformat()

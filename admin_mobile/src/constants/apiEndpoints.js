@@ -71,5 +71,6 @@ export const ENDPOINTS = {
   SPECIALTIES: `${API_VERSION}/specialties`,
   USERS: `${API_VERSION}/users`,
   ROLES: `${API_VERSION}/roles`,
+  SLOT_TIMINGS: `${API_VERSION}/slot-timings`,
 
 };

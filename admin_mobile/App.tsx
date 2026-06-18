@@ -27,18 +27,22 @@ import EditUserScreen from './src/screens/EditUserScreen';
 import ManageRolesScreen from './src/screens/ManageRolesScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import AppointmentManagementScreen from './src/screens/AppointmentManagementScreen';
+import SlotManagementScreen from './src/screens/SlotManagementScreen';
 
 const RootStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 const HomeStack = createNativeStackNavigator();
 const DoctorsStack = createNativeStackNavigator();
 const UsersStack = createNativeStackNavigator();
+const AppointmentsStack = createNativeStackNavigator();
 const ProfileStack = createNativeStackNavigator();
 
 const TAB_ICONS: Record<string, { active: string; inactive: string }> = {
   Home:        { active: 'home',                    inactive: 'home-outline'                  },
   Doctors:     { active: 'doctor',                  inactive: 'doctor'                        },
   Users:       { active: 'account-group',           inactive: 'account-group-outline'         },
+  Appointments:{ active: 'calendar-clock',          inactive: 'calendar-clock-outline'        },
   Profile:     { active: 'account-circle',          inactive: 'account-circle-outline'        },
 };
 
@@ -46,6 +50,7 @@ function HomeStackNavigator() {
   return (
     <HomeStack.Navigator screenOptions={{ headerShown: false }}>
       <HomeStack.Screen name="HomeMain"       component={HomeScreen}          />
+      <HomeStack.Screen name="SlotManagement" component={SlotManagementScreen} />
     </HomeStack.Navigator>
   );
 }
@@ -79,6 +84,14 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="ProfileMain"    component={ProfileScreen}        />
       <ProfileStack.Screen name="Settings"       component={SettingsScreen}       />
     </ProfileStack.Navigator>
+  );
+}
+
+function AppointmentsStackNavigator() {
+  return (
+    <AppointmentsStack.Navigator screenOptions={{ headerShown: false }}>
+      <AppointmentsStack.Screen name="AppointmentsMain" component={AppointmentManagementScreen} />
+    </AppointmentsStack.Navigator>
   );
 }
 
@@ -116,6 +129,7 @@ function MainTabs() {
       <Tab.Screen name="Home"        component={HomeStackNavigator}    />
       <Tab.Screen name="Doctors"     component={DoctorsStackNavigator} />
       <Tab.Screen name="Users"       component={UsersStackNavigator} />
+      <Tab.Screen name="Appointments" component={AppointmentsStackNavigator} />
       <Tab.Screen name="Profile"     component={ProfileStackNavigator} />
     </Tab.Navigator>
   );

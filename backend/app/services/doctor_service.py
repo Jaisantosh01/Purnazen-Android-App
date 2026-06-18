@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
 
+from app.models.award import Award
 from app.models.doctor import Doctor
 from app.models.doctor_expertise_mapping import DoctorExpertiseMapping
 from app.models.doctor_language_mapping import DoctorLanguageMapping
@@ -125,6 +126,19 @@ class DoctorService:
             for spec_id in data["specialty_ids"]:
                 db.add(DoctorSpecialityMapping(doctor_id=doctor.id, speciality_id=spec_id, created_by=user.id))
 
+        # Update Awards
+        if "awards" in data:
+            db.query(Award).filter_by(doctor_id=doctor.id).delete()
+            for award_data in data["awards"]:
+                db.add(Award(
+                    doctor_id=doctor.id,
+                    title=award_data["title"],
+                    issuer=award_data.get("issuer"),
+                    year=award_data.get("year"),
+                    description=award_data.get("description"),
+                    created_by=user.id
+                ))
+
         doctor.updated_at = datetime.utcnow()
         doctor.updated_by = user.id
         db.commit()
@@ -162,8 +176,19 @@ class DoctorService:
         if "specialty_ids" in data:
             for spec_id in data["specialty_ids"]:
                 db.add(DoctorSpecialityMapping(doctor_id=new_doctor.id, speciality_id=spec_id, created_by=user.id))
+        
+        # Initialize Awards
+        if "awards" in data:
+            for award_data in data["awards"]:
+                db.add(Award(
+                    doctor_id=new_doctor.id,
+                    title=award_data["title"],
+                    issuer=award_data.get("issuer"),
+                    year=award_data.get("year"),
+                    description=award_data.get("description"),
+                    created_by=user.id
+                ))
 
         db.commit()
         db.refresh(new_doctor)
         return new_doctor
-
