@@ -301,6 +301,8 @@ try:
             db.flush()
         question_map[q_text] = question
 
+    video_group_key_to_title = {vg["key"]: vg["title"] for vg in VIDEO_GROUPS}
+
     for q_data in CHAT_FLOW:
         question = question_map[q_data["question"]]
         for opt_data in q_data["options"]:
@@ -308,11 +310,13 @@ try:
                 next_q_id = None
                 if opt_data.get("next_question"):
                     next_q_id = question_map[opt_data["next_question"]].id
-                
+
                 v_group_id = None
                 if opt_data.get("video_group_key"):
-                    group = db.query(VideoGroups).filter_by(key=opt_data["video_group_key"]).first()
-                    v_group_id = group.id if group else None
+                    group_title = video_group_key_to_title.get(opt_data["video_group_key"])
+                    if group_title:
+                        group = db.query(VideoGroups).filter_by(title=group_title).first()
+                        v_group_id = group.id if group else None
 
                 db.add(
                     ChatOption(
