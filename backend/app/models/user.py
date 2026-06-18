@@ -1,4 +1,5 @@
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, func
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy.orm import relationship
 
 from app.db.base_class import Base
 
@@ -11,10 +12,13 @@ class User(Base):
     avatar_url = Column(String(500))
     email = Column(String(120), unique=True, nullable=False)
     password = Column(String(255), nullable=False)
-    role = Column(String(50), default="patient")
+    role_id = Column(Integer, ForeignKey("roles.id"))
     # Bumped on password change; tokens carry it as "ver" and older ones are rejected
     token_version = Column(Integer, nullable=False, default=0, server_default="0")
+    is_active = Column(Boolean, default=True, server_default="true")
     created_at = Column(DateTime, server_default=func.now())
+
+    role = relationship("Role", foreign_keys=[role_id])
     created_by = Column(Integer, nullable=True)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     updated_by = Column(Integer, nullable=True)
@@ -26,7 +30,9 @@ class User(Base):
             "full_name": self.full_name,
             "avatar_url": self.avatar_url,
             "email": self.email,
-            "role": self.role,
+            "role_id": self.role_id,
+            "role": self.role.name if self.role else None,
+            "is_active": self.is_active,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 

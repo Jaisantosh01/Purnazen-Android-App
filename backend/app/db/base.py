@@ -24,6 +24,10 @@ from app.models.videos import Videos  # noqa: E402,F401
 from app.models.video_group_mapping import VideoGroupMapping  # noqa: E402,F401
 from app.models.chat_question import ChatQuestion  # noqa: E402,F401
 from app.models.chat_option import ChatOption  # noqa: E402,F401
+from app.models.role import Role  # noqa: E402,F401
+from app.models.doctor_expertise_mapping import DoctorExpertiseMapping  # noqa: E402,F401
+from app.models.doctor_language_mapping import DoctorLanguageMapping  # noqa: E402,F401
+from app.models.doctor_speciality_mapping import DoctorSpecialityMapping  # noqa: E402,F401
 from app.models.associations import (  # noqa: E402,F401
     doctor_consultation_types,
     doctor_expertise,

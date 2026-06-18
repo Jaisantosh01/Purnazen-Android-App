@@ -11,11 +11,10 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 
 from app.db.base_class import Base
-from app.models.associations import (
-    doctor_consultation_types,
-    doctor_expertise,
-    doctor_languages,
-)
+from app.models.associations import doctor_consultation_types
+from app.models.doctor_expertise_mapping import DoctorExpertiseMapping
+from app.models.doctor_language_mapping import DoctorLanguageMapping
+from app.models.doctor_speciality_mapping import DoctorSpecialityMapping
 
 
 class Doctor(Base):
@@ -43,31 +42,37 @@ class Doctor(Base):
     clinics = relationship("Clinic", back_populates="doctor", cascade="all, delete-orphan")
     awards = relationship("Award", backref="doctor")
     availabilities = relationship("DoctorAvailability", backref="doctor")
-    languages = relationship("Language", secondary=doctor_languages, backref="doctors")
+    
+    # New relationships using mapping tables
+    language_mappings = relationship("DoctorLanguageMapping", backref="doctor")
+    expertise_mappings = relationship("DoctorExpertiseMapping", backref="doctor")
+    speciality_mappings = relationship("DoctorSpecialityMapping", backref="doctor")
+    
+    # Relationships for convenience, using association_proxy or just accessing via mapping
+    # Assuming standard access to language/expertise through these mappings in to_dict()
+    languages = relationship("Language", secondary="doctor_language_mapping", viewonly=True)
+    expertises = relationship("Expertise", secondary="doctor_expertise_mapping", viewonly=True)
+    # specialty is already linked via specialty_id
+
     consultation_types = relationship(
         "ConsultationType", secondary=doctor_consultation_types, backref="doctors"
     )
-    expertises = relationship("Expertise", secondary=doctor_expertise, backref="doctors")
 
     def to_dict(self):
         return {
             "id": self.id,
             "user_id": self.user_id,
-            "specialty_id": self.specialty_id,
+            "name": self.user.full_name,
+            "specialty": self.specialty.name,
             "about": self.about,
             "education": self.education,
             "experience_years": self.experience_years,
             "consultation_fee": float(self.consultation_fee),
             "average_rating": float(self.average_rating),
             "reviews_count": self.reviews_count,
-            "languages": [lang.to_dict() for lang in self.languages],
-            "consultation_types": [ct.to_dict() for ct in self.consultation_types],
-            "expertises": [expertise.to_dict() for expertise in self.expertises],
+            "languages": [mapping.language.name for mapping in self.language_mappings],
+            "consultation_types": [ct.name for ct in self.consultation_types],
+            "expertise": [mapping.expertise.name for mapping in self.expertise_mappings],
             "is_available_today": self.is_available_today,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "user": self.user.to_dict(),
-            "specialty": self.specialty.to_dict(),
-            "clinics": [clinic.to_dict() for clinic in self.clinics],
-            "awards": [award.to_dict() for award in self.awards],
-            "availabilities": [a.to_dict() for a in self.availabilities],
+            "is_active": self.is_active,
         }
