@@ -14,6 +14,7 @@ class ChatQuestion(Base):
     created_at = Column(DateTime, server_default=func.now())
     updated_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    is_active = Column(Boolean, default=True)
 
     options = relationship("ChatOption", back_populates="question", foreign_keys="[ChatOption.question_id]")
     creator = relationship("User", foreign_keys=[created_by])

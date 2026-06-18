@@ -8,6 +8,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Time,
+    Boolean,
     func,
 )
 from sqlalchemy.orm import relationship
@@ -31,7 +32,11 @@ class Appointment(Base):
     payment_status = Column(
         String(20), nullable=False, default="unpaid", server_default="unpaid"
     )  # unpaid | paid
+    is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
+    created_by = Column(Integer, nullable=True)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    updated_by = Column(Integer, nullable=True)
 
     user = relationship("User", backref="appointments")
     doctor = relationship("Doctor", backref="appointments")

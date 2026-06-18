@@ -4,6 +4,7 @@ from app.api.v1.endpoints import (
     appointments,
     auth,
     consent,
+    chat,
     doctors,
     error_report,
     face_glow,
@@ -13,6 +14,9 @@ from app.api.v1.endpoints import (
     sessions,
     therapy_history,
     users,
+    videos,
+    dashboard,
+    roles,
 )
 from app.api.v1.endpoints import doctor_availability
 from app.api.v1.endpoints import languages
@@ -34,6 +38,10 @@ api_router.include_router(sessions.router)
 api_router.include_router(payments.router)
 api_router.include_router(users.router)
 api_router.include_router(face_glow.router)
+api_router.include_router(chat.router)
+api_router.include_router(videos.router)
+api_router.include_router(dashboard.router)
+api_router.include_router(roles.router)
 api_router.include_router(face_scan.router)
 api_router.include_router(consent.router)
 api_router.include_router(error_report.router)

@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 
 from app.models.user import User
+from app.models.role import Role
 
 
 class UserRepository:
@@ -15,10 +16,14 @@ class UserRepository:
 
     @staticmethod
     def create_user(db: Session, data: dict):
+        # Find default patient role
+        patient_role = db.query(Role).filter_by(name="patient").first()
+        
         user = User(
             full_name=data["full_name"],
             email=data["email"],
             password=data["password"],
+            role_id=patient_role.id if patient_role else None
         )
         db.add(user)
         db.commit()

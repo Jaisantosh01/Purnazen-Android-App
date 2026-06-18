@@ -137,10 +137,12 @@ def test_admin_dashboard_denied_for_patient(client):
 
 def test_admin_dashboard_allowed_for_admin(client, db_session):
     from app.models.user import User
+    from app.models.role import Role
 
     register(client)
     user = db_session.query(User).filter_by(email="test@example.com").first()
-    user.role = "admin"
+    admin_role = db_session.query(Role).filter_by(name="admin").first()
+    user.role_id = admin_role.id
     db_session.commit()
 
     tokens = login(client).json()["data"]

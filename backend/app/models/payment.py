@@ -1,4 +1,5 @@
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
     ForeignKey,
@@ -27,6 +28,9 @@ class Payment(Base):
     status = Column(String(20), nullable=False, default="created")  # created | paid | failed
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_by = Column(Integer, nullable=True)
+    updated_by = Column(Integer, nullable=True)
+    is_active = Column(Boolean, default=True)
 
     user = relationship("User", backref="payments")
     appointment = relationship("Appointment", backref="payments")

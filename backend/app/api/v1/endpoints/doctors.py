@@ -4,9 +4,10 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db
+from app.api.deps import get_db, get_current_user, require_role
 from app.services.doctor_service import DoctorService
 from app.utils.responses import error_response, success_response
+from app.models.user import User
 
 router = APIRouter(tags=["Doctors"])
 
@@ -16,7 +17,8 @@ def doctor_card(doctor):
     return {
         "id": str(doctor.id),
         "name": f"Dr. {doctor.user.full_name}",
-        "specialty": doctor.specialty.name,
+        "specialties": [mapping.specialty.name for mapping in doctor.speciality_mappings],
+        "specialty_ids": [mapping.speciality_id for mapping in doctor.speciality_mappings],
         "avatar": doctor.user.avatar_url or "👨‍⚕️",
         "rating": float(doctor.average_rating),
         "reviews": doctor.reviews_count,
@@ -30,8 +32,10 @@ def doctor_card(doctor):
         "availableToday": doctor.is_available_today,
         "about": doctor.about,
         "education": doctor.education,
-        "expertise": [expertise.name for expertise in doctor.expertises],
-        "languages": [language.name for language in doctor.languages],
+        "expertise": [mapping.expertise.name for mapping in doctor.expertise_mappings],
+        "expertise_ids": [mapping.expertise_id for mapping in doctor.expertise_mappings],
+        "languages": [mapping.language.name for mapping in doctor.language_mappings],
+        "language_ids": [mapping.language_id for mapping in doctor.language_mappings],
         "awards": [award.title for award in doctor.awards],
     }
 
@@ -150,6 +154,39 @@ def get_visit_types(doctor_id: int, db: Session = Depends(get_db)):
         "Visit types fetched successfully",
         {"visitTypes": DoctorService.get_visit_types(doctor)},
     )
+
+
+@router.post(
+    "/doctors",
+    summary="Create a new doctor",
+    dependencies=[Depends(require_role("admin"))],
+)
+def create_doctor(
+    data: dict, 
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    new_doctor = DoctorService.create(db, data, user)
+    if not new_doctor:
+        return error_response("Failed to create doctor", 400)
+    return success_response("Doctor created successfully", doctor_card(new_doctor))
+
+
+@router.put(
+    "/doctors/{doctor_id}",
+    summary="Update doctor details",
+    dependencies=[Depends(require_role("admin"))],
+)
+def update_doctor(
+    doctor_id: int, 
+    data: dict, 
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    updated_doctor = DoctorService.update(db, doctor_id, data, user)
+    if not updated_doctor:
+        return error_response("Doctor not found", 404)
+    return success_response("Doctor updated successfully", doctor_card(updated_doctor))
 
 
 @router.get(

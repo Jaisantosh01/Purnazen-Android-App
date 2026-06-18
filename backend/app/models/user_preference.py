@@ -17,6 +17,9 @@ class UserPreference(Base):
     notifications = Column(JSON, nullable=False, default=dict)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_by = Column(Integer, nullable=True)
+    updated_by = Column(Integer, nullable=True)
+    is_active = Column(Boolean, default=True)
 
     user = relationship("User", backref="preferences")
 

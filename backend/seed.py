@@ -15,6 +15,7 @@ from app.db.base import (
     Expertise,
     Language,
     ReliefSession,
+    Role,
     Specialty,
     User,
     WellnessSession,
@@ -34,6 +35,28 @@ db = SessionLocal()
 
 try:
     # ------------------------
+    # Roles
+    # ------------------------
+    roles_data = [
+        {"name": "admin", "icon": "shield-account"},
+        {"name": "doctor", "icon": "doctor"},
+        {"name": "patient", "icon": "account-heart"},
+    ]
+    for role in roles_data:
+        existing_role = db.query(Role).filter_by(name=role["name"]).first()
+        if not existing_role:
+            db.add(Role(name=role["name"], icon=role["icon"]))
+        elif not existing_role.icon:
+            # Update existing role if icon is missing
+            existing_role.icon = role["icon"]
+            
+    db.commit()
+
+    admin_role = db.query(Role).filter_by(name="admin").first()
+    doctor_role = db.query(Role).filter_by(name="doctor").first()
+    patient_role = db.query(Role).filter_by(name="patient").first()
+
+    # ------------------------
     # Admin & Doctor users
     # ------------------------
     if not db.query(User).filter_by(email="admin@example.com").first():
@@ -42,7 +65,7 @@ try:
                 full_name="Admin User",
                 email="admin@example.com",
                 password=hash_password("admin123"),
-                role="admin",
+                role_id=admin_role.id,
             )
         )
     
@@ -59,7 +82,7 @@ try:
                     full_name=full_name,
                     email=email,
                     password=hash_password("123456"),
-                    role="doctor",
+                    role_id=doctor_role.id,
                 )
             )
 
@@ -207,7 +230,7 @@ try:
                             start_time=start,
                             end_time=end,
                             slot_duration_minutes=30,
-                            is_available=True,
+                            is_active=True,
                         )
                     )
 

@@ -4,6 +4,7 @@ from app.core.security import hash_password
 from app.models.consultation_type import ConsultationType
 from app.models.doctor import Doctor
 from app.models.doctor_availability import DoctorAvailability
+from app.models.role import Role
 from app.models.specialty import Specialty
 from app.models.user import User
 
@@ -17,11 +18,12 @@ def seed_doctor(
     types=("Video Call",),
     rating=4.9,
 ):
+    doctor_role = db.query(Role).filter_by(name="doctor").first()
     user = User(
         full_name=name,
         email=email,
         password=hash_password("123456"),
-        role="doctor",
+        role_id=doctor_role.id if doctor_role else None,
     )
     specialty = db.query(Specialty).filter_by(name="Acupressure Specialist").first()
     if not specialty:
@@ -74,7 +76,7 @@ def add_availability(
             start_time=start,
             end_time=end,
             slot_duration_minutes=duration,
-            is_available=True,
+            is_active=True,
         )
     )
     db.commit()
