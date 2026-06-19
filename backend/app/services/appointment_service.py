@@ -47,8 +47,9 @@ class AppointmentService:
             visit_type=data.visit_type,
             date=data.date,
             slot_timing_id=data.slot_timing_id,
-            fee=data.fee if data.fee is not None else doctor.consultation_fee,
-            status="booked",
+            fee=data.fee if data.fee is not None else float(doctor.consultation_fee),
+            status="pending",
+            payment_status="pending",
             created_by=user.id
         )
 
@@ -90,7 +91,7 @@ class AppointmentService:
         for appointment in appointments:
             item = appointment.to_dict()
             item["isUpcoming"] = (
-                appointment.status == "booked" and appointment.date >= today
+                appointment.status == "pending" and appointment.date >= today
             )
             serialized.append(item)
 

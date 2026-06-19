@@ -29,10 +29,10 @@ class Appointment(Base):
     date = Column(Date, nullable=False)
     slot_timing_id = Column(UUID(as_uuid=True), ForeignKey("slot_timings.id"), nullable=False)
     fee = Column(Numeric(10, 2))
-    status = Column(String(20), nullable=False, default="booked")  # booked | cancelled | completed
+    status = Column(String(20), nullable=False, default="pending")  # pending | booked | cancelled | completed
     payment_status = Column(
-        String(20), nullable=False, default="unpaid", server_default="unpaid"
-    )  # unpaid | paid
+        String(20), nullable=False, default="pending", server_default="pending"
+    )  # pending | unpaid | paid
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)

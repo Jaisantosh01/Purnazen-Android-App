@@ -27,7 +27,8 @@ from app.db.base import (
     QuickRelief,
     Award,
     DayOfWeek,
-    SlotTimings
+    SlotTimings,
+    DoctorConsultationType
 )
 from app.db.session import SessionLocal, engine
 from seed_data import RELIEF_SESSIONS, VIDEO_GROUPS, VIDEOS, CHAT_FLOW, QUICK_RELIEFS, AWARDS, DAYS_OF_WEEK, SLOT_TIMINGS, WELLNESS_SESSIONS_DATA
@@ -205,13 +206,25 @@ try:
         doctor = db.query(Doctor).filter_by(user_id=owner.id).first() if owner else None
         if not doctor:
             continue
-        existing = {ct.name for ct in doctor.consultation_types}
+        import random
         for type_name in type_names:
-            if type_name not in existing:
-                consultation_type = (
-                    db.query(ConsultationType).filter_by(name=type_name).first()
-                )
-                doctor.consultation_types.append(consultation_type)
+            consultation_type = (
+                db.query(ConsultationType).filter_by(name=type_name).first()
+            )
+            if not consultation_type:
+                continue
+            existing = db.query(DoctorConsultationType).filter_by(
+                doctor_id=doctor.id, consultation_type_id=consultation_type.id
+            ).first()
+            if existing:
+                if existing.price is None:
+                    existing.price = random.choice([500, 800, 1000, 1200, 1500])
+            else:
+                db.add(DoctorConsultationType(
+                    doctor_id=doctor.id,
+                    consultation_type_id=consultation_type.id,
+                    price=random.choice([500, 800, 1000, 1200, 1500]),
+                ))
 
     db.commit()
 

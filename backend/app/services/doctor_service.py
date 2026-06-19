@@ -1,5 +1,4 @@
 from datetime import date as date_type
-from datetime import datetime, timedelta
 
 import uuid
 
@@ -58,43 +57,61 @@ class DoctorService:
     def get_visit_types(doctor: Doctor) -> list[dict]:
         fee = float(doctor.consultation_fee)
         visit_types = []
-        for consultation_type in doctor.consultation_types:
+        for link in doctor.consultation_type_links:
+            ct_name = link.consultation_type.name
             meta = VISIT_TYPE_PRESENTATION.get(
-                consultation_type.name,
+                ct_name,
                 {
-                    "id": consultation_type.name.lower().replace(" ", "-"),
-                    "title": consultation_type.name,
+                    "id": ct_name.lower().replace(" ", "-"),
+                    "title": ct_name,
                     "subtitle": "",
                     "icon": "🩺",
                 },
             )
             visit_types.append(
-                {**meta, "fee": fee, "consultationTypeId": consultation_type.id}
+                {**meta, "fee": float(link.price) if link.price else fee, "consultationTypeId": link.consultation_type.id}
             )
         return visit_types
 
     @staticmethod
-    def get_time_slots(db: Session, doctor: Doctor, on_date: date_type) -> list[str]:
-        """Generate bookable slots from the weekly availability, minus booked ones."""
-        day_name = on_date.strftime("%A").lower()
-        booked = AppointmentRepository.get_booked_slot_starts(db, doctor.id, on_date)
+    def get_time_slots(db: Session, doctor: Doctor, on_date: date_type) -> list[dict]:
+        """Return bookable slot blocks for the doctor on a given date.
+
+        Reads the doctor's ``availabilities`` (doctor_availability table), joins
+        through ``SlotTimings`` → ``DayOfWeek`` to match the weekday,
+        and excludes slot_timing_ids that are already booked.
+        """
+        day_name = on_date.strftime("%A")
+        booked_ids = AppointmentRepository.get_booked_slot_ids(db, doctor.id, on_date)
+
+        from app.models.doctor_availability import DoctorAvailability
+        from app.models.slot_timings import SlotTimings
+        from app.models.day_of_week import DayOfWeek
+
+        rows = (
+            db.query(DoctorAvailability, SlotTimings)
+            .join(SlotTimings, DoctorAvailability.slot_timing_id == SlotTimings.id)
+            .join(DayOfWeek, SlotTimings.day_of_week_id == DayOfWeek.id)
+            .filter(
+                DoctorAvailability.doctor_id == doctor.id,
+                DoctorAvailability.is_active == True,
+                DayOfWeek.day == day_name,
+            )
+            .order_by(SlotTimings.start_time)
+            .all()
+        )
 
         slots = []
-        for availability in doctor.availabilities:
-            if not availability.is_available:
+        for av, st in rows:
+            if st.id in booked_ids:
                 continue
-            if (availability.day_of_week or "").lower() != day_name:
-                continue
+            slots.append({
+                "id": str(st.id),
+                "time": st.start_time.strftime("%I:%M %p"),
+                "end_time": st.end_time.strftime("%I:%M %p"),
+            })
 
-            step = timedelta(minutes=availability.slot_duration_minutes or 30)
-            current = datetime.combine(on_date, availability.start_time)
-            end = datetime.combine(on_date, availability.end_time)
-            while current + step <= end:
-                if current.time() not in booked:
-                    slots.append(current.time())
-                current += step
-
-        return [slot.strftime("%I:%M %p") for slot in sorted(set(slots))]
+        return slots
 
     @staticmethod
     def update(db: Session, doctor_id: uuid.UUID, data: dict, user):

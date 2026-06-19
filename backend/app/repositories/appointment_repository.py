@@ -31,20 +31,34 @@ class AppointmentRepository:
 
     @staticmethod
     def slot_taken(
-        db: Session, doctor_id: uuid.UUID, date: date_type, slot_start: time_type
+        db: Session, doctor_id: uuid.UUID, date: date_type, slot_timing_id: uuid.UUID
     ) -> bool:
         return (
             db.query(Appointment)
-            .join(SlotTimings)
             .filter(
                 Appointment.doctor_id == doctor_id,
                 Appointment.date == date,
-                SlotTimings.start_time == slot_start,
-                Appointment.status != "cancelled",
+                Appointment.slot_timing_id == slot_timing_id,
+                Appointment.status.in_(["booked", "pending"]),
             )
             .first()
             is not None
         )
+
+    @staticmethod
+    def get_booked_slot_ids(
+        db: Session, doctor_id: uuid.UUID, date: date_type
+    ) -> set[uuid.UUID]:
+        rows = (
+            db.query(Appointment.slot_timing_id)
+            .filter(
+                Appointment.doctor_id == doctor_id,
+                Appointment.date == date,
+                Appointment.status != "cancelled",
+            )
+            .all()
+        )
+        return {row[0] for row in rows}
 
     @staticmethod
     def get_booked_slot_starts(

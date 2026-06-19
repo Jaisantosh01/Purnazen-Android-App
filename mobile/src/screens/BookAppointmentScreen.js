@@ -11,17 +11,9 @@ import {
 import consultService from '../services/consultService';
 import { COLORS } from '../constants/theme';
 
-const DEFAULT_VISIT_TYPES = [
-  { id: 'video', title: 'Video Consultation', subtitle: 'Consult from anywhere',    icon: '📹', fee: 1200 },
-  { id: 'home',  title: 'Home Visit',         subtitle: 'Doctor visits your home',  icon: '🏠', fee: 2000 },
-];
+const DEFAULT_VISIT_TYPES = [];
 
-const DEFAULT_TIME_SLOTS = [
-  '09:00 AM', '09:30 AM', '10:00 AM',
-  '10:30 AM', '11:00 AM', '11:30 AM',
-  '02:00 PM', '02:30 PM', '03:00 PM',
-  '03:30 PM', '04:00 PM', '04:30 PM',
-];
+const DEFAULT_TIME_SLOTS = [];
 
 const DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const MONTHS = [
@@ -65,7 +57,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
     const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(selectedDate).padStart(2, '0')}`;
     consultService.getTimeSlots(doctor.id, dateStr)
       .then(data => { if (Array.isArray(data)) setTimeSlots(data); })
-      .catch(() => {});
+      .catch(() => setTimeSlots([]));
   }, [doctor.id, selectedDate, currentMonth, currentYear]);
 
   const getDaysInMonth = (month, year) => new Date(year, month + 1, 0).getDate();
@@ -107,16 +99,16 @@ const BookAppointmentScreen = ({ navigation, route }) => {
     const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(selectedDate).padStart(2, '0')}`;
     try {
       const booking = await consultService.bookAppointment({
-        doctorId:  doctor.id,
-        visitType: selectedVisit,
-        date:      dateStr,
-        time:      selectedTime,
-        fee:       selectedVisitData?.fee,
+        doctorId:     doctor.id,
+        visitType:    selectedVisit,
+        date:         dateStr,
+        slotTimingId: selectedTime.id,
+        fee:          selectedVisitData?.fee,
       });
       navigation.navigate('BookingConfirmed', {
         doctor,
         date: getSelectedDateString(),
-        time: selectedTime,
+        time: selectedTime.time,
         visitType: selectedVisitData?.title,
         fee: selectedVisitData?.fee,
         bookingRef: booking?.reference,
@@ -256,15 +248,15 @@ const BookAppointmentScreen = ({ navigation, route }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Select Time</Text>
           <View style={styles.timeGrid}>
-            {timeSlots.map((slot, index) => (
+            {timeSlots.map(slot => (
               <TouchableOpacity
-                key={index}
-                style={[styles.timeSlot, selectedTime === slot && styles.timeSlotActive]}
+                key={slot.id}
+                style={[styles.timeSlot, selectedTime?.id === slot.id && styles.timeSlotActive]}
                 onPress={() => setSelectedTime(slot)}
                 activeOpacity={0.8}
               >
-                <Text style={[styles.timeSlotText, selectedTime === slot && styles.timeSlotTextActive]}>
-                  {slot}
+                <Text style={[styles.timeSlotText, selectedTime?.id === slot.id && styles.timeSlotTextActive]}>
+                  {slot.time} - {slot.end_time}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -300,7 +292,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
           {selectedTime && (
             <View style={styles.summaryItem}>
               <Text style={styles.summaryIcon}>🕐</Text>
-              <Text style={styles.summaryText}>{selectedTime}</Text>
+              <Text style={styles.summaryText}>{selectedTime.time}</Text>
             </View>
           )}
         </View>
@@ -383,7 +375,7 @@ const styles = StyleSheet.create({
 
   timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   timeSlot: {
-    width: '30%', paddingVertical: 10, borderRadius: 10,
+    width: '47%', paddingVertical: 12, borderRadius: 10,
     borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.white, alignItems: 'center',
   },
   timeSlotActive:     { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
