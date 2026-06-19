@@ -1,5 +1,7 @@
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import relationship
+from sqlalchemy.dialects.postgresql import UUID
+import uuid
 
 from app.db.base_class import Base
 
@@ -7,12 +9,12 @@ from app.db.base_class import Base
 class QuickRelief(Base):
     __tablename__ = "quick_reliefs"
 
-    id = Column(Integer, primary_key=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
     name = Column(String(100), nullable=False)
     slug = Column(String(100), nullable=False, unique=True)
     title = Column(String(150), nullable=False)
     subtitle = Column(String(255))
-    chat_question_id = Column(Integer, ForeignKey("chat_questions.id"), nullable=True)
+    chat_question_id = Column(UUID(as_uuid=True), ForeignKey("chat_questions.id"), nullable=True)
     icon_name = Column(String(100))
     icon_url = Column(String(500))
     background_color = Column(String(20))
@@ -22,8 +24,8 @@ class QuickRelief(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-    created_by = Column(Integer, nullable=True)
-    updated_by = Column(Integer, nullable=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    updated_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
 
     chat_question = relationship("ChatQuestion")
 
