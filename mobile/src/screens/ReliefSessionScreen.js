@@ -44,7 +44,8 @@ const ReliefPlayer = ({ session, navigation, reliefId }) => {
       setIsPlaying(false);
       clearInterval(timerRef.current);
       // Sync completed on end
-      syncVideoProgress(reliefId, session.id || reliefId, 'Completed', session.duration / 60, 'quick_relief');
+      const totalSec = parseInt(session.duration) * 60 || 300;
+      syncVideoProgress(reliefId, session.id || reliefId, 'Completed', totalSec / 60, 'quick_relief');
     }
   }, [currentStep, totalSteps, steps, currentCycle, session, progressAnim, reliefId]);
 
@@ -74,11 +75,11 @@ const ReliefPlayer = ({ session, navigation, reliefId }) => {
   
   const onVideoProgress = (data) => {
     const watchedTime = data.currentTime;
-    const duration = session.duration; // Total duration of video in seconds
+    const totalSec = parseInt(session.duration) * 60 || 300;
 
     // Send completed if > 90%
-    if (watchedTime / duration > 0.9 && videoProgressRef.current.watchedTime / duration <= 0.9) {
-      syncVideoProgress(reliefId, session.id || reliefId, 'Completed', duration / 60, 'quick_relief');
+    if (watchedTime / totalSec > 0.9 && videoProgressRef.current.watchedTime / totalSec <= 0.9) {
+      syncVideoProgress(reliefId, session.id || reliefId, 'Completed', totalSec / 60, 'quick_relief');
     }
     videoProgressRef.current.watchedTime = watchedTime;
   };
@@ -244,7 +245,7 @@ const ReliefSessionScreen = ({ navigation, route }) => {
   return (
     <>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
-      <ReliefPlayer session={session} navigation={navigation} />
+      <ReliefPlayer session={session} navigation={navigation} reliefId={reliefKey} />
     </>
   );
 };
