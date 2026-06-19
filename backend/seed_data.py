@@ -89,7 +89,7 @@ VIDEOS = [
         "description": "5-minute routine for tension headaches.",
         "duration": 300,
         "icon": "brain",
-        "video_url": "Ankle_Pain/AnklePain.mp4",
+        "video_url": "Ankle_Pain/Ankle Pain.mp4",
         "sort_order": 1,
     },
     {
@@ -98,7 +98,7 @@ VIDEOS = [
         "description": "Start your day with gentle movement.",
         "duration": 1200,
         "icon": "lightning-bolt",
-        "video_url": "Ankle_Pain/AnklePain.mp4",
+        "video_url": "Ankle_Pain/Ankle Pain.mp4",
         "sort_order": 1,
     }
 ]

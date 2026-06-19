@@ -29,6 +29,7 @@ class ReliefSession(Base):
     def to_dict(self):
         # Shape consumed by ReliefSessionScreen (matches the old mock objects)
         return {
+            "id": str(self.id),
             "key": self.key,
             "title": self.title,
             "duration": self.duration,
@@ -36,4 +37,5 @@ class ReliefSession(Base):
             "videoUrl": self.video_url,
             "totalCycles": self.total_cycles,
             "steps": self.steps or [],
+
         }

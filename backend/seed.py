@@ -297,7 +297,11 @@ try:
     # Videos & Mappings
     # ------------------------
     for video_data in VIDEOS:
-        if not db.query(Videos).filter_by(title=video_data["title"]).first():
+        video = db.query(Videos).filter_by(title=video_data["title"]).first()
+        if video:
+            video.video_url = video_data["video_url"]
+            video.updated_by = admin.id
+        else:
             video = Videos(
                 title=video_data["title"],
                 description=video_data["description"],
