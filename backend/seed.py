@@ -311,7 +311,7 @@ try:
                 
                 v_group_id = None
                 if opt_data.get("video_group_key"):
-                    group = db.query(VideoGroups).filter_by(key=opt_data["video_group_key"]).first()
+                    group = db.query(VideoGroups).filter_by(title=opt_data["video_group_key"]).first()
                     v_group_id = group.id if group else None
 
                 db.add(
