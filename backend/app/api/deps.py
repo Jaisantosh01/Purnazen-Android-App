@@ -42,8 +42,8 @@ def _get_token_payload(
 
     # Tokens minted before a password change (or for a deleted account) carry a
     # stale "ver" claim and are rejected — see User.token_version.
-    subject = str(payload.get("sub", ""))
-    user = db.get(User, int(subject)) if subject.isdigit() else None
+    subject = payload.get("sub")
+    user = db.get(User, subject)
     if user is None or payload.get("ver", 0) != (user.token_version or 0):
         raise HTTPException(status_code=401, detail="Token has been revoked")
 
@@ -68,7 +68,7 @@ def get_current_user(
     payload: dict = Depends(get_access_payload),
     db: Session = Depends(get_db),
 ) -> User:
-    user = db.get(User, int(payload["sub"]))
+    user = db.get(User, payload["sub"])
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user
