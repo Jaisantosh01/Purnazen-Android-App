@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -64,7 +66,7 @@ def create_availability(
     summary="Update doctor availability",
 )
 def update_availability(
-    availability_id: int,
+    availability_id: uuid.UUID,
     body: DoctorAvailabilityUpdate,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -93,7 +95,7 @@ def update_availability(
     summary="Delete doctor availability",
 )
 def delete_availability(
-    availability_id: int,
+    availability_id: uuid.UUID,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):

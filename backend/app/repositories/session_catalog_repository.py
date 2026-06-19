@@ -1,3 +1,5 @@
+import uuid
+
 from sqlalchemy.orm import Session
 
 from app.models.relief_session import ReliefSession
@@ -16,7 +18,7 @@ class WellnessSessionRepository:
         )
 
     @staticmethod
-    def get_by_id(db: Session, session_id: int) -> WellnessSession | None:
+    def get_by_id(db: Session, session_id: uuid.UUID) -> WellnessSession | None:
         return (
             db.query(WellnessSession)
             .filter(WellnessSession.id == session_id, WellnessSession.is_active.is_(True))

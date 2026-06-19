@@ -1,6 +1,8 @@
 from datetime import date as date_type
 from datetime import datetime, timedelta
 
+import uuid
+
 from sqlalchemy.orm import Session
 
 from app.models.award import Award
@@ -49,7 +51,7 @@ class DoctorService:
         return DoctorRepository.get_doctors(db, page, limit, search, filter_key)
 
     @staticmethod
-    def get_doctor_by_id(db: Session, doctor_id: int) -> Doctor | None:
+    def get_doctor_by_id(db: Session, doctor_id: uuid.UUID) -> Doctor | None:
         return DoctorRepository.get_by_id(db, doctor_id)
 
     @staticmethod
@@ -95,7 +97,7 @@ class DoctorService:
         return [slot.strftime("%I:%M %p") for slot in sorted(set(slots))]
 
     @staticmethod
-    def update(db: Session, doctor_id: int, data: dict, user):
+    def update(db: Session, doctor_id: uuid.UUID, data: dict, user):
         doctor = db.get(Doctor, doctor_id)
         if not doctor:
             return None

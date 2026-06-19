@@ -1,3 +1,5 @@
+import uuid
+
 from sqlalchemy.orm import Session
 
 from app.models.quick_relief import QuickRelief
@@ -28,7 +30,7 @@ class QuickReliefService:
         return QuickReliefRepository.create(db, relief)
 
     @staticmethod
-    def update(db: Session, relief_id: int, body: QuickReliefUpdate, user: User) -> QuickRelief | None:
+    def update(db: Session, relief_id: uuid.UUID, body: QuickReliefUpdate, user: User) -> QuickRelief | None:
         relief = QuickReliefRepository.get_by_id(db, relief_id)
         if not relief:
             return None
@@ -41,7 +43,7 @@ class QuickReliefService:
         return QuickReliefRepository.save(db, relief)
 
     @staticmethod
-    def delete(db: Session, relief_id: int, user: User) -> QuickRelief | None:
+    def delete(db: Session, relief_id: uuid.UUID, user: User) -> QuickRelief | None:
         relief = QuickReliefRepository.get_by_id(db, relief_id)
         if not relief:
             return None

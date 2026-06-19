@@ -1,3 +1,5 @@
+import uuid
+
 from sqlalchemy.orm import Session
 
 from app.models.user import User
@@ -19,12 +21,12 @@ class VideoService:
         return [g.to_dict() for g in groups]
 
     @staticmethod
-    def get_group(db: Session, group_id: int):
+    def get_group(db: Session, group_id: uuid.UUID):
         group = VideoGroupRepository.get_by_id(db, group_id)
         return group.to_dict() if group else None
 
     @staticmethod
-    def upsert_group(db: Session, user: User, data: VideoGroupCreate | VideoGroupUpdate, group_id: int = None):
+    def upsert_group(db: Session, user: User, data: VideoGroupCreate | VideoGroupUpdate, group_id: uuid.UUID = None):
         if group_id:
             group = VideoGroupRepository.get_by_id(db, group_id)
             if not group:
@@ -47,7 +49,7 @@ class VideoService:
             return {"success": True, "message": "Video group created", "group": group.to_dict()}, 201
 
     @staticmethod
-    def delete_group(db: Session, group_id: int):
+    def delete_group(db: Session, group_id: uuid.UUID):
         group = VideoGroupRepository.get_by_id(db, group_id)
         if not group:
             return {"success": False, "message": "Video group not found"}, 404
@@ -60,7 +62,7 @@ class VideoService:
         return {"success": True, "message": "Video group deleted (deactivated)"}, 200
 
     @staticmethod
-    def get_videos(db: Session, group_id: int = None, active_only: bool = True):
+    def get_videos(db: Session, group_id: uuid.UUID = None, active_only: bool = True):
         if group_id:
             videos = VideoRepository.get_by_group(db, group_id, active_only)
         else:
@@ -68,12 +70,12 @@ class VideoService:
         return [VideoService._process_video_data(v.to_dict()) for v in videos]
 
     @staticmethod
-    def get_video(db: Session, video_id: int):
+    def get_video(db: Session, video_id: uuid.UUID):
         video = VideoRepository.get_by_id(db, video_id)
         return VideoService._process_video_data(video.to_dict()) if video else None
 
     @staticmethod
-    def get_group_with_videos(db: Session, group_id: int, active_only: bool = True):
+    def get_group_with_videos(db: Session, group_id: uuid.UUID, active_only: bool = True):
         group = VideoGroupRepository.get_by_id(db, group_id)
         if not group:
             return None
@@ -84,7 +86,7 @@ class VideoService:
         return data
 
     @staticmethod
-    def upsert_video(db: Session, user: User, data: VideoCreate | VideoUpdate, video_id: int = None):
+    def upsert_video(db: Session, user: User, data: VideoCreate | VideoUpdate, video_id: uuid.UUID = None):
         if video_id:
             video = VideoRepository.get_by_id(db, video_id)
             if not video:
@@ -123,7 +125,7 @@ class VideoService:
             return {"success": True, "message": "Video created and mapped to group", "video": VideoService._process_video_data(video.to_dict())}, 201
 
     @staticmethod
-    def delete_video(db: Session, video_id: int):
+    def delete_video(db: Session, video_id: uuid.UUID):
         video = VideoRepository.get_by_id(db, video_id)
         if not video:
             return {"success": False, "message": "Video not found"}, 404
@@ -136,7 +138,7 @@ class VideoService:
         return {"success": True, "message": "Video deleted (deactivated)"}, 200
 
     @staticmethod
-    def add_videos_to_group(db: Session, group_id: int, video_ids: list[int], user: User):
+    def add_videos_to_group(db: Session, group_id: uuid.UUID, video_ids: list[uuid.UUID], user: User):
         group = VideoGroupRepository.get_by_id(db, group_id)
         if not group:
             return {"success": False, "message": "Video group not found"}, 404

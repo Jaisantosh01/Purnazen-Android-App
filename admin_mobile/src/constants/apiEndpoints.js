@@ -34,6 +34,7 @@ export const ENDPOINTS = {
   TIME_SLOTS: (id) => `${API_VERSION}/doctors/${id}/time-slots`,
 
   // Booking & Payment
+  APPOINTMENTS: `${API_VERSION}/appointments`,
   BOOK_APPOINTMENT: `${API_VERSION}/appointments/book`,
   PAYMENT: `${API_VERSION}/payments/process`,
   PAYMENT_VERIFY: `${API_VERSION}/payments/verify`,

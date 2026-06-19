@@ -1,3 +1,4 @@
+import uuid
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -8,8 +9,8 @@ SessionType = Literal[
 
 
 class SaveTherapySessionRequest(BaseModel):
-    group_id: int = Field(alias="groupId")
-    video_id: int = Field(alias="videoId")
+    group_id: uuid.UUID = Field(alias="groupId")
+    video_id: uuid.UUID = Field(alias="videoId")
     type: SessionType
     duration_minutes: int = Field(alias="durationMinutes")
     status: str = Field(default="Completed", max_length=20)

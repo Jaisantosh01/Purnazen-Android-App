@@ -10,15 +10,14 @@ Keys match the sessionKey/reliefKey values the screens navigate with.
 
 _RELIEF_VIDEO = "https://res.cloudinary.com/dcngh7dkt/video/upload/Wrist_Pain_n2i3wq.mp4"
 
-    # Updated Wellness seeding (no key/steps, now group-based)
 WELLNESS_SESSIONS_DATA = [
-        {"title": "Morning Yoga", "duration": "20 min", "icon": "heart-pulse", "sort_order": 0, "video_group_id":1},
-        {"title": "Mindful Meditation", "duration": "15 min", "icon": "brain", "sort_order": 1, "video_group_id":2},
-        {"title": "Box Breathing", "duration": "10 min", "icon": "heart", "sort_order": 2, "video_group_id":1},
-        {"title": "Morning Routine", "duration": "10 min", "icon": "flower", "sort_order": 3, "video_group_id":2},
-        {"title": "Evening Wind Down", "duration": "15 min", "icon": "medical-bag", "sort_order": 4, "video_group_id":1},
-        {"title": "Full Body stretch", "duration": "10 min", "icon": "brain", "sort_order": 5, "video_group_id":2},
-    ]
+    {"title": "Morning Yoga", "duration": "20 min", "icon": "heart-pulse", "sort_order": 0, "video_group_title": "Quick Relief"},
+    {"title": "Mindful Meditation", "duration": "15 min", "icon": "brain", "sort_order": 1, "video_group_title": "Wellness & Prevention"},
+    {"title": "Box Breathing", "duration": "10 min", "icon": "heart", "sort_order": 2, "video_group_title": "Quick Relief"},
+    {"title": "Morning Routine", "duration": "10 min", "icon": "flower", "sort_order": 3, "video_group_title": "Wellness & Prevention"},
+    {"title": "Evening Wind Down", "duration": "15 min", "icon": "medical-bag", "sort_order": 4, "video_group_title": "Quick Relief"},
+    {"title": "Full Body stretch", "duration": "10 min", "icon": "brain", "sort_order": 5, "video_group_title": "Wellness & Prevention"},
+]
 
 # WELLNESS_SESSIONS = {
 #     "YogaSession": {

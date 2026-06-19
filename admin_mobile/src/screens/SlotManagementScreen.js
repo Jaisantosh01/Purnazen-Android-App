@@ -189,8 +189,9 @@ const SlotManagementScreen = ({ navigation }) => {
                     ))}
                 </ScrollView>
 
-                <Text style={styles.label}>Time (24h)</Text>
+                <Text style={styles.label}>Start Time (24h)</Text>
                 <TimeSelector value={start} onChange={setStart} />
+                <Text style={[styles.label, {marginTop: 8}]}>End Time (24h)</Text>
                 <TimeSelector value={end} onChange={setEnd} />
                 
                 <View style={styles.modalActions}>

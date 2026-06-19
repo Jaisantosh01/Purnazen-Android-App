@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, Time, Boolean, ForeignKey, DateTime, func, Integer
+from sqlalchemy import Column, Time, Boolean, ForeignKey, DateTime, func
 from sqlalchemy.dialects.postgresql import UUID
 from app.db.base_class import Base
 
@@ -12,9 +12,9 @@ class SlotTimings(Base):
     end_time = Column(Time, nullable=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
-    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-    updated_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    updated_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
 
     def to_dict(self):
         return {

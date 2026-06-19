@@ -1,4 +1,7 @@
 from datetime import datetime
+
+import uuid
+
 from uuid import UUID
 
 from app.models.doctor_availability import DoctorAvailability
@@ -17,7 +20,7 @@ class DoctorAvailabilityService:
     @staticmethod
     def create(
         db,
-        doctor_id: int,
+        doctor_id: uuid.UUID,
         slot_timing_id: UUID,
         user: User,
     ):
@@ -36,7 +39,7 @@ class DoctorAvailabilityService:
     @staticmethod
     def update(
         db,
-        availability_id: int,
+        availability_id: uuid.UUID,
         slot_timing_id: UUID,
         user: User,
     ):
@@ -60,7 +63,7 @@ class DoctorAvailabilityService:
     @staticmethod
     def delete(
         db,
-        availability_id: int,
+        availability_id: uuid.UUID,
         user: User,
     ):
         availability = DoctorAvailabilityRepository.get_by_id(

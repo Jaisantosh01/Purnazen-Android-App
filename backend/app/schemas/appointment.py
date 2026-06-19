@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class BookAppointmentRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    doctor_id: int = Field(alias="doctorId")
+    doctor_id: UUID = Field(alias="doctorId")
     visit_type: str = Field(alias="visitType", min_length=1, max_length=20)
     date: date
     slot_timing_id: UUID = Field(alias="slotTimingId")

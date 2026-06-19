@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -72,7 +74,7 @@ def create_quick_relief(
     description="Update an existing quick relief session.",
 )
 def update_quick_relief(
-    relief_id: int,
+    relief_id: uuid.UUID,
     body: QuickReliefUpdate,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -89,7 +91,7 @@ def update_quick_relief(
     description="Soft delete a quick relief session.",
 )
 def delete_quick_relief(
-    relief_id: int,
+    relief_id: uuid.UUID,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -119,7 +121,7 @@ def create_wellness_session(
     description="Update an existing wellness session.",
 )
 def update_wellness_session(
-    session_id: int,
+    session_id: uuid.UUID,
     body: WellnessSessionUpdate,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -136,7 +138,7 @@ def update_wellness_session(
     description="Soft delete a wellness session.",
 )
 def delete_wellness_session(
-    session_id: int,
+    session_id: uuid.UUID,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):

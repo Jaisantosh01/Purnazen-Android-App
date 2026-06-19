@@ -1,3 +1,5 @@
+import uuid
+
 from sqlalchemy.orm import Session
 
 from app.models.user import User
@@ -23,7 +25,7 @@ class WellnessSessionService:
         return WellnessSessionRepository.create(db, session)
 
     @staticmethod
-    def update(db: Session, session_id: int, body: WellnessSessionUpdate, user: User) -> WellnessSession | None:
+    def update(db: Session, session_id: uuid.UUID, body: WellnessSessionUpdate, user: User) -> WellnessSession | None:
         session = WellnessSessionRepository.get_by_id(db, session_id)
         if not session:
             return None
@@ -36,7 +38,7 @@ class WellnessSessionService:
         return WellnessSessionRepository.save(db, session)
 
     @staticmethod
-    def delete(db: Session, session_id: int, user: User) -> WellnessSession | None:
+    def delete(db: Session, session_id: uuid.UUID, user: User) -> WellnessSession | None:
         session = WellnessSessionRepository.get_by_id(db, session_id)
         if not session:
             return None

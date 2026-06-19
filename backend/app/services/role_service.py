@@ -1,3 +1,5 @@
+import uuid
+
 from sqlalchemy.orm import Session
 from app.models.role import Role
 from app.repositories.role_repository import RoleRepository
@@ -17,7 +19,7 @@ class RoleService:
         return role
 
     @staticmethod
-    def update(db: Session, role_id: int, data: dict, user):
+    def update(db: Session, role_id: uuid.UUID, data: dict, user):
         role = db.get(Role, role_id)
         if not role:
             return None
@@ -29,7 +31,7 @@ class RoleService:
         return role
 
     @staticmethod
-    def delete(db: Session, role_id: int, user):
+    def delete(db: Session, role_id: uuid.UUID, user):
         role = db.get(Role, role_id)
         if not role:
             return None

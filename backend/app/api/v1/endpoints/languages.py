@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -40,7 +42,7 @@ def create_language(
 
 @router.put("/{language_id}")
 def update_language(
-    language_id: int,
+    language_id: uuid.UUID,
     body: LanguageUpdate,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -62,7 +64,7 @@ def update_language(
 
 @router.delete("/{language_id}")
 def delete_language(
-    language_id: int,
+    language_id: uuid.UUID,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):

@@ -16,6 +16,7 @@ def get_slots(db: Session = Depends(get_db)):
     result = []
     for day in days:
         result.append({
+            "id": str(day.id),
             "day": day.day,
             "day_number": day.day_number,
             "slots": [slot.to_dict() for slot in day.slots if slot.is_active]

@@ -1,5 +1,7 @@
 from datetime import date, datetime
 
+import uuid
+
 from sqlalchemy.orm import Session
 
 from app.models.appointment import Appointment
@@ -57,7 +59,7 @@ class AppointmentService:
         }, 201
 
     @staticmethod
-    def update(db: Session, user: User, appointment_id: int, data: UpdateAppointmentRequest):
+    def update(db: Session, user: User, appointment_id: uuid.UUID, data: UpdateAppointmentRequest):
         appointment = db.get(Appointment, appointment_id)
         if not appointment:
             return None
@@ -80,7 +82,7 @@ class AppointmentService:
         return appointment
 
     @staticmethod
-    def get_user_appointments(db: Session, user_id: int) -> dict:
+    def get_user_appointments(db: Session, user_id: uuid.UUID) -> dict:
         appointments = AppointmentRepository.get_user_appointments(db, user_id)
         today = date.today()
 

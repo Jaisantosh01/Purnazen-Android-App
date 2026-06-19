@@ -3,7 +3,7 @@ from uuid import UUID
 
 
 class DoctorAvailabilityCreate(BaseModel):
-    doctor_id: int
+    doctor_id: UUID
     slot_timing_id: UUID
 
 

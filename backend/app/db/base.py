@@ -30,8 +30,4 @@ from app.models.role import Role  # noqa: E402,F401
 from app.models.doctor_expertise_mapping import DoctorExpertiseMapping  # noqa: E402,F401
 from app.models.doctor_language_mapping import DoctorLanguageMapping  # noqa: E402,F401
 from app.models.doctor_speciality_mapping import DoctorSpecialityMapping  # noqa: E402,F401
-from app.models.associations import (  # noqa: E402,F401
-    doctor_consultation_types,
-    doctor_expertise,
-    doctor_languages,
-)
+from app.models.associations import doctor_consultation_types  # noqa: E402,F401

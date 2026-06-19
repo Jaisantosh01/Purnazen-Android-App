@@ -1,6 +1,8 @@
 from datetime import date as date_cls
 from datetime import datetime
 
+import uuid
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
@@ -141,7 +143,7 @@ def get_doctors_top_rated(
     summary="Doctor detail",
     description="Single doctor in the same card shape as the list endpoint; 404 when missing.",
 )
-def get_doctor(doctor_id: int, db: Session = Depends(get_db)):
+def get_doctor(doctor_id: uuid.UUID, db: Session = Depends(get_db)):
     doctor = DoctorService.get_doctor_by_id(db, doctor_id)
     if not doctor:
         return error_response("Doctor not found", 404)
@@ -154,7 +156,7 @@ def get_doctor(doctor_id: int, db: Session = Depends(get_db)):
     summary="Doctor visit types",
     description="Visit-type cards (video/home/clinic) derived from the doctor's consultation types.",
 )
-def get_visit_types(doctor_id: int, db: Session = Depends(get_db)):
+def get_visit_types(doctor_id: uuid.UUID, db: Session = Depends(get_db)):
     doctor = DoctorService.get_doctor_by_id(db, doctor_id)
     if not doctor:
         return error_response("Doctor not found", 404)
@@ -187,7 +189,7 @@ def create_doctor(
     dependencies=[Depends(require_role("admin"))],
 )
 def update_doctor(
-    doctor_id: int, 
+    doctor_id: uuid.UUID, 
     data: dict, 
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user)
@@ -207,7 +209,7 @@ def update_doctor(
     ),
 )
 def get_time_slots(
-    doctor_id: int,
+    doctor_id: uuid.UUID,
     date: str = Query(description="YYYY-MM-DD"),
     db: Session = Depends(get_db),
 ):

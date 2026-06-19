@@ -1,3 +1,5 @@
+import uuid
+
 from sqlalchemy.orm import Session
 
 from app.models.quick_relief import QuickRelief
@@ -15,7 +17,7 @@ class QuickReliefRepository:
         )
 
     @staticmethod
-    def get_by_id(db: Session, relief_id: int) -> QuickRelief | None:
+    def get_by_id(db: Session, relief_id: uuid.UUID) -> QuickRelief | None:
         return (
             db.query(QuickRelief)
             .filter(QuickRelief.id == relief_id, QuickRelief.is_active.is_(True))
