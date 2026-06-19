@@ -128,10 +128,10 @@ CHAT_FLOW = [
         "question": "How long have you had it ?",
         "is_start": False,
         "options": [
-            {"text": "Just started", "video_group_key": "QuickRelief"},
-            {"text": "Few hours", "video_group_key": "QuickRelief"},
-            {"text": "1-2 days", "video_group_key": "QuickRelief"},
-            {"text": "More than 2 days", "video_group_key": "QuickRelief"},
+            {"text": "Just started", "video_group_key": "Quick Relief"},
+            {"text": "Few hours", "video_group_key": "Quick Relief"},
+            {"text": "1-2 days", "video_group_key": "Quick Relief"},
+            {"text": "More than 2 days", "video_group_key": "Quick Relief"},
         ]
     },
     
@@ -159,10 +159,10 @@ CHAT_FLOW = [
         "question": "How long has it been bothering you?",
         "is_start": False,
         "options": [
-            {"text": "Just started", "video_group_key": "QuickRelief"},
-            {"text": "Few hours", "video_group_key": "QuickRelief"},
-            {"text": "1-2 days", "video_group_key": "QuickRelief"},
-            {"text": "More than 2 days", "video_group_key": "QuickRelief"},
+            {"text": "Just started", "video_group_key": "Quick Relief"},
+            {"text": "Few hours", "video_group_key": "Quick Relief"},
+            {"text": "1-2 days", "video_group_key": "Quick Relief"},
+            {"text": "More than 2 days", "video_group_key": "Quick Relief"},
         ]
     }
 ]

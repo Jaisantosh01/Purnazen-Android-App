@@ -344,16 +344,22 @@ try:
     for q_data in CHAT_FLOW:
         question = question_map[q_data["question"]]
         for opt_data in q_data["options"]:
-            if not db.query(ChatOption).filter_by(question_id=question.id, option_text=opt_data["text"]).first():
-                next_q_id = None
-                if opt_data.get("next_question"):
-                    next_q_id = question_map[opt_data["next_question"]].id
-                
-                v_group_id = None
-                if opt_data.get("video_group_key"):
-                    group = db.query(VideoGroups).filter_by(title=opt_data["video_group_key"]).first()
-                    v_group_id = group.id if group else None
+            next_q_id = None
+            if opt_data.get("next_question"):
+                next_q_id = question_map[opt_data["next_question"]].id
 
+            v_group_id = None
+            if opt_data.get("video_group_key"):
+                group = db.query(VideoGroups).filter_by(title=opt_data["video_group_key"]).first()
+                v_group_id = group.id if group else None
+
+            existing = db.query(ChatOption).filter_by(
+                question_id=question.id, option_text=opt_data["text"]
+            ).first()
+            if existing:
+                existing.next_question_id = next_q_id
+                existing.video_group_id = v_group_id
+            else:
                 db.add(
                     ChatOption(
                         question_id=question.id,
