@@ -1,6 +1,7 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
@@ -8,6 +9,10 @@ from app.models.user import User
 from app.schemas.video import VideoCreate, VideoGroupCreate, VideoGroupUpdate, VideoUpdate
 from app.services.video_service import VideoService
 from app.utils.responses import error_response, success_response
+
+
+class SyncGroupVideosRequest(BaseModel):
+    video_ids: list[int]
 
 router = APIRouter(prefix="/videos", tags=["Videos"])
 
@@ -87,6 +92,23 @@ def update_video_group(
     if not response["success"]:
         return error_response(response["message"], status_code)
     return success_response(response["message"], response["group"], status_code)
+
+
+@router.put(
+    "/groups/{group_id}/videos",
+    summary="Sync videos in group",
+    description="Replace the set of videos assigned to a group with the given list of video IDs.",
+)
+def sync_group_videos(
+    group_id: int,
+    body: SyncGroupVideosRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    response, status_code = VideoService.add_videos_to_group(db, group_id, body.video_ids, user)
+    if not response["success"]:
+        return error_response(response["message"], status_code)
+    return success_response(response["message"], None, status_code)
 
 
 @router.delete(

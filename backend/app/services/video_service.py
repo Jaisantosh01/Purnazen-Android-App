@@ -134,3 +134,35 @@ class VideoService:
 
         VideoRepository.delete(db, video)
         return {"success": True, "message": "Video deleted (deactivated)"}, 200
+
+    @staticmethod
+    def add_videos_to_group(db: Session, group_id: int, video_ids: list[int], user: User):
+        group = VideoGroupRepository.get_by_id(db, group_id)
+        if not group:
+            return {"success": False, "message": "Video group not found"}, 404
+
+        existing_ids = {m.video_id for m in group.video_mappings if m.is_active}
+        added = []
+        for vid in video_ids:
+            if vid in existing_ids:
+                continue
+            video = VideoRepository.get_by_id(db, vid)
+            if not video or not video.is_active:
+                continue
+            VideoGroupMappingRepository.create(
+                db,
+                video_group_id=group_id,
+                video_id=vid,
+                created_by=user.id,
+                updated_by=user.id
+            )
+            added.append(vid)
+
+        # Remove mappings for videos no longer in the list
+        for mapping in group.video_mappings:
+            if mapping.is_active and mapping.video_id not in video_ids:
+                mapping.is_active = False
+                mapping.updated_by = user.id
+
+        db.commit()
+        return {"success": True, "message": f"{len(added)} video(s) added to group"}, 200

@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -14,9 +15,9 @@ import { COLORS } from './src/constants/theme';
 import Toast from './src/components/Toast';
 // @ts-ignore
 import useToastStore from './src/utils/toast';
+
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
-
 import HomeScreen from './src/screens/HomeScreen';
 import DoctorManagementScreen from './src/screens/DoctorManagementScreen';
 import DoctorDetailScreen from './src/screens/DoctorDetailScreen';
@@ -29,6 +30,9 @@ import ProfileScreen from './src/screens/ProfileScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import AppointmentManagementScreen from './src/screens/AppointmentManagementScreen';
 import SlotManagementScreen from './src/screens/SlotManagementScreen';
+import VideoManagementScreen from './src/screens/VideoManagementScreen';
+import VideoGroupDetailScreen from './src/screens/VideoGroupDetailScreen';
+import VideoPlayerScreen from './src/screens/VideoPlayerScreen';
 
 const RootStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -49,8 +53,11 @@ const TAB_ICONS: Record<string, { active: string; inactive: string }> = {
 function HomeStackNavigator() {
   return (
     <HomeStack.Navigator screenOptions={{ headerShown: false }}>
-      <HomeStack.Screen name="HomeMain"       component={HomeScreen}          />
-      <HomeStack.Screen name="SlotManagement" component={SlotManagementScreen} />
+      <HomeStack.Screen name="HomeMain"        component={HomeScreen} />
+      <HomeStack.Screen name="SlotManagement"  component={SlotManagementScreen} />
+      <HomeStack.Screen name="VideoManagement" component={VideoManagementScreen} />
+      <HomeStack.Screen name="VideoGroupDetail" component={VideoGroupDetailScreen} />
+      <HomeStack.Screen name="VideoPlayer"     component={VideoPlayerScreen} />
     </HomeStack.Navigator>
   );
 }
@@ -136,8 +143,6 @@ function MainTabs() {
 }
 
 export default function App() {
-  // Restore persisted session and migrate legacy AsyncStorage tokens
-  // into the device keystore (see src/utils/secureStorage.js).
   useEffect(() => {
     authService.bootstrap();
   }, []);
@@ -145,13 +150,15 @@ export default function App() {
   const { message, type, visible, hide } = useToastStore();
 
   return (
-    <NavigationContainer ref={navigationRef}>
-      <RootStack.Navigator screenOptions={{ headerShown: false }}>
-        <RootStack.Screen name="Login"    component={LoginScreen}    />
-        <RootStack.Screen name="Register" component={RegisterScreen} />
-        <RootStack.Screen name="Main"     component={MainTabs}       />
-      </RootStack.Navigator>
-      <Toast message={message} type={type} visible={visible} onHide={hide} />
-    </NavigationContainer>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <NavigationContainer ref={navigationRef}>
+        <RootStack.Navigator screenOptions={{ headerShown: false }}>
+          <RootStack.Screen name="Login"    component={LoginScreen}    />
+          <RootStack.Screen name="Register" component={RegisterScreen} />
+          <RootStack.Screen name="Main"     component={MainTabs}       />
+        </RootStack.Navigator>
+        <Toast message={message} type={type} visible={visible} onHide={hide} />
+      </NavigationContainer>
+    </GestureHandlerRootView>
   );
 }

@@ -59,6 +59,7 @@ export const ENDPOINTS = {
   // Video Groups
   VIDEO_GROUPS: `${API_VERSION}/videos/groups`,
   VIDEO_GROUP_CATALOG: (id) => `${API_VERSION}/videos/groups/${id}/catalog`,
+  ALL_VIDEOS: `${API_VERSION}/videos`,
 
   // Chat
   CHAT_FLOW: (startId) => `${API_VERSION}/chat/flow/${startId}`,

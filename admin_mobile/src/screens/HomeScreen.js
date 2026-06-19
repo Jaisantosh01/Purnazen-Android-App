@@ -91,10 +91,16 @@ const HomeScreen = ({ navigation }) => {
         {/* ── Management ── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Management</Text>
-          <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('SlotManagement')}>
-            <MCIcon name="clock-outline" size={32} color={COLORS.primary} />
-            <Text style={styles.managementText}>Manage Slots</Text>
-          </TouchableOpacity>
+          <View style={{ gap: 12 }}>
+            <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('SlotManagement')}>
+                <MCIcon name="clock-outline" size={32} color={COLORS.primary} />
+                <Text style={styles.managementText}>Manage Slots</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('VideoManagement')}>
+                <MCIcon name="video-outline" size={32} color={COLORS.accent} />
+                <Text style={styles.managementText}>Manage Wellness Videos</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
       </ScrollView>

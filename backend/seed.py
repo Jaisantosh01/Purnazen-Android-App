@@ -30,7 +30,7 @@ from app.db.base import (
     SlotTimings
 )
 from app.db.session import SessionLocal, engine
-from seed_data import RELIEF_SESSIONS, WELLNESS_SESSIONS, VIDEO_GROUPS, VIDEOS, CHAT_FLOW, QUICK_RELIEFS, AWARDS, DAYS_OF_WEEK, SLOT_TIMINGS
+from seed_data import RELIEF_SESSIONS, VIDEO_GROUPS, VIDEOS, CHAT_FLOW, QUICK_RELIEFS, AWARDS, DAYS_OF_WEEK, SLOT_TIMINGS, WELLNESS_SESSIONS_DATA
 
 Base.metadata.create_all(bind=engine)
 
@@ -368,13 +368,8 @@ try:
     # ------------------------
     wellness_group = db.query(VideoGroups).filter_by(title="Wellness & Prevention").first()
     
-    # Updated Wellness seeding (no key/steps, now group-based)
-    wellness_sessions_data = [
-        {"title": "Morning Yoga", "duration": "20 min", "icon": "🧘", "sort_order": 0},
-        {"title": "Mindful Meditation", "duration": "15 min", "icon": "🧠", "sort_order": 1},
-    ]
     
-    for session_data in wellness_sessions_data:
+    for session_data in WELLNESS_SESSIONS_DATA:
         if not db.query(WellnessSession).filter_by(title=session_data["title"]).first():
             db.add(
                 WellnessSession(
@@ -382,7 +377,7 @@ try:
                     duration=session_data["duration"],
                     icon=session_data["icon"],
                     sort_order=session_data["sort_order"],
-                    video_group_id=wellness_group.id if wellness_group else None,
+                    video_group_id=session_data["video_group_id"],
                     created_by=admin.id,
                     updated_by=admin.id
                 )
