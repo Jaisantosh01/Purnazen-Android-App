@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import consultService from '../services/consultService';
 import { COLORS } from '../constants/theme';
+import ScreenHeader from '../components/ScreenHeader';
 
 const DEFAULT_VISIT_TYPES = [
   { id: 'video', title: 'Video Consultation', subtitle: 'Consult from anywhere',    icon: '📹', fee: 1200 },
@@ -161,18 +162,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
-
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.backIcon}>←</Text>
-        </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Book Appointment</Text>
-          <Text style={styles.headerSubtitle}>{doctor.name}</Text>
-        </View>
-        <View style={styles.backBtn} />
-      </View>
+      <ScreenHeader title="Book Appointment" subtitle={doctor.name} variant="light" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
 

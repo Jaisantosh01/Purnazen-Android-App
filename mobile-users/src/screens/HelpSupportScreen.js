@@ -12,6 +12,7 @@ import {
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { COLORS } from '../constants/theme';
+import ScreenHeader from '../components/ScreenHeader';
 
 const FAQS = [
   {
@@ -97,17 +98,7 @@ const HelpSupportScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
-
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <MCIcon name="arrow-left" size={22} color={COLORS.white} />
-        </TouchableOpacity>
-        <View style={styles.headerText}>
-          <Text style={styles.headerTitle}>Help & Support</Text>
-          <Text style={styles.headerSubtitle}>We're here to help you</Text>
-        </View>
-      </View>
+      <ScreenHeader title="Help & Support" subtitle="We're here to help you" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
 

@@ -2,6 +2,42 @@
 
 All notable changes to the Purnazen App are documented here.
 
+## [2026-06-19] — Rebrand to com.purnazen, app icon, dark mode, biometric login, header polish
+
+### Changed — package rename `wellness` → `purnazen`
+- **User app** application id / namespace `com.wellness` → **`com.purnazen`**;
+  **admin app** → **`com.purnazen.admin`** (the two previously collided on a single
+  id and could not co-install). Updated across `build.gradle` (namespace +
+  `applicationId`), `settings.gradle` (`rootProject.name`), Kotlin package dirs
+  (`java/com/wellness` → `java/com/purnazen[/admin]`) + `package` declarations,
+  `MainActivity.getMainComponentName()`, `app.json` (`name`/`displayName`),
+  `package.json`/`package-lock.json`, admin `strings.xml` label, and the keychain
+  service keys in `secureStorage`. **Requires a clean Android rebuild + reinstall.**
+- `app.json` displayName `M-Heal` → **Purnazen**.
+
+### Added — branded app icon
+- New **lotus** launcher icon (white lotus on brand-green `#1FA77A`): adaptive icon
+  (`mipmap-anydpi-v26`, vector-safe foreground + monochrome/themed-icon support) plus
+  regenerated legacy PNGs for every density. Generator: `scripts/generate_icon.py`.
+
+### Added — appearance & security (Settings)
+- **Dark mode**: persisted `themeStore` (`light`/`dark`/`system`) + `useTheme()` hook
+  with live OS-scheme detection. Settings toggle is wired and saved; core shells
+  themed (shared header, bottom tab bar, NavigationContainer background, Settings,
+  Profile). Remaining screens migrate to the hook incrementally.
+- **Biometric login**: `biometricService` built on `react-native-keychain` biometric
+  ACCESS_CONTROL (no new native dep). Settings toggle enrols/disenrols with a real OS
+  prompt; bootstrap requires fingerprint / Face ID before unlocking a restored session
+  (fails closed to the password login screen).
+
+### Changed — header / back-button consistency
+- New shared **`ScreenHeader`** component: safe-area-driven height (no more per-screen
+  hardcoded `paddingTop` of 50–60), a smart back button guarded by `canGoBack()`, theme
+  awareness, and `brand`/`light` variants. Adopted across the plain pushed screens
+  (Settings, Notifications, Subscriptions, Help & Support, Consent, Therapy History,
+  Doctor Profile, Book Appointment, Payment). Bespoke module headers (scan flow,
+  Face Glow, session players, chat, video) intentionally kept.
+
 ## [2026-06-16] — Face Analysis Cycle 5.1: on-device fixes from live testing
 
 Found by driving the app on a physical device (capture → results) and inspecting

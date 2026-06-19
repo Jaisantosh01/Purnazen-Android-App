@@ -12,6 +12,7 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import consultService from '../services/consultService';
 import { COLORS } from '../constants/theme';
+import ScreenHeader from '../components/ScreenHeader';
 
 // ── Basic doctor card shown immediately using data from route.params ──────────
 const DoctorBasicCard = ({ doctor }) => (
@@ -77,12 +78,7 @@ const DoctorProfileScreen = ({ navigation, route }) => {
   if (error) {
     return (
       <View style={styles.root}>
-        <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-            <Text style={styles.backIcon}>←</Text>
-          </TouchableOpacity>
-        </View>
+        <ScreenHeader title="Doctor Profile" variant="light" />
         <View style={styles.centered}>
           <MCIcon name="alert-circle-outline" size={60} color={COLORS.danger} />
           <Text style={styles.errorTitle}>Failed to load doctor details</Text>
@@ -97,14 +93,7 @@ const DoctorProfileScreen = ({ navigation, route }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
-
-      {/* ── Header ── */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.backIcon}>←</Text>
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader title="Doctor Profile" variant="light" />
 
       <ScrollView
         showsVerticalScrollIndicator={false}

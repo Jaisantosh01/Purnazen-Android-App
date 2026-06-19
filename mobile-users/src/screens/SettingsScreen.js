@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  StatusBar,
   Switch,
   Alert,
   Modal,
@@ -16,9 +15,11 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import authService from '../services/authService';
 import preferencesService from '../services/preferencesService';
-import { useAuthStore } from '../store/authStore';
+import biometricService from '../services/biometricService';
 import { resetToLogin } from '../navigation/navigationRef';
-import { COLORS } from '../constants/theme';
+import { useAuthStore } from '../store/authStore';
+import useTheme from '../hooks/useTheme';
+import ScreenHeader from '../components/ScreenHeader';
 
 // Shared toggle ids with NotificationsScreen (user_preferences.notifications)
 const PREF_KEYS = {
@@ -27,31 +28,8 @@ const PREF_KEYS = {
   promotionalEmails: 'offers',
 };
 
-const styles = StyleSheet.create({
+const makeStyles = COLORS => StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
-
-  header: {
-    backgroundColor: COLORS.primary,
-    paddingTop: 50,
-    paddingHorizontal: 20,
-    paddingBottom: 24,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerText: { flex: 1 },
-  headerTitle: { fontSize: 22, fontWeight: '700', color: COLORS.white },
-  headerSubtitle: { fontSize: 13, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
 
   section: { paddingHorizontal: 16, marginTop: 22 },
   sectionHeader: {
@@ -64,9 +42,11 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   card: {
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.card,
     borderRadius: 16,
     overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.border,
     shadowColor: COLORS.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -110,7 +90,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   modalCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.card,
     borderRadius: 18,
     padding: 20,
   },
@@ -135,7 +115,7 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     fontSize: 14,
     color: COLORS.textPrimary,
-    backgroundColor: '#fafafa',
+    backgroundColor: COLORS.surfaceMuted,
   },
   modalError: {
     fontSize: 12,
@@ -159,52 +139,56 @@ const styles = StyleSheet.create({
   modalBtnSaveText: { fontSize: 14, fontWeight: '600', color: COLORS.white },
 });
 
-const SectionHeader = ({ title }) => (
-  <Text style={styles.sectionHeader}>{title}</Text>
-);
-
-const ToggleRow = ({ icon, iconColor = COLORS.primary, iconBg = COLORS.primaryLight, title, subtitle, value, onToggle }) => (
-  <View style={styles.settingRow}>
-    <View style={[styles.settingIconBox, { backgroundColor: iconBg }]}>
-      <MCIcon name={icon} size={20} color={iconColor} />
-    </View>
-    <View style={styles.settingInfo}>
-      <Text style={styles.settingTitle}>{title}</Text>
-      {subtitle ? <Text style={styles.settingSubtitle}>{subtitle}</Text> : null}
-    </View>
-    <Switch
-      value={value}
-      onValueChange={onToggle}
-      trackColor={{ false: COLORS.border, true: COLORS.primary }}
-      thumbColor={COLORS.white}
-    />
-  </View>
-);
-
-const ArrowRow = ({ icon, iconColor = COLORS.primary, iconBg = COLORS.primaryLight, title, subtitle, onPress, valueText, danger }) => (
-  <TouchableOpacity style={styles.settingRow} onPress={onPress} activeOpacity={0.7}>
-    <View style={[styles.settingIconBox, { backgroundColor: iconBg }]}>
-      <MCIcon name={icon} size={20} color={iconColor} />
-    </View>
-    <View style={styles.settingInfo}>
-      <Text style={danger ? styles.settingTitleDanger : styles.settingTitle}>{title}</Text>
-      {subtitle ? <Text style={styles.settingSubtitle}>{subtitle}</Text> : null}
-    </View>
-    {valueText
-      ? <Text style={styles.valueText}>{valueText}</Text>
-      : <MCIcon name="chevron-right" size={20} color={COLORS.borderStrong} />}
-  </TouchableOpacity>
-);
-
 const SettingsScreen = ({ navigation }) => {
   const user = useAuthStore(state => state.user);
+  const { colors, isDark, setMode } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  // Inline rows so they pick up the active (themed) styles + palette.
+  const SectionHeader = ({ title }) => (
+    <Text style={styles.sectionHeader}>{title}</Text>
+  );
+
+  const ToggleRow = ({ icon, iconColor = colors.primary, iconBg = colors.primaryLight, title, subtitle, value, onToggle, disabled }) => (
+    <View style={styles.settingRow}>
+      <View style={[styles.settingIconBox, { backgroundColor: iconBg }]}>
+        <MCIcon name={icon} size={20} color={iconColor} />
+      </View>
+      <View style={styles.settingInfo}>
+        <Text style={styles.settingTitle}>{title}</Text>
+        {subtitle ? <Text style={styles.settingSubtitle}>{subtitle}</Text> : null}
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onToggle}
+        disabled={disabled}
+        trackColor={{ false: colors.border, true: colors.primary }}
+        thumbColor={colors.white}
+      />
+    </View>
+  );
+
+  const ArrowRow = ({ icon, iconColor = colors.primary, iconBg = colors.primaryLight, title, subtitle, onPress, valueText, danger }) => (
+    <TouchableOpacity style={styles.settingRow} onPress={onPress} activeOpacity={0.7}>
+      <View style={[styles.settingIconBox, { backgroundColor: iconBg }]}>
+        <MCIcon name={icon} size={20} color={iconColor} />
+      </View>
+      <View style={styles.settingInfo}>
+        <Text style={danger ? styles.settingTitleDanger : styles.settingTitle}>{title}</Text>
+        {subtitle ? <Text style={styles.settingSubtitle}>{subtitle}</Text> : null}
+      </View>
+      {valueText
+        ? <Text style={styles.valueText}>{valueText}</Text>
+        : <MCIcon name="chevron-right" size={20} color={colors.borderStrong} />}
+    </TouchableOpacity>
+  );
 
   const [notifications, setNotifications]         = useState(true);
   const [sessionReminders, setSessionReminders]   = useState(true);
   const [appointmentAlerts, setAppointmentAlerts] = useState(true);
   const [promotionalEmails, setPromotionalEmails] = useState(false);
-  const [darkMode, setDarkMode]                   = useState(false);
   const [biometric, setBiometric]                 = useState(false);
+  const [biometricBusy, setBiometricBusy]         = useState(false);
   const [locationAccess, setLocationAccess]       = useState(true);
 
   // Hydrate the notification toggles from the server (defaults kept offline)
@@ -218,6 +202,8 @@ const SettingsScreen = ({ navigation }) => {
         if (PREF_KEYS.promotionalEmails in saved) setPromotionalEmails(saved[PREF_KEYS.promotionalEmails]);
       })
       .catch(err => console.log('Preferences fetch failed:', err.message));
+
+    biometricService.isEnabled().then(setBiometric).catch(() => {});
   }, []);
 
   const savePreference = payload => {
@@ -233,6 +219,29 @@ const SettingsScreen = ({ navigation }) => {
   const makeToggle = (setter, prefKey) => value => {
     setter(value);
     savePreference({ notifications: { [prefKey]: value } });
+  };
+
+  // Dark mode is global — drives the persisted theme store via useTheme().
+  const toggleDarkMode = value => setMode(value ? 'dark' : 'light');
+
+  // Biometric login uses the device keystore biometric prompt to enrol/disenrol.
+  const toggleBiometric = async value => {
+    setBiometricBusy(true);
+    try {
+      if (value) {
+        const type = await biometricService.enable();
+        setBiometric(true);
+        Alert.alert('Biometric Login Enabled', `You can now unlock Purnazen with ${type || 'biometrics'}.`);
+      } else {
+        await biometricService.disable();
+        setBiometric(false);
+      }
+    } catch (err) {
+      setBiometric(false);
+      Alert.alert('Biometric Login', err.message || 'Could not update biometric login.');
+    } finally {
+      setBiometricBusy(false);
+    }
   };
 
   // Edit profile modal
@@ -329,18 +338,7 @@ const SettingsScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
-
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <MCIcon name="arrow-left" size={22} color={COLORS.white} />
-        </TouchableOpacity>
-        <View style={styles.headerText}>
-          <Text style={styles.headerTitle}>Settings</Text>
-          <Text style={styles.headerSubtitle}>Manage your preferences</Text>
-        </View>
-      </View>
+      <ScreenHeader title="Settings" subtitle="Manage your preferences" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
 
@@ -437,21 +435,20 @@ const SettingsScreen = ({ navigation }) => {
             <ToggleRow
               icon="weather-night"
               iconColor="#6b7280"
-              iconBg="#f3f4f6"
+              iconBg={colors.surfaceMuted}
               title="Dark Mode"
               subtitle="Switch to dark theme"
-              value={darkMode}
-              onToggle={setDarkMode}
+              value={isDark}
+              onToggle={toggleDarkMode}
             />
             <View style={styles.rowDivider} />
             <ToggleRow
               icon="fingerprint"
-              iconColor={COLORS.primary}
-              iconBg={COLORS.primaryLight}
               title="Biometric Login"
-              subtitle="Use fingerprint or face ID"
+              subtitle="Use fingerprint or Face ID"
               value={biometric}
-              onToggle={setBiometric}
+              onToggle={toggleBiometric}
+              disabled={biometricBusy}
             />
             <View style={styles.rowDivider} />
             <ArrowRow
@@ -506,7 +503,7 @@ const SettingsScreen = ({ navigation }) => {
           <View style={styles.card}>
             <ArrowRow
               icon="logout"
-              iconColor={COLORS.danger}
+              iconColor={colors.danger}
               iconBg="#FFF5F5"
               title="Logout"
               onPress={handleLogout}
@@ -514,7 +511,7 @@ const SettingsScreen = ({ navigation }) => {
             <View style={styles.rowDivider} />
             <ArrowRow
               icon="delete-outline"
-              iconColor={COLORS.danger}
+              iconColor={colors.danger}
               iconBg="#FFF5F5"
               title="Delete Account"
               subtitle="Permanently remove all your data"
@@ -539,7 +536,7 @@ const SettingsScreen = ({ navigation }) => {
               value={fullName}
               onChangeText={text => { setFullName(text); setFormError(''); }}
               placeholder="Your name"
-              placeholderTextColor={COLORS.textMuted}
+              placeholderTextColor={colors.textMuted}
             />
             {formError ? <Text style={styles.modalError}>{formError}</Text> : null}
             <View style={styles.modalActions}>
@@ -555,7 +552,7 @@ const SettingsScreen = ({ navigation }) => {
                 disabled={isSubmitting}
               >
                 {isSubmitting
-                  ? <ActivityIndicator size="small" color={COLORS.white} />
+                  ? <ActivityIndicator size="small" color={colors.white} />
                   : <Text style={styles.modalBtnSaveText}>Save</Text>}
               </TouchableOpacity>
             </View>
@@ -576,7 +573,7 @@ const SettingsScreen = ({ navigation }) => {
               onChangeText={text => { setCurrentPassword(text); setFormError(''); }}
               secureTextEntry
               placeholder="Current password"
-              placeholderTextColor={COLORS.textMuted}
+              placeholderTextColor={colors.textMuted}
             />
             <Text style={styles.modalLabel}>New Password</Text>
             <TextInput
@@ -585,7 +582,7 @@ const SettingsScreen = ({ navigation }) => {
               onChangeText={text => { setNewPassword(text); setFormError(''); }}
               secureTextEntry
               placeholder="At least 6 characters"
-              placeholderTextColor={COLORS.textMuted}
+              placeholderTextColor={colors.textMuted}
             />
             <Text style={styles.modalLabel}>Confirm New Password</Text>
             <TextInput
@@ -594,7 +591,7 @@ const SettingsScreen = ({ navigation }) => {
               onChangeText={text => { setConfirmPassword(text); setFormError(''); }}
               secureTextEntry
               placeholder="Repeat new password"
-              placeholderTextColor={COLORS.textMuted}
+              placeholderTextColor={colors.textMuted}
             />
             {formError ? <Text style={styles.modalError}>{formError}</Text> : null}
             <View style={styles.modalActions}>
@@ -610,7 +607,7 @@ const SettingsScreen = ({ navigation }) => {
                 disabled={isSubmitting}
               >
                 {isSubmitting
-                  ? <ActivityIndicator size="small" color={COLORS.white} />
+                  ? <ActivityIndicator size="small" color={colors.white} />
                   : <Text style={styles.modalBtnSaveText}>Update</Text>}
               </TouchableOpacity>
             </View>

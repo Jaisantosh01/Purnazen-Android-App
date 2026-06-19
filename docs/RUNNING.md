@@ -242,7 +242,7 @@ cd backend; .\venv\Scripts\python.exe -m pytest -q   # backend tests (84)
 | Port 5000 already in use | `Get-NetTCPConnection -LocalPort 5000` then `Stop-Process -Id <pid>` |
 | Metro stale cache | `npx react-native start --reset-cache` |
 | App installs but won't run / "INSTALL_FAILED_NO_MATCHING_ABIS" on the emulator | The build's native libs don't match the emulator's CPU. `app/build.gradle` must **not** hard-pin `ndk { abiFilters "arm64-v8a" }` — that produces an arm64-only APK that can't run on an x86_64 emulator. Leave ABIs to the `reactNativeArchitectures` property |
-| `'gradlew.bat' is not recognized` from `npx react-native run-android` | Run the wrapper directly instead: `cd android && .\gradlew.bat app:installDebug -PreactNativeDevServerPort=8081`, then launch with `adb shell monkey -p com.wellness -c android.intent.category.LAUNCHER 1` |
+| `'gradlew.bat' is not recognized` from `npx react-native run-android` | Run the wrapper directly instead: `cd android && .\gradlew.bat app:installDebug -PreactNativeDevServerPort=8081`, then launch with `adb shell monkey -p com.purnazen -c android.intent.category.LAUNCHER 1` |
 | First build is very slow | Build only the emulator's ABI: `.\gradlew.bat app:installDebug -PreactNativeArchitectures=x86_64`. One native compile instead of four |
 
 ---
@@ -275,7 +275,7 @@ C:\Android\Sdk\platform-tools\adb.exe reverse tcp:5000 tcp:5000
 # Build (x86_64 only = ~3 min):
 cd android
 .\gradlew.bat app:installDebug -PreactNativeArchitectures=x86_64
-C:\Android\Sdk\platform-tools\adb.exe shell monkey -p com.wellness -c android.intent.category.LAUNCHER 1
+C:\Android\Sdk\platform-tools\adb.exe shell monkey -p com.purnazen -c android.intent.category.LAUNCHER 1
 ```
 
 ## 7. Quick reference — full run from scratch (SQLite)
@@ -304,8 +304,8 @@ npx react-native run-android --no-packager
 
 Running on a real Android phone instead of the emulator. Everything below uses
 `adb` directly so you can install, launch, screenshot, and re-deploy without
-Android Studio. The app's package id is **`com.wellness`** and its launchable
-activity is **`com.wellness/.MainActivity`**.
+Android Studio. The app's package id is **`com.purnazen`** and its launchable
+activity is **`com.purnazen/.MainActivity`**.
 
 ### 8.1 One-time device setup
 
@@ -374,17 +374,17 @@ adb shell getprop ro.product.cpu.abi          # e.g. arm64-v8a
 
 ```powershell
 # Launch the app's main activity
-adb shell am start -n com.wellness/.MainActivity
-#   alt: adb shell monkey -p com.wellness -c android.intent.category.LAUNCHER 1
+adb shell am start -n com.purnazen/.MainActivity
+#   alt: adb shell monkey -p com.purnazen -c android.intent.category.LAUNCHER 1
 
 # Force-stop (kill) the app
-adb shell am force-stop com.wellness
+adb shell am force-stop com.purnazen
 
 # Clear all app data (logout, reset onboarding, wipe local DB/keystore cache)
-adb shell pm clear com.wellness
+adb shell pm clear com.purnazen
 
 # Uninstall completely
-adb uninstall com.wellness
+adb uninstall com.purnazen
 ```
 
 ### 8.5 Take a screenshot (and screen recording)
@@ -418,15 +418,15 @@ adb pull /sdcard/demo.mp4 .\demo.mp4
   cd mobile/android
   .\gradlew.bat assembleDebug
   adb install -r app\build\outputs\apk\debug\app-debug.apk
-  adb shell am force-stop com.wellness
-  adb shell am start -n com.wellness/.MainActivity
+  adb shell am force-stop com.purnazen
+  adb shell am start -n com.purnazen/.MainActivity
   ```
 
 ### 8.7 Logs from the device
 
 ```powershell
 adb logcat *:S ReactNative:V ReactNativeJS:V       # app JS logs only
-adb logcat --pid=$(adb shell pidof -s com.wellness)  # everything from the app process
+adb logcat --pid=$(adb shell pidof -s com.purnazen)  # everything from the app process
 adb logcat -c                                       # clear the log buffer first
 ```
 

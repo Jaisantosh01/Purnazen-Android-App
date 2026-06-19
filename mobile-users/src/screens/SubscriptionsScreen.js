@@ -12,6 +12,7 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../constants/theme';
+import ScreenHeader from '../components/ScreenHeader';
 
 const PLANS = [
   {
@@ -74,17 +75,7 @@ const SubscriptionsScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
-
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <MCIcon name="arrow-left" size={22} color={COLORS.white} />
-        </TouchableOpacity>
-        <View style={styles.headerText}>
-          <Text style={styles.headerTitle}>Subscriptions</Text>
-          <Text style={styles.headerSubtitle}>Choose the right plan for you</Text>
-        </View>
-      </View>
+      <ScreenHeader title="Subscriptions" subtitle="Choose the right plan for you" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40, paddingHorizontal: 16 }}>
 

@@ -13,6 +13,7 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import consentService from '../services/consentService';
 import { COLORS } from '../constants/theme';
+import ScreenHeader from '../components/ScreenHeader';
 
 // The three GDPR consent types the backend recognises.
 const CONSENTS = [
@@ -67,14 +68,7 @@ const ConsentScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <MCIcon name="arrow-left" size={22} color={COLORS.white} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Privacy & Data</Text>
-        <View style={{ width: 38 }} />
-      </View>
+      <ScreenHeader title="Privacy & Data" subtitle="Manage your consents" />
 
       {loading ? (
         <View style={styles.center}><ActivityIndicator color={COLORS.primary} size="large" /></View>

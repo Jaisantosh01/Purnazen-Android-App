@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import authService from '../services/authService';
 import therapyService from '../services/therapyService';
 import { StatsSkeleton } from '../components/SkeletonLoader';
 import { COLORS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 
 const MENU_ITEMS = [
   { icon: 'history',          iconColor: COLORS.primary,        iconBg: COLORS.primaryLight,  title: 'Therapy History',  subtitle: 'View past sessions',  screen: 'TherapyHistory' },
@@ -26,6 +27,8 @@ const MENU_ITEMS = [
 
 const ProfileScreen = ({ navigation }) => {
   const user = useAuthStore(state => state.user);
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [stats, setStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(true);
 
@@ -150,7 +153,7 @@ const ProfileScreen = ({ navigation }) => {
 
 export default ProfileScreen;
 
-const styles = StyleSheet.create({
+const makeStyles = COLORS => StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
   container: { flex: 1 },
 

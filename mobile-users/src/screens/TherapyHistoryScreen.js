@@ -12,6 +12,7 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import therapyService from '../services/therapyService';
 import { COLORS } from '../constants/theme';
+import ScreenHeader from '../components/ScreenHeader';
 
 const EMPTY_STATS = { sessions: 0, minutes: 0 };
 
@@ -58,16 +59,7 @@ const TherapyHistoryScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
-
-      {/* ── Header ── */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.backIcon}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Therapy History</Text>
-        <View style={styles.backBtn} />
-      </View>
+      <ScreenHeader title="Therapy History" variant="light" />
 
       {isLoading ? (
         <View style={styles.centered}>

@@ -1,4 +1,4 @@
-package com.wellness
+package com.purnazen.admin
 
 import android.app.Application
 import android.content.res.Configuration

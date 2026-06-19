@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import consultService from '../services/consultService';
 import { COLORS } from '../constants/theme';
+import ScreenHeader from '../components/ScreenHeader';
 
 const PAYMENT_METHODS = [
   { id: 'card', label: 'Credit/Debit Card', icon: '💳' },
@@ -71,18 +72,7 @@ const PaymentScreen = ({ navigation, route }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
-
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.backIcon}>←</Text>
-        </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Payment</Text>
-          <Text style={styles.headerSubtitle}>Complete your booking</Text>
-        </View>
-        <View style={styles.backBtn} />
-      </View>
+      <ScreenHeader title="Payment" subtitle="Complete your booking" variant="light" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
 

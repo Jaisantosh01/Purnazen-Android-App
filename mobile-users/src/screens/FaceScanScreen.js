@@ -24,8 +24,8 @@ const QUALITY_CHECK_INTERVAL_MS = 2200;
 
 // Dev: test image pre-loaded via:
 //   adb push face_test_1.jpg /data/local/tmp/test_face.jpg
-//   adb shell run-as com.wellness cp /data/local/tmp/test_face.jpg /data/data/com.wellness/cache/test_face.jpg
-const TEST_IMAGE_URI = 'file:///data/data/com.wellness/cache/test_face.jpg';
+//   adb shell run-as com.purnazen cp /data/local/tmp/test_face.jpg /data/data/com.purnazen/cache/test_face.jpg
+const TEST_IMAGE_URI = 'file:///data/data/com.purnazen/cache/test_face.jpg';
 
 const grantScanConsent = () =>
   apiClient.post(ENDPOINTS.CONSENT, { consent_type: 'scan_storage', granted: true });
