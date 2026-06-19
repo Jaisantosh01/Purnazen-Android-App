@@ -32,17 +32,15 @@ class Settings(BaseSettings):
     RAZORPAY_KEY_ID: str = ""
     RAZORPAY_KEY_SECRET: str = ""
 
-    # Azure Storage Settings
+    # Azure Blob Storage — used for face scan images and session videos.
+    # When empty, image uploads fall back to local filesystem storage.
     AZURE_STORAGE_ACCOUNT_NAME: str = ""
     AZURE_STORAGE_ACCOUNT_KEY: str = ""
     AZURE_BLOB_CONTAINER_NAME: str = ""
+    # SAS token lifetime for scan images (short-lived, per-request)
     AZURE_SAS_EXPIRY_MINUTES: int = 60
-
-    # Cloudinary — used for session videos and (Sprint 2+) face scan image storage.
-    # When empty, image uploads fall back to local filesystem storage.
-    CLOUDINARY_CLOUD_NAME: str = ""
-    CLOUDINARY_API_KEY: str = ""
-    CLOUDINARY_API_SECRET: str = ""
+    # SAS token lifetime for video streaming (needs to outlive the longest video session)
+    AZURE_VIDEO_SAS_EXPIRY_MINUTES: int = 240
 
     # Social auth — Google client ID for ID token verification (Sprint 5)
     GOOGLE_CLIENT_ID: str = ""
@@ -53,7 +51,7 @@ class Settings(BaseSettings):
     SCAN_MAX_FILE_SIZE_MB: int = 15
     RATE_LIMIT_SCAN_UPLOAD: str = "5/minute"
 
-    # Local file storage fallback (used when Cloudinary is not configured)
+    # Local file storage fallback (used when Azure is not configured).
     # Set to the address the mobile/emulator uses to reach this server.
     LOCAL_UPLOADS_BASE_URL: str = "http://10.0.2.2:5000"
     LOCAL_UPLOADS_DIR: str = "uploads"

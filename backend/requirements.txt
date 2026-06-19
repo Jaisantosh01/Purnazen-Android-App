@@ -16,9 +16,6 @@ azure-storage-blob==12.30.0
 
 python-multipart>=0.0.9
 
-# Image storage (Sprint 2+)
-cloudinary>=1.40.0
-
 # AI pipeline (Sprint 3+)
 # Note: mediapipe/opencv/scikit-image wheels are only available for Python <=3.12.
 # On Python 3.14 install these in a Python 3.12 venv or use conda.

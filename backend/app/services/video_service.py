@@ -3,14 +3,14 @@ from sqlalchemy.orm import Session
 from app.models.user import User
 from app.repositories.video_repository import VideoGroupMappingRepository, VideoGroupRepository, VideoRepository
 from app.schemas.video import VideoCreate, VideoGroupCreate, VideoGroupUpdate, VideoUpdate
-from app.utils.azure_storage import generate_sas_url
+from app.utils.azure_storage import generate_video_sas_url
 
 
 class VideoService:
     @staticmethod
     def _process_video_data(data: dict):
         if data.get("videoUrl"):
-            data["videoUrl"] = generate_sas_url(data["videoUrl"])
+            data["videoUrl"] = generate_video_sas_url(data["videoUrl"])
         return data
 
     @staticmethod

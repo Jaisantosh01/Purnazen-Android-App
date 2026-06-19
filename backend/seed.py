@@ -376,7 +376,8 @@ try:
     ]
     
     for session_data in wellness_sessions_data:
-        if not db.query(WellnessSession).filter_by(title=session_data["title"]).first():
+        existing = db.query(WellnessSession).filter_by(title=session_data["title"]).first()
+        if not existing:
             db.add(
                 WellnessSession(
                     title=session_data["title"],
@@ -388,6 +389,19 @@ try:
                     updated_by=admin.id
                 )
             )
+        elif existing.video_group_id is None and wellness_group:
+            # Backfill the video group link for sessions seeded before the
+            # group-based refactor (otherwise the player shows the debug alert
+            # because videoGroupId is null).
+            existing.video_group_id = wellness_group.id
+
+    # Any wellness session still missing a group link (e.g. seeded by an older
+    # migration) is pointed at the default wellness group so the player opens
+    # instead of falling through to the navigation-debug alert.
+    if wellness_group:
+        db.query(WellnessSession).filter(
+            WellnessSession.video_group_id.is_(None)
+        ).update({"video_group_id": wellness_group.id}, synchronize_session=False)
 
     for sort_order, (key, content) in enumerate(RELIEF_SESSIONS.items()):
         if not db.query(ReliefSession).filter_by(key=key).first():

@@ -33,17 +33,29 @@ def _ext_from_magic(header: bytes) -> str:
     return ".jpg"
 
 
-def _configure_cloudinary() -> bool:
-    if not settings.CLOUDINARY_CLOUD_NAME:
-        return False
-    import cloudinary
-    import cloudinary.uploader
-    cloudinary.config(
-        cloud_name=settings.CLOUDINARY_CLOUD_NAME,
-        api_key=settings.CLOUDINARY_API_KEY,
-        api_secret=settings.CLOUDINARY_API_SECRET,
+def _mime_from_magic(header: bytes) -> str:
+    for magic, (mime, _ext) in _ALLOWED_MIME_MAGIC.items():
+        if header[: len(magic)] == magic:
+            return mime
+    return "image/jpeg"
+
+
+def _get_azure_client():
+    """Return a BlobServiceClient if Azure credentials are configured, else None."""
+    if not all([
+        settings.AZURE_STORAGE_ACCOUNT_NAME,
+        settings.AZURE_STORAGE_ACCOUNT_KEY,
+        settings.AZURE_BLOB_CONTAINER_NAME,
+    ]):
+        return None
+    from azure.storage.blob import BlobServiceClient
+    connection_string = (
+        f"DefaultEndpointsProtocol=https;"
+        f"AccountName={settings.AZURE_STORAGE_ACCOUNT_NAME};"
+        f"AccountKey={settings.AZURE_STORAGE_ACCOUNT_KEY};"
+        f"EndpointSuffix=core.windows.net"
     )
-    return True
+    return BlobServiceClient.from_connection_string(connection_string)
 
 
 class UploadService:
@@ -54,7 +66,6 @@ class UploadService:
         user_id: int,
         folder_suffix: str = "raw",
     ) -> dict:
-        """Read an UploadFile then validate + store. See ``validate_and_upload_bytes``."""
         content = await file.read()
         return await UploadService.validate_and_upload_bytes(content, user_id, folder_suffix)
 
@@ -64,15 +75,12 @@ class UploadService:
         user_id: int,
         folder_suffix: str = "raw",
     ) -> dict:
-        """Validate MIME + size + dimensions then upload already-read bytes.
+        """Validate MIME + size + dimensions then store bytes.
 
-        Split out so the endpoint can run the capture-quality gate on the same
-        bytes (without re-reading the consumed UploadFile) before storing.
+        Uploads to Azure Blob Storage when credentials are configured,
+        otherwise falls back to local filesystem (dev/test).
 
-        When Cloudinary is configured, uploads there.
-        Otherwise falls back to local filesystem storage (dev/test mode).
-
-        Returns ``{"url": str, "public_id": str, "bytes": int, "width": None, "height": None}``.
+        Returns ``{"url": str, "public_id": str, "bytes": int, "width": int|None, "height": int|None}``.
         """
         if len(content) > _MAX_BYTES:
             raise HTTPException(
@@ -82,7 +90,6 @@ class UploadService:
 
         _check_mime(content[:8])
 
-        # Dimension check — reject images that are too small for analysis
         from PIL import Image as PILImage
         pil_img = PILImage.open(io.BytesIO(content))
         w, h = pil_img.size
@@ -92,30 +99,40 @@ class UploadService:
                 detail=f"Image too small ({w}×{h}). Minimum 400×400 pixels required.",
             )
 
-        if _configure_cloudinary():
-            return await UploadService._upload_cloudinary(content, user_id, folder_suffix)
+        client = _get_azure_client()
+        if client:
+            return await UploadService._upload_azure(client, content, user_id, folder_suffix)
         return UploadService._save_local(content, user_id, folder_suffix)
 
     @staticmethod
-    async def _upload_cloudinary(content: bytes, user_id: int, folder_suffix: str) -> dict:
-        import cloudinary.uploader
-        folder = f"face_scans/{user_id}/{folder_suffix}"
+    async def _upload_azure(client, content: bytes, user_id: int, folder_suffix: str) -> dict:
+        from azure.storage.blob import ContentSettings
+        from app.utils.azure_storage import generate_sas_url
+
+        ext = _ext_from_magic(content[:8])
+        mime = _mime_from_magic(content[:8])
+        blob_name = f"face_scans/{user_id}/{folder_suffix}/{uuid.uuid4().hex}{ext}"
+
         try:
-            result = cloudinary.uploader.upload(
-                io.BytesIO(content),
-                folder=folder,
-                resource_type="image",
+            blob_client = client.get_blob_client(
+                container=settings.AZURE_BLOB_CONTAINER_NAME,
+                blob=blob_name,
+            )
+            blob_client.upload_blob(
+                content,
+                overwrite=True,
+                content_settings=ContentSettings(content_type=mime),
             )
         except Exception as exc:
-            logger.exception("Cloudinary upload failed: %s", exc)
+            logger.exception("Azure upload failed: %s", exc)
             raise HTTPException(status_code=502, detail="Image upload failed. Please try again.")
 
         return {
-            "url": result.get("secure_url", ""),
-            "public_id": result.get("public_id", ""),
-            "bytes": result.get("bytes", len(content)),
-            "width": result.get("width"),
-            "height": result.get("height"),
+            "url": generate_sas_url(blob_name),
+            "public_id": blob_name,
+            "bytes": len(content),
+            "width": None,
+            "height": None,
         }
 
     @staticmethod
@@ -136,7 +153,7 @@ class UploadService:
 
         return {
             "url": url,
-            "public_id": rel_path,   # used as key for local delete
+            "public_id": rel_path,
             "bytes": len(content),
             "width": None,
             "height": None,
@@ -146,15 +163,29 @@ class UploadService:
     def store_processed(content: bytes, user_id: int, folder_suffix: str = "processed") -> dict:
         """Synchronously store an already-generated image (e.g. the enhanced preview).
 
-        Used by the background pipeline (a sync task), so it can't await the async
-        upload path. Skips MIME/dimension validation — we generated these bytes.
+        Called from the background pipeline (sync context). Skips MIME/dimension
+        validation — we generated these bytes.
         Returns ``{"url": str, "public_id": str}``.
         """
-        if _configure_cloudinary():
-            import cloudinary.uploader
-            folder = f"face_scans/{user_id}/{folder_suffix}"
-            result = cloudinary.uploader.upload(io.BytesIO(content), folder=folder, resource_type="image")
-            return {"url": result.get("secure_url", ""), "public_id": result.get("public_id", "")}
+        client = _get_azure_client()
+        if client:
+            from azure.storage.blob import ContentSettings
+            from app.utils.azure_storage import generate_sas_url
+
+            ext = _ext_from_magic(content[:8])
+            mime = _mime_from_magic(content[:8])
+            blob_name = f"face_scans/{user_id}/{folder_suffix}/{uuid.uuid4().hex}{ext}"
+            blob_client = client.get_blob_client(
+                container=settings.AZURE_BLOB_CONTAINER_NAME,
+                blob=blob_name,
+            )
+            blob_client.upload_blob(
+                content,
+                overwrite=True,
+                content_settings=ContentSettings(content_type=mime),
+            )
+            return {"url": generate_sas_url(blob_name), "public_id": blob_name}
+
         saved = UploadService._save_local(content, user_id, folder_suffix)
         return {"url": saved["url"], "public_id": saved["public_id"]}
 
@@ -162,14 +193,17 @@ class UploadService:
     def delete_image(public_id: str) -> None:
         if not public_id:
             return
-        if _configure_cloudinary():
-            import cloudinary.uploader
+        client = _get_azure_client()
+        if client:
             try:
-                cloudinary.uploader.destroy(public_id)
+                blob_client = client.get_blob_client(
+                    container=settings.AZURE_BLOB_CONTAINER_NAME,
+                    blob=public_id,
+                )
+                blob_client.delete_blob()
             except Exception as exc:
-                logger.warning("Cloudinary delete failed for %s: %s", public_id, exc)
+                logger.warning("Azure delete failed for %s: %s", public_id, exc)
         else:
-            # Local file delete
             abs_path = os.path.join(
                 os.getcwd(),
                 settings.LOCAL_UPLOADS_DIR,

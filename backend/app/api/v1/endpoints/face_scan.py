@@ -60,7 +60,7 @@ def _quality_gate(content: bytes, scan_type: str = "face"):
     summary="Upload face or tongue scan image",
     description=(
         "Accepts a multipart JPEG/PNG upload, validates scan_storage consent, "
-        "stores the image on Cloudinary, enqueues the AI pipeline, and returns 202."
+        "stores the image on Azure Blob Storage, enqueues the AI pipeline, and returns 202."
     ),
     status_code=202,
 )
@@ -187,7 +187,7 @@ def get_scan_history(
 @router.delete(
     "/scan/{scan_id}",
     summary="Delete a scan (GDPR)",
-    description="Hard-deletes the scan record and both Cloudinary images.",
+    description="Hard-deletes the scan record and both stored images.",
 )
 def delete_scan(
     scan_id: int,

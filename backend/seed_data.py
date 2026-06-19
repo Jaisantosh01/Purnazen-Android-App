@@ -8,6 +8,7 @@ API content:
 Keys match the sessionKey/reliefKey values the screens navigate with.
 """
 
+# TODO: upload to Azure Blob Storage and replace with the blob name (e.g. "videos/Wrist_Pain.mp4")
 _RELIEF_VIDEO = "https://res.cloudinary.com/dcngh7dkt/video/upload/Wrist_Pain_n2i3wq.mp4"
 
 WELLNESS_SESSIONS = {

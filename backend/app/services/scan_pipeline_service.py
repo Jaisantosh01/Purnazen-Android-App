@@ -87,31 +87,30 @@ _MOCK_TONGUE_SCORES = {
 
 
 def _load_image_bgr(scan) -> "np.ndarray":
-    """Load the scan image as a BGR ndarray from Cloudinary or local storage."""
+    """Load the scan image as a BGR ndarray from remote storage or local filesystem."""
     import cv2
 
-    from app.core.config import settings
-
-    if settings.CLOUDINARY_CLOUD_NAME:
+    if scan.image_url and scan.image_url.startswith("http"):
         import requests
         resp = requests.get(scan.image_url, timeout=30)
         resp.raise_for_status()
         arr = np.frombuffer(resp.content, np.uint8)
         img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
         if img is None:
-            raise ValueError("cv2.imdecode returned None for Cloudinary image.")
+            raise ValueError("cv2.imdecode returned None for remote image.")
         return img
-    else:
-        import os
-        abs_path = os.path.join(
-            os.getcwd(),
-            settings.LOCAL_UPLOADS_DIR,
-            scan.image_public_id.replace("/", os.sep),
-        )
-        img = cv2.imread(abs_path)
-        if img is None:
-            raise FileNotFoundError(f"Could not read local image at {abs_path}")
-        return img
+
+    import os
+    from app.core.config import settings
+    abs_path = os.path.join(
+        os.getcwd(),
+        settings.LOCAL_UPLOADS_DIR,
+        scan.image_public_id.replace("/", os.sep),
+    )
+    img = cv2.imread(abs_path)
+    if img is None:
+        raise FileNotFoundError(f"Could not read local image at {abs_path}")
+    return img
 
 
 def _rois_from_bbox(img: "np.ndarray", x: int, y: int, w: int, h: int) -> dict:
