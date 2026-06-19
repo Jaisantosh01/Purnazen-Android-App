@@ -34,7 +34,7 @@ class Payment(Base):
     updated_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     is_active = Column(Boolean, default=True)
 
-    user = relationship("User", backref="payments")
+    user = relationship("User",foreign_keys=[user_id], backref="payments")
     appointment = relationship("Appointment", backref="payments")
 
     def to_dict(self):

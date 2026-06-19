@@ -40,7 +40,7 @@ class Doctor(Base):
     updated_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     is_active = Column(Boolean, default=True)
 
-    user = relationship("User", backref="doctor_profile")
+    user = relationship("User",foreign_keys=[user_id])
     specialty = relationship("Specialty", backref="doctors")
     clinics = relationship("Clinic", back_populates="doctor", cascade="all, delete-orphan")
     awards = relationship("Award", backref="doctor")

@@ -40,7 +40,7 @@ class Appointment(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     updated_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
 
-    user = relationship("User", backref="appointments")
+    user = relationship("User",foreign_keys=[user_id],backref="appointments")
     doctor = relationship("Doctor", backref="appointments")
     consultation_type = relationship("ConsultationType")
 
