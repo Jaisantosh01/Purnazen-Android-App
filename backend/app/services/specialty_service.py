@@ -1,5 +1,7 @@
 from datetime import datetime
 
+import uuid
+
 from app.models.specialty import Specialty
 from app.models.user import User
 from app.repositories.specialty_repository import SpecialtyRepository
@@ -33,7 +35,7 @@ class SpecialtyService:
     @staticmethod
     def update(
         db,
-        specialty_id: int,
+        specialty_id: uuid.UUID,
         name: str,
         description: str,
         user: User,
@@ -59,7 +61,7 @@ class SpecialtyService:
     @staticmethod
     def delete(
         db,
-        specialty_id: int,
+        specialty_id: uuid.UUID,
         user: User,
     ):
         specialty = SpecialtyRepository.get_by_id(

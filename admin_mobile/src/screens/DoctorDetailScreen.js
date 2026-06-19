@@ -84,7 +84,22 @@ const DoctorDetailScreen = ({ route, navigation }) => {
           <InfoItem icon="clock-outline" label="Experience" value={doctor.experience ? `${doctor.experience} years` : 'N/A'} />
           <InfoItem icon="currency-usd" label="Consultation Fee" value={doctor.fee ? `$${doctor.fee}` : 'N/A'} />
           <InfoItem icon="head-check-outline" label="Expertise" value={doctor.expertise?.join(', ') || 'N/A'} />
-          <InfoItem icon="translate" label="Languages" value={doctor.languages?.join(', ') || 'N/A'} isLast />
+          <InfoItem icon="translate" label="Languages" value={doctor.languages?.join(', ') || 'N/A'} />
+          
+          {doctor.awards && doctor.awards.length > 0 && (
+            <View style={styles.awardSection}>
+                <Text style={styles.awardHeader}>Awards</Text>
+                {doctor.awards.map(award => (
+                    <View key={award.id} style={styles.awardItem}>
+                        <MCIcon name="trophy" size={20} color={COLORS.accent} />
+                        <View style={styles.awardContent}>
+                            <Text style={styles.awardTitle}>{award.title} ({award.year})</Text>
+                            <Text style={styles.awardIssuer}>{award.issuer}</Text>
+                        </View>
+                    </View>
+                ))}
+            </View>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -110,7 +125,13 @@ const styles = StyleSheet.create({
   infoContent: { flex: 1, justifyContent: 'center' },
   infoLabel: { fontSize: 12, color: COLORS.textSecondary, marginBottom: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
   infoValue: { fontSize: 15, color: COLORS.textPrimary, fontWeight: '600', lineHeight: 20 },
-  loading: { textAlign: 'center', marginTop: 100 }
+  loading: { textAlign: 'center', marginTop: 100 },
+  awardSection: { marginTop: 16, borderTopWidth: 1, borderTopColor: '#f0f0f0', paddingTop: 16 },
+  awardHeader: { fontSize: 12, color: COLORS.textSecondary, marginBottom: 8, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  awardItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  awardContent: { marginLeft: 12 },
+  awardTitle: { fontSize: 14, fontWeight: '700', color: COLORS.textPrimary },
+  awardIssuer: { fontSize: 12, color: COLORS.textSecondary },
 });
 
 export default DoctorDetailScreen;

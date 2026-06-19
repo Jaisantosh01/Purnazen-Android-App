@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -56,7 +58,7 @@ def create_specialty(
     summary="Update specialty",
 )
 def update_specialty(
-    specialty_id: int,
+    specialty_id: uuid.UUID,
     body: SpecialtyUpdate,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -86,7 +88,7 @@ def update_specialty(
     summary="Delete specialty",
 )
 def delete_specialty(
-    specialty_id: int,
+    specialty_id: uuid.UUID,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):

@@ -1,3 +1,5 @@
+import uuid
+
 from sqlalchemy.orm import Session
 
 from app.models.expertise import Expertise
@@ -14,7 +16,7 @@ class ExpertiseRepository:
         )
 
     @staticmethod
-    def get_by_id(db: Session, expertise_id: int):
+    def get_by_id(db: Session, expertise_id: uuid.UUID):
         return (
             db.query(Expertise)
             .filter(

@@ -1,3 +1,5 @@
+import uuid
+
 from sqlalchemy import (
     Column,
     Date,
@@ -7,12 +9,10 @@ from sqlalchemy import (
     Integer,
     Numeric,
     String,
-    Time,
     Boolean,
     func,
 )
 from sqlalchemy.dialects.postgresql import UUID
-import uuid
 from sqlalchemy.orm import relationship
 
 from app.db.base_class import Base
@@ -27,8 +27,7 @@ class Appointment(Base):
     consultation_type_id = Column(UUID(as_uuid=True), ForeignKey("consultation_types.id"))
     visit_type = Column(String(20), nullable=False)
     date = Column(Date, nullable=False)
-    slot_start = Column(Time, nullable=False)
-    slot_end = Column(Time, nullable=False)
+    slot_timing_id = Column(UUID(as_uuid=True), ForeignKey("slot_timings.id"), nullable=False)
     fee = Column(Numeric(10, 2))
     status = Column(String(20), nullable=False, default="booked")  # booked | cancelled | completed
     payment_status = Column(
@@ -43,6 +42,7 @@ class Appointment(Base):
     user = relationship("User",foreign_keys=[user_id],backref="appointments")
     doctor = relationship("Doctor", backref="appointments")
     consultation_type = relationship("ConsultationType")
+    slot_timing = relationship("SlotTimings")
 
     __table_args__ = (Index("ix_appointments_doctor_date", "doctor_id", "date"),)
 
@@ -60,9 +60,7 @@ class Appointment(Base):
             "specialty": self.doctor.specialty.name,
             "visitType": self.visit_type,
             "date": self.date.isoformat(),
-            "time": self.slot_start.strftime("%I:%M %p"),
-            "slotStart": self.slot_start.strftime("%H:%M"),
-            "slotEnd": self.slot_end.strftime("%H:%M"),
+            "slotTimingId": str(self.slot_timing_id),
             "fee": float(self.fee) if self.fee is not None else None,
             "status": self.status,
             "paymentStatus": self.payment_status,

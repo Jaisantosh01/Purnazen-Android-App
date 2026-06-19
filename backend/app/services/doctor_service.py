@@ -1,8 +1,11 @@
 from datetime import date as date_type
 from datetime import datetime, timedelta
 
+import uuid
+
 from sqlalchemy.orm import Session
 
+from app.models.award import Award
 from app.models.doctor import Doctor
 from app.models.doctor_expertise_mapping import DoctorExpertiseMapping
 from app.models.doctor_language_mapping import DoctorLanguageMapping
@@ -48,7 +51,7 @@ class DoctorService:
         return DoctorRepository.get_doctors(db, page, limit, search, filter_key)
 
     @staticmethod
-    def get_doctor_by_id(db: Session, doctor_id: int) -> Doctor | None:
+    def get_doctor_by_id(db: Session, doctor_id: uuid.UUID) -> Doctor | None:
         return DoctorRepository.get_by_id(db, doctor_id)
 
     @staticmethod
@@ -94,7 +97,7 @@ class DoctorService:
         return [slot.strftime("%I:%M %p") for slot in sorted(set(slots))]
 
     @staticmethod
-    def update(db: Session, doctor_id: int, data: dict, user):
+    def update(db: Session, doctor_id: uuid.UUID, data: dict, user):
         doctor = db.get(Doctor, doctor_id)
         if not doctor:
             return None
@@ -124,6 +127,19 @@ class DoctorService:
             db.query(DoctorSpecialityMapping).filter_by(doctor_id=doctor.id).delete()
             for spec_id in data["specialty_ids"]:
                 db.add(DoctorSpecialityMapping(doctor_id=doctor.id, speciality_id=spec_id, created_by=user.id))
+
+        # Update Awards
+        if "awards" in data:
+            db.query(Award).filter_by(doctor_id=doctor.id).delete()
+            for award_data in data["awards"]:
+                db.add(Award(
+                    doctor_id=doctor.id,
+                    title=award_data["title"],
+                    issuer=award_data.get("issuer"),
+                    year=award_data.get("year"),
+                    description=award_data.get("description"),
+                    created_by=user.id
+                ))
 
         doctor.updated_at = datetime.utcnow()
         doctor.updated_by = user.id
@@ -162,8 +178,19 @@ class DoctorService:
         if "specialty_ids" in data:
             for spec_id in data["specialty_ids"]:
                 db.add(DoctorSpecialityMapping(doctor_id=new_doctor.id, speciality_id=spec_id, created_by=user.id))
+        
+        # Initialize Awards
+        if "awards" in data:
+            for award_data in data["awards"]:
+                db.add(Award(
+                    doctor_id=new_doctor.id,
+                    title=award_data["title"],
+                    issuer=award_data.get("issuer"),
+                    year=award_data.get("year"),
+                    description=award_data.get("description"),
+                    created_by=user.id
+                ))
 
         db.commit()
         db.refresh(new_doctor)
         return new_doctor
-

@@ -1,3 +1,5 @@
+import uuid
+
 from sqlalchemy.orm import Session
 
 from app.models.doctor_availability import DoctorAvailability
@@ -16,7 +18,7 @@ class DoctorAvailabilityRepository:
     @staticmethod
     def get_by_id(
         db: Session,
-        availability_id: int,
+        availability_id: uuid.UUID,
     ):
         return (
             db.query(DoctorAvailability)

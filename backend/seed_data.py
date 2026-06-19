@@ -10,37 +10,46 @@ Keys match the sessionKey/reliefKey values the screens navigate with.
 
 _RELIEF_VIDEO = "https://res.cloudinary.com/dcngh7dkt/video/upload/Wrist_Pain_n2i3wq.mp4"
 
-WELLNESS_SESSIONS = {
-    "YogaSession": {
-        "title": "Morning Yoga",
-        "duration": "20 min",
-        "icon": "lightning-bolt",
-        "videoUrl": None,
-        "totalCycles": 2,
-        "steps": [
-            {"id": 1, "name": "Mountain Pose", "description": "Stand tall, feet together, arms at sides. Breathe deeply.", "duration": 60},
-            {"id": 2, "name": "Forward Fold", "description": "Hinge at hips, let head hang heavy toward the floor.", "duration": 45},
-            {"id": 3, "name": "Downward Dog", "description": "Press palms flat, lift hips up and back, forming an inverted V.", "duration": 60},
-            {"id": 4, "name": "Warrior I", "description": "Step one foot forward, bend front knee, raise arms overhead.", "duration": 45},
-            {"id": 5, "name": "Child's Pose", "description": "Kneel, sit back on heels, extend arms forward and rest forehead down.", "duration": 60},
-            {"id": 6, "name": "Savasana", "description": "Lie flat on your back, close eyes, and relax completely.", "duration": 90},
-        ],
-    },
-    "MeditationSession": {
-        "title": "Mindful Meditation",
-        "duration": "15 min",
-        "icon": "brain",
-        "videoUrl": None,
-        "totalCycles": 1,
-        "steps": [
-            {"id": 1, "name": "Settle In", "description": "Find a comfortable seated position. Close your eyes gently.", "duration": 60},
-            {"id": 2, "name": "Body Scan", "description": "Bring awareness from your feet upward, releasing tension at each point.", "duration": 120},
-            {"id": 3, "name": "Breath Awareness", "description": "Focus solely on the natural rhythm of your breath.", "duration": 180},
-            {"id": 4, "name": "Loving Kindness", "description": "Silently wish yourself and others health, happiness, and peace.", "duration": 120},
-            {"id": 5, "name": "Return & Open", "description": "Gently wiggle fingers and toes, then slowly open your eyes.", "duration": 60},
-        ],
-    },
-}
+WELLNESS_SESSIONS_DATA = [
+    {"title": "Morning Yoga", "duration": "20 min", "icon": "heart-pulse", "sort_order": 0, "video_group_title": "Quick Relief"},
+    {"title": "Mindful Meditation", "duration": "15 min", "icon": "brain", "sort_order": 1, "video_group_title": "Wellness & Prevention"},
+    {"title": "Box Breathing", "duration": "10 min", "icon": "heart", "sort_order": 2, "video_group_title": "Quick Relief"},
+    {"title": "Morning Routine", "duration": "10 min", "icon": "flower", "sort_order": 3, "video_group_title": "Wellness & Prevention"},
+    {"title": "Evening Wind Down", "duration": "15 min", "icon": "medical-bag", "sort_order": 4, "video_group_title": "Quick Relief"},
+    {"title": "Full Body stretch", "duration": "10 min", "icon": "brain", "sort_order": 5, "video_group_title": "Wellness & Prevention"},
+]
+
+# WELLNESS_SESSIONS = {
+#     "YogaSession": {
+#         "title": "Morning Yoga",
+#         "duration": "20 min",
+#         "icon": "lightning-bolt",
+#         "videoUrl": None,
+#         "totalCycles": 2,
+#         "steps": [
+#             {"id": 1, "name": "Mountain Pose", "description": "Stand tall, feet together, arms at sides. Breathe deeply.", "duration": 60},
+#             {"id": 2, "name": "Forward Fold", "description": "Hinge at hips, let head hang heavy toward the floor.", "duration": 45},
+#             {"id": 3, "name": "Downward Dog", "description": "Press palms flat, lift hips up and back, forming an inverted V.", "duration": 60},
+#             {"id": 4, "name": "Warrior I", "description": "Step one foot forward, bend front knee, raise arms overhead.", "duration": 45},
+#             {"id": 5, "name": "Child's Pose", "description": "Kneel, sit back on heels, extend arms forward and rest forehead down.", "duration": 60},
+#             {"id": 6, "name": "Savasana", "description": "Lie flat on your back, close eyes, and relax completely.", "duration": 90},
+#         ],
+#     },
+#     "MeditationSession": {
+#         "title": "Mindful Meditation",
+#         "duration": "15 min",
+#         "icon": "brain",
+#         "videoUrl": None,
+#         "totalCycles": 1,
+#         "steps": [
+#             {"id": 1, "name": "Settle In", "description": "Find a comfortable seated position. Close your eyes gently.", "duration": 60},
+#             {"id": 2, "name": "Body Scan", "description": "Bring awareness from your feet upward, releasing tension at each point.", "duration": 120},
+#             {"id": 3, "name": "Breath Awareness", "description": "Focus solely on the natural rhythm of your breath.", "duration": 180},
+#             {"id": 4, "name": "Loving Kindness", "description": "Silently wish yourself and others health, happiness, and peace.", "duration": 120},
+#             {"id": 5, "name": "Return & Open", "description": "Gently wiggle fingers and toes, then slowly open your eyes.", "duration": 60},
+#         ],
+#     },
+# }
 
 RELIEF_SESSIONS = {
     "Headache": {
@@ -182,3 +191,51 @@ QUICK_RELIEFS = [
         "sort_order": 2
     }
 ]
+
+AWARDS = [
+    {
+        "doctor_email": "sarah@example.com",
+        "title": "Best Acupressure Practitioner",
+        "issuer": "Global Wellness Society",
+        "year": 2024,
+        "description": "Recognized for excellence in acupressure techniques."
+    },
+    {
+        "doctor_email": "sarah@example.com",
+        "title": "Wellness Innovator Award",
+        "issuer": "HealthTech Council",
+        "year": 2025,
+        "description": "For innovative approaches to holistic health."
+    },
+    {
+        "doctor_email": "priya@example.com",
+        "title": "Pain Management Excellence",
+        "issuer": "Pain Relief Association",
+        "year": 2023,
+        "description": "Outstanding contributions to chronic pain management."
+    }
+]
+
+DAYS_OF_WEEK = [
+    {"day_number": 0, "day": "Sunday"},
+    {"day_number": 1, "day": "Monday"},
+    {"day_number": 2, "day": "Tuesday"},
+    {"day_number": 3, "day": "Wednesday"},
+    {"day_number": 4, "day": "Thursday"},
+    {"day_number": 5, "day": "Friday"},
+    {"day_number": 6, "day": "Saturday"},
+]
+
+# Generate 1-hour slots from 9am to 6pm for Mon-Sat
+SLOT_TIMINGS = []
+for day in DAYS_OF_WEEK:
+    if day["day"] == "Sunday":
+        continue
+    
+    # 9:00 to 18:00
+    for hour in range(9, 18):
+        SLOT_TIMINGS.append({
+            "day_number": day["day_number"],
+            "start_time": f"{hour:02d}:00:00",
+            "end_time": f"{hour+1:02d}:00:00"
+        })

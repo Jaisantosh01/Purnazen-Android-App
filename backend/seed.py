@@ -24,10 +24,13 @@ from app.db.base import (
     VideoGroupMapping,
     ChatQuestion,
     ChatOption,
-    QuickRelief
+    QuickRelief,
+    Award,
+    DayOfWeek,
+    SlotTimings
 )
 from app.db.session import SessionLocal, engine
-from seed_data import RELIEF_SESSIONS, WELLNESS_SESSIONS, VIDEO_GROUPS, VIDEOS, CHAT_FLOW, QUICK_RELIEFS
+from seed_data import RELIEF_SESSIONS, VIDEO_GROUPS, VIDEOS, CHAT_FLOW, QUICK_RELIEFS, AWARDS, DAYS_OF_WEEK, SLOT_TIMINGS, WELLNESS_SESSIONS_DATA
 
 Base.metadata.create_all(bind=engine)
 
@@ -213,26 +216,63 @@ try:
     db.commit()
 
     # ------------------------
-    # Weekly availability
+    # Days of Week
     # ------------------------
-    weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+    for day_data in DAYS_OF_WEEK:
+        if not db.query(DayOfWeek).filter_by(day_number=day_data["day_number"]).first():
+            db.add(DayOfWeek(day_number=day_data["day_number"], day=day_data["day"]))
+
+    db.commit()
+
+    # ------------------------
+    # Slot Timings
+    # ------------------------
+    for slot_data in SLOT_TIMINGS:
+        day_of_week = db.query(DayOfWeek).filter_by(day_number=slot_data["day_number"]).first()
+        if day_of_week:
+            start_time = time.fromisoformat(slot_data["start_time"])
+            end_time = time.fromisoformat(slot_data["end_time"])
+            
+            if not db.query(SlotTimings).filter_by(
+                day_of_week_id=day_of_week.id,
+                start_time=start_time,
+                end_time=end_time
+            ).first():
+                db.add(SlotTimings(
+                    day_of_week_id=day_of_week.id,
+                    start_time=start_time,
+                    end_time=end_time,
+                    created_by=admin.id,
+                    updated_by=admin.id
+                ))
+
+    db.commit()
+
+    # ------------------------
+    # Weekly availability (links doctors to slot_timings)
+    # ------------------------
     windows = [(time(9, 0), time(12, 0)), (time(14, 0), time(17, 0))]
+    day_map = {d.day: d for d in db.query(DayOfWeek).all()}
 
     for user, *_ in doctor_profiles:
         doctor = db.query(Doctor).filter_by(user_id=user.id).first()
         if doctor and not db.query(DoctorAvailability).filter_by(doctor_id=doctor.id).first():
-            for day in weekdays:
-                for start, end in windows:
-                    db.add(
-                        DoctorAvailability(
+            for day_name in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]:
+                dow = day_map.get(day_name)
+                if not dow:
+                    continue
+                for window_start, window_end in windows:
+                    slots = db.query(SlotTimings).filter(
+                        SlotTimings.day_of_week_id == dow.id,
+                        SlotTimings.start_time >= window_start,
+                        SlotTimings.end_time <= window_end,
+                    ).all()
+                    for slot in slots:
+                        db.add(DoctorAvailability(
                             doctor_id=doctor.id,
-                            day_of_week=day,
-                            start_time=start,
-                            end_time=end,
-                            slot_duration_minutes=30,
+                            slot_timing_id=slot.id,
                             is_active=True,
-                        )
-                    )
+                        ))
 
     db.commit()
 
@@ -363,23 +403,16 @@ try:
     # ------------------------
     # Session catalogs
     # ------------------------
-    wellness_group = db.query(VideoGroups).filter_by(title="Wellness & Prevention").first()
-    
-    # Updated Wellness seeding (no key/steps, now group-based)
-    wellness_sessions_data = [
-        {"title": "Morning Yoga", "duration": "20 min", "icon": "🧘", "sort_order": 0},
-        {"title": "Mindful Meditation", "duration": "15 min", "icon": "🧠", "sort_order": 1},
-    ]
-    
-    for session_data in wellness_sessions_data:
+    for session_data in WELLNESS_SESSIONS_DATA:
         if not db.query(WellnessSession).filter_by(title=session_data["title"]).first():
+            group = db.query(VideoGroups).filter_by(title=session_data["video_group_title"]).first()
             db.add(
                 WellnessSession(
                     title=session_data["title"],
                     duration=session_data["duration"],
                     icon=session_data["icon"],
                     sort_order=session_data["sort_order"],
-                    video_group_id=wellness_group.id if wellness_group else None,
+                    video_group_id=group.id if group else None,
                     created_by=admin.id,
                     updated_by=admin.id
                 )
@@ -400,8 +433,28 @@ try:
                 )
             )
 
-    db.commit()
+    # ------------------------
+    # Awards
+    # ------------------------
+    for award_data in AWARDS:
+        user = db.query(User).filter_by(email=award_data["doctor_email"]).first()
+        if user:
+            doctor = db.query(Doctor).filter_by(user_id=user.id).first()
+            if doctor:
+                if not db.query(Award).filter_by(doctor_id=doctor.id, title=award_data["title"]).first():
+                    db.add(
+                        Award(
+                            doctor_id=doctor.id,
+                            title=award_data["title"],
+                            issuer=award_data["issuer"],
+                            year=award_data["year"],
+                            description=award_data["description"],
+                            created_by=admin.id,
+                            updated_by=admin.id
+                        )
+                    )
 
+    db.commit()
     print("Seed data inserted successfully.")
 finally:
     db.close()

@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -28,7 +30,7 @@ def get_start_chat_flow(db: Session = Depends(get_db)):
     summary="Get chat flow",
     description="Fetches a complete decision tree of questions and options starting from a specific question ID.",
 )
-def get_chat_flow(start_question_id: int, db: Session = Depends(get_db)):
+def get_chat_flow(start_question_id: uuid.UUID, db: Session = Depends(get_db)):
     flow = ChatService.get_flow(db, start_question_id)
     if not flow:
         return error_response("Chat flow not found", 404)

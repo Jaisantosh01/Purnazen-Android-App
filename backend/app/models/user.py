@@ -15,7 +15,7 @@ class User(Base):
     email = Column(String(120), unique=True, nullable=False)
     password = Column(String(255), nullable=False)
 
-    role_id = Column(Integer, ForeignKey("roles.id"))
+    role_id = Column(UUID(as_uuid=True), ForeignKey("roles.id"))
 
     token_version = Column(Integer, nullable=False, default=0, server_default="0")
 

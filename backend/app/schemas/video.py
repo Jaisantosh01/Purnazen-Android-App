@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from typing import Optional
 
@@ -16,7 +17,7 @@ class VideoBase(BaseModel):
 
 
 class VideoCreate(VideoBase):
-    video_group_id: int = Field(alias="videoGroupId")
+    video_group_id: uuid.UUID = Field(alias="videoGroupId")
     sort_order: int = Field(default=0, alias="sortOrder")
 
 
@@ -32,11 +33,11 @@ class VideoUpdate(BaseModel):
 
 
 class VideoResponse(VideoBase):
-    id: int
+    id: uuid.UUID
     created_at: datetime = Field(alias="createdAt")
     updated_at: datetime = Field(alias="updatedAt")
-    created_by: int = Field(alias="createdBy")
-    updated_by: int = Field(alias="updatedBy")
+    created_by: uuid.UUID = Field(alias="createdBy")
+    updated_by: uuid.UUID = Field(alias="updatedBy")
 
 
 class VideoGroupBase(BaseModel):
@@ -64,8 +65,8 @@ class VideoGroupUpdate(BaseModel):
 
 
 class VideoGroupResponse(VideoGroupBase):
-    id: int
+    id: uuid.UUID
     created_at: datetime = Field(alias="createdAt")
     updated_at: datetime = Field(alias="updatedAt")
-    created_by: int = Field(alias="createdBy")
-    updated_by: int = Field(alias="updatedBy")
+    created_by: uuid.UUID = Field(alias="createdBy")
+    updated_by: uuid.UUID = Field(alias="updatedBy")

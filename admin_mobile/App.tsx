@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -14,9 +15,9 @@ import { COLORS } from './src/constants/theme';
 import Toast from './src/components/Toast';
 // @ts-ignore
 import useToastStore from './src/utils/toast';
+
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
-
 import HomeScreen from './src/screens/HomeScreen';
 import DoctorManagementScreen from './src/screens/DoctorManagementScreen';
 import DoctorDetailScreen from './src/screens/DoctorDetailScreen';
@@ -27,25 +28,36 @@ import EditUserScreen from './src/screens/EditUserScreen';
 import ManageRolesScreen from './src/screens/ManageRolesScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import AppointmentManagementScreen from './src/screens/AppointmentManagementScreen';
+import SlotManagementScreen from './src/screens/SlotManagementScreen';
+import VideoManagementScreen from './src/screens/VideoManagementScreen';
+import VideoGroupDetailScreen from './src/screens/VideoGroupDetailScreen';
+import VideoPlayerScreen from './src/screens/VideoPlayerScreen';
 
 const RootStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 const HomeStack = createNativeStackNavigator();
 const DoctorsStack = createNativeStackNavigator();
 const UsersStack = createNativeStackNavigator();
+const AppointmentsStack = createNativeStackNavigator();
 const ProfileStack = createNativeStackNavigator();
 
 const TAB_ICONS: Record<string, { active: string; inactive: string }> = {
   Home:        { active: 'home',                    inactive: 'home-outline'                  },
   Doctors:     { active: 'doctor',                  inactive: 'doctor'                        },
   Users:       { active: 'account-group',           inactive: 'account-group-outline'         },
+  Appointments:{ active: 'calendar-clock',          inactive: 'calendar-clock-outline'        },
   Profile:     { active: 'account-circle',          inactive: 'account-circle-outline'        },
 };
 
 function HomeStackNavigator() {
   return (
     <HomeStack.Navigator screenOptions={{ headerShown: false }}>
-      <HomeStack.Screen name="HomeMain"       component={HomeScreen}          />
+      <HomeStack.Screen name="HomeMain"        component={HomeScreen} />
+      <HomeStack.Screen name="SlotManagement"  component={SlotManagementScreen} />
+      <HomeStack.Screen name="VideoManagement" component={VideoManagementScreen} />
+      <HomeStack.Screen name="VideoGroupDetail" component={VideoGroupDetailScreen} />
+      <HomeStack.Screen name="VideoPlayer"     component={VideoPlayerScreen} />
     </HomeStack.Navigator>
   );
 }
@@ -79,6 +91,14 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="ProfileMain"    component={ProfileScreen}        />
       <ProfileStack.Screen name="Settings"       component={SettingsScreen}       />
     </ProfileStack.Navigator>
+  );
+}
+
+function AppointmentsStackNavigator() {
+  return (
+    <AppointmentsStack.Navigator screenOptions={{ headerShown: false }}>
+      <AppointmentsStack.Screen name="AppointmentsMain" component={AppointmentManagementScreen} />
+    </AppointmentsStack.Navigator>
   );
 }
 
@@ -116,14 +136,13 @@ function MainTabs() {
       <Tab.Screen name="Home"        component={HomeStackNavigator}    />
       <Tab.Screen name="Doctors"     component={DoctorsStackNavigator} />
       <Tab.Screen name="Users"       component={UsersStackNavigator} />
+      <Tab.Screen name="Appointments" component={AppointmentsStackNavigator} />
       <Tab.Screen name="Profile"     component={ProfileStackNavigator} />
     </Tab.Navigator>
   );
 }
 
 export default function App() {
-  // Restore persisted session and migrate legacy AsyncStorage tokens
-  // into the device keystore (see src/utils/secureStorage.js).
   useEffect(() => {
     authService.bootstrap();
   }, []);
@@ -131,13 +150,15 @@ export default function App() {
   const { message, type, visible, hide } = useToastStore();
 
   return (
-    <NavigationContainer ref={navigationRef}>
-      <RootStack.Navigator screenOptions={{ headerShown: false }}>
-        <RootStack.Screen name="Login"    component={LoginScreen}    />
-        <RootStack.Screen name="Register" component={RegisterScreen} />
-        <RootStack.Screen name="Main"     component={MainTabs}       />
-      </RootStack.Navigator>
-      <Toast message={message} type={type} visible={visible} onHide={hide} />
-    </NavigationContainer>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <NavigationContainer ref={navigationRef}>
+        <RootStack.Navigator screenOptions={{ headerShown: false }}>
+          <RootStack.Screen name="Login"    component={LoginScreen}    />
+          <RootStack.Screen name="Register" component={RegisterScreen} />
+          <RootStack.Screen name="Main"     component={MainTabs}       />
+        </RootStack.Navigator>
+        <Toast message={message} type={type} visible={visible} onHide={hide} />
+      </NavigationContainer>
+    </GestureHandlerRootView>
   );
 }

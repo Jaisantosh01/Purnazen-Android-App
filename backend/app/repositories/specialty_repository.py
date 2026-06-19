@@ -1,3 +1,5 @@
+import uuid
+
 from sqlalchemy.orm import Session
 
 from app.models.specialty import Specialty
@@ -14,7 +16,7 @@ class SpecialtyRepository:
         )
 
     @staticmethod
-    def get_by_id(db: Session, specialty_id: int):
+    def get_by_id(db: Session, specialty_id: uuid.UUID):
         return (
             db.query(Specialty)
             .filter(
