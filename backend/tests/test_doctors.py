@@ -1,12 +1,19 @@
-from datetime import date, time, timedelta
+import uuid
+from datetime import date, datetime, time, timedelta
 
 from app.core.security import hash_password
+from app.models.associations import DoctorConsultationType
 from app.models.consultation_type import ConsultationType
+from app.models.day_of_week import DayOfWeek
 from app.models.doctor import Doctor
 from app.models.doctor_availability import DoctorAvailability
+from app.models.doctor_speciality_mapping import DoctorSpecialityMapping
 from app.models.role import Role
+from app.models.slot_timings import SlotTimings
 from app.models.specialty import Specialty
 from app.models.user import User
+
+_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
 
 def seed_doctor(
@@ -30,7 +37,7 @@ def seed_doctor(
         specialty = Specialty(name="Acupressure Specialist")
         db.add(specialty)
     db.add(user)
-    db.commit()
+    db.flush()
 
     doctor = Doctor(
         user_id=user.id,
@@ -43,6 +50,19 @@ def seed_doctor(
         reviews_count=234,
         is_available_today=available,
     )
+    db.add(doctor)
+    db.flush()
+
+    # The doctor card derives specialties from the speciality mapping table.
+    db.add(
+        DoctorSpecialityMapping(
+            doctor_id=doctor.id,
+            speciality_id=specialty.id,
+            created_by=user.id,
+            updated_by=user.id,
+        )
+    )
+
     if with_types:
         for type_name in types:
             consultation_type = (
@@ -51,16 +71,17 @@ def seed_doctor(
             if not consultation_type:
                 consultation_type = ConsultationType(name=type_name)
                 db.add(consultation_type)
-            doctor.consultation_types.append(consultation_type)
-    db.add(doctor)
+                db.flush()
+            doctor.consultation_type_links.append(
+                DoctorConsultationType(consultation_type=consultation_type)
+            )
     db.commit()
     return doctor
 
 
 def next_weekday(day_name="Monday"):
     """The next future date (at least tomorrow) falling on the given weekday."""
-    days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-    target = days.index(day_name)
+    target = _DAYS.index(day_name)
     today = date.today()
     delta = (target - today.weekday()) % 7 or 7
     return today + timedelta(days=delta)
@@ -69,17 +90,45 @@ def next_weekday(day_name="Monday"):
 def add_availability(
     db, doctor, day="Monday", start=time(9, 0), end=time(11, 0), duration=30
 ):
-    db.add(
-        DoctorAvailability(
-            doctor_id=doctor.id,
-            day_of_week=day,
-            start_time=start,
-            end_time=end,
-            slot_duration_minutes=duration,
-            is_active=True,
+    """Create the doctor's weekly availability as discrete slot_timings rows.
+
+    The model now links a doctor to ``SlotTimings`` (one bookable block each)
+    via ``doctor_availability``; this splits [start, end) into ``duration``-minute
+    slots under the matching ``DayOfWeek``. Returns the created SlotTimings rows.
+    """
+    day_row = db.query(DayOfWeek).filter_by(day=day).first()
+    if not day_row:
+        day_row = DayOfWeek(day_number=_DAYS.index(day) + 1, day=day)
+        db.add(day_row)
+        db.flush()
+
+    slots = []
+    cursor = datetime.combine(date.today(), start)
+    end_dt = datetime.combine(date.today(), end)
+    step = timedelta(minutes=duration)
+    while cursor + step <= end_dt:
+        slot = SlotTimings(
+            day_of_week_id=day_row.id,
+            start_time=cursor.time(),
+            end_time=(cursor + step).time(),
+            created_by=doctor.user_id,
+            updated_by=doctor.user_id,
         )
-    )
+        db.add(slot)
+        db.flush()
+        db.add(
+            DoctorAvailability(
+                doctor_id=doctor.id,
+                slot_timing_id=slot.id,
+                is_active=True,
+                created_by=doctor.user_id,
+                updated_by=doctor.user_id,
+            )
+        )
+        slots.append(slot)
+        cursor += step
     db.commit()
+    return slots
 
 
 def test_get_doctors_empty(client):
@@ -100,7 +149,7 @@ def test_get_doctors_returns_card_shape(client, db_session):
 
     doctor = data["doctors"][0]
     assert doctor["name"] == "Dr. Dr Sarah Chen"
-    assert doctor["specialty"] == "Acupressure Specialist"
+    assert doctor["specialties"] == ["Acupressure Specialist"]
     assert doctor["rating"] == 4.9
     assert doctor["reviews"] == 234
     assert doctor["experience"] == 15
@@ -229,7 +278,7 @@ def test_get_doctor_detail_returns_card_shape(client, db_session):
     data = body["data"]
     assert data["id"] == str(doctor.id)
     assert data["name"] == "Dr. Dr Sarah Chen"
-    assert data["specialty"] == "Acupressure Specialist"
+    assert data["specialties"] == ["Acupressure Specialist"]
     assert data["fee"] == 1200.0
     assert data["experience"] == 15
     assert data["about"] == "Experienced specialist."
@@ -241,7 +290,7 @@ def test_get_doctor_detail_returns_card_shape(client, db_session):
 
 
 def test_get_doctor_detail_not_found(client):
-    response = client.get("/api/v1/doctors/999")
+    response = client.get(f"/api/v1/doctors/{uuid.uuid4()}")
     assert response.status_code == 404
     body = response.json()
     assert body["success"] is False
@@ -272,7 +321,7 @@ def test_get_visit_types_doctor_without_types(client, db_session):
 
 
 def test_get_visit_types_doctor_not_found(client):
-    response = client.get("/api/v1/doctors/999/visit-types")
+    response = client.get(f"/api/v1/doctors/{uuid.uuid4()}/visit-types")
     assert response.status_code == 404
 
 
@@ -289,7 +338,8 @@ def test_get_time_slots_from_availability(client, db_session):
         params={"date": on_date.isoformat()},
     )
     assert response.status_code == 200
-    assert response.json()["data"]["slots"] == [
+    slots = response.json()["data"]["slots"]
+    assert [s["time"] for s in slots] == [
         "09:00 AM",
         "09:30 AM",
         "10:00 AM",

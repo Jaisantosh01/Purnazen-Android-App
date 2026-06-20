@@ -358,6 +358,8 @@ try:
             db.flush()
         question_map[q_text] = question
 
+    video_group_key_to_title = {vg["key"]: vg["title"] for vg in VIDEO_GROUPS}
+
     for q_data in CHAT_FLOW:
         question = question_map[q_data["question"]]
         for opt_data in q_data["options"]:
@@ -426,6 +428,9 @@ try:
     # ------------------------
     # Session catalogs
     # ------------------------
+    # Default video group used to backfill wellness sessions that don't carry
+    # an explicit group link (otherwise the player shows the navigation-debug alert).
+    wellness_group = db.query(VideoGroups).filter_by(title="Wellness & Prevention").first()
     for session_data in WELLNESS_SESSIONS_DATA:
         if not db.query(WellnessSession).filter_by(title=session_data["title"]).first():
             group = db.query(VideoGroups).filter_by(title=session_data["video_group_title"]).first()
@@ -440,6 +445,19 @@ try:
                     updated_by=admin.id
                 )
             )
+        elif existing.video_group_id is None and wellness_group:
+            # Backfill the video group link for sessions seeded before the
+            # group-based refactor (otherwise the player shows the debug alert
+            # because videoGroupId is null).
+            existing.video_group_id = wellness_group.id
+
+    # Any wellness session still missing a group link (e.g. seeded by an older
+    # migration) is pointed at the default wellness group so the player opens
+    # instead of falling through to the navigation-debug alert.
+    if wellness_group:
+        db.query(WellnessSession).filter(
+            WellnessSession.video_group_id.is_(None)
+        ).update({"video_group_id": wellness_group.id}, synchronize_session=False)
 
     for sort_order, (key, content) in enumerate(RELIEF_SESSIONS.items()):
         if not db.query(ReliefSession).filter_by(key=key).first():

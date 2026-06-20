@@ -53,7 +53,7 @@ class PaymentService:
         # signature, so the local sandbox hands the client a valid pair —
         # the verify endpoint then exercises the exact same path as live.
         if order["mode"] == "local-sandbox":
-            sandbox_payment_id = f"pay_sbx_{payment.id:08d}"
+            sandbox_payment_id = f"pay_sbx_{payment.id.hex}"
             response["sandboxPaymentId"] = sandbox_payment_id
             response["sandboxSignature"] = payment_provider.compute_signature(
                 order["order_id"], sandbox_payment_id
@@ -82,6 +82,8 @@ class PaymentService:
             data.order_id, data.payment_id, data.signature
         ):
             payment.status = "failed"
+            if payment.appointment:
+                payment.appointment.payment_status = "unpaid"
             db.commit()
             return {
                 "success": False,

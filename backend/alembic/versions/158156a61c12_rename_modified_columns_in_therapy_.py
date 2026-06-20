@@ -17,17 +17,13 @@ depends_on = None
 
 
 def upgrade():
-     op.alter_column(
-        "therapy_sessions",
-        "modified_at",
-        new_column_name="updated_at"
-    )
-
-     op.alter_column(
-        "therapy_sessions",
-        "modified_by",
-        new_column_name="updated_by"
-    )
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    ts_cols = {c['name'] for c in inspector.get_columns('therapy_sessions')}
+    if 'modified_at' in ts_cols:
+        op.alter_column("therapy_sessions", "modified_at", new_column_name="updated_at")
+    if 'modified_by' in ts_cols:
+        op.alter_column("therapy_sessions", "modified_by", new_column_name="updated_by")
 
 
 def downgrade():

@@ -9,8 +9,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  * interceptor doesn't hit the native keystore on every call.
  */
 const SERVICES = {
-  ACCESS: 'com.wellness.access_token',
-  REFRESH: 'com.wellness.refresh_token',
+  ACCESS: 'com.purnazen.admin.access_token',
+  REFRESH: 'com.purnazen.admin.refresh_token',
 };
 
 const cache = {

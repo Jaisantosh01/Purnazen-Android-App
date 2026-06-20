@@ -30,4 +30,9 @@ from app.models.role import Role  # noqa: E402,F401
 from app.models.doctor_expertise_mapping import DoctorExpertiseMapping  # noqa: E402,F401
 from app.models.doctor_language_mapping import DoctorLanguageMapping  # noqa: E402,F401
 from app.models.doctor_speciality_mapping import DoctorSpecialityMapping  # noqa: E402,F401
+from app.models.face_glow_routine import FaceGlowRoutine  # noqa: E402,F401
+from app.models.user_consent import UserConsent  # noqa: E402,F401
+from app.models.face_scan import FaceScan  # noqa: E402,F401
+from app.models.scan_result import ScanResult  # noqa: E402,F401
+from app.models.scan_recommendation import ScanRecommendation  # noqa: E402,F401
 from app.models.associations import DoctorConsultationType  # noqa: E402,F401
