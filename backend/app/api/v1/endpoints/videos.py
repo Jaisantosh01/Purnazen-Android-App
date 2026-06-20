@@ -1,6 +1,8 @@
+import uuid
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
@@ -8,6 +10,10 @@ from app.models.user import User
 from app.schemas.video import VideoCreate, VideoGroupCreate, VideoGroupUpdate, VideoUpdate
 from app.services.video_service import VideoService
 from app.utils.responses import error_response, success_response
+
+
+class SyncGroupVideosRequest(BaseModel):
+    video_ids: list[uuid.UUID]
 
 router = APIRouter(prefix="/videos", tags=["Videos"])
 
@@ -32,7 +38,7 @@ def get_video_groups(
     summary="Get video group detail",
     description="Fetch a single video group by its internal ID.",
 )
-def get_video_group(group_id: int, db: Session = Depends(get_db)):
+def get_video_group(group_id: uuid.UUID, db: Session = Depends(get_db)):
     group = VideoService.get_group(db, group_id)
     if not group:
         return error_response("Video group not found", 404)
@@ -45,7 +51,7 @@ def get_video_group(group_id: int, db: Session = Depends(get_db)):
     description="Fetch a video group along with all its active associated videos.",
 )
 def get_video_group_catalog(
-    group_id: int,
+    group_id: uuid.UUID,
     active_only: bool = Query(default=True),
     db: Session = Depends(get_db)
 ):
@@ -78,7 +84,7 @@ def create_video_group(
     description="Modify an existing video group's title, description, icon, or status.",
 )
 def update_video_group(
-    group_id: int,
+    group_id: uuid.UUID,
     body: VideoGroupUpdate,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -89,13 +95,30 @@ def update_video_group(
     return success_response(response["message"], response["group"], status_code)
 
 
+@router.put(
+    "/groups/{group_id}/videos",
+    summary="Sync videos in group",
+    description="Replace the set of videos assigned to a group with the given list of video IDs.",
+)
+def sync_group_videos(
+    group_id: uuid.UUID,
+    body: SyncGroupVideosRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    response, status_code = VideoService.add_videos_to_group(db, group_id, body.video_ids, user)
+    if not response["success"]:
+        return error_response(response["message"], status_code)
+    return success_response(response["message"], None, status_code)
+
+
 @router.delete(
     "/groups/{group_id}",
     summary="Delete video group",
     description="Soft-delete a video group and all its associated videos by setting isActive to false.",
 )
 def delete_video_group(
-    group_id: int,
+    group_id: uuid.UUID,
     _user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -111,7 +134,7 @@ def delete_video_group(
     description="Fetch videos, optionally filtered by group (Quick Relief, Wellness, etc.).",
 )
 def get_videos(
-    group_id: Optional[int] = Query(default=None, description="Filter videos by group ID"),
+    group_id: Optional[uuid.UUID] = Query(default=None, description="Filter videos by group ID"),
     active_only: bool = Query(default=True, description="Filter to only active videos"),
     db: Session = Depends(get_db),
 ):
@@ -126,7 +149,7 @@ def get_videos(
     summary="Get video detail",
     description="Fetch detailed metadata for a single video, including its URL and duration.",
 )
-def get_video(video_id: int, db: Session = Depends(get_db)):
+def get_video(video_id: uuid.UUID, db: Session = Depends(get_db)):
     video = VideoService.get_video(db, video_id)
     if not video:
         return error_response("Video not found", 404)
@@ -156,7 +179,7 @@ def create_video(
     description="Modify a video's title, URL, duration, or assigned group.",
 )
 def update_video(
-    video_id: int,
+    video_id: uuid.UUID,
     body: VideoUpdate,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -173,7 +196,7 @@ def update_video(
     description="Soft-delete a video from the catalog by setting isActive to false.",
 )
 def delete_video(
-    video_id: int,
+    video_id: uuid.UUID,
     _user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):

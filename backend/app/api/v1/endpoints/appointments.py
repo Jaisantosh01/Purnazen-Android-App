@@ -1,9 +1,14 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+import uuid
 
-from app.api.deps import get_current_user, get_db
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session, joinedload
+
+from app.api.deps import get_current_user, get_db, require_role
 from app.models.user import User
-from app.schemas.appointment import BookAppointmentRequest
+from app.models.doctor import Doctor
+from app.models.consultation_type import ConsultationType
+from app.models.appointment import Appointment
+from app.schemas.appointment import BookAppointmentRequest, UpdateAppointmentRequest
 from app.services.appointment_service import AppointmentService
 from app.utils.responses import error_response, success_response
 
@@ -32,6 +37,22 @@ def book_appointment(
     return success_response(response["message"], response["appointment"], status_code)
 
 
+@router.put(
+    "/{appointment_id}",
+    summary="Update an appointment",
+)
+def update_appointment(
+    appointment_id: uuid.UUID,
+    body: UpdateAppointmentRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    appointment = AppointmentService.update(db, user, appointment_id, body)
+    if not appointment:
+        return error_response("Appointment not found", 404)
+    return success_response("Appointment updated successfully", appointment.to_dict())
+
+
 @router.get(
     "",
     summary="List my appointments",
@@ -45,3 +66,39 @@ def get_appointments(
         "Appointments fetched successfully",
         AppointmentService.get_user_appointments(db, user.id),
     )
+
+
+@router.get(
+    "/admin",
+    summary="List all appointments (admin)",
+)
+def get_all_appointments_admin(
+    user: User = Depends(require_role("admin")),
+    db: Session = Depends(get_db),
+):
+    appointments = (
+        db.query(Appointment)
+        .options(
+            joinedload(Appointment.slot_timing),
+            joinedload(Appointment.doctor).joinedload(Doctor.user),
+            joinedload(Appointment.doctor).joinedload(Doctor.specialty),
+            joinedload(Appointment.consultation_type),
+            joinedload(Appointment.user),
+        )
+        .order_by(Appointment.date.desc())
+        .all()
+    )
+    serialized = [a.to_dict() for a in appointments]
+    return success_response("Appointments fetched successfully", {"appointments": serialized, "total": len(serialized)})
+
+
+@router.get(
+    "/consultation-types",
+    summary="Get all consultation types",
+)
+def get_consultation_types(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    types = db.query(ConsultationType).filter(ConsultationType.is_active == True).all()
+    return success_response("Consultation types fetched", [t.name for t in types])

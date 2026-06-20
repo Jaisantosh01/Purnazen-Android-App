@@ -1,3 +1,4 @@
+import uuid
 from datetime import time
 
 from tests.test_doctors import add_availability, next_weekday, seed_doctor
@@ -17,25 +18,33 @@ def auth_headers(client, email="patient@example.com"):
     return {"Authorization": f"Bearer {tokens['access_token']}"}
 
 
-def book_payload(doctor, on_date, slot="09:00 AM"):
+def slot_at(slots, when):
+    """Return the seeded SlotTimings whose start time matches ``when``."""
+    for slot in slots:
+        if slot.start_time == when:
+            return slot
+    raise AssertionError(f"No seeded slot starting at {when}")
+
+
+def book_payload(doctor, on_date, slot, visit_type="video", fee=1200):
     return {
         "doctorId": str(doctor.id),
-        "visitType": "video",
+        "visitType": visit_type,
         "date": on_date.isoformat(),
-        "time": slot,
-        "fee": 1200,
+        "slotTimingId": str(slot.id),
+        "fee": fee,
     }
 
 
 def test_book_appointment_success(client, db_session):
     doctor = seed_doctor(db_session)
-    add_availability(db_session, doctor, day="Monday", start=time(9, 0), end=time(11, 0))
+    slots = add_availability(db_session, doctor, day="Monday", start=time(9, 0), end=time(11, 0))
     on_date = next_weekday("Monday")
     headers = auth_headers(client)
 
     response = client.post(
         "/api/v1/appointments/book",
-        json=book_payload(doctor, on_date),
+        json=book_payload(doctor, on_date, slot_at(slots, time(9, 0))),
         headers=headers,
     )
     assert response.status_code == 201
@@ -43,30 +52,31 @@ def test_book_appointment_success(client, db_session):
     assert body["success"] is True
 
     data = body["data"]
-    assert data["reference"] == "APT-000001"
-    assert data["status"] == "booked"
+    assert data["reference"].startswith("APT-")
+    assert data["status"] == "pending"
     assert data["date"] == on_date.isoformat()
     assert data["time"] == "09:00 AM"
-    assert data["slotEnd"] == "09:30"
-    assert data["visitType"] == "video"
+    assert data["endTime"] == "09:30 AM"
+    assert data["consultationType"] == "video"
     assert data["fee"] == 1200.0
 
 
 def test_book_appointment_conflict(client, db_session):
     doctor = seed_doctor(db_session)
-    add_availability(db_session, doctor, day="Monday", start=time(9, 0), end=time(11, 0))
+    slots = add_availability(db_session, doctor, day="Monday", start=time(9, 0), end=time(11, 0))
     on_date = next_weekday("Monday")
+    slot = slot_at(slots, time(9, 0))
     headers = auth_headers(client)
 
     first = client.post(
-        "/api/v1/appointments/book", json=book_payload(doctor, on_date), headers=headers
+        "/api/v1/appointments/book", json=book_payload(doctor, on_date, slot), headers=headers
     )
     assert first.status_code == 201
 
     other_headers = auth_headers(client, email="second@example.com")
     second = client.post(
         "/api/v1/appointments/book",
-        json=book_payload(doctor, on_date),
+        json=book_payload(doctor, on_date, slot),
         headers=other_headers,
     )
     assert second.status_code == 409
@@ -77,8 +87,10 @@ def test_book_appointment_conflict(client, db_session):
 
 def test_book_appointment_requires_auth(client, db_session):
     doctor = seed_doctor(db_session)
+    slots = add_availability(db_session, doctor, day="Monday", start=time(9, 0), end=time(11, 0))
     response = client.post(
-        "/api/v1/appointments/book", json=book_payload(doctor, next_weekday("Monday"))
+        "/api/v1/appointments/book",
+        json=book_payload(doctor, next_weekday("Monday"), slot_at(slots, time(9, 0))),
     )
     assert response.status_code == 401
     assert response.json()["success"] is False
@@ -89,10 +101,10 @@ def test_book_appointment_unknown_doctor(client, db_session):
     response = client.post(
         "/api/v1/appointments/book",
         json={
-            "doctorId": "999",
+            "doctorId": str(uuid.uuid4()),
             "visitType": "video",
             "date": next_weekday("Monday").isoformat(),
-            "time": "09:00 AM",
+            "slotTimingId": str(uuid.uuid4()),
         },
         headers=headers,
     )
@@ -102,22 +114,18 @@ def test_book_appointment_unknown_doctor(client, db_session):
 
 def test_book_appointment_past_date(client, db_session):
     doctor = seed_doctor(db_session)
+    slots = add_availability(db_session, doctor, day="Monday", start=time(9, 0), end=time(11, 0))
     headers = auth_headers(client)
     response = client.post(
         "/api/v1/appointments/book",
-        json={
-            "doctorId": str(doctor.id),
-            "visitType": "video",
-            "date": "2020-01-01",
-            "time": "09:00 AM",
-        },
+        json=book_payload(doctor, next_weekday("Monday").replace(year=2020), slot_at(slots, time(9, 0))),
         headers=headers,
     )
     assert response.status_code == 400
     assert response.json()["message"] == "Date must not be in the past"
 
 
-def test_book_appointment_invalid_time(client, db_session):
+def test_book_appointment_invalid_slot_id(client, db_session):
     doctor = seed_doctor(db_session)
     headers = auth_headers(client)
     response = client.post(
@@ -126,7 +134,7 @@ def test_book_appointment_invalid_time(client, db_session):
             "doctorId": str(doctor.id),
             "visitType": "video",
             "date": next_weekday("Monday").isoformat(),
-            "time": "25:99",
+            "slotTimingId": "not-a-uuid",
         },
         headers=headers,
     )
@@ -135,13 +143,13 @@ def test_book_appointment_invalid_time(client, db_session):
 
 def test_booked_slot_excluded_from_time_slots(client, db_session):
     doctor = seed_doctor(db_session)
-    add_availability(db_session, doctor, day="Monday", start=time(9, 0), end=time(11, 0))
+    slots = add_availability(db_session, doctor, day="Monday", start=time(9, 0), end=time(11, 0))
     on_date = next_weekday("Monday")
     headers = auth_headers(client)
 
     client.post(
         "/api/v1/appointments/book",
-        json=book_payload(doctor, on_date, slot="09:30 AM"),
+        json=book_payload(doctor, on_date, slot_at(slots, time(9, 30))),
         headers=headers,
     )
 
@@ -149,19 +157,21 @@ def test_booked_slot_excluded_from_time_slots(client, db_session):
         f"/api/v1/doctors/{doctor.id}/time-slots",
         params={"date": on_date.isoformat()},
     )
-    slots = response.json()["data"]["slots"]
-    assert "09:30 AM" not in slots
-    assert "09:00 AM" in slots
+    times = [s["time"] for s in response.json()["data"]["slots"]]
+    assert "09:30 AM" not in times
+    assert "09:00 AM" in times
 
 
 def test_get_appointments_lists_booking(client, db_session):
     doctor = seed_doctor(db_session)
-    add_availability(db_session, doctor, day="Monday", start=time(9, 0), end=time(11, 0))
+    slots = add_availability(db_session, doctor, day="Monday", start=time(9, 0), end=time(11, 0))
     on_date = next_weekday("Monday")
     headers = auth_headers(client)
 
     client.post(
-        "/api/v1/appointments/book", json=book_payload(doctor, on_date), headers=headers
+        "/api/v1/appointments/book",
+        json=book_payload(doctor, on_date, slot_at(slots, time(9, 0))),
+        headers=headers,
     )
 
     response = client.get("/api/v1/appointments", headers=headers)
@@ -172,7 +182,7 @@ def test_get_appointments_lists_booking(client, db_session):
     appointment = data["appointments"][0]
     assert appointment["doctorName"] == "Dr. Dr Sarah Chen"
     assert appointment["isUpcoming"] is True
-    assert appointment["status"] == "booked"
+    assert appointment["status"] == "pending"
 
 
 def test_get_appointments_requires_auth(client):
@@ -182,12 +192,14 @@ def test_get_appointments_requires_auth(client):
 
 def test_get_appointments_only_own(client, db_session):
     doctor = seed_doctor(db_session)
-    add_availability(db_session, doctor, day="Monday", start=time(9, 0), end=time(11, 0))
+    slots = add_availability(db_session, doctor, day="Monday", start=time(9, 0), end=time(11, 0))
     on_date = next_weekday("Monday")
 
     booker = auth_headers(client)
     client.post(
-        "/api/v1/appointments/book", json=book_payload(doctor, on_date), headers=booker
+        "/api/v1/appointments/book",
+        json=book_payload(doctor, on_date, slot_at(slots, time(9, 0))),
+        headers=booker,
     )
 
     other = auth_headers(client, email="other@example.com")

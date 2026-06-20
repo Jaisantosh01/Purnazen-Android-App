@@ -1,5 +1,7 @@
 from datetime import datetime
 
+import uuid
+
 from app.models.language import Language
 from app.models.user import User
 from app.repositories.language_repository import LanguageRepository
@@ -27,7 +29,7 @@ class LanguageService:
         return LanguageRepository.create(db, language)
 
     @staticmethod
-    def update(db, language_id: int, name: str, user: User):
+    def update(db, language_id: uuid.UUID, name: str, user: User):
 
         language = LanguageRepository.get_by_id(
             db,
@@ -44,7 +46,7 @@ class LanguageService:
         return LanguageRepository.save(db, language)
 
     @staticmethod
-    def delete(db, language_id: int, user: User):
+    def delete(db, language_id: uuid.UUID, user: User):
 
         language = LanguageRepository.get_by_id(
             db,

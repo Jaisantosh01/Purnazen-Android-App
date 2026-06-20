@@ -1,3 +1,5 @@
+import uuid
+
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -10,7 +12,7 @@ from app.models.video_group_mapping import VideoGroupMapping
 class TherapySessionRepository:
 
     @staticmethod
-    def upsert(db: Session, user_id: int, data: dict) -> TherapySession:
+    def upsert(db: Session, user_id: uuid.UUID, data: dict) -> TherapySession:
         # Map 'type' to 'session_type' for the model
         if "type" in data:
             data["session_type"] = data.pop("type")
@@ -40,7 +42,7 @@ class TherapySessionRepository:
         return session
 
     @staticmethod
-    def get_user_sessions(db: Session, user_id: int, page: int, limit: int):
+    def get_user_sessions(db: Session, user_id: uuid.UUID, page: int, limit: int):
         # Query sessions and join with related tables for additional info
         query = (
             db.query(TherapySession)
@@ -68,7 +70,7 @@ class TherapySessionRepository:
         return results, total
 
     @staticmethod
-    def get_user_stats(db: Session, user_id: int) -> dict:
+    def get_user_stats(db: Session, user_id: uuid.UUID) -> dict:
         # Note: This might need adjustment based on the new model structure if stats are still needed
         completed = (
             TherapySession.user_id == user_id,

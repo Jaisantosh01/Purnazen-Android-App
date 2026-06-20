@@ -1,3 +1,5 @@
+import uuid
+
 from sqlalchemy.orm import Session
 
 from app.models.language import Language
@@ -14,7 +16,7 @@ class LanguageRepository:
         )
 
     @staticmethod
-    def get_by_id(db: Session, language_id: int):
+    def get_by_id(db: Session, language_id: uuid.UUID):
         return (
             db.query(Language)
             .filter(
