@@ -17,11 +17,12 @@ import { StatsSkeleton } from '../components/SkeletonLoader';
 import { COLORS } from '../constants/theme';
 
 const MENU_ITEMS = [
-  { icon: 'history',          iconColor: COLORS.primary,        iconBg: COLORS.primaryLight,  title: 'Therapy History',  subtitle: 'View past sessions',  screen: 'TherapyHistory' },
-  { icon: 'credit-card',      iconColor: COLORS.accent,         iconBg: COLORS.accentLight,   title: 'Subscriptions',    subtitle: 'Manage your plan',    screen: 'Subscriptions' },
-  { icon: 'bell-outline',     iconColor: '#ea580c',             iconBg: '#FFF3E0',            title: 'Notifications',    subtitle: 'Manage alerts',       screen: 'Notifications' },
-  { icon: 'cog-outline',      iconColor: COLORS.textSecondary,  iconBg: COLORS.surfaceMuted,  title: 'Settings',         subtitle: 'App preferences',     screen: 'Settings' },
-  { icon: 'help-circle-outline', iconColor: '#0284c7',          iconBg: '#E0F2FE',            title: 'Help & Support',   subtitle: 'Get assistance',      screen: 'HelpSupport' },
+  { icon: 'calendar-clock',   iconColor: '#0891B2',            iconBg: '#CFFAFE',            title: 'Appointments',     subtitle: 'View appointment history',  screen: 'AppointmentHistory' },
+  { icon: 'history',          iconColor: COLORS.primary,        iconBg: COLORS.primaryLight,  title: 'Therapy History',  subtitle: 'View past sessions',        screen: 'TherapyHistory' },
+  { icon: 'credit-card',      iconColor: COLORS.accent,         iconBg: COLORS.accentLight,   title: 'Subscriptions',    subtitle: 'Manage your plan',          screen: 'Subscriptions' },
+  { icon: 'bell-outline',     iconColor: '#ea580c',             iconBg: '#FFF3E0',            title: 'Notifications',    subtitle: 'Manage alerts',             screen: 'Notifications' },
+  { icon: 'cog-outline',      iconColor: COLORS.textSecondary,  iconBg: COLORS.surfaceMuted,  title: 'Settings',         subtitle: 'App preferences',           screen: 'Settings' },
+  { icon: 'help-circle-outline', iconColor: '#0284c7',          iconBg: '#E0F2FE',            title: 'Help & Support',   subtitle: 'Get assistance',            screen: 'HelpSupport' },
 ];
 
 const ProfileScreen = ({ navigation }) => {

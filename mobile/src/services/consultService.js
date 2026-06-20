@@ -83,6 +83,15 @@ class ConsultService {
     }
   }
 
+  async getAppointments() {
+    try {
+      const json = await this.get(ENDPOINTS.APPOINTMENTS);
+      return json?.data?.appointments;
+    } catch (err) {
+      throw new Error(err?.message ?? 'Failed to fetch appointments');
+    }
+  }
+
   async processPayment(paymentData) {
     try {
       const json = await this.post(ENDPOINTS.PAYMENT, paymentData);

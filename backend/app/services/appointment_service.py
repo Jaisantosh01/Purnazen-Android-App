@@ -50,7 +50,8 @@ class AppointmentService:
             fee=data.fee if data.fee is not None else float(doctor.consultation_fee),
             status="pending",
             payment_status="pending",
-            created_by=user.id
+            user_description=data.user_description,
+            created_by=user.id,
         )
 
         return {

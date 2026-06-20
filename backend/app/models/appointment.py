@@ -9,6 +9,7 @@ from sqlalchemy import (
     Integer,
     Numeric,
     String,
+    Text,
     Boolean,
     func,
 )
@@ -28,6 +29,8 @@ class Appointment(Base):
     visit_type = Column(String(20), nullable=False)
     date = Column(Date, nullable=False)
     slot_timing_id = Column(UUID(as_uuid=True), ForeignKey("slot_timings.id"), nullable=False)
+    user_description = Column(Text, nullable=True)
+    doctor_description = Column(Text, nullable=True)
     fee = Column(Numeric(10, 2))
     status = Column(String(20), nullable=False, default="pending")  # pending | booked | cancelled | completed
     payment_status = Column(
@@ -58,11 +61,16 @@ class Appointment(Base):
             "doctorId": str(self.doctor_id),
             "doctorName": f"Dr. {self.doctor.user.full_name}",
             "specialty": self.doctor.specialty.name,
-            "visitType": self.visit_type,
+            "expertise": [mapping.expertise.name for mapping in self.doctor.expertise_mappings],
+            "consultationType": self.visit_type,
             "date": self.date.isoformat(),
+            "time": self.slot_timing.start_time.strftime("%I:%M %p") if self.slot_timing else None,
+            "endTime": self.slot_timing.end_time.strftime("%I:%M %p") if self.slot_timing else None,
             "slotTimingId": str(self.slot_timing_id),
             "fee": float(self.fee) if self.fee is not None else None,
             "status": self.status,
             "paymentStatus": self.payment_status,
+            "userDescription": self.user_description,
+            "doctorDescription": self.doctor_description,
             "createdAt": self.created_at.isoformat() if self.created_at else None,
         }

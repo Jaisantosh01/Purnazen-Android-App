@@ -5,21 +5,18 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  TextInput,
   StatusBar,
   Alert,
 } from 'react-native';
 import consultService from '../services/consultService';
 import { COLORS } from '../constants/theme';
+import {DAYS, MONTHS} from '../constants/strings';
 
 const DEFAULT_VISIT_TYPES = [];
 
 const DEFAULT_TIME_SLOTS = [];
 
-const DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
 
 const HOME_ADDRESS = {
   street: '123 Main Street, Apartment 4B',
@@ -37,6 +34,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
   const [currentMonth, setCurrentMonth]     = useState(today.getMonth());
   const [currentYear, setCurrentYear]       = useState(today.getFullYear());
   const [selectedDate, setSelectedDate]     = useState(today.getDate());
+  const [userDescription, setUserDescription] = useState('');
 
   const selectedVisitData = visitTypes.find(v => v.id === selectedVisit);
 
@@ -99,11 +97,12 @@ const BookAppointmentScreen = ({ navigation, route }) => {
     const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(selectedDate).padStart(2, '0')}`;
     try {
       const booking = await consultService.bookAppointment({
-        doctorId:     doctor.id,
-        visitType:    selectedVisit,
-        date:         dateStr,
-        slotTimingId: selectedTime.id,
-        fee:          selectedVisitData?.fee,
+        doctorId:       doctor.id,
+        visitType:      selectedVisit,
+        date:           dateStr,
+        slotTimingId:   selectedTime.id,
+        fee:            selectedVisitData?.fee,
+        userDescription: userDescription.trim() || undefined,
       });
       navigation.navigate('BookingConfirmed', {
         doctor,
@@ -263,6 +262,20 @@ const BookAppointmentScreen = ({ navigation, route }) => {
           </View>
         </View>
 
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Describe Your Issue (Optional)</Text>
+          <TextInput
+            style={styles.descriptionInput}
+            placeholder="Briefly describe your symptoms or reason for the visit..."
+            placeholderTextColor={COLORS.textMuted}
+            multiline
+            numberOfLines={4}
+            value={userDescription}
+            onChangeText={setUserDescription}
+            textAlignVertical="top"
+          />
+        </View>
+
         {selectedVisit === 'home' && (
           <View style={styles.section}>
             <View style={styles.addressCard}>
@@ -381,6 +394,12 @@ const styles = StyleSheet.create({
   timeSlotActive:     { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   timeSlotText:       { fontSize: 12, fontWeight: '500', color: COLORS.textSecondary },
   timeSlotTextActive: { color: COLORS.white, fontWeight: '700' },
+
+  descriptionInput: {
+    backgroundColor: COLORS.white, borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: COLORS.border, fontSize: 13,
+    color: COLORS.textPrimary, minHeight: 100,
+  },
 
   addressCard: {
     flexDirection: 'row', backgroundColor: '#fff9f0', borderRadius: 14,

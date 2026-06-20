@@ -44,3 +44,20 @@ export const RADIUS = {
   lg: 16,
   pill: 999,
 };
+
+
+
+export const APPOINTMENT_STATUS_COLORS = {
+  pending: '#F59E0B',
+  booked: '#3B82F6',
+  completed: '#10B981',
+  cancelled: '#EF4444',
+};
+
+
+export const APPOINTMENT_DETAIL_STATUS_COLORS = {
+  pending: '#F59E0B',
+  booked: '#3B82F6',
+  completed: '#10B981',
+  cancelled: '#EF4444',
+};

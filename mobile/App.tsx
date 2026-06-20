@@ -36,6 +36,8 @@ import VideoPlayerScreen from './src/screens/VideoPlayerScreen';
 import DoctorProfileScreen from './src/screens/DoctorProfileScreen';
 import BookAppointmentScreen from './src/screens/BookAppointmentScreen';
 import BookingConfirmedScreen from './src/screens/BookingConfirmedScreen';
+import AppointmentHistoryScreen from './src/screens/AppointmentHistoryScreen';
+import AppointmentDetailScreen from './src/screens/AppointmentDetailScreen';
 import PaymentScreen from './src/screens/PaymentScreen';
 
 const RootStack = createNativeStackNavigator();
@@ -92,11 +94,13 @@ function WellnessStackNavigator() {
 function ConsultStackNavigator() {
   return (
     <ConsultStack.Navigator screenOptions={{ headerShown: false }}>
-      <ConsultStack.Screen name="ConsultMain"       component={ConsultScreen}          />
-      <ConsultStack.Screen name="DoctorProfile"     component={DoctorProfileScreen}    />
-      <ConsultStack.Screen name="BookAppointment"   component={BookAppointmentScreen}  />
-      <ConsultStack.Screen name="BookingConfirmed"  component={BookingConfirmedScreen} />
-      <ConsultStack.Screen name="Payment"           component={PaymentScreen}          />
+      <ConsultStack.Screen name="ConsultMain"          component={ConsultScreen}          />
+      <ConsultStack.Screen name="DoctorProfile"        component={DoctorProfileScreen}    />
+      <ConsultStack.Screen name="BookAppointment"      component={BookAppointmentScreen}  />
+      <ConsultStack.Screen name="BookingConfirmed"     component={BookingConfirmedScreen} />
+      <ConsultStack.Screen name="AppointmentHistory"   component={AppointmentHistoryScreen} />
+      <ConsultStack.Screen name="AppointmentDetail"    component={AppointmentDetailScreen} />
+      <ConsultStack.Screen name="Payment"              component={PaymentScreen}          />
     </ConsultStack.Navigator>
   );
 }
@@ -104,14 +108,16 @@ function ConsultStackNavigator() {
 function ProfileStackNavigator() {
   return (
     <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
-      <ProfileStack.Screen name="ProfileMain"    component={ProfileScreen}        />
-      <ProfileStack.Screen name="TherapyHistory" component={TherapyHistoryScreen} />
-      <ProfileStack.Screen name="VideoPlayer"    component={VideoPlayerScreen}    />
-      <ProfileStack.Screen name="ReliefSession"  component={ReliefSessionScreen}  />
-      <ProfileStack.Screen name="HelpSupport"    component={HelpSupportScreen}    />
-      <ProfileStack.Screen name="Settings"       component={SettingsScreen}       />
-      <ProfileStack.Screen name="Subscriptions"  component={SubscriptionsScreen}  />
-      <ProfileStack.Screen name="Notifications"  component={NotificationsScreen}  />
+      <ProfileStack.Screen name="ProfileMain"        component={ProfileScreen}        />
+      <ProfileStack.Screen name="AppointmentHistory"  component={AppointmentHistoryScreen} />
+      <ProfileStack.Screen name="AppointmentDetail"   component={AppointmentDetailScreen} />
+      <ProfileStack.Screen name="TherapyHistory"      component={TherapyHistoryScreen} />
+      <ProfileStack.Screen name="VideoPlayer"         component={VideoPlayerScreen}    />
+      <ProfileStack.Screen name="ReliefSession"       component={ReliefSessionScreen}  />
+      <ProfileStack.Screen name="HelpSupport"         component={HelpSupportScreen}    />
+      <ProfileStack.Screen name="Settings"            component={SettingsScreen}       />
+      <ProfileStack.Screen name="Subscriptions"       component={SubscriptionsScreen}  />
+      <ProfileStack.Screen name="Notifications"       component={NotificationsScreen}  />
     </ProfileStack.Navigator>
   );
 }
