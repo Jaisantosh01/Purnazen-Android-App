@@ -8,10 +8,11 @@ from sqlalchemy import (
     Text,
     func,
 )
+from sqlalchemy.dialects.postgresql import UUID
+import uuid
 from sqlalchemy.orm import relationship
 
 from app.db.base_class import Base
-from app.models.associations import doctor_consultation_types
 from app.models.doctor_expertise_mapping import DoctorExpertiseMapping
 from app.models.doctor_language_mapping import DoctorLanguageMapping
 from app.models.doctor_speciality_mapping import DoctorSpecialityMapping
@@ -20,9 +21,9 @@ from app.models.doctor_speciality_mapping import DoctorSpecialityMapping
 class Doctor(Base):
     __tablename__ = "doctors"
 
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True)
-    specialty_id = Column(Integer, ForeignKey("specialties.id"), nullable=False)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, unique=True)
+    specialty_id = Column(UUID(as_uuid=True), ForeignKey("specialties.id"), nullable=False)
 
     about = Column(Text)
     education = Column(Text)
@@ -33,11 +34,11 @@ class Doctor(Base):
     is_available_today = Column(Boolean, default=False)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, nullable=True)
-    created_by = Column(Integer, nullable=True)
-    updated_by = Column(Integer, nullable=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    updated_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     is_active = Column(Boolean, default=True)
 
-    user = relationship("User", backref="doctor_profile")
+    user = relationship("User",foreign_keys=[user_id])
     specialty = relationship("Specialty", backref="doctors")
     clinics = relationship("Clinic", back_populates="doctor", cascade="all, delete-orphan")
     awards = relationship("Award", backref="doctor")
@@ -54,8 +55,8 @@ class Doctor(Base):
     expertises = relationship("Expertise", secondary="doctor_expertise_mapping", viewonly=True)
     # specialty is already linked via specialty_id
 
-    consultation_types = relationship(
-        "ConsultationType", secondary=doctor_consultation_types, backref="doctors"
+    consultation_type_links = relationship(
+        "DoctorConsultationType", back_populates="doctor", cascade="all, delete-orphan"
     )
 
     def to_dict(self):
@@ -71,7 +72,11 @@ class Doctor(Base):
             "average_rating": float(self.average_rating),
             "reviews_count": self.reviews_count,
             "languages": [mapping.language.name for mapping in self.language_mappings],
-            "consultation_types": [ct.name for ct in self.consultation_types],
+            "consultation_types": [link.consultation_type.name for link in self.consultation_type_links],
+            "consultation_type_prices": {
+                link.consultation_type.name: float(link.price) if link.price else None
+                for link in self.consultation_type_links
+            },
             "expertise": [mapping.expertise.name for mapping in self.expertise_mappings],
             "is_available_today": self.is_available_today,
             "is_active": self.is_active,

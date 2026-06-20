@@ -12,3 +12,25 @@ export const STRINGS = {
   CONSULT_TITLE: 'Book a Consultation',
   CONSULT_SUB: 'Talk to an expert today',
 };
+
+
+export const APPOINTMENT_HISTORY_STATUS_LABELS = {
+  pending: 'Pending',
+  booked: 'Booked',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
+};
+
+export const APPOINTMENT_PAYMENT_LABELS = {
+  pending: 'Pending',
+  unpaid: 'Unpaid',
+  paid: 'Paid',
+};
+
+
+export const DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+export const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];

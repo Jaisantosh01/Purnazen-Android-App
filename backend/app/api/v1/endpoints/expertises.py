@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -40,7 +42,7 @@ def create_expertise(
 
 @router.put("/{expertise_id}")
 def update_expertise(
-    expertise_id: int,
+    expertise_id: uuid.UUID,
     body: ExpertiseUpdate,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -65,7 +67,7 @@ def update_expertise(
 
 @router.delete("/{expertise_id}")
 def delete_expertise(
-    expertise_id: int,
+    expertise_id: uuid.UUID,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):

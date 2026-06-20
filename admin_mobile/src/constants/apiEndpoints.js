@@ -34,6 +34,7 @@ export const ENDPOINTS = {
   TIME_SLOTS: (id) => `${API_VERSION}/doctors/${id}/time-slots`,
 
   // Booking & Payment
+  APPOINTMENTS: `${API_VERSION}/appointments`,
   BOOK_APPOINTMENT: `${API_VERSION}/appointments/book`,
   PAYMENT: `${API_VERSION}/payments/process`,
   PAYMENT_VERIFY: `${API_VERSION}/payments/verify`,
@@ -59,6 +60,7 @@ export const ENDPOINTS = {
   // Video Groups
   VIDEO_GROUPS: `${API_VERSION}/videos/groups`,
   VIDEO_GROUP_CATALOG: (id) => `${API_VERSION}/videos/groups/${id}/catalog`,
+  ALL_VIDEOS: `${API_VERSION}/videos`,
 
   // Chat
   CHAT_FLOW: (startId) => `${API_VERSION}/chat/flow/${startId}`,
@@ -71,5 +73,6 @@ export const ENDPOINTS = {
   SPECIALTIES: `${API_VERSION}/specialties`,
   USERS: `${API_VERSION}/users`,
   ROLES: `${API_VERSION}/roles`,
+  SLOT_TIMINGS: `${API_VERSION}/slot-timings`,
 
 };

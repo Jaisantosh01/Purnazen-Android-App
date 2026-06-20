@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -5,8 +7,8 @@ class ProcessPaymentRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     amount: float = Field(gt=0)
-    appointment_id: int | None = Field(default=None, alias="appointmentId")
-    doctor_id: int | None = Field(default=None, alias="doctorId")
+    appointment_id: UUID | None = Field(default=None, alias="appointmentId")
+    doctor_id: UUID | None = Field(default=None, alias="doctorId")
     method: str | None = Field(default=None, max_length=20)
     currency: str = Field(default="INR", max_length=10)
 

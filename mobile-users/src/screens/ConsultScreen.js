@@ -15,27 +15,26 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import consultService from '../services/consultService';
 import { COLORS } from '../constants/theme';
+import {TAG_ICONS} from '../constants/icons';
+import {CONSULT_SCREEN_FILTER_TABS_FALLBACK} from '../constants/miscellaneous';
 
-const FILTER_TABS_FALLBACK = [
-  { id: '1', label: 'All' },
-  { id: '2', label: 'Available Today' },
-  { id: '3', label: 'Video Call' },
-  { id: '4', label: 'Home Visit' },
-  { id: '5', label: 'Top Rated' },
-];
 
-// Fix 3: tag → icon mapping, fallback to 'tag-outline' for unknown tags
-const TAG_ICONS = {
-  'Video':      'video-outline',
-  'Home Visit': 'home-outline',
-};
+const FILTER_TABS_FALLBACK = CONSULT_SCREEN_FILTER_TABS_FALLBACK;
+
 
 // Shared header reused in loading/error states
 // Fix 1: always pass searchQuery so TextInput is never uncontrolled
-const ScreenHeader = ({ searchQuery = '', onChangeText, onClear, editable = true }) => (
+const ScreenHeader = ({ searchQuery = '', onChangeText, onClear, editable = true, navigation }) => (
   <View style={styles.header}>
-    <Text style={styles.headerTitle}>Book Consultation</Text>
-    <Text style={styles.headerSubtitle}>Connect with expert doctors</Text>
+    <View style={styles.headerTopRow}>
+      <View style={styles.headerTextCol}>
+        <Text style={styles.headerTitle}>Book Consultation</Text>
+        <Text style={styles.headerSubtitle}>Connect with expert doctors</Text>
+      </View>
+      <TouchableOpacity style={styles.historyBtn} onPress={() => navigation?.navigate('AppointmentHistory')}>
+        <MCIcon name="calendar-clock" size={22} color={COLORS.white} />
+      </TouchableOpacity>
+    </View>
     <View style={styles.searchContainer}>
       <MCIcon name="magnify" size={20} color={COLORS.textMuted} style={{ marginRight: 8 }} />
       <TextInput
@@ -258,6 +257,7 @@ const ConsultScreen = ({ navigation }) => {
         searchQuery={searchQuery}
         onChangeText={setSearchQuery}
         onClear={() => setSearchQuery('')}
+        navigation={navigation}
       />
 
       {/* Filter Tabs */}
@@ -319,6 +319,10 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
   },
+  headerTopRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
+  },
+  headerTextCol: { flex: 1 },
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
@@ -329,6 +333,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: 'rgba(255,255,255,0.85)',
     marginBottom: 16,
+  },
+  historyBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center', justifyContent: 'center',
+    marginLeft: 12, marginTop: 2,
   },
   searchContainer: {
     flexDirection: 'row',

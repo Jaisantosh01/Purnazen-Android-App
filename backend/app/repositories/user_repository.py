@@ -1,3 +1,5 @@
+import uuid
+
 from sqlalchemy.orm import Session
 
 from app.models.user import User
@@ -11,7 +13,7 @@ class UserRepository:
         return db.query(User).filter_by(email=email).first()
 
     @staticmethod
-    def find_by_id(db: Session, user_id: int):
+    def find_by_id(db: Session, user_id: uuid.UUID):
         return db.get(User, user_id)
 
     @staticmethod

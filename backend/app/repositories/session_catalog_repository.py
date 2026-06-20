@@ -1,3 +1,5 @@
+import uuid
+
 from sqlalchemy.orm import Session
 
 from app.models.relief_session import ReliefSession
@@ -14,6 +16,27 @@ class WellnessSessionRepository:
             .order_by(WellnessSession.sort_order, WellnessSession.id)
             .all()
         )
+
+    @staticmethod
+    def get_by_id(db: Session, session_id: uuid.UUID) -> WellnessSession | None:
+        return (
+            db.query(WellnessSession)
+            .filter(WellnessSession.id == session_id, WellnessSession.is_active.is_(True))
+            .first()
+        )
+
+    @staticmethod
+    def create(db: Session, session: WellnessSession) -> WellnessSession:
+        db.add(session)
+        db.commit()
+        db.refresh(session)
+        return session
+
+    @staticmethod
+    def save(db: Session, session: WellnessSession) -> WellnessSession:
+        db.commit()
+        db.refresh(session)
+        return session
 
 
 class ReliefSessionRepository:

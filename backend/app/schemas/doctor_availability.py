@@ -1,16 +1,11 @@
 from pydantic import BaseModel
+from uuid import UUID
 
 
 class DoctorAvailabilityCreate(BaseModel):
-    doctor_id: int
-    day_of_week: str
-    start_time: str
-    end_time: str
-    slot_duration_minutes: int = 30
+    doctor_id: UUID
+    slot_timing_id: UUID
 
 
 class DoctorAvailabilityUpdate(BaseModel):
-    day_of_week: str
-    start_time: str
-    end_time: str
-    slot_duration_minutes: int
+    slot_timing_id: UUID

@@ -1,26 +1,19 @@
-"""Association tables for the doctor module (many-to-many links)."""
+"""Association models for the doctor module (many-to-many links with extra fields)."""
 
-from sqlalchemy import Column, ForeignKey, Integer, Table
+from sqlalchemy import Column, ForeignKey, Numeric
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
 
 from app.db.base_class import Base
 
-doctor_languages = Table(
-    "doctor_languages",
-    Base.metadata,
-    Column("doctor_id", Integer, ForeignKey("doctors.id"), primary_key=True),
-    Column("language_id", Integer, ForeignKey("languages.id"), primary_key=True),
-)
 
-doctor_consultation_types = Table(
-    "doctor_consultation_types",
-    Base.metadata,
-    Column("doctor_id", Integer, ForeignKey("doctors.id"), primary_key=True),
-    Column("consultation_type_id", Integer, ForeignKey("consultation_types.id"), primary_key=True),
-)
+class DoctorConsultationType(Base):
+    """ORM model for the doctor_consultation_types association with extra fields."""
+    __tablename__ = "doctor_consultation_types"
 
-doctor_expertise = Table(
-    "doctor_expertise",
-    Base.metadata,
-    Column("doctor_id", Integer, ForeignKey("doctors.id"), primary_key=True),
-    Column("expertise_id", Integer, ForeignKey("expertise.id"), primary_key=True),
-)
+    doctor_id = Column(UUID(as_uuid=True), ForeignKey("doctors.id"), primary_key=True)
+    consultation_type_id = Column(UUID(as_uuid=True), ForeignKey("consultation_types.id"), primary_key=True)
+    price = Column(Numeric(10, 2), nullable=True)
+
+    doctor = relationship("Doctor", back_populates="consultation_type_links")
+    consultation_type = relationship("ConsultationType")

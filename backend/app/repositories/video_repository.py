@@ -1,3 +1,5 @@
+import uuid
+
 from sqlalchemy.orm import Session
 
 from app.models.video_groups import VideoGroups
@@ -14,7 +16,7 @@ class VideoGroupRepository:
         return query.order_by(VideoGroups.sort_order).all()
 
     @staticmethod
-    def get_by_id(db: Session, group_id: int) -> VideoGroups | None:
+    def get_by_id(db: Session, group_id: uuid.UUID) -> VideoGroups | None:
         return db.get(VideoGroups, group_id)
 
     @staticmethod
@@ -49,7 +51,7 @@ class VideoGroupMappingRepository:
         return mapping
 
     @staticmethod
-    def get_mapping(db: Session, group_id: int, video_id: int) -> VideoGroupMapping | None:
+    def get_mapping(db: Session, group_id: uuid.UUID, video_id: uuid.UUID) -> VideoGroupMapping | None:
         return db.query(VideoGroupMapping).filter_by(video_group_id=group_id, video_id=video_id).first()
 
     @staticmethod
@@ -61,7 +63,7 @@ class VideoGroupMappingRepository:
         return mapping
 
     @staticmethod
-    def delete_by_video(db: Session, video_id: int):
+    def delete_by_video(db: Session, video_id: uuid.UUID):
         db.query(VideoGroupMapping).filter_by(video_id=video_id).delete()
         db.commit()
 
@@ -75,11 +77,11 @@ class VideoRepository:
         return query.all()
 
     @staticmethod
-    def get_by_id(db: Session, video_id: int) -> Videos | None:
+    def get_by_id(db: Session, video_id: uuid.UUID) -> Videos | None:
         return db.get(Videos, video_id)
 
     @staticmethod
-    def get_by_group(db: Session, group_id: int, active_only: bool = True) -> list[Videos]:
+    def get_by_group(db: Session, group_id: uuid.UUID, active_only: bool = True) -> list[Videos]:
         query = (
             db.query(Videos)
             .join(VideoGroupMapping, Videos.id == VideoGroupMapping.video_id)

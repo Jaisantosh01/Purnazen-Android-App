@@ -1,3 +1,5 @@
+import uuid
+
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.chat_question import ChatQuestion
@@ -6,7 +8,7 @@ from app.models.chat_option import ChatOption
 
 class ChatRepository:
     @staticmethod
-    def get_question(db: Session, question_id: int) -> ChatQuestion | None:
+    def get_question(db: Session, question_id: uuid.UUID) -> ChatQuestion | None:
         return (
             db.query(ChatQuestion)
             .options(joinedload(ChatQuestion.options))
@@ -15,7 +17,7 @@ class ChatRepository:
         )
 
     @staticmethod
-    def get_full_flow(db: Session, start_question_id: int) -> list[ChatQuestion]:
+    def get_full_flow(db: Session, start_question_id: uuid.UUID) -> list[ChatQuestion]:
         """
         Fetches all questions in a flow starting from a given ID.
         Uses a BFS-like approach to find all reachable questions to avoid infinite recursion

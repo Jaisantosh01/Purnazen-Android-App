@@ -134,48 +134,54 @@ const DoctorProfileScreen = ({ navigation, route }) => {
               </View>
             </View>
 
-            {/* Expertise */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Expertise</Text>
-              <View style={styles.chipRow}>
-                {detailData.expertise.map((item, index) => (
-                  <View key={index} style={styles.chip}>
-                    <Text style={styles.chipText}>{item}</Text>
-                  </View>
-                ))}
+            {detailData.expertise?.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Expertise</Text>
+                <View style={styles.chipRow}>
+                  {detailData.expertise.map((item, index) => (
+                    <View key={index} style={styles.chip}>
+                      <Text style={styles.chipText}>{item}</Text>
+                    </View>
+                  ))}
+                </View>
               </View>
-            </View>
+            )}
 
-            {/* Languages */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Languages</Text>
-              <View style={styles.chipRow}>
-                {detailData.languages.map((lang, index) => (
-                  <View key={index} style={styles.chip}>
-                    <Text style={styles.chipText}>{lang}</Text>
-                  </View>
-                ))}
+            {detailData.languages?.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Languages</Text>
+                <View style={styles.chipRow}>
+                  {detailData.languages.map((lang, index) => (
+                    <View key={index} style={styles.chip}>
+                      <Text style={styles.chipText}>{lang}</Text>
+                    </View>
+                  ))}
+                </View>
               </View>
-            </View>
+            )}
 
-            {/* Awards */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Awards & Recognition</Text>
-              <View style={styles.sectionCard}>
-                {detailData.awards.map((award, index) => (
-                  <View
-                    key={index}
-                    style={[
-                      styles.awardRow,
-                      index < detailData.awards.length - 1 && styles.awardBorder,
-                    ]}
-                  >
-                    <Text style={styles.awardIcon}>🏆</Text>
-                    <Text style={styles.awardText}>{award}</Text>
-                  </View>
-                ))}
+            {detailData.awards?.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Awards & Recognition</Text>
+                <View style={styles.sectionCard}>
+                  {detailData.awards.map((award, index) => (
+                    <View
+                      key={index}
+                      style={[
+                        styles.awardRow,
+                        index < detailData.awards.length - 1 && styles.awardBorder,
+                      ]}
+                    >
+                      <Text style={styles.awardIcon}>🏆</Text>
+                      <View style={{flex: 1}}>
+                        <Text style={styles.awardText}>{award.title}</Text>
+                        <Text style={styles.awardIssuer}>{award.issuer} • {award.year}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
               </View>
-            </View>
+            )}
           </>
         ) : null}
       </ScrollView>
@@ -368,6 +374,7 @@ const styles = StyleSheet.create({
   awardBorder: { borderBottomWidth: 1, borderBottomColor: COLORS.surfaceMuted },
   awardIcon: { fontSize: 18 },
   awardText: { fontSize: 14, fontWeight: '500', color: COLORS.textPrimary },
+  awardIssuer: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
 
   // Bottom Bar
   bottomBar: {

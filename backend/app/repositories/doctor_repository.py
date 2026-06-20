@@ -1,3 +1,5 @@
+import uuid
+
 from sqlalchemy.orm import Session
 
 from app.models.consultation_type import ConsultationType
@@ -16,7 +18,7 @@ _CONSULTATION_TYPE_FILTERS = {
 class DoctorRepository:
 
     @staticmethod
-    def get_by_id(db: Session, doctor_id: int) -> Doctor | None:
+    def get_by_id(db: Session, doctor_id: uuid.UUID) -> Doctor | None:
         return db.get(Doctor, doctor_id)
 
     @staticmethod

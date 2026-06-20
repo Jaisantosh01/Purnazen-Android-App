@@ -1,5 +1,7 @@
 from datetime import datetime
 
+import uuid
+
 from app.models.expertise import Expertise
 from app.models.user import User
 from app.repositories.expertise_repository import ExpertiseRepository
@@ -23,7 +25,7 @@ class ExpertiseService:
         return ExpertiseRepository.create(db, expertise)
 
     @staticmethod
-    def update(db, expertise_id: int, name: str, user: User):
+    def update(db, expertise_id: uuid.UUID, name: str, user: User):
 
         expertise = ExpertiseRepository.get_by_id(
             db,
@@ -40,7 +42,7 @@ class ExpertiseService:
         return ExpertiseRepository.save(db, expertise)
 
     @staticmethod
-    def delete(db, expertise_id: int, user: User):
+    def delete(db, expertise_id: uuid.UUID, user: User):
 
         expertise = ExpertiseRepository.get_by_id(
             db,

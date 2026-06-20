@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -37,7 +39,7 @@ def get_preferences(
 
 
 @router.put("/{user_id}", summary="Update user (admin only)", dependencies=[Depends(require_role("admin"))])
-def update_user(user_id: int, data: dict, db: Session = Depends(get_db)):
+def update_user(user_id: uuid.UUID, data: dict, db: Session = Depends(get_db)):
     user = db.get(User, user_id)
     if not user:
         return error_response("User not found", 404)
