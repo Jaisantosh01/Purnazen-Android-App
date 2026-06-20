@@ -13,7 +13,7 @@ from sqlalchemy import (
     Boolean,
     func,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from app.db.types import GUID
 from sqlalchemy.orm import relationship
 
 from app.db.base_class import Base
@@ -22,13 +22,13 @@ from app.db.base_class import Base
 class Appointment(Base):
     __tablename__ = "appointments" 
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    doctor_id = Column(UUID(as_uuid=True), ForeignKey("doctors.id"), nullable=False)
-    consultation_type_id = Column(UUID(as_uuid=True), ForeignKey("consultation_types.id"))
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4, nullable=False)
+    user_id = Column(GUID(), ForeignKey("users.id"), nullable=False)
+    doctor_id = Column(GUID(), ForeignKey("doctors.id"), nullable=False)
+    consultation_type_id = Column(GUID(), ForeignKey("consultation_types.id"))
     visit_type = Column(String(20), nullable=False)
     date = Column(Date, nullable=False)
-    slot_timing_id = Column(UUID(as_uuid=True), ForeignKey("slot_timings.id"), nullable=False)
+    slot_timing_id = Column(GUID(), ForeignKey("slot_timings.id"), nullable=False)
     user_description = Column(Text, nullable=True)
     doctor_description = Column(Text, nullable=True)
     fee = Column(Numeric(10, 2))
@@ -38,9 +38,9 @@ class Appointment(Base):
     )  # pending | unpaid | paid
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
-    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    created_by = Column(GUID(), ForeignKey("users.id"), nullable=True)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-    updated_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    updated_by = Column(GUID(), ForeignKey("users.id"), nullable=True)
 
     user = relationship("User",foreign_keys=[user_id],backref="appointments")
     doctor = relationship("Doctor", backref="appointments")

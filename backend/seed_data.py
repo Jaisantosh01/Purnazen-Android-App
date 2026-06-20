@@ -2,12 +2,13 @@
 
 Ported from the (now removed) frontend mock data so the players can run from
 API content:
-- mobile/src/data/yogaSessionData.js  -> WELLNESS_SESSIONS
-- mobile/src/data/reliefSessionData.js -> RELIEF_SESSIONS
+- mobile-users/src/data/yogaSessionData.js  -> WELLNESS_SESSIONS
+- mobile-users/src/data/reliefSessionData.js -> RELIEF_SESSIONS
 
 Keys match the sessionKey/reliefKey values the screens navigate with.
 """
 
+# TODO: upload to Azure Blob Storage and replace with the blob name (e.g. "videos/Wrist_Pain.mp4")
 _RELIEF_VIDEO = "https://res.cloudinary.com/dcngh7dkt/video/upload/Wrist_Pain_n2i3wq.mp4"
 
 WELLNESS_SESSIONS_DATA = [

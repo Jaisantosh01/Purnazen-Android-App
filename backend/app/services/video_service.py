@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.models.user import User
 from app.repositories.video_repository import VideoGroupMappingRepository, VideoGroupRepository, VideoRepository
 from app.schemas.video import VideoCreate, VideoGroupCreate, VideoGroupUpdate, VideoUpdate
-from app.utils.azure_storage import generate_sas_url
+from app.utils.azure_storage import generate_video_sas_url
 
 
 class VideoService:

@@ -120,18 +120,70 @@ Interactive API docs: <http://localhost:5000/apidocs> (Swagger) and `/redoc`.
 **Demo login** (from `seed.py`): check the seeded users in `backend/seed.py` for
 email/password to log in from the app.
 
----
+### 1.3 Updating an existing DB / merging branched migrations
 
-## 2. Frontend (React Native app)
+When you already have a populated DB and pull new work, just apply the new
+migrations — **you do not need to drop and reseed**:
 
 ```powershell
-cd mobile
+python -m alembic current   # what the DB is on now
+python -m alembic heads     # what the latest migration(s) are
+python -m alembic upgrade head
+```
+
+If `upgrade head` fails with **"Multiple head revisions are present for given
+argument 'head'"**, the migration history has *branched*: two or more feature
+branches each created migrations off the same parent revision (common right
+after a git merge of parallel feature branches). Symptom in the app: API calls
+500 because the backend ORM references tables/columns whose migrations were
+never applied to your DB. Inspect the tree:
+
+```powershell
+python -m alembic heads     # lists every head, e.g. 3 of them
+python -m alembic history   # shows the tree; look for the "(branchpoint)" line
+```
+
+Fix it by creating a **merge migration** that joins all heads into one, then
+upgrade. This is non-destructive — it adds an empty revision that ties the
+branches together; your data is untouched:
+
+```powershell
+python -m alembic merge -m "merge <branch-a>, <branch-b>, <branch-c> branches" heads
+python -m alembic upgrade head
+```
+
+Then verify a single head that matches the DB:
+
+```powershell
+python -m alembic heads     # should print exactly one "(head)"
+python -m alembic current   # should equal that head, tagged "(mergepoint)"
+```
+
+Commit the generated merge file in `backend/alembic/versions/` so the rest of
+the team gets the same linear-from-here history.
+
+> SQLite note: the branched-history merge above can't be applied on SQLite
+> because the per-revision migrations hard-code Postgres' `now()` (§1.1). On
+> SQLite, delete `wellness.db` and re-run `seed.py` instead.
+
+---
+
+## 2. Frontend (React Native patient app — `mobile-users`)
+
+> There are two RN apps sharing this backend: **`mobile-users`** (patients —
+> the full app these steps describe) and **`mobile-doctors`** (doctors — a
+> runnable skeleton; see `mobile-doctors/README.md` for its setup). The steps
+> below are for `mobile-users`; `mobile-doctors` follows the same flow once its
+> native projects are generated.
+
+```powershell
+cd mobile-users
 npm install                          # once (or after dependency changes)
 ```
 
 ### 2.1 Point the app at the backend
 
-`mobile/.env` controls the API base URL (inlined at bundle time by
+`mobile-users/.env` controls the API base URL (inlined at bundle time by
 `babel-preset-expo`). For the **Android emulator**, `10.0.2.2` is the host
 machine's loopback:
 
@@ -140,11 +192,13 @@ EXPO_PUBLIC_API_URL=http://10.0.2.2:5000     # emulator → host:5000 (default i
 ```
 
 For a **physical device** on the same Wi-Fi, use your machine's LAN IP, e.g.
-`http://192.168.1.42:5000`.
+`http://192.168.1.42:5000`. (Or skip the LAN IP entirely and use `adb reverse`
+— see **[§8 Physical device workflow](#8-physical-device-workflow-usb--adb)**,
+which covers wiring, installing, launching, screenshots, and re-deploying.)
 
 ### 2.2 Tell Gradle where the SDK is
 
-Create `mobile/android/local.properties` (git-ignored):
+Create `mobile-users/android/local.properties` (git-ignored):
 
 ```properties
 sdk.dir=C\:\\Android\\Sdk
@@ -166,14 +220,14 @@ adb shell getprop sys.boot_completed     # prints 1 when ready
 In one terminal:
 
 ```powershell
-cd mobile
+cd mobile-users
 npx react-native start --reset-cache
 ```
 
 In a second terminal:
 
 ```powershell
-cd mobile
+cd mobile-users
 npx react-native run-android
 ```
 
@@ -218,8 +272,8 @@ adb devices   # should list no devices / emulator
 adb devices                              # list running emulators/devices
 adb reverse tcp:5000 tcp:5000            # alt to 10.0.2.2: forward device:5000 → host:5000
 adb logcat *:S ReactNative:V ReactNativeJS:V   # app JS logs
-cd mobile; npm test                      # jest (13 suites / 64 tests)
-cd mobile; npx tsc --noEmit              # type-check
+cd mobile-users; npm test                      # jest (13 suites / 64 tests)
+cd mobile-users; npx tsc --noEmit              # type-check
 cd backend; .\venv\Scripts\python.exe -m pytest -q   # backend tests (84)
 ```
 
@@ -232,15 +286,16 @@ cd backend; .\venv\Scripts\python.exe -m pytest -q   # backend tests (84)
 | `adb` / `emulator` / `sdkmanager` "not recognized" | `ANDROID_HOME` / `PATH` not set — see §0.1, open a **new** terminal |
 | Backend `/api/v1/doctors` → `{"success":false,"message":"Something went wrong"}` | Stale build before the model-registry fix, **or** the DB has no tables — re-run `seed.py` |
 | `sqlite3.OperationalError: unknown function: now()` while seeding | You ran `alembic upgrade head` on SQLite. Delete `wellness.db` and use `seed.py` only (§1.1) |
+| `alembic upgrade head` → **"Multiple head revisions are present for given argument 'head'"** | Two+ feature branches each added migrations off the same parent, so the history has several heads. **Don't reset the DB** — merge the heads and upgrade. See **[§1.3 Updating an existing DB / merging branched migrations](#13-updating-an-existing-db--merging-branched-migrations)** |
 | `FATAL: database "wellness_db" does not exist` on backend startup | Database was never created — run `createdb` once: `$env:PGPASSWORD="<your password>"; & "C:\Program Files\PostgreSQL\18\bin\createdb.exe" -U <your username> -h localhost -p 5432 -O <your username> wellness_db` |
 | Backend can't connect to DB on startup | Postgres isn't running on the `.env` port — use the SQLite override (§1.1) |
 | App shows network errors / can't reach API | Wrong `EXPO_PUBLIC_API_URL`. Emulator → `10.0.2.2:5000`; device → LAN IP. Rebuild after changing `.env` (it's inlined at bundle time). Or use `adb reverse tcp:5000 tcp:5000` |
-| Gradle: `SDK location not found` | Create `mobile/android/local.properties` (§2.2) or set `ANDROID_HOME` |
+| Gradle: `SDK location not found` | Create `mobile-users/android/local.properties` (§2.2) or set `ANDROID_HOME` |
 | `JAVA_HOME` / wrong JDK | Use JDK 17 or 21. `java -version` should show 17+ |
 | Port 5000 already in use | `Get-NetTCPConnection -LocalPort 5000` then `Stop-Process -Id <pid>` |
 | Metro stale cache | `npx react-native start --reset-cache` |
 | App installs but won't run / "INSTALL_FAILED_NO_MATCHING_ABIS" on the emulator | The build's native libs don't match the emulator's CPU. `app/build.gradle` must **not** hard-pin `ndk { abiFilters "arm64-v8a" }` — that produces an arm64-only APK that can't run on an x86_64 emulator. Leave ABIs to the `reactNativeArchitectures` property |
-| `'gradlew.bat' is not recognized` from `npx react-native run-android` | Run the wrapper directly instead: `cd android && .\gradlew.bat app:installDebug -PreactNativeDevServerPort=8081`, then launch with `adb shell monkey -p com.wellness -c android.intent.category.LAUNCHER 1` |
+| `'gradlew.bat' is not recognized` from `npx react-native run-android` | Run the wrapper directly instead: `cd android && .\gradlew.bat app:installDebug -PreactNativeDevServerPort=8081`, then launch with `adb shell monkey -p com.purnazen -c android.intent.category.LAUNCHER 1` |
 | First build is very slow | Build only the emulator's ABI: `.\gradlew.bat app:installDebug -PreactNativeArchitectures=x86_64`. One native compile instead of four |
 
 ---
@@ -262,18 +317,18 @@ python run.py              # uvicorn + reload, port 5000
 
 # Terminal B — emulator + Metro
 emulator -avd Pixel_API_36 -no-snapshot-load
-cd mobile
+cd mobile-users
 npx react-native start --reset-cache
 
 # Terminal C — build & install
-cd mobile
+cd mobile-users
 # Set adb reverse (lets emulator reach host ports):
 C:\Android\Sdk\platform-tools\adb.exe reverse tcp:8081 tcp:8081
 C:\Android\Sdk\platform-tools\adb.exe reverse tcp:5000 tcp:5000
 # Build (x86_64 only = ~3 min):
 cd android
 .\gradlew.bat app:installDebug -PreactNativeArchitectures=x86_64
-C:\Android\Sdk\platform-tools\adb.exe shell monkey -p com.wellness -c android.intent.category.LAUNCHER 1
+C:\Android\Sdk\platform-tools\adb.exe shell monkey -p com.purnazen -c android.intent.category.LAUNCHER 1
 ```
 
 ## 7. Quick reference — full run from scratch (SQLite)
@@ -288,10 +343,156 @@ python run.py
 
 # Terminal B — emulator + Metro
 emulator -avd Pixel_API_36 -no-snapshot-load
-cd mobile
+cd mobile-users
 npx react-native start --reset-cache
 
 # Terminal C — build & install
-cd mobile
+cd mobile-users
 npx react-native run-android --no-packager
 ```
+
+---
+
+## 8. Physical device workflow (USB + adb)
+
+Running on a real Android phone instead of the emulator. Everything below uses
+`adb` directly so you can install, launch, screenshot, and re-deploy without
+Android Studio. The app's package id is **`com.purnazen`** and its launchable
+activity is **`com.purnazen/.MainActivity`**.
+
+### 8.1 One-time device setup
+
+1. On the phone: **Settings → About phone → tap "Build number" 7×** to unlock
+   Developer options.
+2. **Settings → System → Developer options →** enable **USB debugging** (and
+   **Install via USB** on some OEMs like Xiaomi/Oppo).
+3. Plug the phone into the PC over USB. The phone shows an **"Allow USB
+   debugging?"** prompt — tick *Always allow from this computer* and accept.
+4. Confirm the PC sees it:
+
+```powershell
+adb devices -l
+# List of devices attached
+# <SERIAL>   device  product:... model:... device:...
+```
+
+If it shows `unauthorized`, re-accept the on-phone prompt. If it shows nothing,
+try a different cable/port (some cables are charge-only) and `adb kill-server; adb start-server`.
+
+> **Multiple devices attached?** Every `adb` command below takes `-s <SERIAL>`
+> to target one device, e.g. `adb -s 1A2B3C4D shell ...`. Get `<SERIAL>` from
+> `adb devices`. With a single device you can omit `-s`.
+
+### 8.2 Let the device reach the backend
+
+The phone's `localhost` is *itself*, not your PC. Two options:
+
+- **`adb reverse` (simplest, USB only):** forward the device's ports to the PC,
+  then the app can use the default `http://10.0.2.2:5000`/`localhost:5000`-style
+  base URL over the cable:
+  ```powershell
+  adb reverse tcp:5000 tcp:5000      # device:5000  → PC:5000 (backend)
+  adb reverse tcp:8081 tcp:8081      # device:8081  → PC:8081 (Metro, debug builds)
+  ```
+  `adb reverse` is cleared on unplug/reboot — re-run after reconnecting.
+  Set `EXPO_PUBLIC_API_URL=http://localhost:5000` in `mobile-users/.env` for this path.
+- **LAN IP (no cable needed at runtime):** put your PC's Wi-Fi IP in
+  `mobile-users/.env` (`EXPO_PUBLIC_API_URL=http://192.168.x.y:5000`) and make sure
+  the backend binds `0.0.0.0` (it does — see `run.py`) and your firewall allows
+  inbound 5000. Rebuild after editing `.env` (it's inlined at bundle time).
+
+### 8.3 Build & install (inject) the APK
+
+```powershell
+# Easiest: build, install on the connected device, and launch in one step
+cd mobile-users
+npx react-native run-android --no-packager   # start Metro yourself first (§2.4)
+
+# Or build the APK by hand and push it with adb:
+cd mobile-users/android
+.\gradlew.bat assembleDebug                   # → app/build/outputs/apk/debug/app-debug.apk
+adb install -r app\build\outputs\apk\debug\app-debug.apk   # -r = replace/keep data
+#   -r  reinstall keeping data   -d  allow downgrade   -t  allow test APKs
+```
+
+A physical phone is usually `arm64-v8a`, so (unlike the x86_64 emulator) **don't**
+restrict the build to x86_64. Build all ABIs, or target the device's ABI:
+
+```powershell
+adb shell getprop ro.product.cpu.abi          # e.g. arm64-v8a
+.\gradlew.bat assembleDebug -PreactNativeArchitectures=arm64-v8a
+```
+
+### 8.4 Launch / stop / clear
+
+```powershell
+# Launch the app's main activity
+adb shell am start -n com.purnazen/.MainActivity
+#   alt: adb shell monkey -p com.purnazen -c android.intent.category.LAUNCHER 1
+
+# Force-stop (kill) the app
+adb shell am force-stop com.purnazen
+
+# Clear all app data (logout, reset onboarding, wipe local DB/keystore cache)
+adb shell pm clear com.purnazen
+
+# Uninstall completely
+adb uninstall com.purnazen
+```
+
+### 8.5 Take a screenshot (and screen recording)
+
+```powershell
+# Screenshot straight to the PC (no temp file on the phone)
+adb exec-out screencap -p > screenshot.png
+
+# Or capture on device, then pull it off
+adb shell screencap -p /sdcard/shot.png
+adb pull /sdcard/shot.png .\shot.png
+adb shell rm /sdcard/shot.png
+
+# Screen recording (Ctrl-C to stop, max ~3 min per file)
+adb shell screenrecord /sdcard/demo.mp4
+adb pull /sdcard/demo.mp4 .\demo.mp4
+```
+
+### 8.6 Relaunch / update after a code change
+
+- **JS-only change (debug build, Metro running):** just **shake the device →
+  Reload**, or push a reload over adb:
+  ```powershell
+  adb shell input text "RR"          # double-R reload (RN dev menu shortcut)
+  # open the dev menu instead:
+  adb shell input keyevent 82
+  ```
+- **Native change, or to redeploy the whole app:** rebuild & reinstall, then
+  relaunch:
+  ```powershell
+  cd mobile-users/android
+  .\gradlew.bat assembleDebug
+  adb install -r app\build\outputs\apk\debug\app-debug.apk
+  adb shell am force-stop com.purnazen
+  adb shell am start -n com.purnazen/.MainActivity
+  ```
+
+### 8.7 Logs from the device
+
+```powershell
+adb logcat *:S ReactNative:V ReactNativeJS:V       # app JS logs only
+adb logcat --pid=$(adb shell pidof -s com.purnazen)  # everything from the app process
+adb logcat -c                                       # clear the log buffer first
+```
+
+### 8.8 Wireless debugging (Android 11+, optional)
+
+Pair once over USB, then unplug and debug over Wi-Fi:
+
+```powershell
+adb tcpip 5555                       # restart adbd on TCP (device still plugged in)
+adb shell ip route                   # find the device's Wi-Fi IP (wlan0)
+adb connect 192.168.x.y:5555         # now you can unplug the cable
+adb devices                          # shows 192.168.x.y:5555  device
+```
+
+(Re-run `adb reverse` after connecting wirelessly if you use the reverse-tunnel
+backend path — though over pure Wi-Fi the LAN-IP base URL is simpler.)

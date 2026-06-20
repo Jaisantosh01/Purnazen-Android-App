@@ -1,3 +1,13 @@
+import uuid
+from datetime import datetime
+
+from app.core.security import hash_password
+from app.models.therapy_session import TherapySession
+from app.models.user import User
+from app.models.video_group_mapping import VideoGroupMapping
+from app.models.video_groups import VideoGroups
+from app.models.videos import Videos
+
 REGISTER_PAYLOAD = {
     "full_name": "Test Patient",
     "email": "patient@example.com",
@@ -13,13 +23,61 @@ def auth_headers(client, email="patient@example.com"):
     return {"Authorization": f"Bearer {tokens['access_token']}"}
 
 
-def session_payload(**overrides):
-    # Mirrors what YogaSessionScreen/ReliefSessionScreen send on completion
+def seed_group_with_videos(db, video_count=1):
+    """Create a video group with N videos (and their group mappings).
+
+    The merged model links therapy sessions to a group_id + video_id, so the
+    tests need real catalog rows to reference.
+    """
+    owner = User(
+        full_name="Content Owner",
+        email=f"owner-{uuid.uuid4().hex[:8]}@example.com",
+        password=hash_password("secret123"),
+    )
+    db.add(owner)
+    db.flush()
+
+    group = VideoGroups(
+        title="Wellness & Prevention",
+        description="Long-term wellness routines.",
+        created_by=owner.id,
+        updated_by=owner.id,
+    )
+    db.add(group)
+    db.flush()
+
+    videos = []
+    for index in range(video_count):
+        video = Videos(
+            title=f"Video {index}",
+            description="A routine.",
+            duration=10,
+            created_by=owner.id,
+            updated_by=owner.id,
+        )
+        db.add(video)
+        db.flush()
+        db.add(
+            VideoGroupMapping(
+                video_group_id=group.id,
+                video_id=video.id,
+                created_by=owner.id,
+                updated_by=owner.id,
+            )
+        )
+        videos.append(video)
+
+    db.commit()
+    return group, videos
+
+
+def save_payload(group, video, **overrides):
+    # Mirrors what YogaSessionScreen/ReliefSessionScreen send on completion.
     payload = {
-        "title": "Headache Relief",
+        "groupId": str(group.id),
+        "videoId": str(video.id),
         "type": "wellness",
-        "date": "2026-06-10T09:30:00.000Z",
-        "duration": "15 min",
+        "durationMinutes": 15,
         "status": "Completed",
         "painBefore": 8,
         "painAfter": 3,
@@ -28,72 +86,95 @@ def session_payload(**overrides):
     return payload
 
 
-def test_save_session_success(client):
+def test_save_session_success(client, db_session):
+    group, videos = seed_group_with_videos(db_session)
     headers = auth_headers(client)
+
     response = client.post(
-        "/api/v1/therapy-history/save", json=session_payload(), headers=headers
+        "/api/v1/therapy-history/save",
+        json=save_payload(group, videos[0]),
+        headers=headers,
     )
     assert response.status_code == 201
     body = response.json()
     assert body["success"] is True
 
     data = body["data"]
-    assert data["title"] == "Headache Relief"
     assert data["type"] == "wellness"
-    assert data["date"] == "June 10, 2026"
     assert data["duration"] == "15 min"
     assert data["status"] == "Completed"
     assert data["painBefore"] == 8
     assert data["painAfter"] == 3
+    assert data["groupTitle"] == "Wellness & Prevention"
+    assert data["videoTitle"] == "Video 0"
 
 
 def test_save_session_requires_auth(client):
-    response = client.post("/api/v1/therapy-history/save", json=session_payload())
+    response = client.post(
+        "/api/v1/therapy-history/save",
+        json={
+            "groupId": str(uuid.uuid4()),
+            "videoId": str(uuid.uuid4()),
+            "type": "wellness",
+            "durationMinutes": 15,
+        },
+    )
     assert response.status_code == 401
     assert response.json()["success"] is False
 
 
-def test_save_session_rejects_unknown_type(client):
+def test_save_session_rejects_unknown_type(client, db_session):
+    group, videos = seed_group_with_videos(db_session)
     headers = auth_headers(client)
     response = client.post(
         "/api/v1/therapy-history/save",
-        json=session_payload(type="juggling"),
+        json=save_payload(group, videos[0], type="juggling"),
         headers=headers,
     )
     assert response.status_code == 400
     assert response.json()["success"] is False
 
 
-def test_history_lists_saved_sessions_newest_first(client):
+def test_history_lists_saved_sessions_newest_first(client, db_session):
+    group, videos = seed_group_with_videos(db_session, video_count=2)
     headers = auth_headers(client)
     client.post(
         "/api/v1/therapy-history/save",
-        json=session_payload(title="Older", date="2026-06-01T10:00:00Z"),
+        json=save_payload(group, videos[0]),
         headers=headers,
     )
     client.post(
         "/api/v1/therapy-history/save",
-        json=session_payload(title="Newer", date="2026-06-10T10:00:00Z"),
+        json=save_payload(group, videos[1]),
         headers=headers,
     )
+
+    # Pin updated_at so the "newest first" ordering is deterministic (server
+    # timestamps can collide within the same second).
+    s0 = db_session.query(TherapySession).filter_by(video_id=videos[0].id).first()
+    s1 = db_session.query(TherapySession).filter_by(video_id=videos[1].id).first()
+    s0.updated_at = datetime(2026, 6, 1, 10, 0, 0)
+    s1.updated_at = datetime(2026, 6, 10, 10, 0, 0)
+    db_session.commit()
 
     response = client.get("/api/v1/therapy-history", headers=headers)
     assert response.status_code == 200
     data = response.json()["data"]
     assert data["total"] == 2
-    assert [s["title"] for s in data["sessions"]] == ["Newer", "Older"]
+    assert [s["videoTitle"] for s in data["sessions"]] == ["Video 1", "Video 0"]
 
 
-def test_history_stats(client):
+def test_history_stats(client, db_session):
+    group, videos = seed_group_with_videos(db_session, video_count=2)
     headers = auth_headers(client)
     client.post(
         "/api/v1/therapy-history/save",
-        json=session_payload(duration="15 min", painBefore=8, painAfter=3),
+        json=save_payload(group, videos[0], durationMinutes=15, painBefore=8, painAfter=3),
         headers=headers,
     )
     client.post(
         "/api/v1/therapy-history/save",
-        json=session_payload(duration="20 min", painBefore=7, painAfter=2),
+        json=save_payload(group, videos[1], durationMinutes=20, painBefore=7, painAfter=2),
         headers=headers,
     )
 
@@ -103,12 +184,13 @@ def test_history_stats(client):
     assert stats["avgRelief"] == -5
 
 
-def test_history_pagination(client):
+def test_history_pagination(client, db_session):
+    group, videos = seed_group_with_videos(db_session, video_count=3)
     headers = auth_headers(client)
-    for index in range(3):
+    for video in videos:
         client.post(
             "/api/v1/therapy-history/save",
-            json=session_payload(title=f"Session {index}", date=f"2026-06-0{index + 1}T10:00:00Z"),
+            json=save_payload(group, video),
             headers=headers,
         )
 
@@ -126,10 +208,13 @@ def test_history_requires_auth(client):
     assert response.status_code == 401
 
 
-def test_history_only_own_sessions(client):
+def test_history_only_own_sessions(client, db_session):
+    group, videos = seed_group_with_videos(db_session)
     headers = auth_headers(client)
     client.post(
-        "/api/v1/therapy-history/save", json=session_payload(), headers=headers
+        "/api/v1/therapy-history/save",
+        json=save_payload(group, videos[0]),
+        headers=headers,
     )
 
     other = auth_headers(client, email="other@example.com")

@@ -1,7 +1,7 @@
 import uuid
 
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, func
-from sqlalchemy.dialects.postgresql import UUID
+from app.db.types import GUID
 from sqlalchemy.orm import relationship
 
 from app.db.base_class import Base
@@ -10,14 +10,14 @@ from app.db.base_class import Base
 class DoctorLanguageMapping(Base):
     __tablename__ = "doctor_language_mapping"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    doctor_id = Column(UUID(as_uuid=True), ForeignKey("doctors.id"), nullable=False)
-    language_id = Column(UUID(as_uuid=True), ForeignKey("languages.id"), nullable=False)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    doctor_id = Column(GUID(), ForeignKey("doctors.id"), nullable=False)
+    language_id = Column(GUID(), ForeignKey("languages.id"), nullable=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())
-    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
-    updated_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    created_by = Column(GUID(), ForeignKey("users.id"))
+    updated_by = Column(GUID(), ForeignKey("users.id"))
     
     language = relationship("Language")
 
