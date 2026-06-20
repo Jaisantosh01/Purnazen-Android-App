@@ -91,6 +91,7 @@ const AppointmentManagementScreen = ({ navigation }) => {
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [calendarMode, setCalendarMode] = useState(null);
+  const [searchText, setSearchText] = useState('');
 
   const [appliedDocNames, setAppliedDocNames] = useState([]);
   const [appliedDateFrom, setAppliedDateFrom] = useState('');
@@ -199,6 +200,13 @@ const AppointmentManagementScreen = ({ navigation }) => {
   const filteredAppointments = useMemo(() => {
     return appointments.filter(a => {
       if (activeFilter !== 'All' && a.consultationType !== activeFilter) return false;
+      if (searchText) {
+        const q = searchText.toLowerCase();
+        const ref = (a.reference || '').toLowerCase();
+        const doc = (a.doctorName || '').toLowerCase();
+        const pat = (a.userName || '').toLowerCase();
+        if (!ref.includes(q) && !doc.includes(q) && !pat.includes(q)) return false;
+      }
       if (appliedDocNames.length > 0 && !appliedDocNames.includes(a.doctorName)) return false;
       if (appliedDateFrom && a.date < appliedDateFrom) return false;
       if (appliedDateTo && a.date > appliedDateTo) return false;
@@ -207,7 +215,7 @@ const AppointmentManagementScreen = ({ navigation }) => {
       if (appliedStatus.length > 0 && !appliedStatus.includes(a.status)) return false;
       return true;
     });
-  }, [appointments, activeFilter, appliedDocNames, appliedDateFrom, appliedDateTo, appliedTimeFrom, appliedTimeTo, appliedStatus]);
+  }, [appointments, activeFilter, searchText, appliedDocNames, appliedDateFrom, appliedDateTo, appliedTimeFrom, appliedTimeTo, appliedStatus]);
 
   const renderFilterTab = (label) => (
     <TouchableOpacity
@@ -271,6 +279,32 @@ const AppointmentManagementScreen = ({ navigation }) => {
             )}
           </TouchableOpacity>
         </View>
+      </View>
+
+      <View style={styles.searchSection}>
+        <View style={styles.searchRow}>
+          <MCIcon name="magnify" size={20} color={COLORS.textMuted} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search by reference, doctor or patient name..."
+            placeholderTextColor={COLORS.textMuted}
+            value={searchText}
+            onChangeText={setSearchText}
+          />
+          {searchText ? (
+            <TouchableOpacity onPress={() => setSearchText('')}>
+              <MCIcon name="close-circle" size={20} color={COLORS.textMuted} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+
+        <View style={styles.filterRow}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {renderFilterTab('All')}
+            {consultationTypes.map(renderFilterTab)}
+          </ScrollView>
+        </View>
+
         {hasAppliedFilters && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.activeFilterChips}>
             {appliedDocNames.length > 0 && (
@@ -295,13 +329,6 @@ const AppointmentManagementScreen = ({ navigation }) => {
             )}
           </ScrollView>
         )}
-      </View>
-
-      <View style={styles.filterRow}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {renderFilterTab('All')}
-          {consultationTypes.map(renderFilterTab)}
-        </ScrollView>
       </View>
 
       <FlatList
@@ -617,17 +644,20 @@ const AppointmentManagementScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
-  header: { paddingTop: 56, padding: 20, backgroundColor: COLORS.white, paddingBottom: 12 },
+  header: { paddingTop: 56, padding: 20, backgroundColor: COLORS.white, paddingBottom: 4 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerTitle: { fontSize: 22, fontWeight: '800', color: COLORS.textPrimary },
   filterToggle: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.surfaceMuted, justifyContent: 'center', alignItems: 'center' },
   filterToggleActive: { backgroundColor: COLORS.primary },
   filterBadge: { position: 'absolute', top: -4, right: -4, width: 18, height: 18, borderRadius: 9, backgroundColor: COLORS.danger, justifyContent: 'center', alignItems: 'center' },
   filterBadgeText: { color: COLORS.white, fontSize: 10, fontWeight: '800' },
-  activeFilterChips: { marginTop: 8 },
+  searchSection: { backgroundColor: COLORS.white, paddingTop: 4, paddingBottom: 12 },
+  activeFilterChips: { paddingHorizontal: 16 },
   activeChip: { backgroundColor: COLORS.primaryLight, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginRight: 6 },
   activeChipText: { fontSize: 11, fontWeight: '600', color: COLORS.primary },
-  filterRow: { backgroundColor: COLORS.white, paddingBottom: 12, paddingHorizontal: 16 },
+  searchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white, marginHorizontal: 16, marginBottom: 8, borderRadius: 25, paddingHorizontal: 16, height: 44, borderWidth: 1, borderColor: COLORS.border, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  searchInput: { flex: 1, fontSize: 14, color: COLORS.textPrimary, padding: 0, marginLeft: 8 },
+  filterRow: { paddingBottom: 10, paddingHorizontal: 16 },
   filterTab: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: COLORS.surfaceMuted, marginRight: 8 },
   activeFilterTab: { backgroundColor: COLORS.primary },
   filterTabText: { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary },
