@@ -30,6 +30,7 @@ export const ENDPOINTS = {
 
   // Dynamic endpoints
   DOCTOR_DETAIL: (id) => `${API_VERSION}/doctors/${id}`,
+  DOCTOR_AVAILABILITY: (id) => `${API_VERSION}/doctors/${id}/availability`,
   VISIT_TYPES: (id) => `${API_VERSION}/doctors/${id}/visit-types`,
   TIME_SLOTS: (id) => `${API_VERSION}/doctors/${id}/time-slots`,
 

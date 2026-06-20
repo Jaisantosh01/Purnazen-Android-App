@@ -30,6 +30,7 @@ const DoctorDetailScreen = ({ route, navigation }) => {
   const { doctorId } = route.params;
   const [doctor, setDoctor] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [availabilityByDay, setAvailabilityByDay] = useState([]);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', fetchDoctor);
@@ -38,10 +39,23 @@ const DoctorDetailScreen = ({ route, navigation }) => {
 
   const fetchDoctor = () => {
     setLoading(true);
-    apiClient
-      .get(ENDPOINTS.DOCTOR_DETAIL(doctorId))
-      .then(res => {
-        setDoctor(res.data || res);
+    Promise.all([
+      apiClient.get(ENDPOINTS.DOCTOR_DETAIL(doctorId)),
+      apiClient.get(ENDPOINTS.SLOT_TIMINGS),
+      apiClient.get(ENDPOINTS.DOCTOR_AVAILABILITY(doctorId)),
+    ])
+      .then(([docRes, slotRes, availRes]) => {
+        setDoctor(docRes.data || docRes);
+        const allDays = slotRes.data || slotRes || [];
+        const availList = availRes.data || availRes || [];
+        const selectedIds = availList.map(a => a.slot_timing_id);
+        const daysWithSlots = allDays
+          .map(day => ({
+            ...day,
+            slots: (day.slots || []).filter(s => selectedIds.includes(s.id)),
+          }))
+          .filter(day => day.slots.length > 0);
+        setAvailabilityByDay(daysWithSlots);
       })
       .catch(() => Alert.alert('Error', 'Failed to load doctor details'))
       .finally(() => setLoading(false));
@@ -100,6 +114,26 @@ const DoctorDetailScreen = ({ route, navigation }) => {
                 ))}
             </View>
           )}
+
+          {availabilityByDay.length > 0 && (
+            <View style={styles.availSection}>
+              <Text style={styles.availHeader}>Availability</Text>
+              {availabilityByDay.map(day => (
+                <View key={day.id} style={styles.availDayRow}>
+                  <Text style={styles.availDayLabel}>{day.day}</Text>
+                  <View style={styles.availSlotRow}>
+                    {day.slots.map(slot => (
+                      <View key={slot.id} style={styles.availSlotChip}>
+                        <Text style={styles.availSlotText}>
+                          {slot.start_time ? slot.start_time.substring(0, 5) : ''}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -132,6 +166,13 @@ const styles = StyleSheet.create({
   awardContent: { marginLeft: 12 },
   awardTitle: { fontSize: 14, fontWeight: '700', color: COLORS.textPrimary },
   awardIssuer: { fontSize: 12, color: COLORS.textSecondary },
+  availSection: { marginTop: 16, borderTopWidth: 1, borderTopColor: '#f0f0f0', paddingTop: 16 },
+  availHeader: { fontSize: 12, color: COLORS.textSecondary, marginBottom: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  availDayRow: { marginBottom: 10 },
+  availDayLabel: { fontSize: 14, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 6 },
+  availSlotRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  availSlotChip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: COLORS.primaryLight },
+  availSlotText: { fontSize: 12, color: COLORS.primary, fontWeight: '500' },
 });
 
 export default DoctorDetailScreen;

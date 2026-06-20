@@ -50,6 +50,8 @@ const EditDoctorScreen = ({ route, navigation }) => {
   const [specialties, setSpecialties] = useState([]);
   const [allExpertise, setAllExpertise] = useState([]);
   const [allLanguages, setAllLanguages] = useState([]);
+  const [slotTimingsByDay, setSlotTimingsByDay] = useState([]);
+  const [selectedSlotIds, setSelectedSlotIds] = useState([]);
 
   useEffect(() => {
     if (!doctorId) {
@@ -68,10 +70,12 @@ const EditDoctorScreen = ({ route, navigation }) => {
         apiClient.get(ENDPOINTS.SPECIALTIES),
         apiClient.get(ENDPOINTS.EXPERTISES),
         apiClient.get(ENDPOINTS.LANGUAGES),
-      ]).then(([specRes, expRes, langRes]) => {
+        apiClient.get(ENDPOINTS.SLOT_TIMINGS),
+      ]).then(([specRes, expRes, langRes, slotRes]) => {
         setSpecialties(specRes.data || specRes || []);
         setAllExpertise(expRes.data || expRes || []);
         setAllLanguages(langRes.data || langRes || []);
+        setSlotTimingsByDay(slotRes.data || slotRes || []);
       }).finally(() => setLoading(false));
       return;
     }
@@ -81,7 +85,9 @@ const EditDoctorScreen = ({ route, navigation }) => {
       apiClient.get(ENDPOINTS.SPECIALTIES),
       apiClient.get(ENDPOINTS.EXPERTISES),
       apiClient.get(ENDPOINTS.LANGUAGES),
-    ]).then(([docRes, specRes, expRes, langRes]) => {
+      apiClient.get(ENDPOINTS.SLOT_TIMINGS),
+      apiClient.get(ENDPOINTS.DOCTOR_AVAILABILITY(doctorId)),
+    ]).then(([docRes, specRes, expRes, langRes, slotRes, availRes]) => {
       const doc = docRes.data || docRes;
       setEditedDoctor({
         ...doc,
@@ -96,6 +102,9 @@ const EditDoctorScreen = ({ route, navigation }) => {
       setSpecialties(specRes.data || specRes || []);
       setAllExpertise(expRes.data || expRes || []);
       setAllLanguages(langRes.data || langRes || []);
+      setSlotTimingsByDay(slotRes.data || slotRes || []);
+      const availData = availRes.data || availRes || [];
+      setSelectedSlotIds(availData.map(a => a.slot_timing_id));
     }).catch(() => Alert.alert('Error', 'Failed to load data'))
       .finally(() => setLoading(false));
   }, [doctorId]);
@@ -104,7 +113,8 @@ const EditDoctorScreen = ({ route, navigation }) => {
     setLoading(true);
     const payload = {
         ...editedDoctor,
-        specialty_ids: editedDoctor.specialty_ids || []
+        specialty_ids: editedDoctor.specialty_ids || [],
+        slot_timing_ids: selectedSlotIds
     };
     
     const request = doctorId 
@@ -218,6 +228,40 @@ const EditDoctorScreen = ({ route, navigation }) => {
         </TouchableOpacity>
         {renderSelectedTags('language_ids', allLanguages)}
 
+        <Text style={styles.sectionLabel}>Weekly Time Slots</Text>
+        <Text style={styles.subLabel}>Select when this doctor is available</Text>
+        {slotTimingsByDay.map((day) => (
+          <View key={day.id} style={styles.daySection}>
+            <Text style={styles.dayLabel}>{day.day}</Text>
+            <View style={styles.slotRow}>
+              {day.slots.length === 0 ? (
+                <Text style={styles.noSlots}>No slots configured</Text>
+              ) : (
+                day.slots.map((slot) => {
+                  const selected = selectedSlotIds.includes(slot.id);
+                  return (
+                    <TouchableOpacity
+                      key={slot.id}
+                      style={[styles.slotChip, selected && styles.slotChipSelected]}
+                      onPress={() => {
+                        setSelectedSlotIds(prev =>
+                          prev.includes(slot.id)
+                            ? prev.filter(id => id !== slot.id)
+                            : [...prev, slot.id]
+                        );
+                      }}
+                    >
+                      <Text style={[styles.slotChipText, selected && styles.slotChipTextSelected]}>
+                        {slot.start_time ? slot.start_time.substring(0, 5) : ''} - {slot.end_time ? slot.end_time.substring(0, 5) : ''}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+            </View>
+          </View>
+        ))}
+
         <Text style={styles.sectionLabel}>Awards</Text>
         {editedDoctor.awards?.map((award, index) => (
             <View key={index} style={styles.awardInputCard}>
@@ -309,7 +353,15 @@ const styles = StyleSheet.create({
   subLabel: { fontSize: 12, fontWeight: '600', color: COLORS.textSecondary, marginBottom: 4 },
   row: { flexDirection: 'row' },
   removeBtn: { marginTop: 8, alignSelf: 'flex-end' },
-  addBtn: { padding: 12, backgroundColor: '#f0f0f0', borderRadius: 8, alignItems: 'center', marginBottom: 20, flexDirection: 'row', justifyContent: 'center' }
+  addBtn: { padding: 12, backgroundColor: '#f0f0f0', borderRadius: 8, alignItems: 'center', marginBottom: 20, flexDirection: 'row', justifyContent: 'center' },
+  daySection: { marginBottom: 12 },
+  dayLabel: { fontSize: 14, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 6, marginTop: 4 },
+  slotRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  noSlots: { fontSize: 12, color: COLORS.textSecondary, fontStyle: 'italic' },
+  slotChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14, borderWidth: 1, borderColor: '#ccc', backgroundColor: COLORS.white },
+  slotChipSelected: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  slotChipText: { fontSize: 12, color: COLORS.textPrimary, fontWeight: '500' },
+  slotChipTextSelected: { color: COLORS.white },
 });
 
 export default EditDoctorScreen;
