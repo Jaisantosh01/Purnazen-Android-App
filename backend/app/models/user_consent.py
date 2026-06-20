@@ -1,4 +1,6 @@
+import uuid
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, func
+from app.db.types import GUID
 from sqlalchemy.orm import relationship
 
 from app.db.base_class import Base
@@ -9,8 +11,8 @@ ALLOWED_CONSENT_TYPES = {"scan_storage", "ai_training", "gdpr_data"}
 class UserConsent(Base):
     __tablename__ = "user_consents"
 
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    user_id = Column(GUID(), ForeignKey("users.id"), nullable=False)
     consent_type = Column(String(50), nullable=False)
     granted = Column(Boolean, nullable=False, default=False)
     granted_at = Column(DateTime, nullable=True)

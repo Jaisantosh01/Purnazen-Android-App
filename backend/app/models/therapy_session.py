@@ -1,6 +1,6 @@
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, String, func
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import UUID
+from app.db.types import GUID
 import uuid
 
 from app.db.base_class import Base
@@ -9,10 +9,10 @@ from app.db.base_class import Base
 class TherapySession(Base):
     __tablename__ = "therapy_sessions"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    group_id = Column(UUID(as_uuid=True), ForeignKey("video_groups.id"), nullable=False)
-    video_id = Column(UUID(as_uuid=True), ForeignKey("videos.id"), nullable=False)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4, nullable=False)
+    user_id = Column(GUID(), ForeignKey("users.id"), nullable=False)
+    group_id = Column(GUID(), ForeignKey("video_groups.id"), nullable=False)
+    video_id = Column(GUID(), ForeignKey("videos.id"), nullable=False)
     session_type = Column(String(30), nullable=False)  # wellness | relief | yoga | ...
     duration_minutes = Column(Integer, nullable=False, default=0)
     status = Column(String(20), nullable=False, default="Completed")
@@ -20,9 +20,9 @@ class TherapySession(Base):
     pain_after = Column(Integer)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
-    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    created_by = Column(GUID(), ForeignKey("users.id"), nullable=False)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), name="updated_at")
-    updated_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, name="updated_by")
+    updated_by = Column(GUID(), ForeignKey("users.id"), nullable=False, name="updated_by")
 
     user = relationship("User", foreign_keys=[user_id], backref="therapy_sessions")
     creator = relationship("User", foreign_keys=[created_by])

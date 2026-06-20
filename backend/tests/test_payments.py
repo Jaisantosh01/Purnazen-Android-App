@@ -19,14 +19,14 @@ def auth_headers(client, email="payer@example.com"):
 
 def book_appointment(client, db_session, headers):
     doctor = seed_doctor(db_session)
-    add_availability(db_session, doctor, day="Monday", start=time(9, 0), end=time(11, 0))
+    slots = add_availability(db_session, doctor, day="Monday", start=time(9, 0), end=time(11, 0))
     response = client.post(
         "/api/v1/appointments/book",
         json={
-            "doctorId": doctor.id,
+            "doctorId": str(doctor.id),
             "visitType": "video",
             "date": next_weekday("Monday").isoformat(),
-            "time": "09:00 AM",
+            "slotTimingId": str(slots[0].id),
             "fee": 1200,
         },
         headers=headers,

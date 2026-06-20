@@ -49,17 +49,40 @@ def test_get_dashboard_stats_success(client, db_session):
     )
     db_session.add(doctor)
     db_session.flush()
-    
-    # Add appointments
+
+    # Slot timings the appointments reference (the model links a slot_timing row
+    # instead of carrying start/end columns directly).
     from datetime import time, timedelta
+    from app.models.day_of_week import DayOfWeek
+    from app.models.slot_timings import SlotTimings
+
+    day = DayOfWeek(day_number=1, day="Monday")
+    db_session.add(day)
+    db_session.flush()
+
+    def make_slot(start, end):
+        slot = SlotTimings(
+            day_of_week_id=day.id,
+            start_time=start,
+            end_time=end,
+            created_by=doctor_user.id,
+            updated_by=doctor_user.id,
+        )
+        db_session.add(slot)
+        db_session.flush()
+        return slot
+
+    slot1 = make_slot(time(9, 0), time(9, 30))
+    slot2 = make_slot(time(10, 0), time(10, 30))
+    slot3 = make_slot(time(11, 0), time(11, 30))
+
     # 1. Scheduled for today
     db_session.add(Appointment(
         user_id=doctor_user.id, # any user
         doctor_id=doctor.id,
         visit_type="video",
         date=date.today(),
-        slot_start=time(9, 0),
-        slot_end=time(9, 30),
+        slot_timing_id=slot1.id,
         status="booked"
     ))
     # 2. Scheduled for tomorrow (not today, but still scheduled)
@@ -68,8 +91,7 @@ def test_get_dashboard_stats_success(client, db_session):
         doctor_id=doctor.id,
         visit_type="video",
         date=date.today() + timedelta(days=1),
-        slot_start=time(10, 0),
-        slot_end=time(10, 30),
+        slot_timing_id=slot2.id,
         status="booked"
     ))
     # 3. Completed (not scheduled)
@@ -78,11 +100,10 @@ def test_get_dashboard_stats_success(client, db_session):
         doctor_id=doctor.id,
         visit_type="video",
         date=date.today(),
-        slot_start=time(11, 0),
-        slot_end=time(11, 30),
+        slot_timing_id=slot3.id,
         status="completed"
     ))
-    
+
     db_session.commit()
     
     response = client.get("/api/v1/admin/stats", headers=headers)

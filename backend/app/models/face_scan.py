@@ -1,4 +1,6 @@
+import uuid
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, Numeric, String, Text, func
+from app.db.types import GUID
 from sqlalchemy.orm import relationship
 
 from app.db.base_class import Base
@@ -7,8 +9,8 @@ from app.db.base_class import Base
 class FaceScan(Base):
     __tablename__ = "face_scans"
 
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    user_id = Column(GUID(), ForeignKey("users.id"), nullable=False)
     scan_type = Column(String(20), nullable=False, default="face")
     status = Column(String(20), nullable=False, default="queued")
     image_url = Column(String(500), nullable=True)
@@ -39,7 +41,7 @@ class FaceScan(Base):
 
     def to_dict(self):
         return {
-            "id": self.id,
+            "id": str(self.id),
             "scanType": self.scan_type,
             "status": self.status,
             "imageUrl": self.image_url,

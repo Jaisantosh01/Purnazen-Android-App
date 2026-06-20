@@ -1,4 +1,6 @@
+import uuid
 from sqlalchemy import JSON, Boolean, Column, DateTime, Integer, String, func
+from app.db.types import GUID
 
 from app.db.base_class import Base
 
@@ -6,7 +8,7 @@ from app.db.base_class import Base
 class FaceGlowRoutine(Base):
     __tablename__ = "face_glow_routines"
 
-    id = Column(Integer, primary_key=True)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     key = Column(String(80), nullable=False, unique=True)
     icon = Column(String(10), nullable=False)
     title = Column(String(150), nullable=False)

@@ -1,4 +1,6 @@
+import uuid
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, JSON, Numeric, String, func
+from app.db.types import GUID
 from sqlalchemy.orm import relationship
 
 from app.db.base_class import Base
@@ -7,8 +9,8 @@ from app.db.base_class import Base
 class ScanResult(Base):
     __tablename__ = "scan_results"
 
-    id = Column(Integer, primary_key=True)
-    scan_id = Column(Integer, ForeignKey("face_scans.id"), nullable=False, unique=True)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    scan_id = Column(GUID(), ForeignKey("face_scans.id"), nullable=False, unique=True)
     # Face metrics (0–100, NULL for tongue scans)
     hydration_score = Column(Numeric(5, 2), nullable=True)
     oiliness_score = Column(Numeric(5, 2), nullable=True)

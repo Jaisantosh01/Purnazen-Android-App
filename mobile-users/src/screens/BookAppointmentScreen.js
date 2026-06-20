@@ -21,12 +21,6 @@ const DEFAULT_TIME_SLOTS = [
   '03:30 PM', '04:00 PM', '04:30 PM',
 ];
 
-const DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
-
 const HOME_ADDRESS = {
   street: '123 Main Street, Apartment 4B',
   city: 'Mumbai, Maharashtra 400001',

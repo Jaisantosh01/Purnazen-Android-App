@@ -14,6 +14,7 @@ generate real JPEGs with Pillow.
 """
 import io
 import os
+import uuid
 from unittest.mock import patch
 
 import pytest
@@ -100,7 +101,8 @@ def test_upload_valid_jpeg_queued(client, tmp_path):
     assert r.status_code == 202, r.text
     data = r.json()["data"]
     assert data["status"] == "queued"
-    assert isinstance(data["scan_id"], int)
+    # scan_id is a UUID string now (was an int PK before the UUID migration)
+    assert uuid.UUID(str(data["scan_id"]))
 
 
 def test_upload_invalid_scan_type(client):
@@ -172,7 +174,9 @@ def test_pipeline_real_scores(db_session, tmp_path):
     rng = np.random.default_rng(1)
     cv2.imwrite(abs_path, rng.integers(90, 180, (600, 600, 3), dtype=np.uint8))
 
-    user = User(full_name="Pipeline", email="pipe@test.com", password="x", role="patient")
+    from app.models.role import Role
+    patient_role = db_session.query(Role).filter_by(name="patient").first()
+    user = User(full_name="Pipeline", email="pipe@test.com", password="x", role_id=patient_role.id)
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
@@ -188,7 +192,8 @@ def test_pipeline_real_scores(db_session, tmp_path):
 
     with (
         patch("app.core.config.settings.LOCAL_UPLOADS_DIR", str(tmp_path)),
-        patch("app.core.config.settings.CLOUDINARY_CLOUD_NAME", ""),
+        # Force local storage (no network) for the processed-image upload.
+        patch("app.core.config.settings.AZURE_STORAGE_ACCOUNT_NAME", ""),
         patch("app.services.scan_pipeline_service.SessionLocal", return_value=db_session),
         patch.object(db_session, "close", lambda: None),
     ):
@@ -218,7 +223,7 @@ def test_pipeline_real_scores(db_session, tmp_path):
 
 def test_status_not_found(client):
     token = _register_and_login(client)
-    r = client.get("/api/v1/face-glow/scan/99999/status", headers=_auth(token))
+    r = client.get(f"/api/v1/face-glow/scan/{uuid.uuid4()}/status", headers=_auth(token))
     assert r.status_code == 404
 
 

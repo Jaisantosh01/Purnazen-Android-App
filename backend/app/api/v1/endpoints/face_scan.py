@@ -1,5 +1,6 @@
 import json
 import logging
+import uuid
 
 from fastapi import APIRouter, BackgroundTasks, Depends, UploadFile, File, Query
 from pydantic import BaseModel
@@ -108,7 +109,7 @@ async def upload_scan(
     description="Returns current status. When completed, includes scores and recommendations.",
 )
 def get_scan_status(
-    scan_id: int,
+    scan_id: uuid.UUID,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -190,7 +191,7 @@ def get_scan_history(
     description="Hard-deletes the scan record and both stored images.",
 )
 def delete_scan(
-    scan_id: int,
+    scan_id: uuid.UUID,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -263,7 +264,7 @@ async def quality_preview(
 
 @router.post("/scan/{scan_id}/compare", summary="Compare a scan to a baseline scan")
 def compare_scan(
-    scan_id: int,
+    scan_id: uuid.UUID,
     body: _CompareBody = _CompareBody(),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),

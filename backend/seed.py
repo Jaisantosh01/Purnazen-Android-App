@@ -428,6 +428,9 @@ try:
     # ------------------------
     # Session catalogs
     # ------------------------
+    # Default video group used to backfill wellness sessions that don't carry
+    # an explicit group link (otherwise the player shows the navigation-debug alert).
+    wellness_group = db.query(VideoGroups).filter_by(title="Wellness & Prevention").first()
     for session_data in WELLNESS_SESSIONS_DATA:
         if not db.query(WellnessSession).filter_by(title=session_data["title"]).first():
             group = db.query(VideoGroups).filter_by(title=session_data["video_group_title"]).first()

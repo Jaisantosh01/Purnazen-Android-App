@@ -1,4 +1,5 @@
 """Sprint 4: tongue pipeline + dashboard / trends / compare endpoints."""
+import uuid
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -93,7 +94,7 @@ def test_compare_to_previous(client, db_session):
     data = r.json()["data"]
     assert data["hasBaseline"] is True
     assert data["deltas"]["glowScore"] == 15.0  # 65 - 50
-    assert data["baseline"]["scanId"] == ids[0]
+    assert data["baseline"]["scanId"] == str(ids[0])
 
 
 def test_compare_first_scan_has_no_baseline(client, db_session):
@@ -106,7 +107,7 @@ def test_compare_first_scan_has_no_baseline(client, db_session):
 
 def test_compare_unknown_scan_404(client):
     token = _login(client)
-    r = client.post("/api/v1/face-glow/scan/99999/compare", headers=_auth(token))
+    r = client.post(f"/api/v1/face-glow/scan/{uuid.uuid4()}/compare", headers=_auth(token))
     assert r.status_code == 404
 
 

@@ -1,4 +1,6 @@
+import uuid
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, JSON, String, Text, func
+from app.db.types import GUID
 from sqlalchemy.orm import relationship
 
 from app.db.base_class import Base
@@ -7,8 +9,8 @@ from app.db.base_class import Base
 class ScanRecommendation(Base):
     __tablename__ = "scan_recommendations"
 
-    id = Column(Integer, primary_key=True)
-    scan_id = Column(Integer, ForeignKey("face_scans.id"), nullable=False)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    scan_id = Column(GUID(), ForeignKey("face_scans.id"), nullable=False)
     recommendation_type = Column(String(30), nullable=False)
     priority = Column(Integer, nullable=False, default=0)
     title = Column(String(200), nullable=False)
@@ -23,7 +25,7 @@ class ScanRecommendation(Base):
 
     def to_dict(self):
         return {
-            "id": self.id,
+            "id": str(self.id),
             "type": self.recommendation_type,
             "priority": self.priority,
             "title": self.title,
