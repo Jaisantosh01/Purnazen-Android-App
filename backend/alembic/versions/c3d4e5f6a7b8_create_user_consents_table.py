@@ -18,8 +18,8 @@ depends_on = None
 def upgrade():
     op.create_table(
         'user_consents',
-        sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('user_id', sa.Integer(), nullable=False),
+        sa.Column('id', sa.Uuid(), nullable=False),
+        sa.Column('user_id', sa.Uuid(), nullable=False),
         sa.Column('consent_type', sa.String(50), nullable=False),
         sa.Column('granted', sa.Boolean(), nullable=False, server_default=sa.text('false')),
         sa.Column('granted_at', sa.DateTime(), nullable=True),
