@@ -197,7 +197,7 @@ const VideoManagementScreen = ({ navigation }) => {
           data={sessions}
           keyExtractor={item => item.id.toString()}
           renderItem={({ item }) => (
-            <TouchableOpacity style={styles.card} onPress={() => {
+            <TouchableOpacity activeOpacity={1} style={styles.card} onPress={() => {
               if (item.videoGroupId) {
                 navigation.navigate('VideoGroupDetail', { groupId: item.videoGroupId, groupTitle: item.title });
               }
@@ -223,7 +223,7 @@ const VideoManagementScreen = ({ navigation }) => {
           data={groups}
           keyExtractor={item => item.id.toString()}
           renderItem={({ item }) => (
-            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('VideoGroupDetail', { groupId: item.id, groupTitle: item.title })}>
+            <TouchableOpacity activeOpacity={1} style={styles.card} onPress={() => navigation.navigate('VideoGroupDetail', { groupId: item.id, groupTitle: item.title })}>
               <View style={styles.iconContainer}><MCIcon name={item.icon || 'folder'} size={24} color={COLORS.primary} /></View>
               <View style={styles.cardContent}>
                 <Text style={styles.groupTitle}>{item.title}</Text>

@@ -35,6 +35,8 @@ export const ENDPOINTS = {
 
   // Booking & Payment
   APPOINTMENTS: `${API_VERSION}/appointments`,
+  APPOINTMENTS_ADMIN: `${API_VERSION}/appointments/admin`,
+  CONSULTATION_TYPES: `${API_VERSION}/appointments/consultation-types`,
   BOOK_APPOINTMENT: `${API_VERSION}/appointments/book`,
   PAYMENT: `${API_VERSION}/payments/process`,
   PAYMENT_VERIFY: `${API_VERSION}/payments/verify`,

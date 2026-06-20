@@ -97,12 +97,14 @@ const DoctorManagementScreen = ({ navigation }) => {
       {/* ── Header ── */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Doctor Management</Text>
+        {/*
         <TouchableOpacity 
           style={styles.addBtn}
           onPress={() => navigation.navigate('EditDoctor', { doctorId: null })}
         >
           <MCIcon name="plus" size={24} color={COLORS.white} />
         </TouchableOpacity>
+    */}
       </View>
 
       <ScrollView 
