@@ -14,7 +14,7 @@ const TimePickerColumn = ({ data, value, onChange }) => {
 
   useEffect(() => {
     setTimeout(() => {
-        flatListRef.current?.scrollToIndex({ index, animated: false });
+      flatListRef.current?.scrollToOffset({ offset: index * ITEM_HEIGHT, animated: false });
     }, 100);
   }, []);
 
@@ -32,11 +32,12 @@ const TimePickerColumn = ({ data, value, onChange }) => {
         data={data}
         keyExtractor={(item) => item}
         renderItem={({ item }) => <View style={styles.pickerItem}><Text style={styles.pickerItemText}>{item}</Text></View>}
-        getItemLayout={(_, index) => ({ length: ITEM_HEIGHT, offset: ITEM_HEIGHT * index, index })}
+        getItemLayout={(_, index) => ({ length: ITEM_HEIGHT, offset: 30 + ITEM_HEIGHT * index, index })}
         onMomentumScrollEnd={onMomentumScrollEnd}
         showsVerticalScrollIndicator={false}
         snapToInterval={ITEM_HEIGHT}
         decelerationRate="fast"
+        contentContainerStyle={{ paddingTop: 30, paddingBottom: 30 }}
       />
     </View>
   );
@@ -291,7 +292,7 @@ timeText: {
   fontWeight: '600',
   color: '#222',
 },
-  rowBack: { flexDirection: 'row', justifyContent: 'space-between', flex: 1, alignItems: 'center', marginBottom: 12, borderRadius: 12, overflow: 'hidden' },
+  rowBack: { flexDirection: 'row', justifyContent: 'space-between', flex: 1, alignItems: 'center', marginBottom: 12, height: 54, borderRadius: 14, overflow: 'hidden' },
   backBtn: { width: 75, height: '100%', justifyContent: 'center', alignItems: 'center' },
   editBack: { backgroundColor: COLORS.primary },
   deleteBack: { backgroundColor: COLORS.danger },

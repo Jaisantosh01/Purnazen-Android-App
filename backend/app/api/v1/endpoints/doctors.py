@@ -201,6 +201,31 @@ def update_doctor(
 
 
 @router.get(
+    "/doctors/{doctor_id}/availability",
+    summary="Doctor weekly availability",
+    description="Returns the slot_timing_ids that this doctor is available for (weekly schedule).",
+)
+def get_doctor_availability(
+    doctor_id: uuid.UUID,
+    db: Session = Depends(get_db),
+):
+    doctor = DoctorService.get_doctor_by_id(db, doctor_id)
+    if not doctor:
+        return error_response("Doctor not found", 404)
+
+    from app.models.doctor_availability import DoctorAvailability
+    rows = db.query(DoctorAvailability).filter(
+        DoctorAvailability.doctor_id == doctor_id,
+        DoctorAvailability.is_active == True,
+    ).all()
+
+    return success_response(
+        "Doctor availability fetched successfully",
+        [{"slot_timing_id": str(a.slot_timing_id)} for a in rows]
+    )
+
+
+@router.get(
     "/doctors/{doctor_id}/time-slots",
     summary="Available time slots",
     description=(

@@ -72,15 +72,20 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
 
   const renderVideo = ({ item, index }) => {
     const isActive = index === currentVideoIndex;
+    const iconName = isActive ? (isPlaying ? 'pause-circle' : 'play-circle') : 'play-circle-outline';
     return (
       <TouchableOpacity 
         style={[styles.card, isActive && styles.activeCard]} 
         onPress={() => {
-            setCurrentVideoIndex(index);
-            setIsPlaying(true);
+            if (isActive) {
+              setIsPlaying(prev => !prev);
+            } else {
+              setCurrentVideoIndex(index);
+              setIsPlaying(true);
+            }
         }}
       >
-        <MCIcon name="play-circle-outline" size={32} color={isActive ? COLORS.white : COLORS.primary} style={styles.icon} />
+        <MCIcon name={iconName} size={32} color={isActive ? COLORS.white : COLORS.primary} style={styles.icon} />
         <View style={styles.cardContent}>
           <Text style={[styles.videoTitle, isActive && styles.activeText]}>{item.title}</Text>
           <Text style={[styles.videoMeta, isActive && styles.activeText]}>{Math.floor(item.duration / 60)} min</Text>

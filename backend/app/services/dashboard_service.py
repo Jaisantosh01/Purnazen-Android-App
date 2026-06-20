@@ -9,7 +9,7 @@ class DashboardService:
     def get_stats(db: Session):
         total_active_doctors = db.query(Doctor).filter(Doctor.is_active == True).count()
         total_inactive_doctors = db.query(Doctor).filter(Doctor.is_active == False).count()
-        scheduled_appointments = db.query(Appointment).filter(Appointment.status != "completed").count()
+        scheduled_appointments = db.query(Appointment).filter(~Appointment.status.in_(["completed", "cancelled"])).count()
         today_appointments = db.query(Appointment).filter(Appointment.date == date.today()).count()
         total_active_users = db.query(User).filter(User.is_active == True).count()
 

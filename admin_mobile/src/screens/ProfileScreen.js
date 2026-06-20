@@ -13,6 +13,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAuthStore } from '../store/authStore';
 import authService from '../services/authService';
 // import therapyService from '../services/therapyService';
+import { resetToLogin } from '../navigation/navigationRef';
 import { StatsSkeleton } from '../components/SkeletonLoader';
 import { COLORS } from '../constants/theme';
 
@@ -46,7 +47,10 @@ const ProfileScreen = ({ navigation }) => {
         {
           text: 'Logout',
           style: 'destructive',
-          onPress: () => authService.logout(),
+          onPress: async () => {
+            await authService.logout();
+            resetToLogin();
+          },
         },
       ],
     );

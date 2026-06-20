@@ -19,7 +19,7 @@ def upgrade():
     op.create_table(
         'face_scans',
         sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('user_id', sa.Integer(), nullable=False),
+        sa.Column('user_id', sa.Uuid(), nullable=False),
         sa.Column('scan_type', sa.String(20), nullable=False, server_default='face'),
         sa.Column('status', sa.String(20), nullable=False, server_default='queued'),
         sa.Column('image_url', sa.String(500), nullable=True),

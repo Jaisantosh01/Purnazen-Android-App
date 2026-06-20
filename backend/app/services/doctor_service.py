@@ -1,4 +1,4 @@
-from datetime import date as date_type
+from datetime import date as date_type, datetime
 
 import uuid
 
@@ -145,6 +145,17 @@ class DoctorService:
             for spec_id in data["specialty_ids"]:
                 db.add(DoctorSpecialityMapping(doctor_id=doctor.id, speciality_id=spec_id, created_by=user.id))
 
+        # Update slot timing availability
+        if "slot_timing_ids" in data:
+            from app.models.doctor_availability import DoctorAvailability
+            db.query(DoctorAvailability).filter_by(doctor_id=doctor.id).delete()
+            for st_id in data["slot_timing_ids"]:
+                db.add(DoctorAvailability(
+                    doctor_id=doctor.id,
+                    slot_timing_id=st_id,
+                    created_by=user.id,
+                ))
+
         # Update Awards
         if "awards" in data:
             db.query(Award).filter_by(doctor_id=doctor.id).delete()
@@ -196,6 +207,16 @@ class DoctorService:
             for spec_id in data["specialty_ids"]:
                 db.add(DoctorSpecialityMapping(doctor_id=new_doctor.id, speciality_id=spec_id, created_by=user.id))
         
+        # Initialize slot timing availability
+        if "slot_timing_ids" in data:
+            from app.models.doctor_availability import DoctorAvailability
+            for st_id in data["slot_timing_ids"]:
+                db.add(DoctorAvailability(
+                    doctor_id=new_doctor.id,
+                    slot_timing_id=st_id,
+                    created_by=user.id,
+                ))
+
         # Initialize Awards
         if "awards" in data:
             for award_data in data["awards"]:

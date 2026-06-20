@@ -30,11 +30,14 @@ export const ENDPOINTS = {
 
   // Dynamic endpoints
   DOCTOR_DETAIL: (id) => `${API_VERSION}/doctors/${id}`,
+  DOCTOR_AVAILABILITY: (id) => `${API_VERSION}/doctors/${id}/availability`,
   VISIT_TYPES: (id) => `${API_VERSION}/doctors/${id}/visit-types`,
   TIME_SLOTS: (id) => `${API_VERSION}/doctors/${id}/time-slots`,
 
   // Booking & Payment
   APPOINTMENTS: `${API_VERSION}/appointments`,
+  APPOINTMENTS_ADMIN: `${API_VERSION}/appointments/admin`,
+  CONSULTATION_TYPES: `${API_VERSION}/appointments/consultation-types`,
   BOOK_APPOINTMENT: `${API_VERSION}/appointments/book`,
   PAYMENT: `${API_VERSION}/payments/process`,
   PAYMENT_VERIFY: `${API_VERSION}/payments/verify`,
