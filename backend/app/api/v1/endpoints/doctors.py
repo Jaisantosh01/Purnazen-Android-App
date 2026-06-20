@@ -26,7 +26,7 @@ def doctor_card(doctor):
         "reviews": doctor.reviews_count,
         "experience": doctor.experience_years,
         "location": "",
-        "tags": [ct.name for ct in doctor.consultation_types],
+        "tags": [link.consultation_type.name for link in doctor.consultation_type_links],
         "fee": float(doctor.consultation_fee),
         "availability": (
             "Available today" if doctor.is_available_today else "Not Available"

@@ -13,7 +13,6 @@ import uuid
 from sqlalchemy.orm import relationship
 
 from app.db.base_class import Base
-from app.models.associations import doctor_consultation_types
 from app.models.doctor_expertise_mapping import DoctorExpertiseMapping
 from app.models.doctor_language_mapping import DoctorLanguageMapping
 from app.models.doctor_speciality_mapping import DoctorSpecialityMapping
@@ -56,8 +55,8 @@ class Doctor(Base):
     expertises = relationship("Expertise", secondary="doctor_expertise_mapping", viewonly=True)
     # specialty is already linked via specialty_id
 
-    consultation_types = relationship(
-        "ConsultationType", secondary=doctor_consultation_types, backref="doctors"
+    consultation_type_links = relationship(
+        "DoctorConsultationType", back_populates="doctor", cascade="all, delete-orphan"
     )
 
     def to_dict(self):
@@ -73,7 +72,11 @@ class Doctor(Base):
             "average_rating": float(self.average_rating),
             "reviews_count": self.reviews_count,
             "languages": [mapping.language.name for mapping in self.language_mappings],
-            "consultation_types": [ct.name for ct in self.consultation_types],
+            "consultation_types": [link.consultation_type.name for link in self.consultation_type_links],
+            "consultation_type_prices": {
+                link.consultation_type.name: float(link.price) if link.price else None
+                for link in self.consultation_type_links
+            },
             "expertise": [mapping.expertise.name for mapping in self.expertise_mappings],
             "is_available_today": self.is_available_today,
             "is_active": self.is_active,

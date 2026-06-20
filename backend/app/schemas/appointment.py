@@ -13,6 +13,7 @@ class BookAppointmentRequest(BaseModel):
     date: date
     slot_timing_id: UUID = Field(alias="slotTimingId")
     fee: Optional[float] = None
+    user_description: Optional[str] = Field(alias="userDescription", default=None)
 
 
 class UpdateAppointmentRequest(BaseModel):
