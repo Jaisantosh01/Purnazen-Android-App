@@ -120,18 +120,70 @@ Interactive API docs: <http://localhost:5000/apidocs> (Swagger) and `/redoc`.
 **Demo login** (from `seed.py`): check the seeded users in `backend/seed.py` for
 email/password to log in from the app.
 
----
+### 1.3 Updating an existing DB / merging branched migrations
 
-## 2. Frontend (React Native app)
+When you already have a populated DB and pull new work, just apply the new
+migrations — **you do not need to drop and reseed**:
 
 ```powershell
-cd mobile
+python -m alembic current   # what the DB is on now
+python -m alembic heads     # what the latest migration(s) are
+python -m alembic upgrade head
+```
+
+If `upgrade head` fails with **"Multiple head revisions are present for given
+argument 'head'"**, the migration history has *branched*: two or more feature
+branches each created migrations off the same parent revision (common right
+after a git merge of parallel feature branches). Symptom in the app: API calls
+500 because the backend ORM references tables/columns whose migrations were
+never applied to your DB. Inspect the tree:
+
+```powershell
+python -m alembic heads     # lists every head, e.g. 3 of them
+python -m alembic history   # shows the tree; look for the "(branchpoint)" line
+```
+
+Fix it by creating a **merge migration** that joins all heads into one, then
+upgrade. This is non-destructive — it adds an empty revision that ties the
+branches together; your data is untouched:
+
+```powershell
+python -m alembic merge -m "merge <branch-a>, <branch-b>, <branch-c> branches" heads
+python -m alembic upgrade head
+```
+
+Then verify a single head that matches the DB:
+
+```powershell
+python -m alembic heads     # should print exactly one "(head)"
+python -m alembic current   # should equal that head, tagged "(mergepoint)"
+```
+
+Commit the generated merge file in `backend/alembic/versions/` so the rest of
+the team gets the same linear-from-here history.
+
+> SQLite note: the branched-history merge above can't be applied on SQLite
+> because the per-revision migrations hard-code Postgres' `now()` (§1.1). On
+> SQLite, delete `wellness.db` and re-run `seed.py` instead.
+
+---
+
+## 2. Frontend (React Native patient app — `mobile-users`)
+
+> There are two RN apps sharing this backend: **`mobile-users`** (patients —
+> the full app these steps describe) and **`mobile-doctors`** (doctors — a
+> runnable skeleton; see `mobile-doctors/README.md` for its setup). The steps
+> below are for `mobile-users`; `mobile-doctors` follows the same flow once its
+> native projects are generated.
+
+```powershell
+cd mobile-users
 npm install                          # once (or after dependency changes)
 ```
 
 ### 2.1 Point the app at the backend
 
-`mobile/.env` controls the API base URL (inlined at bundle time by
+`mobile-users/.env` controls the API base URL (inlined at bundle time by
 `babel-preset-expo`). For the **Android emulator**, `10.0.2.2` is the host
 machine's loopback:
 
@@ -146,7 +198,7 @@ which covers wiring, installing, launching, screenshots, and re-deploying.)
 
 ### 2.2 Tell Gradle where the SDK is
 
-Create `mobile/android/local.properties` (git-ignored):
+Create `mobile-users/android/local.properties` (git-ignored):
 
 ```properties
 sdk.dir=C\:\\Android\\Sdk
@@ -168,14 +220,14 @@ adb shell getprop sys.boot_completed     # prints 1 when ready
 In one terminal:
 
 ```powershell
-cd mobile
+cd mobile-users
 npx react-native start --reset-cache
 ```
 
 In a second terminal:
 
 ```powershell
-cd mobile
+cd mobile-users
 npx react-native run-android
 ```
 
@@ -220,8 +272,8 @@ adb devices   # should list no devices / emulator
 adb devices                              # list running emulators/devices
 adb reverse tcp:5000 tcp:5000            # alt to 10.0.2.2: forward device:5000 → host:5000
 adb logcat *:S ReactNative:V ReactNativeJS:V   # app JS logs
-cd mobile; npm test                      # jest (13 suites / 64 tests)
-cd mobile; npx tsc --noEmit              # type-check
+cd mobile-users; npm test                      # jest (13 suites / 64 tests)
+cd mobile-users; npx tsc --noEmit              # type-check
 cd backend; .\venv\Scripts\python.exe -m pytest -q   # backend tests (84)
 ```
 
@@ -234,10 +286,11 @@ cd backend; .\venv\Scripts\python.exe -m pytest -q   # backend tests (84)
 | `adb` / `emulator` / `sdkmanager` "not recognized" | `ANDROID_HOME` / `PATH` not set — see §0.1, open a **new** terminal |
 | Backend `/api/v1/doctors` → `{"success":false,"message":"Something went wrong"}` | Stale build before the model-registry fix, **or** the DB has no tables — re-run `seed.py` |
 | `sqlite3.OperationalError: unknown function: now()` while seeding | You ran `alembic upgrade head` on SQLite. Delete `wellness.db` and use `seed.py` only (§1.1) |
+| `alembic upgrade head` → **"Multiple head revisions are present for given argument 'head'"** | Two+ feature branches each added migrations off the same parent, so the history has several heads. **Don't reset the DB** — merge the heads and upgrade. See **[§1.3 Updating an existing DB / merging branched migrations](#13-updating-an-existing-db--merging-branched-migrations)** |
 | `FATAL: database "wellness_db" does not exist` on backend startup | Database was never created — run `createdb` once: `$env:PGPASSWORD="<your password>"; & "C:\Program Files\PostgreSQL\18\bin\createdb.exe" -U <your username> -h localhost -p 5432 -O <your username> wellness_db` |
 | Backend can't connect to DB on startup | Postgres isn't running on the `.env` port — use the SQLite override (§1.1) |
 | App shows network errors / can't reach API | Wrong `EXPO_PUBLIC_API_URL`. Emulator → `10.0.2.2:5000`; device → LAN IP. Rebuild after changing `.env` (it's inlined at bundle time). Or use `adb reverse tcp:5000 tcp:5000` |
-| Gradle: `SDK location not found` | Create `mobile/android/local.properties` (§2.2) or set `ANDROID_HOME` |
+| Gradle: `SDK location not found` | Create `mobile-users/android/local.properties` (§2.2) or set `ANDROID_HOME` |
 | `JAVA_HOME` / wrong JDK | Use JDK 17 or 21. `java -version` should show 17+ |
 | Port 5000 already in use | `Get-NetTCPConnection -LocalPort 5000` then `Stop-Process -Id <pid>` |
 | Metro stale cache | `npx react-native start --reset-cache` |
@@ -264,11 +317,11 @@ python run.py              # uvicorn + reload, port 5000
 
 # Terminal B — emulator + Metro
 emulator -avd Pixel_API_36 -no-snapshot-load
-cd mobile
+cd mobile-users
 npx react-native start --reset-cache
 
 # Terminal C — build & install
-cd mobile
+cd mobile-users
 # Set adb reverse (lets emulator reach host ports):
 C:\Android\Sdk\platform-tools\adb.exe reverse tcp:8081 tcp:8081
 C:\Android\Sdk\platform-tools\adb.exe reverse tcp:5000 tcp:5000
@@ -290,11 +343,11 @@ python run.py
 
 # Terminal B — emulator + Metro
 emulator -avd Pixel_API_36 -no-snapshot-load
-cd mobile
+cd mobile-users
 npx react-native start --reset-cache
 
 # Terminal C — build & install
-cd mobile
+cd mobile-users
 npx react-native run-android --no-packager
 ```
 
@@ -342,9 +395,9 @@ The phone's `localhost` is *itself*, not your PC. Two options:
   adb reverse tcp:8081 tcp:8081      # device:8081  → PC:8081 (Metro, debug builds)
   ```
   `adb reverse` is cleared on unplug/reboot — re-run after reconnecting.
-  Set `EXPO_PUBLIC_API_URL=http://localhost:5000` in `mobile/.env` for this path.
+  Set `EXPO_PUBLIC_API_URL=http://localhost:5000` in `mobile-users/.env` for this path.
 - **LAN IP (no cable needed at runtime):** put your PC's Wi-Fi IP in
-  `mobile/.env` (`EXPO_PUBLIC_API_URL=http://192.168.x.y:5000`) and make sure
+  `mobile-users/.env` (`EXPO_PUBLIC_API_URL=http://192.168.x.y:5000`) and make sure
   the backend binds `0.0.0.0` (it does — see `run.py`) and your firewall allows
   inbound 5000. Rebuild after editing `.env` (it's inlined at bundle time).
 
@@ -352,11 +405,11 @@ The phone's `localhost` is *itself*, not your PC. Two options:
 
 ```powershell
 # Easiest: build, install on the connected device, and launch in one step
-cd mobile
+cd mobile-users
 npx react-native run-android --no-packager   # start Metro yourself first (§2.4)
 
 # Or build the APK by hand and push it with adb:
-cd mobile/android
+cd mobile-users/android
 .\gradlew.bat assembleDebug                   # → app/build/outputs/apk/debug/app-debug.apk
 adb install -r app\build\outputs\apk\debug\app-debug.apk   # -r = replace/keep data
 #   -r  reinstall keeping data   -d  allow downgrade   -t  allow test APKs
@@ -415,7 +468,7 @@ adb pull /sdcard/demo.mp4 .\demo.mp4
 - **Native change, or to redeploy the whole app:** rebuild & reinstall, then
   relaunch:
   ```powershell
-  cd mobile/android
+  cd mobile-users/android
   .\gradlew.bat assembleDebug
   adb install -r app\build\outputs\apk\debug\app-debug.apk
   adb shell am force-stop com.purnazen

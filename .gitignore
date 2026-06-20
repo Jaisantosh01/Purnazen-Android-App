@@ -18,32 +18,33 @@ backend/ml/checkpoints/
 backend/ml/*.pt
 backend/ml/*.onnx
 
-# ===== FRONTEND (React Native) =====
-mobile/node_modules/
-mobile/.env
-mobile/.env.local
-mobile/npm-debug.log
-mobile/yarn-error.log
-mobile/.metro-health-check*
-mobile/coverage/
+# ===== FRONTEND (React Native apps: mobile-users, mobile-doctors) =====
+# Patterns apply to every mobile-* app via the glob prefix.
+mobile-*/node_modules/
+mobile-*/.env
+mobile-*/.env.local
+mobile-*/npm-debug.log
+mobile-*/yarn-error.log
+mobile-*/.metro-health-check*
+mobile-*/coverage/
 
 # Android
-mobile/android/.gradle
-mobile/android/app/build
-mobile/android/build
-mobile/android/.idea
-mobile/android/local.properties
-mobile/android/.cxx/
-mobile/android/*.keystore
-!mobile/android/app/debug.keystore
+mobile-*/android/.gradle
+mobile-*/android/app/build
+mobile-*/android/build
+mobile-*/android/.idea
+mobile-*/android/local.properties
+mobile-*/android/.cxx/
+mobile-*/android/*.keystore
+!mobile-*/android/app/debug.keystore
 
 # iOS
-mobile/ios/build/
-mobile/ios/DerivedData/
-mobile/ios/Pods/
-mobile/ios/Podfile.lock
-mobile/ios/*.xcuserstate
-mobile/ios/.xcode.env.local
+mobile-*/ios/build/
+mobile-*/ios/DerivedData/
+mobile-*/ios/Pods/
+mobile-*/ios/Podfile.lock
+mobile-*/ios/*.xcuserstate
+mobile-*/ios/.xcode.env.local
 
 # ===== GENERAL =====
 .DS_Store
@@ -53,12 +54,15 @@ Thumbs.db
 .vscode/
 .idea/
 *.log
+*.log.err
+*.log.out
 __pycache__/
 
 # SQLite dev fallback
 backend/*.db
 backend/uploads/*
 screenshots/
+app-screen.png
 backend/server.log*
 
 # Python virtual environments

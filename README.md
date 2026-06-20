@@ -6,14 +6,18 @@ A wellness and mental health app built with React Native (Expo bare workflow) an
 
 ```
 .
-├── mobile/          # React Native frontend (Expo SDK 56, RN 0.85)
+├── mobile-users/    # React Native patient app (Expo SDK 56, RN 0.85)
+├── mobile-doctors/  # React Native doctor app — skeleton (same stack)
 ├── backend/         # FastAPI backend (Python 3.13, SQLite → Postgres)
 ├── docs/            # Architecture, features, changelog
 └── .github/
     └── workflows/
-        ├── ci.yml          # PR/push checks (pytest + jest + tsc + eslint)
-        └── android-build.yml  # Manual APK release build
+        └── ci.yml   # PR/push checks (pytest + jest + tsc + eslint)
 ```
+
+> Two front-end apps share one backend: **mobile-users** (patients — full
+> feature set) and **mobile-doctors** (doctors — scaffolded skeleton, see
+> [mobile-doctors/README.md](mobile-doctors/README.md)).
 
 ## Prerequisites
 
@@ -68,16 +72,19 @@ python -m pytest -q
 
 ---
 
-## Mobile Setup
+## Mobile Setup (patient app — `mobile-users`)
+
+> The doctor app (`mobile-doctors`) is a runnable skeleton with its own setup
+> notes — see [mobile-doctors/README.md](mobile-doctors/README.md).
 
 ```bash
-cd mobile
+cd mobile-users
 npm install
 ```
 
 ### Environment Variables
 
-Create `.env` in `mobile/` with:
+Create `.env` in `mobile-users/` with:
 
 ```
 EXPO_PUBLIC_API_URL=http://10.0.2.2:5000   # emulator → host machine

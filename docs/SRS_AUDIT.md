@@ -20,7 +20,7 @@
 | SRS item | Status | Notes |
 |----------|--------|-------|
 | App name **Purnazen** / tagline *AI Assisted Acupressure & Wellness App* | ✅ | Renamed to **Purnazen** 2026-06-16 (was "M-Heal"): launcher label (`strings.xml`), `app.json` displayName, Login/Register hero, Home header, new lotus app icon. Android **package id renamed `com.wellness` → `com.purnazen`** on 2026-06-19 (admin app → `com.purnazen.admin`) — namespace, `applicationId`, Kotlin package dirs, `getMainComponentName`, `settings.gradle`, `app.json`/`package.json` all updated. Requires an Android rebuild and reinstall. |
-| User mobile application | ✅ | This repo (`mobile/`). |
+| User mobile application | ✅ | This repo (`mobile-users/`). |
 | Backend system with AI-assisted logic | ✅ | `backend/` FastAPI + OpenCV scan pipeline. |
 | Admin dashboard (component) | ❌ | Backend role-gate exists (`GET /auth/admin/dashboard`); no admin web UI in this repo. |
 | Role: **User** | ✅ | Full auth + app flow. |

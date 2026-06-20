@@ -19,7 +19,7 @@
                                             └──────────────────────┘
 ```
 
-- **Base URL:** from `mobile/.env` → `EXPO_PUBLIC_API_URL`; defaults to `http://10.0.2.2:5000` (Android emulator → host machine)
+- **Base URL:** from `mobile-users/.env` → `EXPO_PUBLIC_API_URL`; defaults to `http://10.0.2.2:5000` (Android emulator → host machine)
 - **Auth:** JWT Bearer. Access token (15 min) for API calls; refresh token (30 days) for `/refresh` and `/logout`. Revoked tokens tracked by `jti` in the `token_blocklist` table (cached in Redis when `REDIS_URL` is set) **plus** a per-user `token_version` (`ver` claim) that invalidates every outstanding token on password change or account deletion. On the device, tokens live in the keystore (react-native-keychain), not AsyncStorage; the axios client silently refreshes expired access tokens on 401 and resets to Login when the refresh token dies.
 - **Rate limiting:** slowapi, per client IP, on login (5/min), register (3/min), refresh (10/min) — `RATE_LIMIT_*` env vars; 429 + standard envelope when exceeded. Counters are shared across workers when Redis is configured, per-process in-memory otherwise.
 - **CORS:** origins from `CORS_ORIGINS` (comma-separated); default `*` is dev-only.
@@ -163,7 +163,12 @@ analyzers in a `ThreadPoolExecutor`, composite scoring, then persists
 
 ---
 
-## Frontend (`mobile/`) — React Native 0.85 (bare + Expo modules, SDK 56)
+## Frontend (`mobile-users/`) — React Native 0.85 (bare + Expo modules, SDK 56)
+
+> Two RN apps share this backend: **`mobile-users/`** (patient app — described
+> below, full feature set) and **`mobile-doctors/`** (doctor app — a scaffolded
+> skeleton with the same stack/infra and placeholder feature screens; see
+> `mobile-doctors/README.md`). The architecture below is the patient app.
 
 ### Data Flow
 
@@ -183,7 +188,7 @@ Persistence: tokens in the device keystore via src/utils/secureStorage.js
 ### Layout
 
 ```text
-mobile/src/
+mobile-users/src/
 ├── config/index.js          # BASE_URL from EXPO_PUBLIC_API_URL (.env), API_VERSION
 ├── api/client.js            # axios instance + get/post/put/delete (returns body);
 │                            #   silent refresh-on-401 with single-flight queueing

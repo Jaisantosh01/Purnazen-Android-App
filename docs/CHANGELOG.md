@@ -38,6 +38,43 @@ All notable changes to the Purnazen App are documented here.
   Doctor Profile, Book Appointment, Payment). Bespoke module headers (scan flow,
   Face Glow, session players, chat, video) intentionally kept.
 
+## [2026-06-17] — Repo restructure: two front-end apps + migration fix
+
+### Added
+
+- **`mobile-doctors/` — doctor-facing app (scaffolded skeleton).** A runnable
+  React Native + Expo project mirroring `mobile-users`' toolchain and sharing the
+  same FastAPI backend. Real auth (login/logout, keystore tokens namespaced
+  `com.purnazen.doctor.*`, 401 silent-refresh), bottom-tab navigation
+  (Dashboard, Appointments, Schedule, Patients, Profile) with detail stacks, a
+  service layer (auth/appointment/availability/patient), and placeholder feature
+  screens that document their intended backend endpoints. Distinct clinical-blue
+  theme. Native `android/`/`ios/` are generated via `npx expo prebuild` (see
+  `mobile-doctors/README.md`). No CI job yet (pending first lockfile).
+
+### Changed
+
+- **`mobile/` → `mobile-users/`.** The patient app folder was renamed; `node_modules`
+  preserved (no reinstall needed). Updated CI `frontend` job + cache path, root
+  `README.md`, `.gitignore` (now `mobile-*/` globs covering both apps), `seed_data.py`
+  doc-comments, and all `docs/` path references.
+- **`.gitignore`:** added `*.log.err` / `*.log.out` (the old `*.log` rule missed
+  them) and `app-screen.png`.
+
+### Fixed
+
+- **Alembic `upgrade head` failed with "Multiple head revisions are present".**
+  The git merge of the face-analysis + Development branches left three migration
+  heads off the `e6f3a82d4c91` branchpoint; the DB sat on only one, so API calls
+  500'd on tables/columns whose migrations were never applied. Resolved
+  non-destructively with a merge migration (`82de73316d8d`) + `upgrade head`.
+  Documented in `docs/RUNNING.md` §1.3.
+
+### Removed
+
+- Stray tracked artifacts: `app-screen.png`, `mobile/build-install.log.err`, and
+  local run logs (`*.log`, `server.log*`).
+
 ## [2026-06-16] — Face Analysis Cycle 5.1: on-device fixes from live testing
 
 Found by driving the app on a physical device (capture → results) and inspecting
