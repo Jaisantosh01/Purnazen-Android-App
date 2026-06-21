@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar, ActivityIndicator, Alert, Modal, Pressable } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar, Alert, Modal, Pressable } from 'react-native';
 import Video from 'react-native-video';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { COLORS } from '../constants/theme';
+import { SessionPlayerSkeleton } from '../components/SkeletonLoader';
 
 const VideoGroupDetailScreen = ({ route, navigation }) => {
   const { groupId, groupTitle } = route.params;
@@ -113,7 +114,7 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
         </View>
       </View>
       
-      {loading ? <ActivityIndicator size="large" style={{flex: 1}} /> : hasNoVideos ? (
+      {loading ? <SessionPlayerSkeleton /> : hasNoVideos ? (
         <View style={styles.emptyContainer}>
           <MCIcon name="video-off" size={64} color={COLORS.textMuted} />
           <Text style={styles.emptyText}>No videos in this group</Text>

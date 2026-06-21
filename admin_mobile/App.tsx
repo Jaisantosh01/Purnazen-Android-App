@@ -34,7 +34,7 @@ import DoctorLeaveManagementScreen from './src/screens/DoctorLeaveManagementScre
 import VideoManagementScreen from './src/screens/VideoManagementScreen';
 import VideoGroupDetailScreen from './src/screens/VideoGroupDetailScreen';
 import UploadVideoScreen from './src/screens/UploadVideoScreen';
-import VideoPlayerScreen from './src/screens/VideoPlayerScreen';
+
 
 const RootStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -61,7 +61,7 @@ function HomeStackNavigator() {
       <HomeStack.Screen name="VideoManagement" component={VideoManagementScreen} />
       <HomeStack.Screen name="VideoGroupDetail" component={VideoGroupDetailScreen} />
       <HomeStack.Screen name="UploadVideo"     component={UploadVideoScreen} />
-      <HomeStack.Screen name="VideoPlayer"     component={VideoPlayerScreen} />
+
     </HomeStack.Navigator>
   );
 }

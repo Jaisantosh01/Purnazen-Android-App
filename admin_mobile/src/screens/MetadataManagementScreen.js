@@ -16,6 +16,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { COLORS } from '../constants/theme';
 import { ROLE_ICONS } from '../constants/icons';
+import { ListSkeleton } from '../components/SkeletonLoader';
 
 const MetadataManagementScreen = ({ route, navigation }) => {
   const { title, endpoint } = route.params;
@@ -134,15 +135,19 @@ const MetadataManagementScreen = ({ route, navigation }) => {
         </TouchableOpacity>
       </View>
 
-      <FlatList
-        data={items}
-        keyExtractor={item => item.id.toString()}
-        renderItem={renderItem}
-        contentContainerStyle={styles.listContainer}
-        refreshing={loading}
-        onRefresh={fetchItems}
-        ListEmptyComponent={!loading && <Text style={styles.emptyText}>No items found</Text>}
-      />
+      {loading && items.length === 0 ? (
+        <ListSkeleton count={5} />
+      ) : (
+        <FlatList
+          data={items}
+          keyExtractor={item => item.id.toString()}
+          renderItem={renderItem}
+          contentContainerStyle={styles.listContainer}
+          refreshing={loading}
+          onRefresh={fetchItems}
+          ListEmptyComponent={!loading && <Text style={styles.emptyText}>No items found</Text>}
+        />
+      )}
 
       <Modal visible={modalVisible} transparent={true} animationType="slide">
         <View style={styles.modalOverlay}>

@@ -15,6 +15,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { COLORS } from '../constants/theme';
+import { ListSkeleton } from '../components/SkeletonLoader';
 
 const STATUS_OPTIONS = ['pending', 'booked', 'completed', 'cancelled'];
 const STATUS_COLORS = {
@@ -338,20 +339,24 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
         )}
       </View>
 
-      <FlatList
-        data={filteredAppointments}
-        keyExtractor={item => item.id.toString()}
-        renderItem={renderAppointment}
-        contentContainerStyle={styles.listContainer}
-        refreshing={loading}
-        onRefresh={fetchAppointments}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <MCIcon name="calendar-remove" size={48} color={COLORS.textMuted} />
-            <Text style={styles.emptyText}>No appointments found</Text>
-          </View>
-        }
-      />
+      {loading && filteredAppointments.length === 0 ? (
+        <ListSkeleton count={5} />
+      ) : (
+        <FlatList
+          data={filteredAppointments}
+          keyExtractor={item => item.id.toString()}
+          renderItem={renderAppointment}
+          contentContainerStyle={styles.listContainer}
+          refreshing={loading}
+          onRefresh={fetchAppointments}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <MCIcon name="calendar-remove" size={48} color={COLORS.textMuted} />
+              <Text style={styles.emptyText}>No appointments found</Text>
+            </View>
+          }
+        />
+      )}
 
       {/* Filter Modal */}
       <Modal visible={filterModalVisible} transparent animationType="slide">

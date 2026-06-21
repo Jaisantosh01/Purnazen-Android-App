@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar, ActivityIndicator, Modal, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar, Modal, Alert, ScrollView } from 'react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { COLORS } from '../constants/theme';
+import { ListSkeleton } from '../components/SkeletonLoader';
 
 const ITEM_HEIGHT = 40;
 
@@ -152,7 +153,21 @@ const SlotManagementScreen = ({ navigation }) => {
         <TouchableOpacity style={styles.addBtn} onPress={() => { setTargetDay(selectedDay); setModalVisible(true); }}><MCIcon name="plus" size={24} color={COLORS.white} /></TouchableOpacity>
       </View>
       
-      {loading ? <ActivityIndicator size="large" style={{flex: 1}} /> :
+      {loading ? (
+        <View style={styles.content}>
+          <View style={styles.sidebar}>
+            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
+              <View key={d} style={[styles.dayBtn, { borderWidth: 0, height: 40, marginBottom: 4 }]}>
+                <View style={{ width: 24, height: 14, borderRadius: 4, backgroundColor: COLORS.surfaceMuted }} />
+              </View>
+            ))}
+          </View>
+          <View style={styles.mainContent}>
+            <View style={{ height: 24, width: 120, borderRadius: 6, backgroundColor: COLORS.surfaceMuted, marginBottom: 16 }} />
+            <ListSkeleton count={5} />
+          </View>
+        </View>
+      ) :
       <View style={styles.content}>
         <View style={styles.sidebar}>
           <FlatList data={days} renderItem={renderDayItem} keyExtractor={item => item.day} showsVerticalScrollIndicator={false} />

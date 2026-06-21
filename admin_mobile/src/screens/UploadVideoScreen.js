@@ -18,6 +18,7 @@ import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { COLORS } from '../constants/theme';
 import { WELLNESS_ICONS } from '../constants/icons';
+import { DirGridSkeleton } from '../components/SkeletonLoader';
 
 const VIDEO_MIME_TYPES = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'video/webm', 'video/ogg'];
 
@@ -254,7 +255,7 @@ const UploadVideoScreen = ({ route, navigation }) => {
 
         {/* Directory listing */}
         {dirsLoading ? (
-          <ActivityIndicator size="small" style={{ padding: 24 }} />
+          <DirGridSkeleton />
         ) : directories.length === 0 ? (
           <View style={styles.emptyDirs}>
             <MCIcon name="folder-open-outline" size={48} color={COLORS.textMuted} />

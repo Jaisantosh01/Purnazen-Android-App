@@ -16,6 +16,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { COLORS } from '../constants/theme';
+import { EditFormSkeleton } from '../components/SkeletonLoader';
 
 const SelectionModal = ({ visible, onClose, title, data, selectedIds, onToggle }) => (
   <Modal visible={visible} animationType="slide" transparent={true}>
@@ -194,7 +195,17 @@ const EditDoctorScreen = ({ route, navigation }) => {
     setEditedDoctor({ ...editedDoctor, clinics: updatedClinics });
   };
 
-  if (loading) return <View style={styles.root}><Text style={styles.loading}>Loading...</Text></View>;
+  if (loading) return (
+    <View style={styles.root}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
+      <View style={styles.header}>
+        <TouchableOpacity><MCIcon name="arrow-left" size={24} color={COLORS.textPrimary} /></TouchableOpacity>
+        <Text style={styles.headerTitle}>Edit Doctor Details</Text>
+        <View style={{ width: 24 }} />
+      </View>
+      <EditFormSkeleton />
+    </View>
+  );
 
   return (
     <View style={styles.root}>
@@ -384,7 +395,7 @@ const styles = StyleSheet.create({
   tagScroll: { marginTop: 8, marginBottom: 4 },
   tag: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: COLORS.primaryLight, borderRadius: 16, marginRight: 8 },
   tagText: { color: COLORS.primary, fontSize: 13, fontWeight: '500' },
-  loading: { textAlign: 'center', marginTop: 100 },
+
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   modalContent: { backgroundColor: COLORS.white, borderRadius: 12, padding: 15, maxHeight: '80%' },
   modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, paddingHorizontal: 5 },
