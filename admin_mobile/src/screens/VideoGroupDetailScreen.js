@@ -103,7 +103,14 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}><MCIcon name="arrow-left" size={24} color={COLORS.textPrimary} /></TouchableOpacity>
         <Text style={styles.headerTitle}>{groupTitle}</Text>
-        <TouchableOpacity onPress={openAddVideoModal}><MCIcon name="pencil" size={22} color={COLORS.primary} /></TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+          <TouchableOpacity onPress={() => navigation.navigate('UploadVideo', { videoGroupId: groupId })}>
+            <MCIcon name="cloud-upload" size={24} color={COLORS.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={openAddVideoModal}>
+            <MCIcon name="pencil" size={22} color={COLORS.primary} />
+          </TouchableOpacity>
+        </View>
       </View>
       
       {loading ? <ActivityIndicator size="large" style={{flex: 1}} /> : hasNoVideos ? (
