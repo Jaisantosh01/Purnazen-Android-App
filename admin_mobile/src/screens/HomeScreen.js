@@ -32,14 +32,16 @@ const HomeScreen = ({ navigation }) => {
       .finally(() => setLoading(false));
   }, []);
 
-  const KpiCard = ({ title, value, icon, color }) => (
-    <View style={styles.kpiCard}>
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  const KpiCard = ({ title, value, icon, color, onPress }) => (
+    <TouchableOpacity style={styles.kpiCard} onPress={onPress} activeOpacity={0.7}>
       <View style={[styles.kpiIconCircle, { backgroundColor: color + '20' }]}>
         <MCIcon name={icon} size={24} color={color} />
       </View>
       <Text style={styles.kpiValue}>{value ?? '-'}</Text>
       <Text style={styles.kpiTitle}>{title}</Text>
-    </View>
+    </TouchableOpacity>
   );
 
   return (
@@ -66,18 +68,21 @@ const HomeScreen = ({ navigation }) => {
               value={stats?.total_active_doctors}
               icon="doctor"
               color="#4A90E2"
+              onPress={() => navigation.navigate('Doctors', { screen: 'DoctorsMain' })}
             />
             <KpiCard
               title="Active Users"
               value={stats?.total_active_users}
               icon="account-group"
               color="#50C878"
+              onPress={() => navigation.navigate('Users', { screen: 'UsersMain' })}
             />
             <KpiCard
               title="Today's Appts"
               value={stats?.today_appointments}
               icon="calendar-today"
               color="#FF7F50"
+              onPress={() => navigation.navigate('Appointments', { screen: 'AppointmentsMain', params: { filterDate: todayStr } })}
             />
             <KpiCard
               title="Scheduled Appts"

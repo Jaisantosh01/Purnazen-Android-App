@@ -7,13 +7,15 @@
  */
 export const COLORS = {
   // Brand
-  primary: '#1FA77A',
-  primaryLight: '#E8F8F2',
-  primaryFaint: '#F0FAF6',
-  accent: '#7C3AED',
-  accentLight: '#F3EEFF',
-  warning: '#F59E0B',
-  danger: '#EF4444',
+  primary: '#EA580C',       // Main orange
+  primaryLight: '#FFF7ED',  // Light orange background
+  primaryFaint: '#FFFBF5',  // Very soft orange tint
+
+  accent: '#9A3412',        // Deep burnt orange
+  accentLight: '#FEE2E2',
+
+  warning: '#EAB308',       // Yellow (changed from orange)
+  danger: '#DC2626',
 
   // Text
   textPrimary: '#1A1A1A',
@@ -23,10 +25,10 @@ export const COLORS = {
   // Surfaces
   white: '#FFFFFF',
   black: '#000000',
-  background: '#F5F5F5',
-  surfaceMuted: '#F3F4F6',
-  border: '#E5E7EB',
-  borderStrong: '#D1D5DB',
+  background: '#FFFDF9',    // Warm off-white
+  surfaceMuted: '#F9FAFB',
+  border: '#FED7AA',        // Soft orange border
+  borderStrong: '#FDBA74',
 };
 
 export const SPACING = {
