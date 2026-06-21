@@ -100,6 +100,37 @@ const DoctorDetailScreen = ({ route, navigation }) => {
           <InfoItem icon="head-check-outline" label="Expertise" value={doctor.expertise?.join(', ') || 'N/A'} />
           <InfoItem icon="translate" label="Languages" value={doctor.languages?.join(', ') || 'N/A'} />
           
+          {doctor.clinics && doctor.clinics.length > 0 && (
+            <View style={styles.clinicSection}>
+              <Text style={styles.clinicHeader}>Clinics</Text>
+              {doctor.clinics.map((clinic, index) => (
+                <View key={clinic.id || index} style={styles.clinicCard}>
+                  <View style={styles.clinicHeaderRow}>
+                    <MCIcon name="hospital-building" size={20} color={COLORS.primary} />
+                    <Text style={styles.clinicName}>{clinic.name}</Text>
+                    {clinic.is_primary && (
+                      <View style={styles.primaryBadge}>
+                        <Text style={styles.primaryBadgeText}>Primary</Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.clinicDetails}>
+                    <View style={styles.clinicDetailRow}>
+                      <MCIcon name="map-marker" size={16} color={COLORS.textMuted} />
+                      <Text style={styles.clinicDetailText}>{clinic.address}, {clinic.city}</Text>
+                    </View>
+                    {clinic.phone && (
+                      <View style={styles.clinicDetailRow}>
+                        <MCIcon name="phone" size={16} color={COLORS.textMuted} />
+                        <Text style={styles.clinicDetailText}>{clinic.phone}</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
           {doctor.awards && doctor.awards.length > 0 && (
             <View style={styles.awardSection}>
                 <Text style={styles.awardHeader}>Awards</Text>
@@ -160,6 +191,16 @@ const styles = StyleSheet.create({
   infoLabel: { fontSize: 12, color: COLORS.textSecondary, marginBottom: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
   infoValue: { fontSize: 15, color: COLORS.textPrimary, fontWeight: '600', lineHeight: 20 },
   loading: { textAlign: 'center', marginTop: 100 },
+  clinicSection: { marginTop: 16, borderTopWidth: 1, borderTopColor: '#f0f0f0', paddingTop: 16 },
+  clinicHeader: { fontSize: 12, color: COLORS.textSecondary, marginBottom: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  clinicCard: { backgroundColor: '#f9f9f9', borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: '#eee' },
+  clinicHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
+  clinicName: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary, flex: 1 },
+  primaryBadge: { backgroundColor: COLORS.primaryLight, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
+  primaryBadgeText: { fontSize: 10, fontWeight: '700', color: COLORS.primary },
+  clinicDetails: { marginLeft: 4, gap: 6 },
+  clinicDetailRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  clinicDetailText: { fontSize: 13, color: COLORS.textSecondary, flex: 1 },
   awardSection: { marginTop: 16, borderTopWidth: 1, borderTopColor: '#f0f0f0', paddingTop: 16 },
   awardHeader: { fontSize: 12, color: COLORS.textSecondary, marginBottom: 8, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
   awardItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },

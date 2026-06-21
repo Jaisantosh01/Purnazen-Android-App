@@ -90,6 +90,20 @@ const HomeScreen = ({ navigation }) => {
               icon="calendar-clock"
               color="#9370DB"
             />
+            <KpiCard
+              title="Today Leaves"
+              value={stats?.today_doctor_leaves}
+              icon="beach"
+              color="#F59E0B"
+              onPress={() => navigation.navigate('DoctorLeaveManagement')}
+            />
+            <KpiCard
+              title="Total Leaves"
+              value={stats?.total_doctor_leaves}
+              icon="calendar-remove"
+              color="#EF4444"
+              onPress={() => navigation.navigate('DoctorLeaveManagement')}
+            />
           </View>
         </View>
 
@@ -97,13 +111,17 @@ const HomeScreen = ({ navigation }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Management</Text>
           <View style={{ gap: 12 }}>
+            <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('DoctorLeaveManagement')}>
+                <MCIcon name="beach" size={32} color={COLORS.warning} />
+                <Text style={styles.managementText}>Doctor Leaves</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('SlotManagement')}>
                 <MCIcon name="clock-outline" size={32} color={COLORS.primary} />
-                <Text style={styles.managementText}>Manage Slots</Text>
+                <Text style={styles.managementText}>Time Slots</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('VideoManagement')}>
                 <MCIcon name="video-outline" size={32} color={COLORS.accent} />
-                <Text style={styles.managementText}>Manage Wellness Videos</Text>
+                <Text style={styles.managementText}>Wellness Videos</Text>
             </TouchableOpacity>
           </View>
         </View>

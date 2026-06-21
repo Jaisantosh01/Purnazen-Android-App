@@ -9,9 +9,11 @@ from datetime import time
 from app.core.security import hash_password
 from app.db.base import (
     Base,
+    Clinic,
     ConsultationType,
     Doctor,
     DoctorAvailability,
+    DoctorLeave,
     Expertise,
     Language,
     ReliefSession,
@@ -31,7 +33,7 @@ from app.db.base import (
     DoctorConsultationType
 )
 from app.db.session import SessionLocal, engine
-from seed_data import RELIEF_SESSIONS, VIDEO_GROUPS, VIDEOS, CHAT_FLOW, QUICK_RELIEFS, AWARDS, DAYS_OF_WEEK, SLOT_TIMINGS, WELLNESS_SESSIONS_DATA
+from seed_data import RELIEF_SESSIONS, VIDEO_GROUPS, VIDEOS, CHAT_FLOW, QUICK_RELIEFS, AWARDS, CLINICS, DOCTOR_LEAVES, DAYS_OF_WEEK, SLOT_TIMINGS, WELLNESS_SESSIONS_DATA
 
 Base.metadata.create_all(bind=engine)
 
@@ -492,6 +494,59 @@ try:
                             description=award_data["description"],
                             created_by=admin.id,
                             updated_by=admin.id
+                        )
+                    )
+
+    # ------------------------
+    # Clinics
+    # ------------------------
+    for clinic_data in CLINICS:
+        user = db.query(User).filter_by(email=clinic_data["doctor_email"]).first()
+        if user:
+            doctor = db.query(Doctor).filter_by(user_id=user.id).first()
+            if doctor:
+                if not db.query(Clinic).filter_by(doctor_id=doctor.id, name=clinic_data["name"]).first():
+                    db.add(
+                        Clinic(
+                            doctor_id=doctor.id,
+                            name=clinic_data["name"],
+                            address=clinic_data["address"],
+                            city=clinic_data["city"],
+                            latitude=clinic_data.get("latitude"),
+                            longitude=clinic_data.get("longitude"),
+                            phone=clinic_data.get("phone"),
+                            is_primary=clinic_data.get("is_primary", False),
+                            created_by=admin.id,
+                            updated_by=admin.id,
+                        )
+                    )
+
+    # ------------------------
+    # Doctor Leaves
+    # ------------------------
+    for leave_data in DOCTOR_LEAVES:
+        user = db.query(User).filter_by(email=leave_data["doctor_email"]).first()
+        if user:
+            doctor = db.query(Doctor).filter_by(user_id=user.id).first()
+            if doctor:
+                from datetime import date
+                leave_date = date.fromisoformat(leave_data["leave_date"]) if isinstance(leave_data["leave_date"], str) else leave_data["leave_date"]
+                existing = db.query(DoctorLeave).filter_by(
+                    doctor_id=doctor.id, leave_date=leave_date
+                ).first()
+                if existing:
+                    existing.doctor_reason = leave_data.get("doctor_reason")
+                    existing.admin_reason = leave_data.get("admin_reason")
+                    existing.status = leave_data.get("status", "pending")
+                else:
+                    db.add(
+                        DoctorLeave(
+                            doctor_id=doctor.id,
+                            leave_date=leave_date,
+                            doctor_reason=leave_data.get("doctor_reason"),
+                            admin_reason=leave_data.get("admin_reason"),
+                            status=leave_data.get("status", "pending"),
+                            created_by=admin.id,
                         )
                     )
 

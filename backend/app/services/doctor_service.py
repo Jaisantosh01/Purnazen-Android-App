@@ -5,6 +5,7 @@ import uuid
 from sqlalchemy.orm import Session
 
 from app.models.award import Award
+from app.models.clinic import Clinic
 from app.models.doctor import Doctor
 from app.models.doctor_expertise_mapping import DoctorExpertiseMapping
 from app.models.doctor_language_mapping import DoctorLanguageMapping
@@ -169,6 +170,22 @@ class DoctorService:
                     created_by=user.id
                 ))
 
+        # Update Clinics
+        if "clinics" in data:
+            db.query(Clinic).filter_by(doctor_id=doctor.id).delete()
+            for clinic_data in data["clinics"]:
+                db.add(Clinic(
+                    doctor_id=doctor.id,
+                    name=clinic_data["name"],
+                    address=clinic_data["address"],
+                    city=clinic_data["city"],
+                    latitude=clinic_data.get("latitude"),
+                    longitude=clinic_data.get("longitude"),
+                    phone=clinic_data.get("phone"),
+                    is_primary=clinic_data.get("is_primary", False),
+                    created_by=user.id,
+                ))
+
         doctor.updated_at = datetime.utcnow()
         doctor.updated_by = user.id
         db.commit()
@@ -227,6 +244,21 @@ class DoctorService:
                     year=award_data.get("year"),
                     description=award_data.get("description"),
                     created_by=user.id
+                ))
+
+        # Initialize Clinics
+        if "clinics" in data:
+            for clinic_data in data["clinics"]:
+                db.add(Clinic(
+                    doctor_id=new_doctor.id,
+                    name=clinic_data["name"],
+                    address=clinic_data["address"],
+                    city=clinic_data["city"],
+                    latitude=clinic_data.get("latitude"),
+                    longitude=clinic_data.get("longitude"),
+                    phone=clinic_data.get("phone"),
+                    is_primary=clinic_data.get("is_primary", False),
+                    created_by=user.id,
                 ))
 
         db.commit()
