@@ -16,6 +16,7 @@ import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { COLORS } from '../constants/theme';
 import TimePickerModal from '../components/TimePickerModal';
+import SkeletonBox, { LeaveCardSkeleton, LeaveStatsSkeleton } from '../components/SkeletonLoader';
 
 const STATUS_COLORS = {
   pending: { bg: '#F59E0B', label: 'Pending' },
@@ -400,23 +401,33 @@ const DoctorLeaveManagementScreen = ({ navigation }) => {
         ) : null}
       </View>
 
-      <FlatList
-        data={leaves}
-        keyExtractor={item => item.id}
-        renderItem={({ item }) => (
-          <LeaveCard leave={item} onPress={openDetailModal} onStatusUpdate={openStatusModal} />
-        )}
-        ListHeaderComponent={renderHeader}
-        contentContainerStyle={styles.list}
-        refreshing={loading}
-        onRefresh={() => { fetchLeaves(); fetchKpiStats(); }}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <MCIcon name="calendar-remove" size={48} color={COLORS.textMuted} />
-            <Text style={styles.emptyText}>No leaves found</Text>
+      {loading && leaves.length === 0 ? (
+        <View>
+          <LeaveStatsSkeleton />
+          <View style={styles.skeletonTabs}>
+            {[1, 2, 3, 4].map(i => <SkeletonBox key={i} width={64} height={32} borderRadius={20} />)}
           </View>
-        }
-      />
+          {[1, 2, 3, 4].map(i => <LeaveCardSkeleton key={i} />)}
+        </View>
+      ) : (
+        <FlatList
+          data={leaves}
+          keyExtractor={item => item.id}
+          renderItem={({ item }) => (
+            <LeaveCard leave={item} onPress={openDetailModal} onStatusUpdate={openStatusModal} />
+          )}
+          ListHeaderComponent={renderHeader}
+          contentContainerStyle={styles.list}
+          refreshing={loading}
+          onRefresh={() => { fetchLeaves(); fetchKpiStats(); }}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <MCIcon name="calendar-remove" size={48} color={COLORS.textMuted} />
+              <Text style={styles.emptyText}>No leaves found</Text>
+            </View>
+          }
+        />
+      )}
 
       {/* Detail Modal */}
       <Modal visible={detailModalVisible} transparent animationType="fade">
@@ -711,6 +722,7 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, fontSize: 14, color: COLORS.textPrimary, marginLeft: 8, padding: 0 },
   list: { paddingBottom: 24 },
   statsRow: { flexDirection: 'row', padding: 16, paddingBottom: 8, gap: 8 },
+  skeletonTabs: { flexDirection: 'row', paddingHorizontal: 16, marginBottom: 12, gap: 8 },
   statCard: { flex: 1, backgroundColor: COLORS.white, borderRadius: 12, padding: 12, alignItems: 'center', borderWidth: 1 },
   statVal: { fontSize: 20, fontWeight: '800', color: COLORS.textPrimary },
   statLabel: { fontSize: 11, color: COLORS.textMuted, marginTop: 2, fontWeight: '600' },

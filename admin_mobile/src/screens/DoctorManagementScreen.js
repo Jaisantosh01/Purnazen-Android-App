@@ -14,6 +14,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { COLORS } from '../constants/theme';
+import { ListSkeleton } from '../components/SkeletonLoader';
 
 const DoctorManagementScreen = ({ navigation }) => {
   const [doctors, setDoctors] = useState([]);
@@ -164,7 +165,7 @@ const DoctorManagementScreen = ({ navigation }) => {
         {/* ── List ── */}
         <View style={styles.listContainer}>
           {loading ? (
-            <Text style={styles.loadingText}>Loading doctors...</Text>
+            <ListSkeleton count={5} />
           ) : filteredDoctors.length > 0 ? (
             filteredDoctors.map(item => (
               <TouchableOpacity 
@@ -227,7 +228,7 @@ const styles = StyleSheet.create({
   expertiseContainer: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8, gap: 6 },
   expertiseTag: { backgroundColor: '#f0f0f0', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   expertiseText: { fontSize: 11, color: COLORS.textSecondary, fontWeight: '500' },
-  loadingText: { textAlign: 'center', marginTop: 40, color: COLORS.textMuted },
+
   emptyContainer: { alignItems: 'center', justifyContent: 'center', marginTop: 60 },
   emptyText: { marginTop: 16, fontSize: 16, color: COLORS.textMuted },
 });

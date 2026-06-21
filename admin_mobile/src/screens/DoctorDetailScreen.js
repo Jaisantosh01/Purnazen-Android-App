@@ -13,6 +13,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { COLORS } from '../constants/theme';
+import { DoctorDetailSkeleton } from '../components/SkeletonLoader';
 
 const InfoItem = ({ icon, label, value, isLast }) => (
   <View style={[styles.infoItem, !isLast && styles.infoItemDivider]}>
@@ -61,8 +62,20 @@ const DoctorDetailScreen = ({ route, navigation }) => {
       .finally(() => setLoading(false));
   };
 
-  if (loading) return <View style={styles.root}><Text style={styles.loading}>Loading...</Text></View>;
-  if (!doctor) return <View style={styles.root}><Text style={styles.loading}>Doctor not found</Text></View>;
+  if (loading) return (
+    <View style={styles.root}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.headerButton}>
+          <MCIcon name="arrow-left" size={24} color={COLORS.textPrimary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Doctor Details</Text>
+        <View style={{ width: 44 }} />
+      </View>
+      <DoctorDetailSkeleton />
+    </View>
+  );
+  if (!doctor) return <View style={styles.root}><Text style={{ textAlign: 'center', marginTop: 100, color: COLORS.textMuted }}>Doctor not found</Text></View>;
 
   return (
     <View style={styles.root}>
@@ -190,7 +203,7 @@ const styles = StyleSheet.create({
   infoContent: { flex: 1, justifyContent: 'center' },
   infoLabel: { fontSize: 12, color: COLORS.textSecondary, marginBottom: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
   infoValue: { fontSize: 15, color: COLORS.textPrimary, fontWeight: '600', lineHeight: 20 },
-  loading: { textAlign: 'center', marginTop: 100 },
+
   clinicSection: { marginTop: 16, borderTopWidth: 1, borderTopColor: '#f0f0f0', paddingTop: 16 },
   clinicHeader: { fontSize: 12, color: COLORS.textSecondary, marginBottom: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
   clinicCard: { backgroundColor: '#f9f9f9', borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: '#eee' },
