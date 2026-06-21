@@ -14,6 +14,7 @@ from app.models.doctor import Doctor  # noqa: E402,F401
 from app.models.clinic import Clinic  # noqa: E402,F401
 from app.models.award import Award  # noqa: E402,F401
 from app.models.doctor_availability import DoctorAvailability  # noqa: E402,F401
+from app.models.doctor_leave import DoctorLeave  # noqa: E402,F401
 from app.models.quick_relief import QuickRelief  # noqa: E402,F401
 from app.models.appointment import Appointment  # noqa: E402,F401
 from app.models.therapy_session import TherapySession  # noqa: E402,F401

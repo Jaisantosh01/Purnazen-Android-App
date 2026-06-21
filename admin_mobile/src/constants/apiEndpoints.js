@@ -77,5 +77,8 @@ export const ENDPOINTS = {
   USERS: `${API_VERSION}/users`,
   ROLES: `${API_VERSION}/roles`,
   SLOT_TIMINGS: `${API_VERSION}/slot-timings`,
+  DOCTOR_LEAVES: `${API_VERSION}/doctor-leaves`,
+  DOCTOR_LEAVES_STATS: `${API_VERSION}/doctor-leaves/stats`,
+  DOCTOR_LEAVES_UPDATE_STATUS: (id) => `${API_VERSION}/doctor-leaves/${id}/status`,
 
 };

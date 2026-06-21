@@ -48,6 +48,19 @@ def doctor_card(doctor):
             }
             for award in doctor.awards
         ],
+        "clinics": [
+            {
+                "id": str(clinic.id),
+                "name": clinic.name,
+                "address": clinic.address,
+                "city": clinic.city,
+                "latitude": clinic.latitude,
+                "longitude": clinic.longitude,
+                "phone": clinic.phone,
+                "is_primary": clinic.is_primary,
+            }
+            for clinic in doctor.clinics
+        ],
     }
 
 

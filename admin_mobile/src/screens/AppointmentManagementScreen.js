@@ -83,7 +83,7 @@ const CalendarPicker = ({ value, onSelect, onClose }) => {
   );
 };
 
-const AppointmentManagementScreen = ({ navigation }) => {
+const AppointmentManagementScreen = ({ navigation, route }) => {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [consultationTypes, setConsultationTypes] = useState([]);
@@ -112,6 +112,13 @@ const AppointmentManagementScreen = ({ navigation }) => {
     fetchAppointments();
     fetchConsultationTypes();
   }, []);
+
+  useEffect(() => {
+    if (route?.params?.filterDate) {
+      setAppliedDateFrom(route.params.filterDate);
+      setAppliedDateTo(route.params.filterDate);
+    }
+  }, [route?.params?.filterDate]);
 
   const fetchAppointments = useCallback(() => {
     setLoading(true);

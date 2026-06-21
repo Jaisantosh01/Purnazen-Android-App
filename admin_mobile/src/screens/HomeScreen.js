@@ -32,14 +32,16 @@ const HomeScreen = ({ navigation }) => {
       .finally(() => setLoading(false));
   }, []);
 
-  const KpiCard = ({ title, value, icon, color }) => (
-    <View style={styles.kpiCard}>
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  const KpiCard = ({ title, value, icon, color, onPress }) => (
+    <TouchableOpacity style={styles.kpiCard} onPress={onPress} activeOpacity={0.7}>
       <View style={[styles.kpiIconCircle, { backgroundColor: color + '20' }]}>
         <MCIcon name={icon} size={24} color={color} />
       </View>
       <Text style={styles.kpiValue}>{value ?? '-'}</Text>
       <Text style={styles.kpiTitle}>{title}</Text>
-    </View>
+    </TouchableOpacity>
   );
 
   return (
@@ -66,24 +68,41 @@ const HomeScreen = ({ navigation }) => {
               value={stats?.total_active_doctors}
               icon="doctor"
               color="#4A90E2"
+              onPress={() => navigation.navigate('Doctors', { screen: 'DoctorsMain' })}
             />
             <KpiCard
               title="Active Users"
               value={stats?.total_active_users}
               icon="account-group"
               color="#50C878"
+              onPress={() => navigation.navigate('Users', { screen: 'UsersMain' })}
             />
             <KpiCard
               title="Today's Appts"
               value={stats?.today_appointments}
               icon="calendar-today"
               color="#FF7F50"
+              onPress={() => navigation.navigate('Appointments', { screen: 'AppointmentsMain', params: { filterDate: todayStr } })}
             />
             <KpiCard
               title="Scheduled Appts"
               value={stats?.scheduled_appointments}
               icon="calendar-clock"
               color="#9370DB"
+            />
+            <KpiCard
+              title="Today Leaves"
+              value={stats?.today_doctor_leaves}
+              icon="beach"
+              color="#F59E0B"
+              onPress={() => navigation.navigate('DoctorLeaveManagement')}
+            />
+            <KpiCard
+              title="Total Leaves"
+              value={stats?.total_doctor_leaves}
+              icon="calendar-remove"
+              color="#EF4444"
+              onPress={() => navigation.navigate('DoctorLeaveManagement')}
             />
           </View>
         </View>
@@ -92,13 +111,17 @@ const HomeScreen = ({ navigation }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Management</Text>
           <View style={{ gap: 12 }}>
+            <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('DoctorLeaveManagement')}>
+                <MCIcon name="beach" size={32} color={COLORS.warning} />
+                <Text style={styles.managementText}>Doctor Leaves</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('SlotManagement')}>
                 <MCIcon name="clock-outline" size={32} color={COLORS.primary} />
-                <Text style={styles.managementText}>Manage Slots</Text>
+                <Text style={styles.managementText}>Time Slots</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('VideoManagement')}>
                 <MCIcon name="video-outline" size={32} color={COLORS.accent} />
-                <Text style={styles.managementText}>Manage Wellness Videos</Text>
+                <Text style={styles.managementText}>Wellness Videos</Text>
             </TouchableOpacity>
           </View>
         </View>
