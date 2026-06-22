@@ -167,7 +167,7 @@ const HelpSupportScreen = ({ navigation }) => {
 
         <View style={styles.versionRow}>
           <MCIcon name="information-outline" size={14} color={COLORS.textMuted} />
-          <Text style={styles.versionText}>  Purnazen v1.0.0 · Made with ❤️ for your wellness</Text>
+          <Text style={styles.versionText}>  Purnazen v1.0.0 · Crafted for your wellness</Text>
         </View>
 
       </ScrollView>

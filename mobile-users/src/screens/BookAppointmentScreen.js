@@ -9,6 +9,8 @@ import {
   StatusBar,
   Alert,
 } from 'react-native';
+// @ts-ignore
+import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import consultService from '../services/consultService';
 import { COLORS } from '../constants/theme';
 import ScreenHeader from '../components/ScreenHeader';
@@ -17,9 +19,9 @@ import {DAYS, MONTHS} from '../constants/strings';
 // Fallback shown until consultService.getVisitTypes() resolves (or if it fails).
 // Same shape the API returns: { id, icon, title, subtitle, fee }.
 const DEFAULT_VISIT_TYPES = [
-  { id: 'video',  icon: '📹', title: 'Video Call',   subtitle: 'Online consultation', fee: 500 },
-  { id: 'home',   icon: '🏠', title: 'Home Visit',    subtitle: 'Doctor visits you',   fee: 1200 },
-  { id: 'clinic', icon: '🏥', title: 'Clinic Visit',  subtitle: 'In-person at clinic', fee: 800 },
+  { id: 'video',  icon: 'video-outline',     title: 'Video Call',   subtitle: 'Online consultation', fee: 500 },
+  { id: 'home',   icon: 'home-outline',      title: 'Home Visit',    subtitle: 'Doctor visits you',   fee: 1200 },
+  { id: 'clinic', icon: 'hospital-building', title: 'Clinic Visit',  subtitle: 'In-person at clinic', fee: 800 },
 ];
 
 // Same shape the API returns ({ id, time, end_time }) so list keys are unique
@@ -187,9 +189,12 @@ const BookAppointmentScreen = ({ navigation, route }) => {
                 onPress={() => setSelectedVisit(visit.id)}
                 activeOpacity={0.8}
               >
-                <Text style={[styles.visitIcon, selectedVisit === visit.id && styles.visitIconActive]}>
-                  {visit.icon}
-                </Text>
+                <MCIcon
+                  name={visit.icon}
+                  size={24}
+                  color={selectedVisit === visit.id ? COLORS.primary : COLORS.textMuted}
+                  style={styles.visitIcon}
+                />
                 <Text style={[styles.visitTitle, selectedVisit === visit.id && styles.visitTitleActive]}>
                   {visit.title}
                 </Text>
@@ -289,7 +294,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
         {selectedVisit === 'home' && (
           <View style={styles.section}>
             <View style={styles.addressCard}>
-              <Text style={styles.addressIcon}>📍</Text>
+              <MCIcon name="map-marker" size={20} color={COLORS.primary} style={styles.addressIcon} />
               <View style={styles.addressInfo}>
                 <Text style={styles.addressTitle}>Home Address</Text>
                 <Text style={styles.addressText}>{HOME_ADDRESS.street}</Text>
@@ -308,13 +313,13 @@ const BookAppointmentScreen = ({ navigation, route }) => {
         <View style={styles.summaryRow}>
           {selectedDate && (
             <View style={styles.summaryItem}>
-              <Text style={styles.summaryIcon}>📅</Text>
+              <MCIcon name="calendar-blank-outline" size={14} color={COLORS.textSecondary} style={styles.summaryIcon} />
               <Text style={styles.summaryText}>{getSelectedDateString()}</Text>
             </View>
           )}
           {selectedTime && (
             <View style={styles.summaryItem}>
-              <Text style={styles.summaryIcon}>🕐</Text>
+              <MCIcon name="clock-outline" size={14} color={COLORS.textSecondary} style={styles.summaryIcon} />
               <Text style={styles.summaryText}>{selectedTime.time}</Text>
             </View>
           )}

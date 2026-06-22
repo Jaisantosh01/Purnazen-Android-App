@@ -15,14 +15,14 @@ import { COLORS } from '../constants/theme';
 // Curated list — maps each symptom to a relief session slug so tapping
 // navigates directly to the right guided session.
 const SYMPTOMS = [
-  { id: '1', title: 'Headache',         subtitle: 'Tension & migraine relief',  icon: '🧠', bgColor: '#EEF0FF', reliefSlug: 'headache-relief'    },
-  { id: '2', title: 'Neck Pain',        subtitle: 'Stiffness & pain relief',    icon: '⚡', bgColor: '#F3EEFF', reliefSlug: 'neck-pain-relief'    },
-  { id: '3', title: 'Back Pain',        subtitle: 'Lower & upper back',         icon: '🔥', bgColor: '#FFF3EE', reliefSlug: 'back-pain-relief'    },
-  { id: '4', title: 'Stress & Anxiety', subtitle: 'Mental relaxation',          icon: '💨', bgColor: '#EEFAF6', reliefSlug: 'stress-relief'       },
-  { id: '5', title: 'Shoulder Pain',    subtitle: 'Frozen shoulder relief',     icon: '🤚', bgColor: '#EEFAF0', reliefSlug: 'shoulder-pain-relief'},
-  { id: '6', title: 'Insomnia',         subtitle: 'Better sleep quality',       icon: '💜', bgColor: '#F0EEFF', reliefSlug: 'insomnia-relief'     },
-  { id: '7', title: 'Eye Strain',       subtitle: 'Digital eye fatigue',        icon: '👁️', bgColor: '#FFEEEE', reliefSlug: 'eye-strain-relief'   },
-  { id: '8', title: 'Ear Pain',         subtitle: 'Earache relief',             icon: '👂', bgColor: '#FFFBEE', reliefSlug: 'ear-pain-relief'     },
+  { id: '1', title: 'Headache',         subtitle: 'Tension & migraine relief',  icon: 'brain',                  bgColor: '#EEF0FF', reliefSlug: 'headache-relief'    },
+  { id: '2', title: 'Neck Pain',        subtitle: 'Stiffness & pain relief',    icon: 'lightning-bolt',         bgColor: '#F3EEFF', reliefSlug: 'neck-pain-relief'    },
+  { id: '3', title: 'Back Pain',        subtitle: 'Lower & upper back',         icon: 'fire',                   bgColor: '#FFF3EE', reliefSlug: 'back-pain-relief'    },
+  { id: '4', title: 'Stress & Anxiety', subtitle: 'Mental relaxation',          icon: 'weather-windy',          bgColor: '#EEFAF6', reliefSlug: 'stress-relief'       },
+  { id: '5', title: 'Shoulder Pain',    subtitle: 'Frozen shoulder relief',     icon: 'hand-back-right-outline', bgColor: '#EEFAF0', reliefSlug: 'shoulder-pain-relief'},
+  { id: '6', title: 'Insomnia',         subtitle: 'Better sleep quality',       icon: 'sleep',                  bgColor: '#F0EEFF', reliefSlug: 'insomnia-relief'     },
+  { id: '7', title: 'Eye Strain',       subtitle: 'Digital eye fatigue',        icon: 'eye-outline',            bgColor: '#FFEEEE', reliefSlug: 'eye-strain-relief'   },
+  { id: '8', title: 'Ear Pain',         subtitle: 'Earache relief',             icon: 'ear-hearing',            bgColor: '#FFFBEE', reliefSlug: 'ear-pain-relief'     },
 ];
 
 const SelectSymptomScreen = ({ navigation }) => {
@@ -93,7 +93,7 @@ const SelectSymptomScreen = ({ navigation }) => {
                 onPress={() => handleSymptomPress(symptom)}
               >
                 <View style={[styles.iconCircle, { backgroundColor: symptom.bgColor }]}>
-                  <Text style={styles.symptomIcon}>{symptom.icon}</Text>
+                  <MCIcon name={symptom.icon} size={22} color={COLORS.textPrimary} style={styles.symptomIcon} />
                 </View>
                 <View style={styles.symptomInfo}>
                   <Text style={styles.symptomTitle}>{symptom.title}</Text>

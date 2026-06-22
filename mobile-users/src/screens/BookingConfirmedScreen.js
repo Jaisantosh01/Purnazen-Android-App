@@ -3,6 +3,8 @@ import {
   View, Text, StyleSheet, ScrollView,
   TouchableOpacity, StatusBar,
 } from 'react-native';
+// @ts-ignore
+import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { COLORS } from '../constants/theme';
 
 const BookingConfirmedScreen = ({ navigation, route }) => {
@@ -15,7 +17,7 @@ const BookingConfirmedScreen = ({ navigation, route }) => {
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
 
         <View style={styles.iconCircle}>
-          <Text style={styles.checkIcon}>✓</Text>
+          <MCIcon name="check-bold" size={36} color={COLORS.primary} />
         </View>
 
         <Text style={styles.title}>Booking Confirmed!</Text>
@@ -35,7 +37,7 @@ const BookingConfirmedScreen = ({ navigation, route }) => {
           <View style={styles.divider} />
 
           <View style={styles.detailRow}>
-            <Text style={styles.detailIcon}>📅</Text>
+            <MCIcon name="calendar-blank-outline" size={18} color={COLORS.primary} style={styles.detailIcon} />
             <View>
               <Text style={styles.detailLabel}>Date</Text>
               <Text style={styles.detailValue}>{date}</Text>
@@ -43,7 +45,7 @@ const BookingConfirmedScreen = ({ navigation, route }) => {
           </View>
 
           <View style={styles.detailRow}>
-            <Text style={styles.detailIcon}>🕐</Text>
+            <MCIcon name="clock-outline" size={18} color={COLORS.primary} style={styles.detailIcon} />
             <View>
               <Text style={styles.detailLabel}>Time</Text>
               <Text style={styles.detailValue}>{time}</Text>
@@ -51,7 +53,7 @@ const BookingConfirmedScreen = ({ navigation, route }) => {
           </View>
 
           <View style={styles.detailRow}>
-            <Text style={styles.detailIcon}>📹</Text>
+            <MCIcon name="stethoscope" size={18} color={COLORS.primary} style={styles.detailIcon} />
             <View>
               <Text style={styles.detailLabel}>Visit Type</Text>
               <Text style={styles.detailValue}>{visitType}</Text>
@@ -60,7 +62,7 @@ const BookingConfirmedScreen = ({ navigation, route }) => {
 
           {bookingRef ? (
             <View style={styles.detailRow}>
-              <Text style={styles.detailIcon}>🔖</Text>
+              <MCIcon name="bookmark-outline" size={18} color={COLORS.primary} style={styles.detailIcon} />
               <View>
                 <Text style={styles.detailLabel}>Booking ID</Text>
                 <Text style={styles.detailValue}>{bookingRef}</Text>
@@ -74,7 +76,8 @@ const BookingConfirmedScreen = ({ navigation, route }) => {
           onPress={() => navigation.navigate('Payment', { doctor, fee, appointmentId })}
           activeOpacity={0.85}
         >
-          <Text style={styles.payBtnText}>Proceed to Payment  →</Text>
+          <Text style={styles.payBtnText}>Proceed to Payment</Text>
+          <MCIcon name="arrow-right" size={18} color={COLORS.white} />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -86,7 +89,7 @@ const BookingConfirmedScreen = ({ navigation, route }) => {
         </TouchableOpacity>
 
         <View style={styles.noteCard}>
-          <Text style={styles.noteIcon}>💡</Text>
+          <MCIcon name="lightbulb-on-outline" size={16} color={COLORS.primary} style={styles.noteIcon} />
           <Text style={styles.noteText}>
             You will receive a confirmation email and SMS with joining details
           </Text>
@@ -174,10 +177,13 @@ const styles = StyleSheet.create({
   detailValue: { fontSize: 14, fontWeight: '600', color: COLORS.textPrimary },
   payBtn: {
     width: '100%',
+    flexDirection: 'row',
     backgroundColor: COLORS.primary,
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     marginBottom: 12,
   },
   payBtnText: { fontSize: 15, fontWeight: '700', color: COLORS.white },

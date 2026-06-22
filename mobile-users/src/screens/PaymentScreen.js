@@ -3,20 +3,22 @@ import {
   View, Text, StyleSheet, ScrollView,
   TouchableOpacity, StatusBar, TextInput, Alert, ActivityIndicator,
 } from 'react-native';
+// @ts-ignore
+import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import consultService from '../services/consultService';
 import { COLORS } from '../constants/theme';
 import ScreenHeader from '../components/ScreenHeader';
 
 const PAYMENT_METHODS = [
-  { id: 'card', label: 'Credit/Debit Card', icon: '💳' },
-  { id: 'upi',  label: 'UPI',               icon: '📱' },
-  { id: 'wallet', label: 'Wallet',          icon: '👜' },
+  { id: 'card',   label: 'Credit/Debit Card', icon: 'credit-card-outline' },
+  { id: 'upi',    label: 'UPI',               icon: 'cellphone' },
+  { id: 'wallet', label: 'Wallet',            icon: 'wallet-outline' },
 ];
 
 const WALLETS = [
-  { id: 'paytm',    label: 'Paytm',     icon: '💙' },
-  { id: 'phonepe',  label: 'PhonePe',   icon: '💜' },
-  { id: 'gpay',     label: 'Google Pay', icon: '🟢' },
+  { id: 'paytm',    label: 'Paytm',      icon: 'wallet' },
+  { id: 'phonepe',  label: 'PhonePe',    icon: 'cellphone-check' },
+  { id: 'gpay',     label: 'Google Pay', icon: 'google' },
 ];
 
 const PaymentScreen = ({ navigation, route }) => {
@@ -108,7 +110,7 @@ const PaymentScreen = ({ navigation, route }) => {
                 <View style={[styles.radio, selectedMethod === method.id && styles.radioActive]}>
                   {selectedMethod === method.id && <View style={styles.radioDot} />}
                 </View>
-                <Text style={styles.methodIcon}>{method.icon}</Text>
+                <MCIcon name={method.icon} size={20} color={selectedMethod === method.id ? COLORS.primary : COLORS.textSecondary} style={styles.methodIcon} />
                 <Text style={[styles.methodLabel, selectedMethod === method.id && styles.methodLabelActive]}>
                   {method.label}
                 </Text>
@@ -193,7 +195,7 @@ const PaymentScreen = ({ navigation, route }) => {
                   onPress={() => setSelectedWallet(w.id)}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.walletIcon}>{w.icon}</Text>
+                  <MCIcon name={w.icon} size={20} color={selectedWallet === w.id ? COLORS.primary : COLORS.textSecondary} style={styles.walletIcon} />
                   <Text style={[styles.walletLabel, selectedWallet === w.id && styles.walletLabelActive]}>
                     {w.label}
                   </Text>
@@ -205,7 +207,7 @@ const PaymentScreen = ({ navigation, route }) => {
 
         <View style={styles.section}>
           <View style={styles.secureBadge}>
-            <Text style={styles.secureIcon}>✅</Text>
+            <MCIcon name="shield-check" size={20} color={COLORS.primary} style={styles.secureIcon} />
             <View>
               <Text style={styles.secureTitle}>Secure Payment</Text>
               <Text style={styles.secureSubtitle}>Your payment information is encrypted and secure</Text>
