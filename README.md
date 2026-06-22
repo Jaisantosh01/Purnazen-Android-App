@@ -171,9 +171,16 @@ After seeding, a demo user is available:
 
 ---
 
-## Android APK Build (manual)
+## Deployment & releases (Azure + GitHub Actions)
 
-Trigger the **Android APK Build** workflow from the Actions tab on GitHub.  
-The signed APK is uploaded as a workflow artifact for download.
+Manual, OIDC-secured pipelines deploy the backend to **Azure Container Apps** and
+publish signed Android **AAB/APK** artifacts as **GitHub Releases**:
+
+- **Deploy Backend** — build image in ACR → roll the Container App → validate `/health`
+- **Release Mobile Apps** — signed, renamed `purnazen-<app>-v<version>` artifacts → GitHub Release
+- **Service Status** — read-only health/status report
+
+Full setup (Azure provisioning, OIDC federation, required GitHub secrets/variables,
+keystore) is in **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for architectural decisions.

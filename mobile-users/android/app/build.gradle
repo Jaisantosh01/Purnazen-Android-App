@@ -88,8 +88,9 @@ android {
         applicationId "com.purnazen"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        // Overridable from CI: -PpurnazenVersionCode / -PpurnazenVersionName
+        versionCode (project.findProperty('purnazenVersionCode') ?: 1) as int
+        versionName project.findProperty('purnazenVersionName') ?: "1.0"
     }
     signingConfigs {
         debug {
@@ -98,15 +99,27 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            // Populated from environment variables in CI (see the
+            // release-mobile workflow). Left empty for local builds, which then
+            // fall back to the debug key below.
+            def storeFilePath = System.getenv("PURNAZEN_UPLOAD_STORE_FILE")
+            if (storeFilePath) {
+                storeFile file(storeFilePath)
+                storePassword System.getenv("PURNAZEN_UPLOAD_STORE_PASSWORD")
+                keyAlias System.getenv("PURNAZEN_UPLOAD_KEY_ALIAS")
+                keyPassword System.getenv("PURNAZEN_UPLOAD_KEY_PASSWORD")
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            // Use the real upload keystore when CI provides it; otherwise the
+            // debug key so local `assembleRelease` still works without secrets.
+            signingConfig System.getenv("PURNAZEN_UPLOAD_STORE_FILE") ? signingConfigs.release : signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }

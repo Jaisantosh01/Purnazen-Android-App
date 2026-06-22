@@ -1,0 +1,102 @@
+name: Deploy Backend (Azure Container Apps)
+
+# Manual only. Builds the backend image in ACR and rolls the Container App to it,
+# then blocks until /health is green. Auth is OIDC (federated) — no stored
+# cloud secrets. Gate approvals via the "production" environment.
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to build/deploy (default: short commit SHA)"
+        required: false
+        type: string
+      run_migrations:
+        description: "Run alembic migrations on container start"
+        required: true
+        default: true
+        type: boolean
+
+# OIDC needs id-token: write. Everything else is read-only.
+permissions:
+  id-token: write
+  contents: read
+
+# Never let two backend deploys race.
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+env:
+  IMAGE_NAME: purnazen-backend
+
+jobs:
+  deploy:
+    name: Build + deploy + validate
+    runs-on: ubuntu-latest
+    environment: production            # add required reviewers here for an approval gate
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve image tag
+        id: meta
+        run: |
+          TAG="${{ inputs.image_tag }}"
+          if [ -z "$TAG" ]; then TAG="$(git rev-parse --short HEAD)"; fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Deploying tag: $TAG"
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build image in ACR
+        run: |
+          az acr build \
+            --registry "${{ vars.ACR_NAME }}" \
+            --image "${IMAGE_NAME}:${{ steps.meta.outputs.tag }}" \
+            --image "${IMAGE_NAME}:latest" \
+            --file backend/Dockerfile \
+            backend
+
+      - name: Deploy to Container App
+        run: |
+          az containerapp update \
+            --name "${{ vars.BACKEND_CONTAINERAPP }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --image "${{ vars.ACR_LOGIN_SERVER }}/${IMAGE_NAME}:${{ steps.meta.outputs.tag }}" \
+            --set-env-vars "RUN_MIGRATIONS=${{ inputs.run_migrations == true && '1' || '0' }}" \
+            --output none
+          echo "Image rolled out. Active revision:"
+          az containerapp revision list \
+            --name "${{ vars.BACKEND_CONTAINERAPP }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --query "[?properties.active].{rev:name, created:properties.createdTime, replicas:properties.replicas}" \
+            --output table
+
+      - name: Validate /health
+        run: |
+          FQDN=$(az containerapp show \
+            --name "${{ vars.BACKEND_CONTAINERAPP }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --query "properties.configuration.ingress.fqdn" -o tsv)
+          URL="https://${FQDN}/health"
+          echo "Probing ${URL}"
+          for i in $(seq 1 30); do
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$URL" || echo 000)
+            if [ "$CODE" = "200" ]; then
+              echo "Healthy after ${i} attempt(s)."
+              echo "### ✅ Backend healthy — \`$URL\` returned 200" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            echo "  attempt ${i}: HTTP ${CODE} — retrying in 10s"
+            sleep 10
+          done
+          echo "### ❌ Backend did not become healthy" >> "$GITHUB_STEP_SUMMARY"
+          exit 1
+
+      - name: Azure logout
+        if: always()
+        run: az logout || true
