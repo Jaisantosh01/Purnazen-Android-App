@@ -12,7 +12,7 @@ import { useAuthStore } from '../store/authStore';
  */
 class AuthService {
   async login(email, password) {
-    const response = await apiClient.post(ENDPOINTS.LOGIN, { email, password });
+    const response = await apiClient.post(ENDPOINTS.LOGIN, { email, password }); 
 
     if (!response.success) {
       throw new Error(response.message || 'Login failed');

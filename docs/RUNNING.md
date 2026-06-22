@@ -1,8 +1,28 @@
-# Running Purnazen locally (backend + Android app)
+# Running Purnazen locally (backend + Android apps)
 
-A step-by-step guide to run the FastAPI backend and the React Native app on an
-Android emulator. Verified on Windows 11 (PowerShell). macOS/Linux notes are
-called out where they differ.
+A step-by-step guide to run the FastAPI backend and the **three** React Native
+apps on an Android emulator **or a physical device**. Verified on Windows 11
+(PowerShell). macOS/Linux notes are called out where they differ.
+
+## The three front-end apps
+
+All three are bare RN apps (Expo SDK 56 / RN 0.85) that share the one backend.
+Each pins its own Metro / dev-server port so they can run **side by side**
+without colliding on 8081:
+
+| App | Folder | `applicationId` | Metro port | Launch activity |
+|---|---|---|---|---|
+| Patient | `mobile-users`   | `com.purnazen`        | **8081** | `com.purnazen/.MainActivity` |
+| Doctor  | `mobile-doctors` | `com.purnazen.doctor` | **8082** | `com.purnazen.doctor/.MainActivity` |
+| Admin   | `mobile-admin`   | `com.purnazen.admin`  | **8083** | `com.purnazen.admin/.MainActivity` |
+
+The port is baked into each debug build via `reactNativeDevServerPort` in
+`<app>/android/gradle.properties` and matched by the `start` / `android` npm
+scripts — so `npm start` and `npm run android` "just work" per app. Because the
+`applicationId`s differ, **all three can be installed on one device at once**.
+
+> Replace `<app>`, the port, and the package id in any command below with the
+> row for the app you're running.
 
 ---
 
@@ -63,6 +83,30 @@ sdkmanager --licenses    # accept all
 avdmanager create avd -n Pixel_API_36 -k "system-images;android-36;google_apis;x86_64" -d pixel_7
 emulator -list-avds      # should list Pixel_API_36
 ```
+
+### 0.4 Windows: enable long paths (REQUIRED for native builds)
+
+RN 0.85's C++ codegen produces object-file paths well over Windows' legacy
+260-character limit. Without long-path support the `:app:buildCMakeDebug` (ninja)
+task fails with:
+
+```
+ninja: error: Stat(...RNGestureHandlerDetectorShadowNode.cpp.o): Filename longer than 260 characters
+```
+
+Enable it **once**, in an **elevated** PowerShell, then **reboot**:
+
+```powershell
+Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' `
+  -Name LongPathsEnabled -Value 1 -Type DWord
+git config --global core.longpaths true
+```
+
+Verify after reboot: `(Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem').LongPathsEnabled` → `1`.
+
+> Renaming a folder to a shorter name does **not** help — the limit is hit by the
+> *internal* codegen path, not the project folder name. Long-path support (or
+> moving the whole repo to a very short root like `C:\pz`) is the real fix.
 
 ---
 
@@ -168,33 +212,46 @@ the team gets the same linear-from-here history.
 
 ---
 
-## 2. Frontend (React Native patient app — `mobile-users`)
+## 2. Frontend (any of the three RN apps)
 
-> There are two RN apps sharing this backend: **`mobile-users`** (patients —
-> the full app these steps describe) and **`mobile-doctors`** (doctors — a
-> runnable skeleton; see `mobile-doctors/README.md` for its setup). The steps
-> below are for `mobile-users`; `mobile-doctors` follows the same flow once its
-> native projects are generated.
+The steps below work for **all three apps** — substitute the folder, port, and
+package id from the table in [The three front-end apps](#the-three-front-end-apps).
+The examples use the doctor app (`mobile-doctors`, port 8082); swap in
+`mobile-users` (8081) or `mobile-admin` (8083) as needed.
 
 ```powershell
-cd mobile-users
-npm install                          # once (or after dependency changes)
+cd mobile-doctors                    # or mobile-users / mobile-admin
+npm install                          # once per app (or after dependency changes)
 ```
 
 ### 2.1 Point the app at the backend
 
-`mobile-users/.env` controls the API base URL (inlined at bundle time by
-`babel-preset-expo`). For the **Android emulator**, `10.0.2.2` is the host
-machine's loopback:
+The API base URL is `BASE_URL` in `<app>/src/config/index.js`:
 
-```
-EXPO_PUBLIC_API_URL=http://10.0.2.2:5000     # emulator → host:5000 (default if unset)
+```js
+export const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
 ```
 
-For a **physical device** on the same Wi-Fi, use your machine's LAN IP, e.g.
-`http://192.168.1.42:5000`. (Or skip the LAN IP entirely and use `adb reverse`
-— see **[§8 Physical device workflow](#8-physical-device-workflow-usb--adb)**,
-which covers wiring, installing, launching, screenshots, and re-deploying.)
+> ⚠️ **`react-native start` does NOT load `.env`.** Only `expo start` / `expo`
+> bundling injects `EXPO_PUBLIC_*` vars. Since these apps are launched with
+> `react-native start` / `run-android`, `process.env.EXPO_PUBLIC_API_URL` is
+> `undefined` at bundle time and **the fallback string after `||` is what
+> actually ships**. So to change the dev API URL, edit that fallback (or switch
+> to `expo start`) — editing `.env` alone has no effect here. All three apps now
+> default to `http://localhost:5000`.
+
+Pick the value that matches how the device/emulator reaches your PC:
+
+| Setup | `BASE_URL` fallback | Requires |
+|---|---|---|
+| **USB device or emulator** (recommended, default) | `http://localhost:5000` | `adb reverse tcp:5000 tcp:5000` (§2.3) |
+| Emulator only, no adb reverse | `http://10.0.2.2:5000` | — (`10.0.2.2` = emulator's host loopback) |
+| Physical device over Wi-Fi (no cable) | `http://<your-PC-LAN-IP>:5000` | backend on `0.0.0.0` (it is) + firewall allows 5000 |
+
+On a **physical device, `10.0.2.2` does NOT work** (it's an emulator-only alias)
+— a wrong `BASE_URL` here is the most common "can't login / network error" cause.
+After changing it, **reload the app** (Metro serves the new bundle; no native
+rebuild needed for a JS-only change).
 
 ### 2.2 Tell Gradle where the SDK is
 
@@ -206,37 +263,56 @@ sdk.dir=C\:\\Android\\Sdk
 
 (macOS/Linux: `sdk.dir=/Users/you/Library/Android/sdk`.)
 
-### 2.3 Boot the emulator
+### 2.3 Boot the emulator **or** plug in a device, then set adb reverse
+
+Emulator:
 
 ```powershell
 emulator -avd Pixel_API_36 -no-snapshot-load
-# wait until booted:
 adb wait-for-device
 adb shell getprop sys.boot_completed     # prints 1 when ready
 ```
 
-### 2.4 Start Metro, then build & install
+Physical device: enable USB debugging and plug it in — see
+[§8 Physical device workflow](#8-physical-device-workflow-usb--adb). Confirm with
+`adb devices` (one entry, state `device`).
 
-In one terminal:
+Then forward the backend port **and this app's Metro port** so the device/emulator
+can reach your PC. `run-android` auto-reverses the Metro port, but the backend
+port (5000) you always set yourself:
 
 ```powershell
-cd mobile-users
-npx react-native start --reset-cache
+adb reverse tcp:5000 tcp:5000            # backend (shared by all apps)
+adb reverse tcp:8082 tcp:8082            # this app's Metro port (8081 users / 8082 doctors / 8083 admin)
+adb reverse --list                       # verify
+```
+
+### 2.4 Start Metro, then build & install
+
+The npm scripts already pin the correct port. In one terminal:
+
+```powershell
+cd mobile-doctors
+npm start                                # = react-native start --port 8082
+# (add -- --reset-cache after a dependency/.env change)
 ```
 
 In a second terminal:
 
 ```powershell
-cd mobile-users
-npx react-native run-android
+cd mobile-doctors
+npm run android                          # = react-native run-android --port 8082
 ```
 
-This Gradle-builds the debug APK, installs it on the emulator, and launches it.
-**The first build is slow** (downloads the Gradle distribution + dependencies);
-subsequent builds are much faster.
+This Gradle-builds the debug APK, installs it (the differing `applicationId`
+means it sits alongside the other apps), and launches it. **The first build is
+slow**; subsequent builds are much faster.
 
-> If you started Metro yourself, add `--no-packager` to `run-android` so it
-> doesn't try to start a second bundler.
+> - Started Metro yourself? Add `--no-packager`: `npm run android -- --no-packager`.
+> - Physical device is `arm64-v8a`, so do **not** use the x86_64-only build trick
+>   (§6) — that produces an APK the phone can't run.
+> - Running more than one app at once just means one Metro per port (8081/8082/8083)
+>   and one `adb reverse` per port; they don't interfere.
 
 ---
 
@@ -248,8 +324,10 @@ Run these in any order — all processes are safe to force-kill:
 # Stop the backend (port 5000)
 Stop-Process -Id (Get-NetTCPConnection -LocalPort 5000 -State Listen).OwningProcess -Force -ErrorAction SilentlyContinue
 
-# Stop Metro (port 8081)
-Stop-Process -Id (Get-NetTCPConnection -LocalPort 8081 -State Listen).OwningProcess -Force -ErrorAction SilentlyContinue
+# Stop every Metro instance (ports 8081 / 8082 / 8083)
+@(8081,8082,8083) | ForEach-Object {
+    Stop-Process -Id (Get-NetTCPConnection -LocalPort $_ -State Listen -ErrorAction SilentlyContinue).OwningProcess -Force -ErrorAction SilentlyContinue
+}
 
 # Stop the emulator (graceful shutdown via adb, then force if needed)
 C:\Android\Sdk\platform-tools\adb.exe emu kill
@@ -257,7 +335,7 @@ C:\Android\Sdk\platform-tools\adb.exe emu kill
 Get-Process -Name "emulator","qemu-system-x86_64" -ErrorAction SilentlyContinue | Stop-Process -Force
 
 # Confirm everything is gone
-@(5000,8081) | ForEach-Object {
+@(5000,8081,8082,8083) | ForEach-Object {
     $c = Get-NetTCPConnection -LocalPort $_ -State Listen -ErrorAction SilentlyContinue
     if ($c) { "PORT $_ still in use by PID $($c.OwningProcess)" } else { "PORT $_ free" }
 }
@@ -270,11 +348,16 @@ adb devices   # should list no devices / emulator
 
 ```powershell
 adb devices                              # list running emulators/devices
-adb reverse tcp:5000 tcp:5000            # alt to 10.0.2.2: forward device:5000 → host:5000
-adb logcat *:S ReactNative:V ReactNativeJS:V   # app JS logs
-cd mobile-users; npm test                      # jest (13 suites / 64 tests)
-cd mobile-users; npx tsc --noEmit              # type-check
-cd backend; .\venv\Scripts\python.exe -m pytest -q   # backend tests (84)
+adb reverse tcp:5000 tcp:5000            # backend: forward device:5000 → host:5000 (lets localhost:5000 work)
+adb reverse tcp:8082 tcp:8082            # Metro for the app you're running (8081/8082/8083)
+adb logcat *:S ReactNative:V ReactNativeJS:V   # app JS logs (all RN apps)
+cd <app>; npm test                       # jest
+cd <app>; npx tsc --noEmit               # type-check
+cd backend; .\venv\Scripts\python.exe -m pytest -q   # backend tests
+
+# Launch / stop a specific app by package id:
+adb shell am start -n com.purnazen.doctor/.MainActivity   # doctor (com.purnazen / com.purnazen.admin for the others)
+adb shell am force-stop com.purnazen.doctor
 ```
 
 ---
@@ -289,14 +372,17 @@ cd backend; .\venv\Scripts\python.exe -m pytest -q   # backend tests (84)
 | `alembic upgrade head` → **"Multiple head revisions are present for given argument 'head'"** | Two+ feature branches each added migrations off the same parent, so the history has several heads. **Don't reset the DB** — merge the heads and upgrade. See **[§1.3 Updating an existing DB / merging branched migrations](#13-updating-an-existing-db--merging-branched-migrations)** |
 | `FATAL: database "wellness_db" does not exist` on backend startup | Database was never created — run `createdb` once: `$env:PGPASSWORD="<your password>"; & "C:\Program Files\PostgreSQL\18\bin\createdb.exe" -U <your username> -h localhost -p 5432 -O <your username> wellness_db` |
 | Backend can't connect to DB on startup | Postgres isn't running on the `.env` port — use the SQLite override (§1.1) |
-| App shows network errors / can't reach API | Wrong `EXPO_PUBLIC_API_URL`. Emulator → `10.0.2.2:5000`; device → LAN IP. Rebuild after changing `.env` (it's inlined at bundle time). Or use `adb reverse tcp:5000 tcp:5000` |
-| Gradle: `SDK location not found` | Create `mobile-users/android/local.properties` (§2.2) or set `ANDROID_HOME` |
+| App shows network errors / can't login / can't reach API | Wrong `BASE_URL` for your setup (§2.1). **Physical device + `10.0.2.2` never works.** Use `http://localhost:5000` + `adb reverse tcp:5000 tcp:5000`, or the PC's LAN IP. Editing `.env` alone does nothing under `react-native start` — change the `||` fallback in `src/config/index.js`, then **reload** |
+| Red screen "Unable to load script / could not connect to development server" | Metro isn't running on the port this app expects, or the reverse is missing. Start Metro with the app's `npm start` (8081/8082/8083) and run `adb reverse tcp:<port> tcp:<port>`. The baked port lives in `<app>/android/gradle.properties` (`reactNativeDevServerPort`) |
+| Two apps fight over Metro / "port 8081 already in use" | Each app has its own port (8081/8082/8083) via its npm scripts — make sure you ran `npm start` **inside the right app folder**, not a bare `react-native start` (which defaults to 8081) |
+| `ninja: error: ... Filename longer than 260 characters` | Windows long paths not enabled — see [§0.4](#04-windows-enable-long-paths-required-for-native-builds). Renaming the app folder does **not** fix it |
+| Gradle: `SDK location not found` | Create `<app>/android/local.properties` (§2.2) or set `ANDROID_HOME` |
 | `JAVA_HOME` / wrong JDK | Use JDK 17 or 21. `java -version` should show 17+ |
 | Port 5000 already in use | `Get-NetTCPConnection -LocalPort 5000` then `Stop-Process -Id <pid>` |
-| Metro stale cache | `npx react-native start --reset-cache` |
-| App installs but won't run / "INSTALL_FAILED_NO_MATCHING_ABIS" on the emulator | The build's native libs don't match the emulator's CPU. `app/build.gradle` must **not** hard-pin `ndk { abiFilters "arm64-v8a" }` — that produces an arm64-only APK that can't run on an x86_64 emulator. Leave ABIs to the `reactNativeArchitectures` property |
-| `'gradlew.bat' is not recognized` from `npx react-native run-android` | Run the wrapper directly instead: `cd android && .\gradlew.bat app:installDebug -PreactNativeDevServerPort=8081`, then launch with `adb shell monkey -p com.purnazen -c android.intent.category.LAUNCHER 1` |
-| First build is very slow | Build only the emulator's ABI: `.\gradlew.bat app:installDebug -PreactNativeArchitectures=x86_64`. One native compile instead of four |
+| Metro stale cache (after `.env` / dep change) | `npm start -- --reset-cache` in the app folder |
+| App installs but won't run / "INSTALL_FAILED_NO_MATCHING_ABIS" on the emulator | The build's native libs don't match the emulator's CPU. `app/build.gradle` must **not** hard-pin `ndk { abiFilters "arm64-v8a" }`. Leave ABIs to the `reactNativeArchitectures` property |
+| `'gradlew.bat' is not recognized` from `npx react-native run-android` | Run the wrapper directly: `cd <app>/android && .\gradlew.bat app:installDebug`, then launch with `adb shell am start -n <applicationId>/.MainActivity` |
+| First build is very slow / emulator only | Build only the emulator's ABI: `.\gradlew.bat app:installDebug -PreactNativeArchitectures=x86_64`. **Physical device is arm64 — use `arm64-v8a` instead** |
 
 ---
 

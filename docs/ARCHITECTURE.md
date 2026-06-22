@@ -19,7 +19,7 @@
                                             └──────────────────────┘
 ```
 
-- **Base URL:** from `mobile-users/.env` → `EXPO_PUBLIC_API_URL`; defaults to `http://10.0.2.2:5000` (Android emulator → host machine)
+- **Base URL:** `BASE_URL` in each app's `src/config/index.js` (`EXPO_PUBLIC_API_URL || 'http://localhost:5000'`). Note `react-native start` does **not** load `.env`, so the `||` fallback is what ships in dev; `localhost:5000` reaches the host via `adb reverse tcp:5000 tcp:5000` on both device and emulator. See [RUNNING.md §2.1](RUNNING.md#21-point-the-app-at-the-backend)
 - **Auth:** JWT Bearer. Access token (15 min) for API calls; refresh token (30 days) for `/refresh` and `/logout`. Revoked tokens tracked by `jti` in the `token_blocklist` table (cached in Redis when `REDIS_URL` is set) **plus** a per-user `token_version` (`ver` claim) that invalidates every outstanding token on password change or account deletion. On the device, tokens live in the keystore (react-native-keychain), not AsyncStorage; the axios client silently refreshes expired access tokens on 401 and resets to Login when the refresh token dies.
 - **Rate limiting:** slowapi, per client IP, on login (5/min), register (3/min), refresh (10/min) — `RATE_LIMIT_*` env vars; 429 + standard envelope when exceeded. Counters are shared across workers when Redis is configured, per-process in-memory otherwise.
 - **CORS:** origins from `CORS_ORIGINS` (comma-separated); default `*` is dev-only.
@@ -165,10 +165,13 @@ analyzers in a `ThreadPoolExecutor`, composite scoring, then persists
 
 ## Frontend (`mobile-users/`) — React Native 0.85 (bare + Expo modules, SDK 56)
 
-> Two RN apps share this backend: **`mobile-users/`** (patient app — described
-> below, full feature set) and **`mobile-doctors/`** (doctor app — a scaffolded
-> skeleton with the same stack/infra and placeholder feature screens; see
-> `mobile-doctors/README.md`). The architecture below is the patient app.
+> Three RN apps share this backend: **`mobile-users/`** (patient app — described
+> below, full feature set), **`mobile-doctors/`** (doctor app — a scaffolded
+> skeleton with the same stack/infra; see `mobile-doctors/README.md`) and
+> **`mobile-admin/`** (admin app). Each pins a distinct Metro port (8081 / 8082 /
+> 8083) and a distinct `applicationId` (`com.purnazen` / `.doctor` / `.admin`) so
+> they coexist on one device — see [RUNNING.md](RUNNING.md). The architecture
+> below is the patient app.
 
 ### Data Flow
 

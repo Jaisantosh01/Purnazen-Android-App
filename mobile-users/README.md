@@ -51,11 +51,13 @@ Follow this pattern when adding new features:
 ## Setup & Installation
 
 ### 1. Configure Backend URL
-Update the `BASE_URL` in `src/constants/apiEndpoints.js` to point to your running backend:
+`BASE_URL` lives in `src/config/index.js`:
 ```javascript
-export const BASE_URL = 'http://10.0.2.2:5000'; // For Android Emulator
-// export const BASE_URL = 'http://localhost:5000'; // For iOS Simulator
+export const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
 ```
+`react-native start` does **not** load `.env`, so the `||` fallback is what ships
+in dev. `localhost:5000` works on a USB device or emulator with
+`adb reverse tcp:5000 tcp:5000`. See [docs/RUNNING.md §2.1](../docs/RUNNING.md#21-point-the-app-at-the-backend).
 
 ### 2. Install Dependencies
 ```bash

@@ -2,8 +2,7 @@
  * Build-time configuration.
  *
  * Values come from `.env` as Expo public env vars (EXPO_PUBLIC_*), inlined by
- * babel-preset-expo when the bundle is built. The doctor app talks to the SAME
- * FastAPI backend as the patient app (mobile-users); only the screens differ.
+ * babel-preset-expo when the bundle is built.
  *
  * The default is `localhost:5000`, which works on **both** a physical device and
  * the emulator as long as `adb reverse tcp:5000 tcp:5000` is active (you already
