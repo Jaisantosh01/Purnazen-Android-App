@@ -64,6 +64,8 @@ export const ENDPOINTS = {
   VIDEO_GROUPS: `${API_VERSION}/videos/groups`,
   VIDEO_GROUP_CATALOG: (id) => `${API_VERSION}/videos/groups/${id}/catalog`,
   ALL_VIDEOS: `${API_VERSION}/videos`,
+  VIDEO_STORAGE_DIRECTORIES: `${API_VERSION}/videos/storage/directories`,
+  VIDEO_UPLOAD: `${API_VERSION}/videos/upload`,
 
   // Chat
   CHAT_FLOW: (startId) => `${API_VERSION}/chat/flow/${startId}`,
@@ -77,5 +79,8 @@ export const ENDPOINTS = {
   USERS: `${API_VERSION}/users`,
   ROLES: `${API_VERSION}/roles`,
   SLOT_TIMINGS: `${API_VERSION}/slot-timings`,
+  DOCTOR_LEAVES: `${API_VERSION}/doctor-leaves`,
+  DOCTOR_LEAVES_STATS: `${API_VERSION}/doctor-leaves/stats`,
+  DOCTOR_LEAVES_UPDATE_STATUS: (id) => `${API_VERSION}/doctor-leaves/${id}/status`,
 
 };

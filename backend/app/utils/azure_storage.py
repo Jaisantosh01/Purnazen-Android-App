@@ -67,3 +67,72 @@ def generate_video_sas_url(blob_name: str) -> str:
     Uses ``settings.AZURE_VIDEO_SAS_EXPIRY_MINUTES`` (default 4 hours).
     """
     return generate_sas_url(blob_name, expiry_minutes=settings.AZURE_VIDEO_SAS_EXPIRY_MINUTES)
+
+
+def list_blob_directories(prefix: str = "") -> list[str]:
+    """List virtual directories (prefixes) in the blob container.
+
+    Uses a trailing ``/`` as the delimiter so only virtual directories at the
+    given prefix level are returned.
+
+    Returns a sorted list of directory paths (e.g. ``["videos/", "face_scans/"]``).
+    """
+    client = get_blob_service_client()
+    if not client:
+        return []
+    container = client.get_container_client(settings.AZURE_BLOB_CONTAINER_NAME)
+    result = container.list_blobs(name_starts_with=prefix, delimiter="/")
+    dirs = []
+    for page in result.by_page():
+        dirs.extend(page.prefixes or [])
+    return sorted(dirs)
+
+
+def list_blob_subdirectories(parent_path: str) -> list[str]:
+    """List virtual subdirectories directly under *parent_path*.
+
+    ``parent_path`` should already end with ``/`` (e.g. ``"videos/"``).
+    Returns paths like ``["videos/yoga/", "videos/meditation/"]``.
+    """
+    return list_blob_directories(prefix=parent_path)
+
+
+def create_blob_directory(path: str) -> bool:
+    """Create a virtual directory in the blob container.
+
+    Azure Blob Storage uses zero-length blobs with a trailing ``/`` to
+    simulate directories. If the directory already exists this is a no-op.
+
+    Returns ``True`` on success, ``False`` if Azure is not configured.
+    """
+    client = get_blob_service_client()
+    if not client:
+        return False
+    path = path if path.endswith("/") else path + "/"
+    container = client.get_container_client(settings.AZURE_BLOB_CONTAINER_NAME)
+    container.upload_blob(name=path, data=b"", overwrite=True)
+    return True
+
+
+def upload_blob_file(file_data: bytes, blob_path: str, content_type: str = "video/mp4") -> str:
+    """Upload raw bytes to Azure Blob Storage.
+
+    Args:
+        file_data: The raw bytes of the file.
+        blob_path: The destination path in the container (e.g. ``videos/yoga/class.mp4``).
+        content_type: MIME type of the file.
+
+    Returns:
+        The ``blob_path`` on success, empty string on failure.
+    """
+    client = get_blob_service_client()
+    if not client:
+        return ""
+    container = client.get_container_client(settings.AZURE_BLOB_CONTAINER_NAME)
+    container.upload_blob(
+        name=blob_path,
+        data=file_data,
+        content_settings=ContentSettings(content_type=content_type),
+        overwrite=True,
+    )
+    return blob_path

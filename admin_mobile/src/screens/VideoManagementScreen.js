@@ -6,6 +6,7 @@ import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { COLORS } from '../constants/theme';
 import { ROLE_ICONS, WELLNESS_ICONS } from '../constants/icons';
+import { ListSkeleton } from '../components/SkeletonLoader';
 
 const VideoManagementScreen = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState('sessions');
@@ -192,7 +193,7 @@ const VideoManagementScreen = ({ navigation }) => {
       {renderTabBar()}
 
       {activeTab === 'sessions' && (
-        sessionsLoading ? <ActivityIndicator size="large" style={{flex: 1}} /> :
+        sessionsLoading ? <ListSkeleton count={5} /> :
         <SwipeListView
           data={sessions}
           keyExtractor={item => item.id.toString()}
@@ -218,7 +219,7 @@ const VideoManagementScreen = ({ navigation }) => {
       )}
 
       {activeTab === 'groups' && (
-        groupsLoading ? <ActivityIndicator size="large" style={{flex: 1}} /> :
+        groupsLoading ? <ListSkeleton count={5} /> :
         <SwipeListView
           data={groups}
           keyExtractor={item => item.id.toString()}

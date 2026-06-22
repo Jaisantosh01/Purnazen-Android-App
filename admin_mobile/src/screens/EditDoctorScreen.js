@@ -16,6 +16,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { COLORS } from '../constants/theme';
+import { EditFormSkeleton } from '../components/SkeletonLoader';
 
 const SelectionModal = ({ visible, onClose, title, data, selectedIds, onToggle }) => (
   <Modal visible={visible} animationType="slide" transparent={true}>
@@ -176,7 +177,35 @@ const EditDoctorScreen = ({ route, navigation }) => {
     setEditedDoctor({ ...editedDoctor, awards: updatedAwards });
   };
 
-  if (loading) return <View style={styles.root}><Text style={styles.loading}>Loading...</Text></View>;
+  const addClinic = () => {
+    setEditedDoctor({
+      ...editedDoctor,
+      clinics: [...(editedDoctor.clinics || []), { name: '', address: '', city: '', phone: '', is_primary: false }]
+    });
+  };
+
+  const updateClinic = (index, key, value) => {
+    const updatedClinics = [...(editedDoctor.clinics || [])];
+    updatedClinics[index] = { ...updatedClinics[index], [key]: value };
+    setEditedDoctor({ ...editedDoctor, clinics: updatedClinics });
+  };
+
+  const removeClinic = (index) => {
+    const updatedClinics = (editedDoctor.clinics || []).filter((_, i) => i !== index);
+    setEditedDoctor({ ...editedDoctor, clinics: updatedClinics });
+  };
+
+  if (loading) return (
+    <View style={styles.root}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
+      <View style={styles.header}>
+        <TouchableOpacity><MCIcon name="arrow-left" size={24} color={COLORS.textPrimary} /></TouchableOpacity>
+        <Text style={styles.headerTitle}>Edit Doctor Details</Text>
+        <View style={{ width: 24 }} />
+      </View>
+      <EditFormSkeleton />
+    </View>
+  );
 
   return (
     <View style={styles.root}>
@@ -292,6 +321,45 @@ const EditDoctorScreen = ({ route, navigation }) => {
             <Text style={{color: COLORS.primary, fontWeight: '700'}}>Add Award</Text>
         </TouchableOpacity>
 
+        <Text style={styles.sectionLabel}>Clinics</Text>
+        {editedDoctor.clinics?.map((clinic, index) => (
+          <View key={index} style={styles.awardInputCard}>
+            <View style={styles.clinicHeaderRow}>
+              <Text style={styles.label}>Clinic Name</Text>
+              <TouchableOpacity onPress={() => updateClinic(index, 'is_primary', !clinic.is_primary)}>
+                <View style={[styles.primaryToggle, clinic.is_primary && styles.primaryToggleActive]}>
+                  <Text style={[styles.primaryToggleText, clinic.is_primary && styles.primaryToggleTextActive]}>
+                    {clinic.is_primary ? 'Primary' : 'Set as Primary'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+            <TextInput style={styles.input} placeholder="e.g. Sarah Acupressure Clinic" value={clinic.name} onChangeText={(val) => updateClinic(index, 'name', val)} />
+
+            <Text style={styles.label}>Address</Text>
+            <TextInput style={styles.input} placeholder="e.g. 123 MG Road" value={clinic.address} onChangeText={(val) => updateClinic(index, 'address', val)} />
+
+            <View style={styles.row}>
+              <View style={{flex: 1}}>
+                <Text style={styles.label}>City</Text>
+                <TextInput style={styles.input} placeholder="e.g. Bangalore" value={clinic.city} onChangeText={(val) => updateClinic(index, 'city', val)} />
+              </View>
+              <View style={{flex: 1, marginLeft: 8}}>
+                <Text style={styles.label}>Phone</Text>
+                <TextInput style={styles.input} placeholder="e.g. +91-9876543210" value={clinic.phone} onChangeText={(val) => updateClinic(index, 'phone', val)} keyboardType="phone-pad" />
+              </View>
+            </View>
+
+            <TouchableOpacity style={styles.removeBtn} onPress={() => removeClinic(index)}>
+              <Text style={{color: COLORS.danger, fontWeight: '600'}}>Remove Clinic</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+        <TouchableOpacity style={styles.addBtn} onPress={addClinic}>
+            <MCIcon name="plus" size={18} color={COLORS.primary} style={{marginRight: 8}} />
+            <Text style={{color: COLORS.primary, fontWeight: '700'}}>Add Clinic</Text>
+        </TouchableOpacity>
+
       </ScrollView>
 
       <View style={styles.footer}>
@@ -327,7 +395,7 @@ const styles = StyleSheet.create({
   tagScroll: { marginTop: 8, marginBottom: 4 },
   tag: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: COLORS.primaryLight, borderRadius: 16, marginRight: 8 },
   tagText: { color: COLORS.primary, fontSize: 13, fontWeight: '500' },
-  loading: { textAlign: 'center', marginTop: 100 },
+
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   modalContent: { backgroundColor: COLORS.white, borderRadius: 12, padding: 15, maxHeight: '80%' },
   modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, paddingHorizontal: 5 },
@@ -362,6 +430,11 @@ const styles = StyleSheet.create({
   slotChipSelected: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   slotChipText: { fontSize: 12, color: COLORS.textPrimary, fontWeight: '500' },
   slotChipTextSelected: { color: COLORS.white },
+  clinicHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  primaryToggle: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: COLORS.primary },
+  primaryToggleActive: { backgroundColor: COLORS.primaryLight, borderColor: COLORS.primary },
+  primaryToggleText: { fontSize: 11, fontWeight: '600', color: COLORS.primary },
+  primaryToggleTextActive: { color: COLORS.primary },
 });
 
 export default EditDoctorScreen;

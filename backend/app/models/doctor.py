@@ -80,4 +80,17 @@ class Doctor(Base):
             "expertise": [mapping.expertise.name for mapping in self.expertise_mappings],
             "is_available_today": self.is_available_today,
             "is_active": self.is_active,
+            "clinics": [
+                {
+                    "id": str(clinic.id),
+                    "name": clinic.name,
+                    "address": clinic.address,
+                    "city": clinic.city,
+                    "latitude": clinic.latitude,
+                    "longitude": clinic.longitude,
+                    "phone": clinic.phone,
+                    "is_primary": clinic.is_primary,
+                }
+                for clinic in self.clinics
+            ],
         }

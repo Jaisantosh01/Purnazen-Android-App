@@ -16,6 +16,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { COLORS } from '../constants/theme';
+import { ListSkeleton } from '../components/SkeletonLoader';
 
 const ROLE_COLORS = {
   'admin': '#FF4D4D',
@@ -83,6 +84,21 @@ const UserManagementScreen = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
+      {loading && filteredUsers.length === 0 ? (
+        <View>
+          <View style={styles.searchContainer}>
+            <MCIcon name="magnify" size={20} color={COLORS.textMuted} style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search by name or email..."
+              value={search}
+              onChangeText={setSearch}
+              placeholderTextColor={COLORS.textMuted}
+            />
+          </View>
+          <ListSkeleton count={5} />
+        </View>
+      ) : (
       <FlatList
         data={filteredUsers}
         keyExtractor={item => item.id.toString()}
@@ -168,6 +184,7 @@ const UserManagementScreen = ({ navigation }) => {
         refreshing={loading}
         onRefresh={fetchData}
       />
+      )}
     </View>
   );
 };

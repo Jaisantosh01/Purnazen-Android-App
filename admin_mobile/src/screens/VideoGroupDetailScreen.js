@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar, ActivityIndicator, Alert, Modal, Pressable } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar, Alert, Modal, Pressable } from 'react-native';
 import Video from 'react-native-video';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { COLORS } from '../constants/theme';
+import { SessionPlayerSkeleton } from '../components/SkeletonLoader';
 
 const VideoGroupDetailScreen = ({ route, navigation }) => {
   const { groupId, groupTitle } = route.params;
@@ -103,10 +104,17 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}><MCIcon name="arrow-left" size={24} color={COLORS.textPrimary} /></TouchableOpacity>
         <Text style={styles.headerTitle}>{groupTitle}</Text>
-        <TouchableOpacity onPress={openAddVideoModal}><MCIcon name="pencil" size={22} color={COLORS.primary} /></TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+          <TouchableOpacity onPress={() => navigation.navigate('UploadVideo', { videoGroupId: groupId })}>
+            <MCIcon name="cloud-upload" size={24} color={COLORS.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={openAddVideoModal}>
+            <MCIcon name="pencil" size={22} color={COLORS.primary} />
+          </TouchableOpacity>
+        </View>
       </View>
       
-      {loading ? <ActivityIndicator size="large" style={{flex: 1}} /> : hasNoVideos ? (
+      {loading ? <SessionPlayerSkeleton /> : hasNoVideos ? (
         <View style={styles.emptyContainer}>
           <MCIcon name="video-off" size={64} color={COLORS.textMuted} />
           <Text style={styles.emptyText}>No videos in this group</Text>

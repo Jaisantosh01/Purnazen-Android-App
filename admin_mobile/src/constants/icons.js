@@ -7,7 +7,7 @@ export const ROLE_ICONS = [
 ];
 
 
-export const WELLNESS_ICONS = [
+const _WELLNESS_ICONS = [
   'heart',
   'heart-pulse',
   'brain',
@@ -37,19 +37,14 @@ export const WELLNESS_ICONS = [
   'play-circle',
   'video',
   'camera-outline',
-
-  // Added
   'heart-outline',
   'heart-plus',
   'pulse',
-  'brain',
   'lungs',
   'tooth',
   'eye',
   'ear-hearing',
   'hand-heart',
-
-  // Fitness
   'hiking',
   'swim',
   'tennis',
@@ -58,33 +53,26 @@ export const WELLNESS_ICONS = [
   'karate',
   'ski',
   'rowing',
-
-  // Mental wellness
   'emoticon-happy-outline',
   'emoticon-sad-outline',
-  'meditation',
   'weather-sunny',
   'weather-night',
-
-  // Nutrition
   'food',
   'food-fork-drink',
   'fruit-cherries',
   'carrot',
   'fish',
   'cup-water',
-
-  // Relaxation
   'spa',
   'candle',
   'music',
   'book-open-page-variant',
-
-  // Medical / Tracking
   'clipboard-text',
   'chart-line',
   'chart-timeline',
   'thermometer',
   'needle',
-  'alarm-check'
+  'alarm-check',
 ];
+
+export const WELLNESS_ICONS = [...new Set(_WELLNESS_ICONS)];

@@ -217,6 +217,84 @@ AWARDS = [
     }
 ]
 
+DOCTOR_LEAVES = [
+    {
+        "doctor_email": "sarah@example.com",
+        "leave_date": "2026-06-25",
+        "slot_timing_id": None,
+        "doctor_reason": "Personal day off",
+        "admin_reason": None,
+        "status": "pending",
+    },
+    {
+        "doctor_email": "sarah@example.com",
+        "leave_date": "2026-06-26",
+        "slot_timing_id": None,
+        "doctor_reason": "Medical appointment",
+        "admin_reason": "Approved by admin",
+        "status": "approved",
+    },
+    {
+        "doctor_email": "rajesh@example.com",
+        "leave_date": "2026-06-24",
+        "slot_timing_id": None,
+        "doctor_reason": "Family function",
+        "admin_reason": None,
+        "status": "pending",
+    },
+    {
+        "doctor_email": "priya@example.com",
+        "leave_date": "2026-06-27",
+        "slot_timing_id": None,
+        "doctor_reason": "Conference attendance",
+        "admin_reason": "Approved for CME conference",
+        "status": "approved",
+    },
+]
+
+CLINICS = [
+    {
+        "doctor_email": "sarah@example.com",
+        "name": "Sarah Acupressure Clinic",
+        "address": "123 MG Road, Indiranagar",
+        "city": "Bangalore",
+        "latitude": 12.9716,
+        "longitude": 77.5946,
+        "phone": "+91-9876543210",
+        "is_primary": True,
+    },
+    {
+        "doctor_email": "rajesh@example.com",
+        "name": "Rajesh Wellness Center",
+        "address": "456 Brigade Road, Koramangala",
+        "city": "Bangalore",
+        "latitude": 12.9352,
+        "longitude": 77.6245,
+        "phone": "+91-9876543211",
+        "is_primary": True,
+    },
+    {
+        "doctor_email": "priya@example.com",
+        "name": "Priya Pain Management Clinic",
+        "address": "789 Church Street, MG Road",
+        "city": "Bangalore",
+        "latitude": 12.9756,
+        "longitude": 77.6067,
+        "phone": "+91-9876543212",
+        "is_primary": True,
+    },
+    {
+        "doctor_email": "priya@example.com",
+        "name": "Priya Wellness Annex",
+        "address": "321 JP Nagar, Phase 2",
+        "city": "Bangalore",
+        "latitude": 12.9063,
+        "longitude": 77.5857,
+        "phone": "+91-9876543213",
+        "is_primary": False,
+    },
+]
+
 DAYS_OF_WEEK = [
     {"day_number": 0, "day": "Sunday"},
     {"day_number": 1, "day": "Monday"},
