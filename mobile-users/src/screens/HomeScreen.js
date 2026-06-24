@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { STRINGS } from '../constants/strings';
 import {
   View,
@@ -15,12 +15,14 @@ import { WellnessRowSkeleton, QuickCardSkeleton } from '../components/SkeletonLo
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import wellnessService from '../services/wellnessService';
-import { COLORS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 
 const HOME_WELLNESS_ROWS = 3; 
 const HOME_QUICK_RELIEF_LIMIT = 3; 
 
 const HomeScreen = ({ navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [quickRelief, setQuickRelief] = useState([]);
   const [wellness, setWellness] = useState([]);
   const [reliefLoading, setReliefLoading] = useState(true);
@@ -53,7 +55,7 @@ const HomeScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      <StatusBar barStyle="light-content" backgroundColor={colors.headerBg} />
 
       <ScrollView
         style={styles.container}
@@ -109,7 +111,7 @@ const HomeScreen = ({ navigation }) => {
                 activeOpacity={0.85}
                 onPress={() => navigation.navigate('Relief')}
               >
-                <MCIcon name="hand-heart-outline" size={24} color={COLORS.primary} style={{ marginRight: 10 }} />
+                <MCIcon name="hand-heart-outline" size={24} color={colors.primary} style={{ marginRight: 10 }} />
                 <Text style={styles.emptyBannerText}>Browse relief sessions →</Text>
               </TouchableOpacity>
             )}
@@ -143,14 +145,14 @@ const HomeScreen = ({ navigation }) => {
                 }}
               >
                 <View style={styles.wellnessIconCircle}>
-                  <MCIcon name={item.icon} size={22} color={COLORS.primary} />
+                  <MCIcon name={item.icon} size={22} color={colors.primary} />
                 </View>
                 <View style={styles.wellnessInfo}>
                   <Text style={styles.wellnessTitle}>{item.title}</Text>
                   <Text style={styles.wellnessDuration}>{item.duration}</Text>
                 </View>
                 <View style={styles.videoBtn}>
-                  <MCIcon name="play-circle-outline" size={20} color={COLORS.primary} />
+                  <MCIcon name="play-circle-outline" size={20} color={colors.primary} />
                 </View>
               </TouchableOpacity>
             ))
@@ -164,7 +166,7 @@ const HomeScreen = ({ navigation }) => {
           >
             <View style={styles.faceGlowLeft}>
               <View style={styles.faceGlowIconCircle}>
-                <MCIcon name="star-four-points-outline" size={20} color={COLORS.white} />
+                <MCIcon name="star-four-points-outline" size={20} color={colors.white} />
               </View>
               <View>
                 <Text style={styles.faceGlowTitle}>{STRINGS.FACE_GLOW_TITLE}</Text>
@@ -183,7 +185,7 @@ const HomeScreen = ({ navigation }) => {
         >
           <View style={styles.consultLeft}>
             <View style={styles.consultIconCircle}>
-              <MCIcon name="calendar-month-outline" size={20} color={COLORS.white} />
+              <MCIcon name="calendar-month-outline" size={20} color={colors.white} />
             </View>
             <View>
               <Text style={styles.consultTitle}>{STRINGS.CONSULT_TITLE}</Text>
@@ -191,7 +193,7 @@ const HomeScreen = ({ navigation }) => {
             </View>
           </View>
           <View style={styles.consultArrowCircle}>
-            <MCIcon name="arrow-right" size={18} color={COLORS.white} />
+            <MCIcon name="arrow-right" size={18} color={colors.white} />
           </View>
         </TouchableOpacity>
 
@@ -202,10 +204,10 @@ const HomeScreen = ({ navigation }) => {
 
 export default HomeScreen;
 
-const styles = StyleSheet.create({
+const makeStyles = colors => StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   container: {
     flex: 1,
@@ -213,7 +215,7 @@ const styles = StyleSheet.create({
 
   // Header
   header: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.headerBg,
     paddingTop: 56,
     paddingHorizontal: 20,
     paddingBottom: 28,
@@ -222,7 +224,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 26,
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '800',
     letterSpacing: 0.2,
   },
@@ -246,11 +248,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   seeAll: {
     fontSize: 13,
-    color: COLORS.primary,
+    color: colors.primary,
     fontWeight: '600',
   },
 
@@ -265,25 +267,25 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: colors.primaryLight,
     borderRadius: 14,
     padding: 16,
   },
   emptyBannerText: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.primary,
+    color: colors.primary,
   },
 
   // Wellness Rows
   wellnessRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: 14,
     padding: 14,
     marginBottom: 10,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 4,
@@ -293,7 +295,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -304,22 +306,22 @@ const styles = StyleSheet.create({
   wellnessTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   wellnessDuration: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginTop: 2,
   },
   videoBtn: {
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: colors.primaryLight,
     borderRadius: 10,
     padding: 8,
   },
 
-  // Face Glow Card
+  // Face Glow Card — translucent pink tint adapts to light/dark surfaces
   faceGlowCard: {
-    backgroundColor: '#fdf0f5',
+    backgroundColor: 'rgba(232,160,192,0.16)',
     borderRadius: 14,
     padding: 16,
     flexDirection: 'row',
@@ -343,17 +345,17 @@ const styles = StyleSheet.create({
   faceGlowTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   faceGlowSub: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginTop: 2,
   },
 
   // Consult Banner
   consultBanner: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: 18,
     marginHorizontal: 16,
     marginTop: 24,
@@ -378,7 +380,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   consultTitle: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '700',
     fontSize: 15,
   },

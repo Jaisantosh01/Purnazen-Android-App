@@ -17,13 +17,17 @@ import { StatsSkeleton } from '../components/SkeletonLoader';
 import { COLORS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
 
+// Icon backgrounds are a translucent wash of the icon hue so the tint reads
+// correctly over both light and dark cards (matches Settings/Notifications).
+const soft = hex => `${hex}22`;
+
 const MENU_ITEMS = [
-  { icon: 'calendar-clock',   iconColor: '#0891B2',            iconBg: '#CFFAFE',            title: 'Appointments',     subtitle: 'View appointment history',  screen: 'AppointmentHistory' },
-  { icon: 'history',          iconColor: COLORS.primary,        iconBg: COLORS.primaryLight,  title: 'Therapy History',  subtitle: 'View past sessions',        screen: 'TherapyHistory' },
-  { icon: 'credit-card',      iconColor: COLORS.accent,         iconBg: COLORS.accentLight,   title: 'Subscriptions',    subtitle: 'Manage your plan',          screen: 'Subscriptions' },
-  { icon: 'bell-outline',     iconColor: '#ea580c',             iconBg: '#FFF3E0',            title: 'Notifications',    subtitle: 'Manage alerts',             screen: 'Notifications' },
-  { icon: 'cog-outline',      iconColor: COLORS.textSecondary,  iconBg: COLORS.surfaceMuted,  title: 'Settings',         subtitle: 'App preferences',           screen: 'Settings' },
-  { icon: 'help-circle-outline', iconColor: '#0284c7',          iconBg: '#E0F2FE',            title: 'Help & Support',   subtitle: 'Get assistance',            screen: 'HelpSupport' },
+  { icon: 'calendar-clock',      iconColor: '#0891B2',           title: 'Appointments',    subtitle: 'View appointment history',  screen: 'AppointmentHistory' },
+  { icon: 'history',             iconColor: COLORS.primary,      title: 'Therapy History', subtitle: 'View past sessions',        screen: 'TherapyHistory' },
+  { icon: 'credit-card',         iconColor: COLORS.accent,       title: 'Subscriptions',   subtitle: 'Manage your plan',          screen: 'Subscriptions' },
+  { icon: 'bell-outline',        iconColor: '#ea580c',           title: 'Notifications',   subtitle: 'Manage alerts',             screen: 'Notifications' },
+  { icon: 'cog-outline',         iconColor: '#6B7280',           title: 'Settings',        subtitle: 'App preferences',           screen: 'Settings' },
+  { icon: 'help-circle-outline', iconColor: '#0284c7',           title: 'Help & Support',  subtitle: 'Get assistance',            screen: 'HelpSupport' },
 ];
 
 const ProfileScreen = ({ navigation }) => {
@@ -72,7 +76,7 @@ const ProfileScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      <StatusBar barStyle="light-content" backgroundColor={colors.headerBg} />
 
       <ScrollView
         style={styles.container}
@@ -89,7 +93,7 @@ const ProfileScreen = ({ navigation }) => {
               <Text style={styles.profileName} numberOfLines={1}>{displayName}</Text>
               <Text style={styles.profileEmail} numberOfLines={1}>{displayEmail}</Text>
               <View style={styles.planBadge}>
-                <MCIcon name="shield-check" size={12} color={COLORS.white} style={{ marginRight: 4 }} />
+                <MCIcon name="shield-check" size={12} color={colors.white} style={{ marginRight: 4 }} />
                 <Text style={styles.planText}>{plan} Member</Text>
               </View>
             </View>
@@ -125,14 +129,14 @@ const ProfileScreen = ({ navigation }) => {
               activeOpacity={0.7}
               onPress={() => navigation.navigate(item.screen)}
             >
-              <View style={[styles.menuIconCircle, { backgroundColor: item.iconBg }]}>
+              <View style={[styles.menuIconCircle, { backgroundColor: soft(item.iconColor) }]}>
                 <MCIcon name={item.icon} size={20} color={item.iconColor} />
               </View>
               <View style={styles.menuInfo}>
                 <Text style={styles.menuTitle}>{item.title}</Text>
                 <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
               </View>
-              <MCIcon name="chevron-right" size={20} color={COLORS.borderStrong} />
+              <MCIcon name="chevron-right" size={20} color={colors.borderStrong} />
             </TouchableOpacity>
           ))}
         </View>
@@ -143,7 +147,7 @@ const ProfileScreen = ({ navigation }) => {
           activeOpacity={0.8}
           onPress={handleLogout}
         >
-          <MCIcon name="logout" size={18} color={COLORS.danger} style={{ marginRight: 8 }} />
+          <MCIcon name="logout" size={18} color={colors.danger} style={{ marginRight: 8 }} />
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
 
@@ -154,12 +158,12 @@ const ProfileScreen = ({ navigation }) => {
 
 export default ProfileScreen;
 
-const makeStyles = COLORS => StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1 },
 
   header: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.headerBg,
     paddingTop: 56,
     paddingHorizontal: 20,
     paddingBottom: 24,
@@ -183,13 +187,13 @@ const makeStyles = COLORS => StyleSheet.create({
   avatarLetter: {
     fontSize: 28,
     fontWeight: '700',
-    color: COLORS.white,
+    color: colors.white,
   },
   profileInfo: { flex: 1 },
   profileName: {
     fontSize: 20,
     fontWeight: '700',
-    color: COLORS.white,
+    color: colors.white,
   },
   profileEmail: {
     fontSize: 13,
@@ -208,7 +212,7 @@ const makeStyles = COLORS => StyleSheet.create({
   },
   planText: {
     fontSize: 11,
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '600',
   },
 
@@ -229,7 +233,7 @@ const makeStyles = COLORS => StyleSheet.create({
   statValue: {
     fontSize: 20,
     fontWeight: '700',
-    color: COLORS.white,
+    color: colors.white,
     marginBottom: 4,
   },
   statLabel: {
@@ -245,11 +249,13 @@ const makeStyles = COLORS => StyleSheet.create({
   menuCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: 16,
     paddingVertical: 14,
     paddingHorizontal: 16,
-    shadowColor: COLORS.black,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -267,11 +273,11 @@ const makeStyles = COLORS => StyleSheet.create({
   menuTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   menuSubtitle: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginTop: 1,
   },
 
@@ -282,14 +288,14 @@ const makeStyles = COLORS => StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 16,
     borderWidth: 1,
-    borderColor: '#fca5a5',
+    borderColor: soft(colors.danger),
     borderRadius: 16,
     paddingVertical: 16,
-    backgroundColor: '#fff5f5',
+    backgroundColor: soft(colors.danger),
   },
   logoutText: {
     fontSize: 15,
     fontWeight: '600',
-    color: COLORS.danger,
+    color: colors.danger,
   },
 });

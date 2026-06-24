@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,12 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import preferencesService from '../services/preferencesService';
 import { COLORS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
+
+// Icon backgrounds are a translucent wash of the icon hue so the tint reads
+// correctly over both light and dark cards (matches SettingsScreen).
+const soft = hex => `${hex}22`;
 
 const NOTIFICATION_GROUPS = [
   {
@@ -43,6 +48,8 @@ const NOTIFICATION_GROUPS = [
 
 
 const NotificationsScreen = ({ navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const initState = {};
   NOTIFICATION_GROUPS.forEach(g => g.items.forEach(i => { initState[i.id] = i.default; }));
   const [enabled, setEnabled] = useState(initState);
@@ -81,7 +88,7 @@ const NotificationsScreen = ({ navigation }) => {
 
         <View style={styles.masterRow}>
           <View style={styles.masterLeft}>
-            <MCIcon name="bell-outline" size={22} color={COLORS.primary} />
+            <MCIcon name="bell-outline" size={22} color={colors.primary} />
             <View style={{ marginLeft: 12 }}>
               <Text style={styles.masterTitle}>All Notifications</Text>
               <Text style={styles.masterSub}>Enable or disable everything at once</Text>
@@ -90,8 +97,8 @@ const NotificationsScreen = ({ navigation }) => {
           <Switch
             value={allEnabled}
             onValueChange={toggleAll}
-            trackColor={{ false: COLORS.border, true: COLORS.primary }}
-            thumbColor={COLORS.white}
+            trackColor={{ false: colors.border, true: colors.primary }}
+            thumbColor={colors.white}
           />
         </View>
 
@@ -102,7 +109,7 @@ const NotificationsScreen = ({ navigation }) => {
               {group.items.map((item, index) => (
                 <View key={item.id}>
                   <View style={styles.row}>
-                    <View style={[styles.iconBox, { backgroundColor: item.iconBg }]}>
+                    <View style={[styles.iconBox, { backgroundColor: soft(item.iconColor) }]}>
                       <MCIcon name={item.icon} size={20} color={item.iconColor} />
                     </View>
                     <View style={styles.rowInfo}>
@@ -113,8 +120,8 @@ const NotificationsScreen = ({ navigation }) => {
                       value={allEnabled ? enabled[item.id] : false}
                       onValueChange={() => toggle(item.id)}
                       disabled={!allEnabled}
-                      trackColor={{ false: COLORS.border, true: COLORS.primary }}
-                      thumbColor={COLORS.white}
+                      trackColor={{ false: colors.border, true: colors.primary }}
+                      thumbColor={colors.white}
                     />
                   </View>
                   {index < group.items.length - 1 && <View style={styles.divider} />}
@@ -127,7 +134,7 @@ const NotificationsScreen = ({ navigation }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Recent</Text>
           <View style={styles.emptyRecent}>
-            <MCIcon name="bell-sleep-outline" size={36} color={COLORS.borderStrong} />
+            <MCIcon name="bell-sleep-outline" size={36} color={colors.borderStrong} />
             <Text style={styles.emptyRecentTitle}>No recent activity</Text>
             <Text style={styles.emptyRecentSub}>Your notification history will appear here</Text>
           </View>
@@ -140,11 +147,11 @@ const NotificationsScreen = ({ navigation }) => {
 
 export default NotificationsScreen;
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
 
   header: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 24,
@@ -160,48 +167,49 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   headerText: { flex: 1 },
-  headerTitle:    { fontSize: 22, fontWeight: '700', color: COLORS.white },
+  headerTitle:    { fontSize: 22, fontWeight: '700', color: colors.white },
   headerSubtitle: { fontSize: 13, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
 
   masterRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: COLORS.white, marginHorizontal: 16, marginTop: 20,
+    backgroundColor: colors.card, marginHorizontal: 16, marginTop: 20,
     borderRadius: 16, padding: 16,
-    shadowColor: COLORS.black, shadowOffset: { width: 0, height: 1 },
+    shadowColor: colors.black, shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
   },
   masterLeft:  { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  masterTitle: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
-  masterSub:   { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  masterTitle: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
+  masterSub:   { fontSize: 12, color: colors.textMuted, marginTop: 2 },
 
   section:      { paddingHorizontal: 16, marginTop: 20 },
-  sectionTitle: { fontSize: 13, fontWeight: '600', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 10, marginLeft: 4 },
+  sectionTitle: { fontSize: 13, fontWeight: '600', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 10, marginLeft: 4 },
 
   card: {
-    backgroundColor: COLORS.white, borderRadius: 16, overflow: 'hidden',
-    shadowColor: COLORS.black, shadowOffset: { width: 0, height: 1 },
+    backgroundColor: colors.card, borderRadius: 16, overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border,
+    shadowColor: colors.black, shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
   },
-  divider: { height: 1, backgroundColor: COLORS.surfaceMuted, marginLeft: 66 },
+  divider: { height: 1, backgroundColor: colors.surfaceMuted, marginLeft: 66 },
 
   row:     { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16 },
   iconBox: { width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
   rowInfo: { flex: 1 },
-  rowTitle:{ fontSize: 14, fontWeight: '600', color: COLORS.textPrimary },
-  rowSub:  { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  rowTitle:{ fontSize: 14, fontWeight: '600', color: colors.textPrimary },
+  rowSub:  { fontSize: 12, color: colors.textMuted, marginTop: 2 },
 
   emptyRecent: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: 16,
     paddingVertical: 36,
     alignItems: 'center',
     gap: 6,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
   },
-  emptyRecentTitle: { fontSize: 15, fontWeight: '600', color: COLORS.textPrimary },
-  emptyRecentSub:   { fontSize: 12, color: COLORS.textMuted, textAlign: 'center', paddingHorizontal: 24 },
+  emptyRecentTitle: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
+  emptyRecentSub:   { fontSize: 12, color: colors.textMuted, textAlign: 'center', paddingHorizontal: 24 },
 });

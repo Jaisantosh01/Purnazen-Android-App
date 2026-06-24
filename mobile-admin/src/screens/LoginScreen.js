@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,9 +6,11 @@ import {
   TouchableOpacity,
   StyleSheet,
   StatusBar,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
+  Platform,
+  Animated,
+  Keyboard,
+  ActivityIndicator,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -21,6 +23,36 @@ const LoginScreen = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [focused, setFocused] = useState(null); // 'email' | 'password'
+  const passwordRef = useRef(null);
+
+  // Keyboard-aware layout. The Android window does not reliably resize on its
+  // own (RN edge-to-edge), so we lift the bottom-anchored card by the keyboard
+  // height ourselves. `pad` animates layout (non-native), `kb` collapses the
+  // hero (native). 0 = keyboard hidden, 1 = visible.
+  const pad = useRef(new Animated.Value(0)).current;
+  const kb = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const onShow = e => {
+      const height = e?.endCoordinates?.height ?? 0;
+      Animated.parallel([
+        Animated.timing(pad, { toValue: height, duration: 260, useNativeDriver: false }),
+        Animated.timing(kb, { toValue: 1, duration: 260, useNativeDriver: true }),
+      ]).start();
+    };
+    const onHide = () => {
+      Animated.parallel([
+        Animated.timing(pad, { toValue: 0, duration: 220, useNativeDriver: false }),
+        Animated.timing(kb, { toValue: 0, duration: 220, useNativeDriver: true }),
+      ]).start();
+    };
+    const s = Keyboard.addListener(showEvt, onShow);
+    const h = Keyboard.addListener(hideEvt, onHide);
+    return () => { s.remove(); h.remove(); };
+  }, [pad, kb]);
 
   const handleLogin = async () => {
     if (!email.trim()) { setError('Please enter your email.'); return; }
@@ -37,27 +69,41 @@ const LoginScreen = ({ navigation }) => {
     }
   };
 
+  const heroAnimStyle = {
+    opacity: kb.interpolate({ inputRange: [0, 0.6], outputRange: [1, 0] }),
+    transform: [
+      { scale: kb.interpolate({ inputRange: [0, 1], outputRange: [1, 0.82] }) },
+      { translateY: kb.interpolate({ inputRange: [0, 1], outputRange: [0, -18] }) },
+    ],
+  };
+
   return (
-    <KeyboardAvoidingView
-      style={styles.root}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <Animated.View style={[styles.root, { paddingBottom: pad }]}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
 
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-
-        {/* Top admin branding section */}
-        <View style={styles.topSection}>
-          <View style={styles.logoCircle}>
-            <MCIcon name="shield-check" size={40} color={COLORS.white} />
+      {/* ── Hero (collapses under the keyboard) ─────────────────────────── */}
+      <View style={styles.heroWrap}>
+        <Animated.View style={[styles.hero, heroAnimStyle]}>
+          <View style={styles.blobOne} />
+          <View style={styles.blobTwo} />
+          <View style={styles.logoBadge}>
+            <MCIcon name="shield-check" size={38} color={COLORS.white} />
           </View>
           <Text style={styles.appName}>Wellness Admin</Text>
           <Text style={styles.tagline}>Secure Access Portal</Text>
-        </View>
+        </Animated.View>
+      </View>
 
-        {/* Form card */}
-        <View style={styles.card}>
-          <Text style={styles.title}>Welcome Back</Text>
+      {/* ── Form card (anchored to the bottom, rides above the keyboard) ── */}
+      <View style={styles.card}>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.cardContent}
+          bounces={false}
+        >
+          <View style={styles.handle} />
+          <Text style={styles.title}>Welcome back</Text>
           <Text style={styles.subtitle}>Enter your credentials to continue</Text>
 
           {error.length > 0 && (
@@ -68,55 +114,74 @@ const LoginScreen = ({ navigation }) => {
           )}
 
           <Text style={styles.label}>Email</Text>
-          <View style={styles.inputContainer}>
-            <MCIcon name="email-outline" size={20} color={COLORS.textMuted} style={styles.inputIcon} />
+          <View style={[styles.inputContainer, focused === 'email' && styles.inputFocused]}>
+            <MCIcon name="email-outline" size={20} color={focused === 'email' ? COLORS.primary : COLORS.textMuted} style={styles.inputIcon} />
             <TextInput
               style={styles.input}
               placeholder="admin@example.com"
               placeholderTextColor={COLORS.textMuted}
               value={email}
-              onChangeText={text => { setEmail(text); setError(''); }}
+              onChangeText={t => { setEmail(t); setError(''); }}
               keyboardType="email-address"
               autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="next"
+              onSubmitEditing={() => passwordRef.current?.focus()}
+              onFocus={() => setFocused('email')}
+              onBlur={() => setFocused(null)}
             />
           </View>
 
           <Text style={styles.label}>Password</Text>
-          <View style={styles.inputContainer}>
-            <MCIcon name="lock-outline" size={20} color={COLORS.textMuted} style={styles.inputIcon} />
+          <View style={[styles.inputContainer, focused === 'password' && styles.inputFocused]}>
+            <MCIcon name="lock-outline" size={20} color={focused === 'password' ? COLORS.primary : COLORS.textMuted} style={styles.inputIcon} />
             <TextInput
+              ref={passwordRef}
               style={styles.input}
-              placeholder="••••••••"
+              placeholder="Enter your password"
               placeholderTextColor={COLORS.textMuted}
               value={password}
-              onChangeText={text => { setPassword(text); setError(''); }}
+              onChangeText={t => { setPassword(t); setError(''); }}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="done"
+              onSubmitEditing={handleLogin}
+              onFocus={() => setFocused('password')}
+              onBlur={() => setFocused(null)}
             />
             <TouchableOpacity
-              onPress={() => setShowPassword(prev => !prev)}
+              onPress={() => setShowPassword(p => !p)}
               style={styles.eyeBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <MCIcon
-                name={showPassword ? 'eye-outline' : 'eye-off-outline'}
-                size={20}
-                color={COLORS.textMuted}
-              />
+              <MCIcon name={showPassword ? 'eye-outline' : 'eye-off-outline'} size={20} color={COLORS.textMuted} />
             </TouchableOpacity>
           </View>
 
           <TouchableOpacity
-            style={[styles.loginBtn, isLoading && styles.loginBtnDisabled]}
+            style={[styles.primaryBtn, isLoading && styles.primaryBtnDisabled]}
             activeOpacity={0.85}
             onPress={handleLogin}
             disabled={isLoading}
           >
-            <Text style={styles.loginBtnText}>{isLoading ? 'Authenticating...' : 'Login'}</Text>
+            {isLoading ? (
+              <ActivityIndicator color={COLORS.white} />
+            ) : (
+              <>
+                <Text style={styles.primaryBtnText}>Login</Text>
+                <MCIcon name="arrow-right" size={20} color={COLORS.white} />
+              </>
+            )}
           </TouchableOpacity>
-        </View>
 
-      </ScrollView>
-    </KeyboardAvoidingView>
+          <Text style={styles.note}>
+            Admin accounts are provisioned by the Purnazen team — there is no
+            self sign-up.
+          </Text>
+        </ScrollView>
+      </View>
+    </Animated.View>
   );
 };
 
@@ -124,113 +189,128 @@ export default LoginScreen;
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.primary },
-  scroll: { flexGrow: 1 },
 
-  topSection: {
-    alignItems: 'center',
-    paddingTop: 70,
-    paddingBottom: 40,
-  },
-  logoCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 20, // Slightly more modern square-ish circle
-    backgroundColor: 'rgba(255,255,255,0.2)',
+  // flex:1 + minHeight:0 lets the hero shrink first when the keyboard opens,
+  // pushing the card up instead of letting the keyboard cover it.
+  heroWrap: {
+    flex: 1,
+    minHeight: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    paddingHorizontal: 24,
+    overflow: 'hidden',
   },
-  appName: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: COLORS.white,
-    marginBottom: 6,
+  hero: { alignItems: 'center' },
+  blobOne: {
+    position: 'absolute',
+    top: -90,
+    right: -120,
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
-  tagline: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.9)',
-    fontWeight: '500'
+  blobTwo: {
+    position: 'absolute',
+    bottom: -70,
+    left: -120,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: 'rgba(255,255,255,0.06)',
   },
+  logoBadge: {
+    width: 84,
+    height: 84,
+    borderRadius: 26,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
+  appName: { fontSize: 30, fontWeight: '800', color: COLORS.white, letterSpacing: 0.3, marginBottom: 6, textAlign: 'center' },
+  tagline: { fontSize: 13.5, color: 'rgba(255,255,255,0.85)', letterSpacing: 0.2, textAlign: 'center' },
 
   card: {
-    flex: 1,
     backgroundColor: COLORS.white,
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    flexShrink: 1,
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 16,
+  },
+  cardContent: {
     paddingHorizontal: 24,
-    paddingTop: 32,
-    paddingBottom: 40,
+    paddingTop: 14,
+    paddingBottom: 28,
   },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-    marginBottom: 6,
+  handle: {
+    alignSelf: 'center',
+    width: 44,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: COLORS.border,
+    marginBottom: 20,
   },
-  subtitle: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    marginBottom: 28,
-  },
-
+  title: { fontSize: 25, fontWeight: '800', color: COLORS.textPrimary, marginBottom: 6 },
+  subtitle: { fontSize: 14, color: COLORS.textSecondary, marginBottom: 22 },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff0f0',
+    backgroundColor: '#fef2f2',
     borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#fecaca',
     paddingHorizontal: 12,
     paddingVertical: 10,
-    marginBottom: 20,
+    marginBottom: 18,
     gap: 8,
   },
-  errorText: {
-    fontSize: 13,
-    color: COLORS.danger,
-    flex: 1,
-    fontWeight: '500'
-  },
-
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: COLORS.textSecondary,
-    marginBottom: 8,
-    marginLeft: 4
-  },
+  errorText: { fontSize: 13, color: COLORS.danger, flex: 1 },
+  label: { fontSize: 13, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 8 },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.surfaceMuted,
     borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
     paddingHorizontal: 14,
-    paddingVertical: 14,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#f0f0f0'
+    paddingVertical: Platform.OS === 'ios' ? 14 : 11,
+    marginBottom: 18,
   },
+  inputFocused: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryFaint },
   inputIcon: { marginRight: 10 },
-  input: {
-    flex: 1,
-    fontSize: 15,
-    color: COLORS.textPrimary,
-    padding: 0,
-  },
+  input: { flex: 1, fontSize: 15, color: COLORS.textPrimary, padding: 0, includeFontPadding: false },
   eyeBtn: { padding: 4 },
-
-  loginBtn: {
+  primaryBtn: {
+    flexDirection: 'row',
     backgroundColor: COLORS.primary,
-    borderRadius: 14,
+    borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
-    marginTop: 8,
-    elevation: 2,
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 6,
+    minHeight: 54,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 6,
   },
-  loginBtnDisabled: {
-    opacity: 0.7,
-  },
-  loginBtnText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.white,
+  primaryBtnDisabled: { opacity: 0.7 },
+  primaryBtnText: { fontSize: 16, fontWeight: '800', color: COLORS.white },
+  note: {
+    fontSize: 12.5,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    marginTop: 20,
+    lineHeight: 18,
   },
 });
