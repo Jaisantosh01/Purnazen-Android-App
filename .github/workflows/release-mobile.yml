@@ -155,3 +155,5 @@ jobs:
             ${{ inputs.force_update && '<!-- purnazen:force-update -->' || '' }}
           prerelease: ${{ inputs.prerelease }}
           files: ${{ steps.artifacts.outputs.dir }}/*
+
+# registered on prod 2026-06-24

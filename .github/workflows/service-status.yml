@@ -93,3 +93,5 @@ jobs:
       - name: Azure logout
         if: always()
         run: az logout || true
+
+# registered on prod 2026-06-24
