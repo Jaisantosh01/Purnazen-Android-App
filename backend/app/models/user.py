@@ -1,7 +1,8 @@
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.orm import relationship
 from app.db.types import GUID
 import uuid
+from datetime import date
 
 from app.db.base_class import Base
 
@@ -14,6 +15,11 @@ class User(Base):
     avatar_url = Column(String(500))
     email = Column(String(120), unique=True, nullable=False)
     password = Column(String(255), nullable=False)
+
+    # Profile fields (optional — populated by patient or admin)
+    gender = Column(String(10), nullable=True)       # Male | Female | Other
+    phone = Column(String(15), nullable=True)
+    date_of_birth = Column(Date, nullable=True)
 
     role_id = Column(GUID(), ForeignKey("roles.id"))
 
@@ -29,12 +35,25 @@ class User(Base):
 
     role = relationship("Role", foreign_keys=[role_id])
 
+    @property
+    def age(self):
+        """Calculate age dynamically from date_of_birth."""
+        if not self.date_of_birth:
+            return None
+        today = date.today()
+        born = self.date_of_birth
+        return today.year - born.year - ((today.month, today.day) < (born.month, born.day))
+
     def to_dict(self):
         return {
             "id": self.id,
             "full_name": self.full_name,
             "avatar_url": self.avatar_url,
             "email": self.email,
+            "phone": self.phone,
+            "gender": self.gender,
+            "date_of_birth": self.date_of_birth.isoformat() if self.date_of_birth else None,
+            "age": self.age,
             "role_id": self.role_id,
             "role": self.role.name if self.role else None,
             "is_active": self.is_active,

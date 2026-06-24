@@ -1,4 +1,6 @@
 from datetime import date, datetime
+from typing import Optional
+
 
 import uuid
 
@@ -97,3 +99,52 @@ class AppointmentService:
             serialized.append(item)
 
         return {"appointments": serialized, "total": len(serialized)}
+
+    @staticmethod
+    def get_doctor_appointments(
+        db: Session,
+        user: "User",
+        filter_date: Optional[date] = None,
+        filter_status: Optional[str] = None,
+    ) -> dict:
+        from app.models.doctor import Doctor
+
+        doctor = db.query(Doctor).filter(Doctor.user_id == user.id).first()
+        if not doctor:
+            return None  # caller converts to 404
+
+        appointments = AppointmentRepository.get_doctor_appointments(
+            db,
+            doctor_id=doctor.id,
+            date=filter_date,
+            status=filter_status,
+        )
+
+        serialized = []
+        for a in appointments:
+            item = a.to_dict()
+
+            # Enrich with patient profile fields
+            if a.user:
+                item["userEmail"] = a.user.email
+                item["userPhone"] = a.user.phone
+                item["userGender"] = a.user.gender
+                item["userAge"] = a.user.age
+            else:
+                item["userEmail"] = None
+                item["userPhone"] = None
+                item["userGender"] = None
+                item["userAge"] = None
+
+            # Previous visits count (completed appointments before this one)
+            item["previousVisitsCount"] = AppointmentRepository.count_previous_visits(
+                db,
+                user_id=a.user_id,
+                doctor_id=a.doctor_id,
+                before_date=a.date,
+            )
+
+            serialized.append(item)
+
+        return {"appointments": serialized, "total": len(serialized)}
+

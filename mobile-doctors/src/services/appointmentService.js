@@ -1,13 +1,14 @@
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 
-/**
- * Appointment data for the doctor app. SKELETON: methods are wired to the
- * intended endpoints, but the doctor-scoped list endpoint may not exist on the
- * backend yet (see apiEndpoints.js TODO). Screens fall back to an empty state.
- */
 const appointmentService = {
-  /** List the logged-in doctor's appointments. */
+  /** List all appointments for the logged-in doctor (with optional filters). */
+  async getDoctorAppointments(params = {}) {
+    const res = await apiClient.get(ENDPOINTS.APPOINTMENTS_DOCTOR, { params });
+    return res?.data ?? { appointments: [], total: 0 };
+  },
+
+  /** List the logged-in doctor's appointments (legacy — kept for compat). */
   async list(params = {}) {
     const res = await apiClient.get(ENDPOINTS.APPOINTMENTS, { params });
     return res?.data ?? [];

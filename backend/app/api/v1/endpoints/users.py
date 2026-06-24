@@ -53,6 +53,20 @@ def update_preferences(
         "Preferences updated successfully", PreferenceService.update(db, user, body)
     )
 
+@router.get("/{user_id}", summary="Get user details")
+def get_user(
+    user_id: uuid.UUID,
+    db: Session = Depends(get_db),
+):
+    user = db.get(User, user_id)
+
+    if not user:
+        return error_response("User not found", 404)
+
+    return success_response(
+        "User fetched successfully",
+        user.to_dict(),
+    )
 
 @router.put("/{user_id}", summary="Update user (admin only)", dependencies=[Depends(require_role("admin"))])
 def update_user(user_id: uuid.UUID, data: dict, db: Session = Depends(get_db)):

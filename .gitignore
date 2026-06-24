@@ -68,3 +68,4 @@ backend/server.log*
 # Python virtual environments
 **/.venv/
 **/venv/
+backend/node_modules/*

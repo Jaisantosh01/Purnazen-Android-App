@@ -59,6 +59,7 @@ class Appointment(Base):
             "id": self.id,
             "reference": self.reference,
             "doctorId": str(self.doctor_id),
+            "userId": str(self.user_id),
             "userName": self.user.full_name if self.user else None,
             "doctorName": f"Dr. {self.doctor.user.full_name}",
             "doctorAbout": self.doctor.about if self.doctor else None,
