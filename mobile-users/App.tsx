@@ -25,6 +25,8 @@ import Toast from './src/components/Toast';
 // @ts-ignore
 import ErrorBoundary from './src/components/ErrorBoundary';
 // @ts-ignore
+import UpdatePrompt from './src/components/UpdatePrompt';
+// @ts-ignore
 import useToastStore from './src/utils/toast';
 
 import LoginScreen from './src/screens/LoginScreen';
@@ -278,6 +280,7 @@ export default function App() {
         )}
       </RootStack.Navigator>
       <Toast message={message} type={type} visible={visible} onHide={hide} />
+      <UpdatePrompt />
     </NavigationContainer>
     </ErrorBoundary>
   );

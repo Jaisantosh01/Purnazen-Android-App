@@ -15,6 +15,10 @@ on:
         description: "Marketing version, e.g. 1.0.0"
         required: true
         type: string
+      api_base_url:
+        description: "Override backend base URL (optional; defaults to the API_BASE_URL repo variable). Not stored in source."
+        required: false
+        type: string
       release_notes:
         description: "Optional release notes (markdown)"
         required: false
@@ -23,6 +27,11 @@ on:
         description: "Mark the GitHub Release as a pre-release"
         required: false
         default: true
+        type: boolean
+      force_update:
+        description: "Force users onto this version (non-dismissible in-app update prompt)"
+        required: false
+        default: false
         type: boolean
 
 permissions:
@@ -70,6 +79,24 @@ jobs:
       - name: Install JS dependencies
         working-directory: ${{ matrix.app }}
         run: npm ci
+
+      - name: Inject build-time config (.env — not committed, URL not in source)
+        # The backend URL is NOT hardcoded in source. It is injected here at build
+        # time via EXPO_PUBLIC_API_URL (Expo inlines it into the bundle) from the
+        # API_BASE_URL repo variable (or the optional workflow override). The .env
+        # is created only in the runner checkout and is git-ignored. APP_VERSION is
+        # injected likewise so the in-app update check matches the Release tag.
+        env:
+          API_BASE_URL: ${{ inputs.api_base_url != '' && inputs.api_base_url || vars.API_BASE_URL }}
+        run: |
+          if [ -z "$API_BASE_URL" ]; then
+            echo "::error::No backend URL — set the API_BASE_URL repo variable or pass api_base_url"; exit 1
+          fi
+          {
+            echo "EXPO_PUBLIC_API_URL=$API_BASE_URL"
+            echo "EXPO_PUBLIC_APP_VERSION=${{ inputs.version }}"
+          } > "${{ matrix.app }}/.env"
+          echo "Injected EXPO_PUBLIC_API_URL (len=${#API_BASE_URL}) + APP_VERSION=${{ inputs.version }}"
 
       - name: Decode upload keystore
         env:
@@ -125,5 +152,6 @@ jobs:
             (versionCode ${{ github.run_number }}, commit ${{ github.sha }}).
 
             ${{ inputs.release_notes }}
+            ${{ inputs.force_update && '<!-- purnazen:force-update -->' || '' }}
           prerelease: ${{ inputs.prerelease }}
           files: ${{ steps.artifacts.outputs.dir }}/*

@@ -13,7 +13,6 @@ class VideoService:
     def _process_video_data(data: dict):
         if data.get("videoUrl"):
             data["videoUrl"] = generate_video_sas_url(data["videoUrl"])
-        print(f"[VIDEO_URL] {data.get('title')}: {data.get('videoUrl')}")
         return data
 
     @staticmethod

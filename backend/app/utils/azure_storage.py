@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from urllib.parse import quote
 
 from azure.storage.blob import (
     BlobServiceClient,
@@ -53,9 +54,14 @@ def generate_sas_url(blob_name: str, expiry_minutes: int | None = None) -> str:
         permission=BlobSasPermissions(read=True),
         expiry=datetime.now(timezone.utc) + timedelta(minutes=minutes),
     )
+    # URL-encode the blob path so names with spaces/unicode (e.g.
+    # "Ankle_Pain/Ankle Pain.mp4") produce a valid, fetchable URL. The "/"
+    # path separators are preserved (safe="/"); the SAS signature is computed
+    # over the decoded blob name, so encoding only the URL path is correct.
+    encoded_blob = quote(blob_name, safe="/")
     return (
         f"https://{settings.AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net"
-        f"/{settings.AZURE_BLOB_CONTAINER_NAME}/{blob_name}?{sas_token}"
+        f"/{settings.AZURE_BLOB_CONTAINER_NAME}/{encoded_blob}?{sas_token}"
     )
 
 

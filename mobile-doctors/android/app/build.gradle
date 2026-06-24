@@ -56,7 +56,11 @@ react {
     //
     // Added by install-expo-modules
     entryFile = file(["node", "-e", "require('expo/scripts/resolveAppEntry')", rootDir.getAbsoluteFile().getParentFile().getAbsolutePath(), "android", "absolute"].execute(null, rootDir).text.trim())
-    cliFile = new File(["node", "--print", "require.resolve('@expo/cli')"].execute(null, rootDir).text.trim())
+    // @expo/cli is nested under node_modules/expo (npm doesn't hoist it because
+    // @expo/fingerprint also ships a `cli`), so require.resolve('@expo/cli') fails
+    // from the project root and cliFile silently became the android/app DIRECTORY,
+    // which broke the JS bundle task. Resolve the Expo CLI via expo's own bin.
+    cliFile = new File(["node", "--print", "require.resolve('expo/bin/cli')"].execute(null, rootDir).text.trim())
     bundleCommand = "export:embed"
 }
 
@@ -89,7 +93,7 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         // Overridable from CI: -PpurnazenVersionCode / -PpurnazenVersionName
-        versionCode (project.findProperty('purnazenVersionCode') ?: 1) as int
+        versionCode = (project.findProperty('purnazenVersionCode') ?: 1).toString().toInteger()
         versionName project.findProperty('purnazenVersionName') ?: "1.0"
     }
     signingConfigs {
