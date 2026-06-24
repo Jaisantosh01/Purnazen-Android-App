@@ -1,6 +1,8 @@
 import uuid
+from datetime import date as date_type
+from typing import Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import get_current_user, get_db, require_role
@@ -51,6 +53,28 @@ def update_appointment(
     if not appointment:
         return error_response("Appointment not found", 404)
     return success_response("Appointment updated successfully", appointment.to_dict())
+
+
+@router.get(
+    "/doctor",
+    summary="Doctor appointment dashboard",
+    description=(
+        "Returns all appointments for the currently authenticated doctor. "
+        "Supports optional `date` (YYYY-MM-DD) and `status` query filters."
+    ),
+)
+def get_doctor_appointments(
+    date: Optional[date_type] = Query(None, description="Filter by appointment date (YYYY-MM-DD)"),
+    status: Optional[str] = Query(None, description="Filter by status: pending | booked | cancelled | completed"),
+    user: User = Depends(require_role("doctor")),
+    db: Session = Depends(get_db),
+):
+    result = AppointmentService.get_doctor_appointments(
+        db, user, filter_date=date, filter_status=status
+    )
+    if result is None:
+        return error_response("Doctor profile not found for this user", 404)
+    return success_response("Doctor appointments fetched successfully", result)
 
 
 @router.get(

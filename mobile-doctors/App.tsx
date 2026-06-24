@@ -28,6 +28,11 @@ import AppointmentDetailScreen from './src/screens/AppointmentDetailScreen';
 import ScheduleScreen from './src/screens/ScheduleScreen';
 import PatientsScreen from './src/screens/PatientsScreen';
 import PatientDetailScreen from './src/screens/PatientDetailScreen';
+import PatientDetailsScreen from './src/screens/PatientDetailsScreen';
+import ConsultationNotesScreen from './src/screens/ConsultationNotesScreen';
+import DoctorNotesEditorScreen from './src/screens/DoctorNotesEditorScreen';
+import DiagnosisEditorScreen from './src/screens/DiagnosisEditorScreen';
+import PrescriptionEditorScreen from './src/screens/PrescriptionEditorScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 
 const RootStack = createNativeStackNavigator();
@@ -48,6 +53,11 @@ function AppointmentsStackNavigator() {
     <AppointmentsStack.Navigator screenOptions={{ headerShown: false }}>
       <AppointmentsStack.Screen name="AppointmentsMain" component={AppointmentsScreen} />
       <AppointmentsStack.Screen name="AppointmentDetail" component={AppointmentDetailScreen} />
+      <AppointmentsStack.Screen name="PatientDetails" component={PatientDetailsScreen} />
+      <AppointmentsStack.Screen name="ConsultationNotes" component={ConsultationNotesScreen} />
+      <AppointmentsStack.Screen name="DoctorNotesEditor" component={DoctorNotesEditorScreen} />
+      <AppointmentsStack.Screen name="DiagnosisEditor" component={DiagnosisEditorScreen} />
+      <AppointmentsStack.Screen name="PrescriptionEditor" component={PrescriptionEditorScreen} />
     </AppointmentsStack.Navigator>
   );
 }

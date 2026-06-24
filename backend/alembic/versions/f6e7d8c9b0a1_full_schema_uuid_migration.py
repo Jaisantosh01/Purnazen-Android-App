@@ -18,65 +18,75 @@ depends_on = None
 
 def upgrade():
     # ---------------------------------------------------------------
-    # 1. DROP ALL EXISTING FOREIGN KEY CONSTRAINTS
+    # 1. DROP ALL EXISTING FOREIGN KEY CONSTRAINTS (CONDITIONAL)
     # ---------------------------------------------------------------
-    op.drop_constraint('appointments_consultation_type_id_fkey', 'appointments', type_='foreignkey')
-    op.drop_constraint('appointments_doctor_id_fkey', 'appointments', type_='foreignkey')
-    op.drop_constraint('appointments_slot_timing_id_fkey', 'appointments', type_='foreignkey')
-    op.drop_constraint('appointments_user_id_fkey', 'appointments', type_='foreignkey')
-    op.drop_constraint('awards_doctor_id_fkey', 'awards', type_='foreignkey')
-    op.drop_constraint('chat_options_next_question_id_fkey', 'chat_options', type_='foreignkey')
-    op.drop_constraint('chat_options_question_id_fkey', 'chat_options', type_='foreignkey')
-    op.drop_constraint('chat_options_video_group_id_fkey', 'chat_options', type_='foreignkey')
-    op.drop_constraint('chat_questions_created_by_fkey', 'chat_questions', type_='foreignkey')
-    op.drop_constraint('chat_questions_updated_by_fkey', 'chat_questions', type_='foreignkey')
-    op.drop_constraint('clinics_doctor_id_fkey', 'clinics', type_='foreignkey')
-    op.drop_constraint('consultation_types_created_by_fkey', 'consultation_types', type_='foreignkey')
-    op.drop_constraint('consultation_types_updated_by_fkey', 'consultation_types', type_='foreignkey')
-    op.drop_constraint('doctor_availability_doctor_id_fkey', 'doctor_availability', type_='foreignkey')
-    op.drop_constraint('doctor_availability_slot_timing_id_fkey', 'doctor_availability', type_='foreignkey')
-    op.drop_constraint('doctor_consultation_types_consultation_type_id_fkey', 'doctor_consultation_types', type_='foreignkey')
-    op.drop_constraint('doctor_consultation_types_doctor_id_fkey', 'doctor_consultation_types', type_='foreignkey')
-    op.drop_constraint('doctor_expertise_doctor_id_fkey', 'doctor_expertise', type_='foreignkey')
-    op.drop_constraint('doctor_expertise_expertise_id_fkey', 'doctor_expertise', type_='foreignkey')
-    op.drop_constraint('doctor_expertise_mapping_created_by_fkey', 'doctor_expertise_mapping', type_='foreignkey')
-    op.drop_constraint('doctor_expertise_mapping_doctor_id_fkey', 'doctor_expertise_mapping', type_='foreignkey')
-    op.drop_constraint('doctor_expertise_mapping_expertise_id_fkey', 'doctor_expertise_mapping', type_='foreignkey')
-    op.drop_constraint('doctor_expertise_mapping_updated_by_fkey', 'doctor_expertise_mapping', type_='foreignkey')
-    op.drop_constraint('doctor_language_mapping_created_by_fkey', 'doctor_language_mapping', type_='foreignkey')
-    op.drop_constraint('doctor_language_mapping_doctor_id_fkey', 'doctor_language_mapping', type_='foreignkey')
-    op.drop_constraint('doctor_language_mapping_language_id_fkey', 'doctor_language_mapping', type_='foreignkey')
-    op.drop_constraint('doctor_language_mapping_updated_by_fkey', 'doctor_language_mapping', type_='foreignkey')
-    op.drop_constraint('doctor_languages_doctor_id_fkey', 'doctor_languages', type_='foreignkey')
-    op.drop_constraint('doctor_languages_language_id_fkey', 'doctor_languages', type_='foreignkey')
-    op.drop_constraint('doctor_speciality_mapping_created_by_fkey', 'doctor_speciality_mapping', type_='foreignkey')
-    op.drop_constraint('doctor_speciality_mapping_doctor_id_fkey', 'doctor_speciality_mapping', type_='foreignkey')
-    op.drop_constraint('doctor_speciality_mapping_speciality_id_fkey', 'doctor_speciality_mapping', type_='foreignkey')
-    op.drop_constraint('doctor_speciality_mapping_updated_by_fkey', 'doctor_speciality_mapping', type_='foreignkey')
-    op.drop_constraint('doctors_specialty_id_fkey', 'doctors', type_='foreignkey')
-    op.drop_constraint('doctors_user_id_fkey', 'doctors', type_='foreignkey')
-    op.drop_constraint('payments_appointment_id_fkey', 'payments', type_='foreignkey')
-    op.drop_constraint('payments_user_id_fkey', 'payments', type_='foreignkey')
-    op.drop_constraint('quick_reliefs_chat_question_id_fkey', 'quick_reliefs', type_='foreignkey')
-    op.drop_constraint('roles_created_by_fkey', 'roles', type_='foreignkey')
-    op.drop_constraint('roles_updated_by_fkey', 'roles', type_='foreignkey')
-    op.drop_constraint('slot_timings_created_by_fkey', 'slot_timings', type_='foreignkey')
-    op.drop_constraint('slot_timings_day_of_week_id_fkey', 'slot_timings', type_='foreignkey')
-    op.drop_constraint('slot_timings_updated_by_fkey', 'slot_timings', type_='foreignkey')
-    op.drop_constraint('therapy_sessions_created_by_fkey', 'therapy_sessions', type_='foreignkey')
-    op.drop_constraint('therapy_sessions_group_id_fkey', 'therapy_sessions', type_='foreignkey')
-    op.drop_constraint('therapy_sessions_updated_by_fkey', 'therapy_sessions', type_='foreignkey')
-    op.drop_constraint('therapy_sessions_user_id_fkey', 'therapy_sessions', type_='foreignkey')
-    op.drop_constraint('therapy_sessions_video_id_fkey', 'therapy_sessions', type_='foreignkey')
-    op.drop_constraint('user_preferences_user_id_fkey', 'user_preferences', type_='foreignkey')
-    op.drop_constraint('users_role_id_fkey', 'users', type_='foreignkey')
-    op.drop_constraint('video_group_mappings_created_by_fkey', 'video_group_mappings', type_='foreignkey')
-    op.drop_constraint('video_group_mappings_updated_by_fkey', 'video_group_mappings', type_='foreignkey')
-    op.drop_constraint('video_group_mappings_video_group_id_fkey', 'video_group_mappings', type_='foreignkey')
-    op.drop_constraint('video_group_mappings_video_id_fkey', 'video_group_mappings', type_='foreignkey')
-    op.drop_constraint('wellness_sessions_created_by_fkey', 'wellness_sessions', type_='foreignkey')
-    op.drop_constraint('wellness_sessions_updated_by_fkey', 'wellness_sessions', type_='foreignkey')
-    op.drop_constraint('wellness_sessions_video_group_id_fkey', 'wellness_sessions', type_='foreignkey')
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+
+    constraints_to_drop = [
+        ('appointments_consultation_type_id_fkey', 'appointments'),
+        ('appointments_doctor_id_fkey', 'appointments'),
+        ('appointments_slot_timing_id_fkey', 'appointments'),
+        ('appointments_user_id_fkey', 'appointments'),
+        ('awards_doctor_id_fkey', 'awards'),
+        ('chat_options_next_question_id_fkey', 'chat_options'),
+        ('chat_options_question_id_fkey', 'chat_options'),
+        ('chat_options_video_group_id_fkey', 'chat_options'),
+        ('chat_questions_created_by_fkey', 'chat_questions'),
+        ('chat_questions_updated_by_fkey', 'chat_questions'),
+        ('clinics_doctor_id_fkey', 'clinics'),
+        ('consultation_types_created_by_fkey', 'consultation_types'),
+        ('consultation_types_updated_by_fkey', 'consultation_types'),
+        ('doctor_availability_doctor_id_fkey', 'doctor_availability'),
+        ('doctor_availability_slot_timing_id_fkey', 'doctor_availability'),
+        ('doctor_consultation_types_consultation_type_id_fkey', 'doctor_consultation_types'),
+        ('doctor_consultation_types_doctor_id_fkey', 'doctor_consultation_types'),
+        ('doctor_expertise_doctor_id_fkey', 'doctor_expertise'),
+        ('doctor_expertise_expertise_id_fkey', 'doctor_expertise'),
+        ('doctor_expertise_mapping_created_by_fkey', 'doctor_expertise_mapping'),
+        ('doctor_expertise_mapping_doctor_id_fkey', 'doctor_expertise_mapping'),
+        ('doctor_expertise_mapping_expertise_id_fkey', 'doctor_expertise_mapping'),
+        ('doctor_expertise_mapping_updated_by_fkey', 'doctor_expertise_mapping'),
+        ('doctor_language_mapping_created_by_fkey', 'doctor_language_mapping'),
+        ('doctor_language_mapping_doctor_id_fkey', 'doctor_language_mapping'),
+        ('doctor_language_mapping_language_id_fkey', 'doctor_language_mapping'),
+        ('doctor_language_mapping_updated_by_fkey', 'doctor_language_mapping'),
+        ('doctor_languages_doctor_id_fkey', 'doctor_languages'),
+        ('doctor_languages_language_id_fkey', 'doctor_languages'),
+        ('doctor_speciality_mapping_created_by_fkey', 'doctor_speciality_mapping'),
+        ('doctor_speciality_mapping_doctor_id_fkey', 'doctor_speciality_mapping'),
+        ('doctor_speciality_mapping_speciality_id_fkey', 'doctor_speciality_mapping'),
+        ('doctor_speciality_mapping_updated_by_fkey', 'doctor_speciality_mapping'),
+        ('doctors_specialty_id_fkey', 'doctors'),
+        ('doctors_user_id_fkey', 'doctors'),
+        ('payments_appointment_id_fkey', 'payments'),
+        ('payments_user_id_fkey', 'payments'),
+        ('quick_reliefs_chat_question_id_fkey', 'quick_reliefs'),
+        ('roles_created_by_fkey', 'roles'),
+        ('roles_updated_by_fkey', 'roles'),
+        ('slot_timings_created_by_fkey', 'slot_timings'),
+        ('slot_timings_day_of_week_id_fkey', 'slot_timings'),
+        ('slot_timings_updated_by_fkey', 'slot_timings'),
+        ('therapy_sessions_created_by_fkey', 'therapy_sessions'),
+        ('therapy_sessions_group_id_fkey', 'therapy_sessions'),
+        ('therapy_sessions_updated_by_fkey', 'therapy_sessions'),
+        ('therapy_sessions_user_id_fkey', 'therapy_sessions'),
+        ('therapy_sessions_video_id_fkey', 'therapy_sessions'),
+        ('user_preferences_user_id_fkey', 'user_preferences'),
+        ('users_role_id_fkey', 'users'),
+        ('video_group_mappings_created_by_fkey', 'video_group_mappings'),
+        ('video_group_mappings_updated_by_fkey', 'video_group_mappings'),
+        ('video_group_mappings_video_group_id_fkey', 'video_group_mappings'),
+        ('video_group_mappings_video_id_fkey', 'video_group_mappings'),
+        ('wellness_sessions_created_by_fkey', 'wellness_sessions'),
+        ('wellness_sessions_updated_by_fkey', 'wellness_sessions'),
+        ('wellness_sessions_video_group_id_fkey', 'wellness_sessions'),
+    ]
+
+    for const, table in constraints_to_drop:
+        existing_fks = {fk['name'] for fk in inspector.get_foreign_keys(table)}
+        if const in existing_fks or any(fk['name'] == const for fk in inspector.get_foreign_keys(table)):
+            op.drop_constraint(const, table, type_='foreignkey')
 
     op.drop_index('ix_appointments_doctor_date', table_name='appointments')
     op.drop_index('ix_therapy_sessions_user_group_video', table_name='therapy_sessions')

@@ -30,6 +30,7 @@ export const ENDPOINTS = {
   // NOTE: backend currently exposes booking from the patient side; a
   // doctor-scoped list endpoint is a likely follow-up (TODO).
   APPOINTMENTS: `${API_VERSION}/appointments`,
+  APPOINTMENTS_DOCTOR: `${API_VERSION}/appointments/doctor`,
   APPOINTMENT_DETAIL: id => `${API_VERSION}/appointments/${id}`,
 
   // Patients — a doctor's patients view (TODO: backend endpoint).
@@ -37,4 +38,7 @@ export const ENDPOINTS = {
   PATIENT_DETAIL: id => `${API_VERSION}/patients/${id}`,
   // A patient's face-scan history (backend: face_glow history is user-scoped).
   PATIENT_SCANS: id => `${API_VERSION}/patients/${id}/face-glow/history`,
+
+  // User details
+  USER_DETAIL: id => `${API_VERSION}/users/${id}`,
 };

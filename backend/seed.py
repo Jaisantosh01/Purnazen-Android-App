@@ -92,6 +92,58 @@ try:
                 )
             )
 
+    # ------------------------
+    # Patient users (with profile fields)
+    # ------------------------
+    from datetime import date as _date
+
+    patient_seed_data = [
+        {
+            "full_name": "Sneha R",
+            "email": "sneha@test.com",
+            "phone": "9876543210",
+            "gender": "Female",
+            "date_of_birth": _date(2002, 3, 15),
+        },
+        {
+            "full_name": "Arjun Patel",
+            "email": "arjun@test.com",
+            "phone": "9876543211",
+            "gender": "Male",
+            "date_of_birth": _date(1995, 7, 22),
+        },
+        {
+            "full_name": "Meera Krishnan",
+            "email": "meera@test.com",
+            "phone": "9876543212",
+            "gender": "Female",
+            "date_of_birth": _date(1998, 11, 5),
+        },
+    ]
+
+    for pd in patient_seed_data:
+        existing = db.query(User).filter_by(email=pd["email"]).first()
+        if not existing:
+            db.add(
+                User(
+                    full_name=pd["full_name"],
+                    email=pd["email"],
+                    password=hash_password("123456"),
+                    role_id=patient_role.id,
+                    phone=pd["phone"],
+                    gender=pd["gender"],
+                    date_of_birth=pd["date_of_birth"],
+                )
+            )
+        else:
+            # Backfill profile fields if missing
+            if not existing.phone:
+                existing.phone = pd["phone"]
+            if not existing.gender:
+                existing.gender = pd["gender"]
+            if not existing.date_of_birth:
+                existing.date_of_birth = pd["date_of_birth"]
+
     db.commit()
     admin = db.query(User).filter_by(email="admin@example.com").first()
 
