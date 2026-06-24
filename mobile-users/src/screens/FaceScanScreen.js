@@ -22,8 +22,12 @@ import FaceOverlayGuide from '../components/scan/FaceOverlayGuide';
 
 const QUALITY_CHECK_INTERVAL_MS = 2200;
 
+// Trailing slash matches the FastAPI route ("/consent/"). Without it the
+// no-slash request hits a 307 redirect that downgrades https→http behind the
+// Container Apps proxy, which fails on-device (network error) and never saves
+// the consent — so the prompt would reappear on every scan.
 const grantScanConsent = () =>
-  apiClient.post(ENDPOINTS.CONSENT, { consent_type: 'scan_storage', granted: true });
+  apiClient.post(`${ENDPOINTS.CONSENT}/`, { consent_type: 'scan_storage', granted: true });
 
 const isConsentError = (msg = '') => msg.toLowerCase().includes('consent');
 
