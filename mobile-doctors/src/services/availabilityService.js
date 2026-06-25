@@ -12,7 +12,7 @@ const availabilityService = {
   },
 
   async create(slot) {
-    // slot: { doctor_id, day_of_week, start_time, end_time, slot_duration_minutes }
+    // slot: { doctor_id, slot_timing_id }
     const res = await apiClient.post(ENDPOINTS.AVAILABILITY, slot);
     return res?.data ?? null;
   },
@@ -25,6 +25,16 @@ const availabilityService = {
   async remove(id) {
     const res = await apiClient.delete(ENDPOINTS.AVAILABILITY_ITEM(id));
     return res?.success ?? false;
+  },
+
+  async getSlots() {
+    const res = await apiClient.get(ENDPOINTS.SLOT_TIMINGS);
+    return res?.data ?? [];
+  },
+
+  async getDoctors() {
+    const res = await apiClient.get(ENDPOINTS.DOCTORS, { params: { limit: 100 } });
+    return res?.data?.doctors ?? [];
   },
 };
 
