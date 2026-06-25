@@ -309,7 +309,7 @@ def test_get_visit_types(client, db_session):
     assert len(visit_types) == 1
     assert visit_types[0]["id"] == "video"
     assert visit_types[0]["title"] == "Video Consultation"
-    assert visit_types[0]["icon"] == "📹"
+    assert visit_types[0]["icon"] == "video-outline"
     assert visit_types[0]["fee"] == 1200.0
 
 

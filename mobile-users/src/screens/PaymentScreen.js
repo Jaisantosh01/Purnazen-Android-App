@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
   TouchableOpacity, StatusBar, TextInput, Alert, ActivityIndicator,
@@ -6,7 +6,7 @@ import {
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import consultService from '../services/consultService';
-import { COLORS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 
 const PAYMENT_METHODS = [
@@ -22,6 +22,8 @@ const WALLETS = [
 ];
 
 const PaymentScreen = ({ navigation, route }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { doctor, fee, appointmentId } = route.params;
   const gst = Math.round(fee * 0.18);
   const total = fee + gst;
@@ -110,7 +112,7 @@ const PaymentScreen = ({ navigation, route }) => {
                 <View style={[styles.radio, selectedMethod === method.id && styles.radioActive]}>
                   {selectedMethod === method.id && <View style={styles.radioDot} />}
                 </View>
-                <MCIcon name={method.icon} size={20} color={selectedMethod === method.id ? COLORS.primary : COLORS.textSecondary} style={styles.methodIcon} />
+                <MCIcon name={method.icon} size={20} color={selectedMethod === method.id ? colors.primary : colors.textSecondary} style={styles.methodIcon} />
                 <Text style={[styles.methodLabel, selectedMethod === method.id && styles.methodLabelActive]}>
                   {method.label}
                 </Text>
@@ -126,7 +128,7 @@ const PaymentScreen = ({ navigation, route }) => {
               <TextInput
                 style={styles.input}
                 placeholder="1234 5678 9012 3456"
-                placeholderTextColor={COLORS.borderStrong}
+                placeholderTextColor={colors.borderStrong}
                 keyboardType="numeric"
                 maxLength={19}
                 value={cardNumber}
@@ -138,7 +140,7 @@ const PaymentScreen = ({ navigation, route }) => {
                   <TextInput
                     style={styles.input}
                     placeholder="MM/YY"
-                    placeholderTextColor={COLORS.borderStrong}
+                    placeholderTextColor={colors.borderStrong}
                     maxLength={5}
                     value={expiry}
                     onChangeText={setExpiry}
@@ -149,7 +151,7 @@ const PaymentScreen = ({ navigation, route }) => {
                   <TextInput
                     style={styles.input}
                     placeholder="123"
-                    placeholderTextColor={COLORS.borderStrong}
+                    placeholderTextColor={colors.borderStrong}
                     keyboardType="numeric"
                     maxLength={3}
                     secureTextEntry
@@ -162,7 +164,7 @@ const PaymentScreen = ({ navigation, route }) => {
               <TextInput
                 style={styles.input}
                 placeholder="John Doe"
-                placeholderTextColor={COLORS.borderStrong}
+                placeholderTextColor={colors.borderStrong}
                 value={cardName}
                 onChangeText={setCardName}
               />
@@ -177,7 +179,7 @@ const PaymentScreen = ({ navigation, route }) => {
               <TextInput
                 style={styles.input}
                 placeholder="yourname@upi"
-                placeholderTextColor={COLORS.borderStrong}
+                placeholderTextColor={colors.borderStrong}
                 value={upiId}
                 onChangeText={setUpiId}
               />
@@ -195,7 +197,7 @@ const PaymentScreen = ({ navigation, route }) => {
                   onPress={() => setSelectedWallet(w.id)}
                   activeOpacity={0.8}
                 >
-                  <MCIcon name={w.icon} size={20} color={selectedWallet === w.id ? COLORS.primary : COLORS.textSecondary} style={styles.walletIcon} />
+                  <MCIcon name={w.icon} size={20} color={selectedWallet === w.id ? colors.primary : colors.textSecondary} style={styles.walletIcon} />
                   <Text style={[styles.walletLabel, selectedWallet === w.id && styles.walletLabelActive]}>
                     {w.label}
                   </Text>
@@ -207,7 +209,7 @@ const PaymentScreen = ({ navigation, route }) => {
 
         <View style={styles.section}>
           <View style={styles.secureBadge}>
-            <MCIcon name="shield-check" size={20} color={COLORS.primary} style={styles.secureIcon} />
+            <MCIcon name="shield-check" size={20} color={colors.primary} style={styles.secureIcon} />
             <View>
               <Text style={styles.secureTitle}>Secure Payment</Text>
               <Text style={styles.secureSubtitle}>Your payment information is encrypted and secure</Text>
@@ -220,7 +222,7 @@ const PaymentScreen = ({ navigation, route }) => {
       <View style={styles.bottomBar}>
         <TouchableOpacity style={styles.payBtn} onPress={handlePay} activeOpacity={0.85} disabled={isProcessing}>
           {isProcessing
-            ? <ActivityIndicator color={COLORS.white} />
+            ? <ActivityIndicator color={colors.white} />
             : <Text style={styles.payBtnText}>Pay ₹{total}</Text>
           }
         </TouchableOpacity>
@@ -232,77 +234,77 @@ const PaymentScreen = ({ navigation, route }) => {
 
 export default PaymentScreen;
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingTop: 50, paddingHorizontal: 16, paddingBottom: 14,
-    backgroundColor: COLORS.white, borderBottomWidth: 1, borderBottomColor: COLORS.surfaceMuted,
+    backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.surfaceMuted,
   },
   backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  backIcon: { fontSize: 22, color: COLORS.textPrimary },
+  backIcon: { fontSize: 22, color: colors.textPrimary },
   headerCenter: { alignItems: 'center' },
-  headerTitle: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
-  headerSubtitle: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  headerTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
+  headerSubtitle: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
   section: { paddingHorizontal: 16, marginTop: 20 },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 12 },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: colors.textPrimary, marginBottom: 12 },
   summaryCard: {
-    backgroundColor: COLORS.white, borderRadius: 14, padding: 16, elevation: 1,
-    shadowColor: COLORS.black, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3,
+    backgroundColor: colors.card, borderRadius: 14, padding: 16, elevation: 1,
+    shadowColor: colors.black, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3,
   },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-  summaryLabel: { fontSize: 13, color: COLORS.textSecondary },
-  summaryValue: { fontSize: 13, color: COLORS.textPrimary, fontWeight: '500' },
-  divider: { height: 1, backgroundColor: COLORS.surfaceMuted, marginBottom: 10 },
-  totalLabel: { fontSize: 14, fontWeight: '700', color: COLORS.textPrimary },
-  totalValue: { fontSize: 16, fontWeight: '700', color: COLORS.primary },
+  summaryLabel: { fontSize: 13, color: colors.textSecondary },
+  summaryValue: { fontSize: 13, color: colors.textPrimary, fontWeight: '500' },
+  divider: { height: 1, backgroundColor: colors.surfaceMuted, marginBottom: 10 },
+  totalLabel: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
+  totalValue: { fontSize: 16, fontWeight: '700', color: colors.primary },
   methodRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: COLORS.white, borderRadius: 12, padding: 14, marginBottom: 10,
-    borderWidth: 1.5, borderColor: COLORS.border,
+    backgroundColor: colors.card, borderRadius: 12, padding: 14, marginBottom: 10,
+    borderWidth: 1.5, borderColor: colors.border,
   },
-  methodRowActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryFaint },
+  methodRowActive: { borderColor: colors.primary, backgroundColor: colors.primaryFaint },
   methodLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   radio: {
     width: 20, height: 20, borderRadius: 10, borderWidth: 2,
-    borderColor: COLORS.borderStrong, alignItems: 'center', justifyContent: 'center',
+    borderColor: colors.borderStrong, alignItems: 'center', justifyContent: 'center',
   },
-  radioActive: { borderColor: COLORS.primary },
-  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.primary },
+  radioActive: { borderColor: colors.primary },
+  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary },
   methodIcon: { fontSize: 18 },
-  methodLabel: { fontSize: 14, fontWeight: '500', color: COLORS.textPrimary },
-  methodLabelActive: { color: COLORS.primary, fontWeight: '600' },
+  methodLabel: { fontSize: 14, fontWeight: '500', color: colors.textPrimary },
+  methodLabelActive: { color: colors.primary, fontWeight: '600' },
   fieldsCard: {
-    backgroundColor: COLORS.white, borderRadius: 14, padding: 16, elevation: 1,
-    shadowColor: COLORS.black, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3,
+    backgroundColor: colors.card, borderRadius: 14, padding: 16, elevation: 1,
+    shadowColor: colors.black, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3,
   },
-  fieldLabel: { fontSize: 12, fontWeight: '600', color: COLORS.textSecondary, marginBottom: 6, marginTop: 10 },
+  fieldLabel: { fontSize: 12, fontWeight: '600', color: colors.textSecondary, marginBottom: 6, marginTop: 10 },
   input: {
-    borderWidth: 1, borderColor: COLORS.border, borderRadius: 10,
+    borderWidth: 1, borderColor: colors.border, borderRadius: 10,
     paddingHorizontal: 14, paddingVertical: 12, fontSize: 14,
-    color: COLORS.textPrimary, backgroundColor: '#fafafa',
+    color: colors.textPrimary, backgroundColor: '#fafafa',
   },
   row: { flexDirection: 'row' },
   walletRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    padding: 12, borderRadius: 10, borderWidth: 1, borderColor: COLORS.border, marginBottom: 10,
+    padding: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, marginBottom: 10,
   },
-  walletRowActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryFaint },
+  walletRowActive: { borderColor: colors.primary, backgroundColor: colors.primaryFaint },
   walletIcon:  { fontSize: 20 },
-  walletLabel: { fontSize: 14, fontWeight: '500', color: COLORS.textPrimary },
-  walletLabelActive: { color: COLORS.primary, fontWeight: '600' },
+  walletLabel: { fontSize: 14, fontWeight: '500', color: colors.textPrimary },
+  walletLabelActive: { color: colors.primary, fontWeight: '600' },
   secureBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: COLORS.primaryFaint, borderRadius: 12, padding: 14,
+    backgroundColor: colors.primaryFaint, borderRadius: 12, padding: 14,
   },
   secureIcon:     { fontSize: 20 },
-  secureTitle:    { fontSize: 13, fontWeight: '700', color: COLORS.primary },
-  secureSubtitle: { fontSize: 11, color: COLORS.textSecondary, marginTop: 2 },
+  secureTitle:    { fontSize: 13, fontWeight: '700', color: colors.primary },
+  secureSubtitle: { fontSize: 11, color: colors.textSecondary, marginTop: 2 },
   bottomBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: COLORS.white, padding: 16,
-    borderTopWidth: 1, borderTopColor: COLORS.surfaceMuted, elevation: 10,
+    backgroundColor: colors.card, padding: 16,
+    borderTopWidth: 1, borderTopColor: colors.surfaceMuted, elevation: 10,
   },
-  payBtn: { backgroundColor: COLORS.primary, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
-  payBtnText: { fontSize: 16, fontWeight: '700', color: COLORS.white },
+  payBtn: { backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
+  payBtnText: { fontSize: 16, fontWeight: '700', color: colors.white },
 });

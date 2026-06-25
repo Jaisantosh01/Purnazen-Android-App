@@ -11,26 +11,28 @@ import {
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import consultService from '../services/consultService';
-import { COLORS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
+import { useMemo } from 'react';
+import { doctorInitial } from '../utils/doctorAvatar';
 import ScreenHeader from '../components/ScreenHeader';
 
 // ── Basic doctor card shown immediately using data from route.params ──────────
-const DoctorBasicCard = ({ doctor }) => (
+const DoctorBasicCard = ({ doctor, styles, colors }) => (
   <View style={styles.doctorCard}>
     <View style={styles.avatarCircle}>
-      <Text style={styles.avatarIcon}>{doctor.avatar}</Text>
+      <Text style={styles.avatarIcon}>{doctorInitial(doctor.name)}</Text>
     </View>
     <Text style={styles.doctorName}>{doctor.name}</Text>
     <Text style={styles.doctorSpecialty}>{doctor.specialty}</Text>
 
     <View style={styles.ratingRow}>
-      <MCIcon name="star" size={15} color={COLORS.warning} style={styles.star} />
+      <MCIcon name="star" size={15} color={colors.warning} style={styles.star} />
       <Text style={styles.rating}>{doctor.rating}</Text>
       <Text style={styles.reviews}>({doctor.reviews} reviews)</Text>
     </View>
 
     <View style={styles.locationRow}>
-      <MCIcon name="map-marker" size={14} color={COLORS.textMuted} style={styles.locationIcon} />
+      <MCIcon name="map-marker" size={14} color={colors.textMuted} style={styles.locationIcon} />
       <Text style={styles.location}>{doctor.location}</Text>
     </View>
 
@@ -40,7 +42,7 @@ const DoctorBasicCard = ({ doctor }) => (
           <MCIcon
             name={tag === 'Video' ? 'video-outline' : 'home-outline'}
             size={14}
-            color={COLORS.primary}
+            color={colors.primary}
             style={styles.tagIcon}
           />
           <Text style={styles.tagText}>
@@ -54,6 +56,8 @@ const DoctorBasicCard = ({ doctor }) => (
 
 const DoctorProfileScreen = ({ navigation, route }) => {
   const { doctor } = route.params; // basic info always available immediately
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const [detailData, setDetailData] = useState(null);
   const [isLoading, setIsLoading]   = useState(false);
@@ -83,7 +87,7 @@ const DoctorProfileScreen = ({ navigation, route }) => {
       <View style={styles.root}>
         <ScreenHeader title="Doctor Profile" variant="light" />
         <View style={styles.centered}>
-          <MCIcon name="alert-circle-outline" size={60} color={COLORS.danger} />
+          <MCIcon name="alert-circle-outline" size={60} color={colors.danger} />
           <Text style={styles.errorTitle}>Failed to load doctor details</Text>
           <Text style={styles.errorSubtitle}>{error}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={fetchDoctorDetail} activeOpacity={0.85}>
@@ -103,12 +107,12 @@ const DoctorProfileScreen = ({ navigation, route }) => {
         contentContainerStyle={{ paddingBottom: 100 }}
       >
         {/* ── Basic doctor info — shown immediately from route.params ── */}
-        <DoctorBasicCard doctor={doctor} />
+        <DoctorBasicCard doctor={doctor} styles={styles} colors={colors} />
 
         {/* ── Detail sections — shown after API responds ── */}
         {isLoading ? (
           <View style={styles.detailLoader}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
+            <ActivityIndicator size="large" color={colors.primary} />
             <Text style={styles.loadingText}>Loading details...</Text>
           </View>
         ) : detailData ? (
@@ -126,7 +130,7 @@ const DoctorProfileScreen = ({ navigation, route }) => {
               <Text style={styles.sectionTitle}>Education</Text>
               <View style={styles.sectionCard}>
                 <View style={styles.educationRow}>
-                  <MCIcon name="school" size={20} color={COLORS.primary} style={styles.educationIcon} />
+                  <MCIcon name="school" size={20} color={colors.primary} style={styles.educationIcon} />
                   <View style={styles.educationInfo}>
                     <Text style={styles.educationDegree}>{detailData.education}</Text>
                     <Text style={styles.educationExp}>
@@ -175,7 +179,7 @@ const DoctorProfileScreen = ({ navigation, route }) => {
                         index < detailData.awards.length - 1 && styles.awardBorder,
                       ]}
                     >
-                      <MCIcon name="trophy-outline" size={18} color={COLORS.warning} style={styles.awardIcon} />
+                      <MCIcon name="trophy-outline" size={18} color={colors.warning} style={styles.awardIcon} />
                       <View style={{flex: 1}}>
                         <Text style={styles.awardText}>{award.title}</Text>
                         <Text style={styles.awardIssuer}>{award.issuer} • {award.year}</Text>
@@ -209,15 +213,15 @@ const DoctorProfileScreen = ({ navigation, route }) => {
 
 export default DoctorProfileScreen;
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
 
   // Header
   header: {
     paddingTop: 50,
     paddingHorizontal: 16,
     paddingBottom: 8,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
   },
   backBtn: {
     width: 36,
@@ -225,36 +229,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backIcon: { fontSize: 22, color: COLORS.textPrimary },
+  backIcon: { fontSize: 22, color: colors.textPrimary },
 
   // Doctor Card
   doctorCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.surfaceMuted,
+    borderBottomColor: colors.surfaceMuted,
   },
   avatarCircle: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: COLORS.primaryFaint,
+    backgroundColor: colors.primaryFaint,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
   },
-  avatarIcon: { fontSize: 40 },
+  avatarIcon: { fontSize: 34, fontWeight: '800', color: colors.primary },
   doctorName: {
     fontSize: 20,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   doctorSpecialty: {
     fontSize: 14,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginBottom: 10,
   },
   ratingRow: {
@@ -264,8 +268,8 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   star: { fontSize: 14 },
-  rating: { fontSize: 14, fontWeight: '600', color: COLORS.textPrimary },
-  reviews: { fontSize: 13, color: COLORS.textMuted },
+  rating: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
+  reviews: { fontSize: 13, color: colors.textMuted },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -273,19 +277,19 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   locationIcon: { fontSize: 13 },
-  location: { fontSize: 13, color: COLORS.textSecondary },
+  location: { fontSize: 13, color: colors.textSecondary },
   tagsRow: { flexDirection: 'row', gap: 8 },
   tag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: colors.primaryLight,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
     gap: 4,
   },
   tagIcon: { fontSize: 13 },
-  tagText: { fontSize: 12, color: COLORS.primary, fontWeight: '500' },
+  tagText: { fontSize: 12, color: colors.primary, fontWeight: '500' },
 
   // Detail loader (below the doctor card)
   detailLoader: {
@@ -293,7 +297,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  loadingText: { fontSize: 14, color: COLORS.textMuted },
+  loadingText: { fontSize: 14, color: colors.textMuted },
 
   // Full screen error
   centered: {
@@ -305,43 +309,43 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginTop: 16,
     marginBottom: 8,
   },
   errorSubtitle: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     textAlign: 'center',
     marginBottom: 24,
   },
   retryBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingHorizontal: 32,
     paddingVertical: 14,
     borderRadius: 14,
   },
-  retryText: { fontSize: 15, fontWeight: '700', color: COLORS.white },
+  retryText: { fontSize: 15, fontWeight: '700', color: colors.white },
 
   // Sections
   section: { paddingHorizontal: 16, marginTop: 20 },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 10,
   },
   sectionCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: 14,
     padding: 14,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 3,
     elevation: 1,
   },
-  aboutText: { fontSize: 13, color: COLORS.textSecondary, lineHeight: 20 },
+  aboutText: { fontSize: 13, color: colors.textSecondary, lineHeight: 20 },
 
   // Education
   educationRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
@@ -350,22 +354,22 @@ const styles = StyleSheet.create({
   educationDegree: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 4,
   },
-  educationExp: { fontSize: 12, color: COLORS.textMuted },
+  educationExp: { fontSize: 12, color: colors.textMuted },
 
   // Chips
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
-  chipText: { fontSize: 12, color: COLORS.textSecondary, fontWeight: '500' },
+  chipText: { fontSize: 12, color: colors.textSecondary, fontWeight: '500' },
 
   // Awards
   awardRow: {
@@ -374,10 +378,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     gap: 10,
   },
-  awardBorder: { borderBottomWidth: 1, borderBottomColor: COLORS.surfaceMuted },
+  awardBorder: { borderBottomWidth: 1, borderBottomColor: colors.surfaceMuted },
   awardIcon: { fontSize: 18 },
-  awardText: { fontSize: 14, fontWeight: '500', color: COLORS.textPrimary },
-  awardIssuer: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  awardText: { fontSize: 14, fontWeight: '500', color: colors.textPrimary },
+  awardIssuer: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
 
   // Bottom Bar
   bottomBar: {
@@ -385,30 +389,30 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderTopWidth: 1,
-    borderTopColor: COLORS.surfaceMuted,
+    borderTopColor: colors.surfaceMuted,
     elevation: 10,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.06,
     shadowRadius: 6,
   },
   feeSection: {},
-  feeLabel: { fontSize: 12, color: COLORS.textMuted, marginBottom: 2 },
-  feeAmount: { fontSize: 20, fontWeight: '700', color: COLORS.primary },
+  feeLabel: { fontSize: 12, color: colors.textMuted, marginBottom: 2 },
+  feeAmount: { fontSize: 20, fontWeight: '700', color: colors.primary },
   bookBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 28,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bookBtnText: { fontSize: 15, fontWeight: '700', color: COLORS.white },
+  bookBtnText: { fontSize: 15, fontWeight: '700', color: colors.white },
 });

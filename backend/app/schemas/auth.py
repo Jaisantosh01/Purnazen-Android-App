@@ -1,3 +1,5 @@
+from datetime import date
+
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
@@ -19,6 +21,11 @@ class UpdateProfileRequest(BaseModel):
         default=None, alias="fullName", min_length=1, max_length=100
     )
     avatar_url: str | None = Field(default=None, alias="avatarUrl", max_length=500)
+    phone: str | None = Field(
+        default=None, max_length=15, pattern=r"^[+0-9 ()-]{6,15}$"
+    )
+    gender: str | None = Field(default=None, max_length=10)
+    date_of_birth: date | None = Field(default=None, alias="dateOfBirth")
 
 
 class ChangePasswordRequest(BaseModel):

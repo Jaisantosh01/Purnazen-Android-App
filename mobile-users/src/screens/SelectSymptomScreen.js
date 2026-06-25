@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { COLORS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 
 // Curated list — maps each symptom to a relief session slug so tapping
 // navigates directly to the right guided session.
@@ -26,6 +26,8 @@ const SYMPTOMS = [
 ];
 
 const SelectSymptomScreen = ({ navigation }) => {
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [searchQuery, setSearchQuery] = useState('');
 
   const filtered = SYMPTOMS.filter(s =>
@@ -42,13 +44,13 @@ const SelectSymptomScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
 
       {/* ── Header ── */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-            <MCIcon name="arrow-left" size={22} color={COLORS.textPrimary} />
+            <MCIcon name="arrow-left" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
           <View style={styles.headerText}>
             <Text style={styles.headerTitle}>Select Symptom</Text>
@@ -58,17 +60,17 @@ const SelectSymptomScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.searchContainer}>
-          <MCIcon name="magnify" size={18} color={COLORS.textMuted} style={{ marginRight: 8 }} />
+          <MCIcon name="magnify" size={18} color={colors.textMuted} style={{ marginRight: 8 }} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search symptoms..."
-            placeholderTextColor={COLORS.textMuted}
+            placeholderTextColor={colors.textMuted}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearBtn}>
-              <MCIcon name="close-circle" size={18} color={COLORS.textMuted} />
+              <MCIcon name="close-circle" size={18} color={colors.textMuted} />
             </TouchableOpacity>
           )}
         </View>
@@ -93,19 +95,19 @@ const SelectSymptomScreen = ({ navigation }) => {
                 onPress={() => handleSymptomPress(symptom)}
               >
                 <View style={[styles.iconCircle, { backgroundColor: symptom.bgColor }]}>
-                  <MCIcon name={symptom.icon} size={22} color={COLORS.textPrimary} style={styles.symptomIcon} />
+                  <MCIcon name={symptom.icon} size={22} color={colors.textPrimary} style={styles.symptomIcon} />
                 </View>
                 <View style={styles.symptomInfo}>
                   <Text style={styles.symptomTitle}>{symptom.title}</Text>
                   <Text style={styles.symptomSubtitle}>{symptom.subtitle}</Text>
                 </View>
-                <MCIcon name="chevron-right" size={20} color={COLORS.textMuted} />
+                <MCIcon name="chevron-right" size={20} color={colors.textMuted} />
               </TouchableOpacity>
             ))}
           </View>
         ) : (
           <View style={styles.emptyState}>
-            <MCIcon name="magnify-remove-outline" size={52} color={COLORS.borderStrong} />
+            <MCIcon name="magnify-remove-outline" size={52} color={colors.borderStrong} />
             <Text style={styles.emptyTitle}>No symptoms found</Text>
             <Text style={styles.emptySubtitle}>Try a different keyword</Text>
           </View>
@@ -117,20 +119,20 @@ const SelectSymptomScreen = ({ navigation }) => {
 
 export default SelectSymptomScreen;
 
-const styles = StyleSheet.create({
+const makeStyles = colors => StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
   },
 
   // Header
   header: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     paddingTop: 52,
     paddingHorizontal: 16,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.surfaceMuted,
+    borderBottomColor: colors.surfaceMuted,
   },
   headerTop: {
     flexDirection: 'row',
@@ -151,11 +153,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   headerSubtitle: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginTop: 2,
   },
 
@@ -163,17 +165,17 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f9fafb',
+    backgroundColor: colors.surfaceMuted,
     paddingHorizontal: 14,
     paddingVertical: 11,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: COLORS.surfaceMuted,
+    borderColor: colors.surfaceMuted,
   },
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     padding: 0,
   },
   clearBtn: {
@@ -187,10 +189,10 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   cardsWrapper: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: 18,
     overflow: 'hidden',
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.07,
     shadowRadius: 6,
@@ -222,12 +224,12 @@ const styles = StyleSheet.create({
   symptomTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 3,
   },
   symptomSubtitle: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
 
   // Empty State
@@ -239,10 +241,10 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   emptySubtitle: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
 });

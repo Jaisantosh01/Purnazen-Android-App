@@ -69,6 +69,12 @@ class AuthService:
             user.full_name = data["full_name"]
         if data.get("avatar_url") is not None:
             user.avatar_url = data["avatar_url"]
+        if data.get("phone") is not None:
+            user.phone = data["phone"]
+        if data.get("gender") is not None:
+            user.gender = data["gender"]
+        if data.get("date_of_birth") is not None:
+            user.date_of_birth = data["date_of_birth"]
         db.commit()
         db.refresh(user)
 

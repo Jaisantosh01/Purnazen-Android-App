@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import MetricScoreRow from '../components/scan/MetricScoreRow';
 import RecommendationCard from '../components/scan/RecommendationCard';
-import { COLORS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 
 const METRIC_LABELS = {
   hydrationScore: 'Hydration',
@@ -67,6 +67,8 @@ function glowColor(score) {
 }
 
 const ScanResultsScreen = ({ navigation, route }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { scan, imageUri } = route.params;
   const results = scan?.results ?? {};
   const recommendations = scan?.recommendations ?? [];
@@ -108,11 +110,11 @@ const ScanResultsScreen = ({ navigation, route }) => {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-            <MCIcon name="arrow-left" size={22} color={COLORS.white} />
+            <MCIcon name="arrow-left" size={22} color={colors.white} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Scan Results</Text>
           <TouchableOpacity style={styles.backBtn} onPress={handleShare}>
-            <MCIcon name="share-variant" size={20} color={COLORS.white} />
+            <MCIcon name="share-variant" size={20} color={colors.white} />
           </TouchableOpacity>
         </View>
 
@@ -136,7 +138,7 @@ const ScanResultsScreen = ({ navigation, route }) => {
                   style={[styles.toggleBtn, showEnhanced && styles.toggleBtnOn]}
                   onPress={() => setShowEnhanced(true)}
                 >
-                  <MCIcon name="auto-fix" size={13} color={showEnhanced ? COLORS.white : COLORS.textSecondary} />
+                  <MCIcon name="auto-fix" size={13} color={showEnhanced ? colors.white : colors.textSecondary} />
                   <Text style={[styles.toggleText, showEnhanced && styles.toggleTextOn]}>Enhanced</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -248,7 +250,7 @@ const ScanResultsScreen = ({ navigation, route }) => {
             onPress={() => navigation.navigate('ScanHistory')}
             activeOpacity={0.7}
           >
-            <MCIcon name="history" size={16} color={COLORS.textSecondary} />
+            <MCIcon name="history" size={16} color={colors.textSecondary} />
             <Text style={styles.historyLinkText}>View past scans</Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -267,10 +269,10 @@ const ScanResultsScreen = ({ navigation, route }) => {
 
 export default ScanResultsScreen;
 
-const styles = StyleSheet.create({
+const makeStyles = colors => StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   header: {
     backgroundColor: '#C850C0',
@@ -294,7 +296,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: COLORS.white,
+    color: colors.white,
   },
   scoreSection: {
     alignItems: 'center',
@@ -323,13 +325,13 @@ const styles = StyleSheet.create({
   },
   gaugeLabel: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontWeight: '600',
     marginTop: 2,
   },
   scoreSubtitle: {
     fontSize: 14,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   tongueScoreBox: {
@@ -339,11 +341,11 @@ const styles = StyleSheet.create({
   tongueTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   tongueSubtitle: {
     fontSize: 14,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   section: {
     paddingHorizontal: 16,
@@ -353,11 +355,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 14,
   },
   metricsBox: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 16,
     shadowColor: '#000',
@@ -367,7 +369,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   tongueGrid: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 16,
     gap: 12,
@@ -384,11 +386,11 @@ const styles = StyleSheet.create({
   },
   tongueMetaLabel: {
     fontSize: 14,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   tongueChip: {
-    backgroundColor: '#fdf4ff',
+    backgroundColor: 'rgba(200,80,192,0.12)',
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 20,
@@ -407,7 +409,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   doneBtnText: {
-    color: COLORS.white,
+    color: colors.white,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -447,7 +449,7 @@ const styles = StyleSheet.create({
   },
   toggleBtnOn: { backgroundColor: '#C850C0' },
   toggleText: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.85)' },
-  toggleTextOn: { color: COLORS.white },
+  toggleTextOn: { color: colors.white },
 
   // Share / history actions
   shareBtn: {
@@ -459,7 +461,7 @@ const styles = StyleSheet.create({
     borderColor: '#C850C0',
     borderRadius: 14,
     paddingVertical: 13,
-    backgroundColor: '#fdf4ff',
+    backgroundColor: 'rgba(200,80,192,0.12)',
   },
   shareBtnText: { color: '#C850C0', fontSize: 15, fontWeight: '700' },
   historyLink: {
@@ -469,5 +471,5 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 12,
   },
-  historyLinkText: { color: COLORS.textSecondary, fontSize: 14, fontWeight: '600' },
+  historyLinkText: { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
 });

@@ -15,24 +15,26 @@ from app.repositories.doctor_repository import DoctorRepository
 
 # Presentation metadata for the BookAppointmentScreen visit-type cards,
 # keyed by the consultation_types.name lookup values.
+# `icon` values are MaterialCommunityIcons names rendered by the app via
+# <MCIcon name=... />, not emoji — keep them as icon identifiers.
 VISIT_TYPE_PRESENTATION = {
     "Video Call": {
         "id": "video",
         "title": "Video Consultation",
         "subtitle": "Consult from anywhere",
-        "icon": "📹",
+        "icon": "video-outline",
     },
     "Home Visit": {
         "id": "home",
         "title": "Home Visit",
         "subtitle": "Doctor visits your home",
-        "icon": "🏠",
+        "icon": "home-outline",
     },
     "Clinic Visit": {
         "id": "clinic",
         "title": "Clinic Visit",
         "subtitle": "Meet at the clinic",
-        "icon": "🏥",
+        "icon": "hospital-building",
     },
 }
 
@@ -66,7 +68,7 @@ class DoctorService:
                     "id": ct_name.lower().replace(" ", "-"),
                     "title": ct_name,
                     "subtitle": "",
-                    "icon": "🩺",
+                    "icon": "stethoscope",
                 },
             )
             visit_types.append(

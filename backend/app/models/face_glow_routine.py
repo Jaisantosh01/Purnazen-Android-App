@@ -5,6 +5,19 @@ from app.db.types import GUID
 from app.db.base_class import Base
 
 
+# The app renders routine icons with MaterialCommunityIcons (<MCIcon name=.../>),
+# not emoji. The legacy `icon` column stores emoji (and is only String(10), too
+# short for icon names), so we map the stable `key` to an icon name at
+# serialization time — this fixes every existing database without a migration.
+FACE_GLOW_ICONS = {
+    "MorningGlow": "weather-sunset-up",
+    "FacialAcupressure": "spa-outline",
+    "NightRepair": "weather-night",
+    "GuaShaFlow": "shimmer",
+}
+FACE_GLOW_ICON_FALLBACK = "face-woman-shimmer"
+
+
 class FaceGlowRoutine(Base):
     __tablename__ = "face_glow_routines"
 
@@ -24,7 +37,7 @@ class FaceGlowRoutine(Base):
     def to_dict(self):
         return {
             "key": self.key,
-            "icon": self.icon,
+            "icon": FACE_GLOW_ICONS.get(self.key, FACE_GLOW_ICON_FALLBACK),
             "title": self.title,
             "duration": self.duration,
             "benefits": self.benefits or [],

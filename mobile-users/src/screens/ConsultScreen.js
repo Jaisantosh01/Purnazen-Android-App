@@ -15,6 +15,7 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import consultService from '../services/consultService';
 import useTheme from '../hooks/useTheme';
+import { doctorInitial } from '../utils/doctorAvatar';
 import {TAG_ICONS} from '../constants/icons';
 import {CONSULT_SCREEN_FILTER_TABS_FALLBACK} from '../constants/miscellaneous';
 
@@ -136,7 +137,7 @@ const ConsultScreen = ({ navigation }) => {
     >
       <View style={styles.doctorTop}>
         <View style={styles.avatarCircle}>
-          <Text style={styles.avatarIcon}>{doctor.avatar}</Text>
+          <Text style={styles.avatarIcon}>{doctorInitial(doctor.name)}</Text>
         </View>
         <View style={styles.doctorInfo}>
           {/* Fix 6: numberOfLines prevents long names from breaking layout */}
@@ -432,7 +433,7 @@ const makeStyles = colors => StyleSheet.create({
     justifyContent: 'center',
     marginRight: 12,
   },
-  avatarIcon: { fontSize: 30 },
+  avatarIcon: { fontSize: 26, fontWeight: '800', color: colors.primary },
   doctorInfo: { flex: 1 },
   doctorName: {
     fontSize: 15,

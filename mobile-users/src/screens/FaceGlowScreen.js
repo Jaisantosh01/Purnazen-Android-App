@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,11 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { RoutineCardSkeleton } from '../components/SkeletonLoader';
-import { COLORS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
+
+// FaceGlow brand hero colour — a fixed magenta banner in both light and dark.
+const GLOW = '#C850C0';
+const glowSoft = 'rgba(200,80,192,0.12)';
 
 // Static — informational copy, not a DB resource
 const BENEFITS = [
@@ -26,6 +30,8 @@ const BENEFITS = [
 ];
 
 const FaceGlowScreen = ({ navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [routines, setRoutines] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -39,7 +45,7 @@ const FaceGlowScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor="#C850C0" />
+      <StatusBar barStyle="light-content" backgroundColor={GLOW} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -52,20 +58,20 @@ const FaceGlowScreen = ({ navigation }) => {
               style={styles.backBtn}
               onPress={() => navigation.goBack()}
             >
-              <MCIcon name="arrow-left" size={22} color={COLORS.white} />
+              <MCIcon name="arrow-left" size={22} color={colors.white} />
             </TouchableOpacity>
             <View style={styles.headerActions}>
               <TouchableOpacity
                 style={styles.backBtn}
                 onPress={() => navigation.navigate('ScanDashboard')}
               >
-                <MCIcon name="chart-line" size={22} color={COLORS.white} />
+                <MCIcon name="chart-line" size={22} color={colors.white} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.backBtn}
                 onPress={() => navigation.navigate('ScanHistory')}
               >
-                <MCIcon name="history" size={22} color={COLORS.white} />
+                <MCIcon name="history" size={22} color={colors.white} />
               </TouchableOpacity>
             </View>
           </View>
@@ -79,7 +85,7 @@ const FaceGlowScreen = ({ navigation }) => {
           <View style={styles.scanCard}>
             <View style={styles.scanLeft}>
               <View style={styles.cameraCircle}>
-                <MCIcon name="face-recognition" size={22} color={COLORS.white} />
+                <MCIcon name="face-recognition" size={22} color={colors.white} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.scanTitle}>AI Face Analysis</Text>
@@ -99,7 +105,7 @@ const FaceGlowScreen = ({ navigation }) => {
           <View style={[styles.scanCard, styles.tongueCard]}>
             <View style={styles.scanLeft}>
               <View style={[styles.cameraCircle, styles.tongueCameraCircle]}>
-                <MCIcon name="emoticon-tongue-outline" size={22} color={COLORS.white} />
+                <MCIcon name="emoticon-tongue-outline" size={22} color={colors.white} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.scanTitle}>TCM Tongue Analysis</Text>
@@ -119,7 +125,7 @@ const FaceGlowScreen = ({ navigation }) => {
         {/* ── Onboarding: basic now → personalized after a scan ── */}
         <View style={styles.section}>
           <View style={styles.personalizeBanner}>
-            <MCIcon name="lightbulb-on-outline" size={20} color="#C850C0" />
+            <MCIcon name="lightbulb-on-outline" size={20} color={GLOW} />
             <View style={{ flex: 1 }}>
               <Text style={styles.personalizeTitle}>These are general routines</Text>
               <Text style={styles.personalizeText}>
@@ -140,12 +146,14 @@ const FaceGlowScreen = ({ navigation }) => {
             routines.map(routine => (
               <View key={routine.key} style={styles.routineCard}>
                 <View style={styles.routineTop}>
-                  <Text style={styles.routineIcon}>{routine.icon}</Text>
+                  <View style={styles.routineIconWrap}>
+                    <MCIcon name={routine.icon || 'spa-outline'} size={26} color={GLOW} />
+                  </View>
                   <View style={styles.routineInfo}>
                     <View style={styles.routineTitleRow}>
                       <Text style={styles.routineTitle}>{routine.title}</Text>
                       <View style={styles.durationChip}>
-                        <MCIcon name="clock-outline" size={12} color={COLORS.textMuted} />
+                        <MCIcon name="clock-outline" size={12} color={colors.textMuted} />
                         <Text style={styles.routineDuration}> {routine.duration}</Text>
                       </View>
                     </View>
@@ -157,14 +165,14 @@ const FaceGlowScreen = ({ navigation }) => {
                     style={styles.playBtn}
                     onPress={() => Alert.alert(routine.title, 'Starting routine!')}
                   >
-                    <MCIcon name="play" size={14} color="#C850C0" />
+                    <MCIcon name="play" size={14} color={GLOW} />
                   </TouchableOpacity>
                 </View>
               </View>
             ))
           ) : (
             <View style={styles.emptyState}>
-              <MCIcon name="spa-outline" size={40} color={COLORS.borderStrong} />
+              <MCIcon name="spa-outline" size={40} color={colors.borderStrong} />
               <Text style={styles.emptyTitle}>No routines available</Text>
               <Text style={styles.emptySub}>Check back soon for personalised face glow routines</Text>
             </View>
@@ -178,7 +186,7 @@ const FaceGlowScreen = ({ navigation }) => {
             <View style={styles.benefitsGrid}>
               {BENEFITS.map(benefit => (
                 <View key={benefit.id} style={styles.benefitBox}>
-                  <MCIcon name={benefit.icon} size={22} color={COLORS.primary} style={styles.benefitIcon} />
+                  <MCIcon name={benefit.icon} size={22} color={colors.primary} style={styles.benefitIcon} />
                   <Text style={styles.benefitText}>{benefit.title}</Text>
                 </View>
               ))}
@@ -193,15 +201,15 @@ const FaceGlowScreen = ({ navigation }) => {
 
 export default FaceGlowScreen;
 
-const styles = StyleSheet.create({
+const makeStyles = colors => StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
 
   // Header
   header: {
-    backgroundColor: '#C850C0',
+    backgroundColor: GLOW,
     paddingTop: 56,
     paddingHorizontal: 20,
     paddingBottom: 30,
@@ -232,7 +240,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 26,
     fontWeight: '800',
-    color: COLORS.white,
+    color: colors.white,
   },
   headerSubtitle: {
     fontSize: 13,
@@ -263,7 +271,7 @@ const styles = StyleSheet.create({
   scanTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: COLORS.white,
+    color: colors.white,
   },
   scanSubtitle: {
     fontSize: 12,
@@ -271,7 +279,7 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   scanBtn: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
@@ -279,7 +287,7 @@ const styles = StyleSheet.create({
   scanBtnText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#C850C0',
+    color: GLOW,
   },
   tongueCard: {
     marginTop: 10,
@@ -296,28 +304,28 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.55)',
   },
   tongueScanBtnText: {
-    color: COLORS.white,
+    color: colors.white,
   },
 
   // Onboarding banner
   personalizeBanner: {
     flexDirection: 'row',
     gap: 12,
-    backgroundColor: '#fdf4ff',
+    backgroundColor: glowSoft,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#f3e8ff',
+    borderColor: glowSoft,
   },
   personalizeTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 2,
   },
   personalizeText: {
     fontSize: 12.5,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     lineHeight: 18,
   },
 
@@ -329,17 +337,19 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 14,
   },
 
   // Routine Cards
   routineCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    shadowColor: COLORS.black,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 4,
@@ -349,8 +359,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
-  routineIcon: {
-    fontSize: 32,
+  routineIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: glowSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 12,
   },
   routineInfo: {
@@ -366,30 +381,30 @@ const styles = StyleSheet.create({
   routineTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   durationChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surfaceMuted,
+    backgroundColor: colors.surfaceMuted,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 20,
   },
   routineDuration: {
     fontSize: 11,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   benefitItem: {
     fontSize: 13,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginBottom: 2,
   },
   playBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#f3e8ff',
+    backgroundColor: glowSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 8,
@@ -404,25 +419,25 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   emptySub: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     textAlign: 'center',
     paddingHorizontal: 24,
   },
 
   // Benefits Card
   benefitsCard: {
-    backgroundColor: '#fdf4ff',
+    backgroundColor: glowSoft,
     borderRadius: 16,
     padding: 18,
   },
   benefitsTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 16,
   },
   benefitsGrid: {
@@ -442,6 +457,6 @@ const styles = StyleSheet.create({
   benefitText: {
     fontSize: 13,
     fontWeight: '500',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
 });

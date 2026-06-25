@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Svg, { Defs, RadialGradient, Stop, Rect } from 'react-native-svg';
 import scanService from '../services/scanService';
 import useScanStore from '../store/scanStore';
-import { COLORS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 import FaceMeshOverlay from '../components/scan/FaceMeshOverlay';
 
 // Compute a normalized crop box {x, y, w, h} that frames the detected face/tongue
@@ -116,6 +116,8 @@ function stageCap(stage, status, features) {
 }
 
 const ScanProcessingScreen = ({ navigation, route }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { scanId, scanType, imageUri } = route.params;
   const isTongue = scanType === 'tongue';
   const FEATURES = isTongue ? TONGUE_FEATURES : FACE_FEATURES;
@@ -279,7 +281,7 @@ const ScanProcessingScreen = ({ navigation, route }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      <StatusBar barStyle="light-content" backgroundColor={colors.headerBg} />
 
       <Text style={styles.heading}>{headingText}</Text>
       <Text style={styles.subtext}>{subText}</Text>
@@ -304,7 +306,7 @@ const ScanProcessingScreen = ({ navigation, route }) => {
                 <MCIcon
                   name={done ? 'check' : f.icon}
                   size={18}
-                  color={done ? COLORS.white : active ? COLORS.primary : COLORS.textMuted}
+                  color={done ? colors.white : active ? colors.primary : colors.textMuted}
                 />
               </Animated.View>
             </TouchableOpacity>
@@ -326,7 +328,7 @@ const ScanProcessingScreen = ({ navigation, route }) => {
               <Image source={{ uri: imageUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
             ) : (
               <View style={[StyleSheet.absoluteFill, styles.imageFallback]}>
-                <MCIcon name={isTongue ? 'emoticon-tongue-outline' : 'face-recognition'} size={48} color={COLORS.primary} />
+                <MCIcon name={isTongue ? 'emoticon-tongue-outline' : 'face-recognition'} size={48} color={colors.primary} />
               </View>
             )}
             <FaceMeshOverlay landmarks={landmarks} activeZone={activeZone} width={stageW} height={stageH} />
@@ -360,16 +362,16 @@ const ScanProcessingScreen = ({ navigation, route }) => {
         )}
 
         <Animated.View pointerEvents="none" style={[styles.flash, { opacity: flashOpacity }]}>
-          <MCIcon name="check-circle" size={15} color={COLORS.white} />
+          <MCIcon name="check-circle" size={15} color={colors.white} />
           <Text style={styles.flashText}>{flash}</Text>
         </Animated.View>
       </View>
 
       <View style={styles.captionRow}>
         {selectedFeature ? (
-          <MCIcon name={selectedFeature.icon} size={16} color={COLORS.primary} />
+          <MCIcon name={selectedFeature.icon} size={16} color={colors.primary} />
         ) : (
-          <MCIcon name="information-outline" size={16} color={COLORS.textMuted} />
+          <MCIcon name="information-outline" size={16} color={colors.textMuted} />
         )}
         <Text style={[styles.caption, selectedFeature && styles.captionInfo]} numberOfLines={2}>
           {caption}
@@ -383,16 +385,16 @@ const ScanProcessingScreen = ({ navigation, route }) => {
 
 export default ScanProcessingScreen;
 
-const styles = StyleSheet.create({
+const makeStyles = colors => StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     paddingHorizontal: 12,
     paddingTop: 60,
     alignItems: 'center',
   },
-  heading: { fontSize: 23, fontWeight: '800', color: COLORS.textPrimary, textAlign: 'center' },
-  subtext: { fontSize: 13.5, color: COLORS.textMuted, textAlign: 'center', marginTop: 4, marginBottom: 14 },
+  heading: { fontSize: 23, fontWeight: '800', color: colors.textPrimary, textAlign: 'center' },
+  subtext: { fontSize: 13.5, color: colors.textMuted, textAlign: 'center', marginTop: 4, marginBottom: 14 },
 
   chips: {
     flexDirection: 'row',
@@ -405,13 +407,13 @@ const styles = StyleSheet.create({
   chipWrap: {},
   chip: {
     width: 42, height: 42, borderRadius: 21,
-    backgroundColor: COLORS.white,
-    borderWidth: 1.5, borderColor: COLORS.border,
+    backgroundColor: colors.card,
+    borderWidth: 1.5, borderColor: colors.border,
     alignItems: 'center', justifyContent: 'center',
   },
-  chipActive:   { borderColor: COLORS.primary, backgroundColor: COLORS.primaryFaint },
-  chipDone:     { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  chipSelected: { borderColor: COLORS.accent },
+  chipActive:   { borderColor: colors.primary, backgroundColor: colors.primaryFaint },
+  chipDone:     { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipSelected: { borderColor: colors.accent },
 
   // Enlarged image card — full width with slight horizontal inset
   imageCard: {
@@ -420,7 +422,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#000',
   },
-  imageFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#fdf4ff' },
+  imageFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(200,80,192,0.12)' },
 
   pulseRing: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
@@ -439,15 +441,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(31,167,122,0.92)',
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999,
   },
-  flashText: { color: COLORS.white, fontSize: 13, fontWeight: '700' },
+  flashText: { color: colors.white, fontSize: 13, fontWeight: '700' },
 
   captionRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     marginTop: 16, minHeight: 36,
     paddingHorizontal: 12,
   },
-  caption:     { fontSize: 14.5, color: COLORS.textPrimary, fontWeight: '600', flexShrink: 1, textAlign: 'center' },
-  captionInfo: { color: COLORS.textSecondary, fontWeight: '500' },
+  caption:     { fontSize: 14.5, color: colors.textPrimary, fontWeight: '600', flexShrink: 1, textAlign: 'center' },
+  captionInfo: { color: colors.textSecondary, fontWeight: '500' },
 
-  hint: { fontSize: 12, color: COLORS.textMuted, marginTop: 6 },
+  hint: { fontSize: 12, color: colors.textMuted, marginTop: 6 },
 });

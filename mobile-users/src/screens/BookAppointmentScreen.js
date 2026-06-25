@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import consultService from '../services/consultService';
-import { COLORS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 import {DAYS, MONTHS} from '../constants/strings';
 
@@ -47,6 +47,8 @@ const HOME_ADDRESS = {
 };
 
 const BookAppointmentScreen = ({ navigation, route }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { doctor } = route.params;
 
   const today = new Date();
@@ -192,7 +194,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
                 <MCIcon
                   name={visit.icon}
                   size={24}
-                  color={selectedVisit === visit.id ? COLORS.primary : COLORS.textMuted}
+                  color={selectedVisit === visit.id ? colors.primary : colors.textMuted}
                   style={styles.visitIcon}
                 />
                 <Text style={[styles.visitTitle, selectedVisit === visit.id && styles.visitTitleActive]}>
@@ -282,7 +284,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
           <TextInput
             style={styles.descriptionInput}
             placeholder="Briefly describe your symptoms or reason for the visit..."
-            placeholderTextColor={COLORS.textMuted}
+            placeholderTextColor={colors.textMuted}
             multiline
             numberOfLines={4}
             value={userDescription}
@@ -294,7 +296,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
         {selectedVisit === 'home' && (
           <View style={styles.section}>
             <View style={styles.addressCard}>
-              <MCIcon name="map-marker" size={20} color={COLORS.primary} style={styles.addressIcon} />
+              <MCIcon name="map-marker" size={20} color={colors.primary} style={styles.addressIcon} />
               <View style={styles.addressInfo}>
                 <Text style={styles.addressTitle}>Home Address</Text>
                 <Text style={styles.addressText}>{HOME_ADDRESS.street}</Text>
@@ -313,13 +315,13 @@ const BookAppointmentScreen = ({ navigation, route }) => {
         <View style={styles.summaryRow}>
           {selectedDate && (
             <View style={styles.summaryItem}>
-              <MCIcon name="calendar-blank-outline" size={14} color={COLORS.textSecondary} style={styles.summaryIcon} />
+              <MCIcon name="calendar-blank-outline" size={14} color={colors.textSecondary} style={styles.summaryIcon} />
               <Text style={styles.summaryText}>{getSelectedDateString()}</Text>
             </View>
           )}
           {selectedTime && (
             <View style={styles.summaryItem}>
-              <MCIcon name="clock-outline" size={14} color={COLORS.textSecondary} style={styles.summaryIcon} />
+              <MCIcon name="clock-outline" size={14} color={colors.textSecondary} style={styles.summaryIcon} />
               <Text style={styles.summaryText}>{selectedTime.time}</Text>
             </View>
           )}
@@ -346,74 +348,74 @@ const BookAppointmentScreen = ({ navigation, route }) => {
 
 export default BookAppointmentScreen;
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingTop: 50, paddingHorizontal: 16, paddingBottom: 14,
-    backgroundColor: COLORS.white, borderBottomWidth: 1, borderBottomColor: COLORS.surfaceMuted,
+    backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.surfaceMuted,
   },
   backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  backIcon: { fontSize: 22, color: COLORS.textPrimary },
+  backIcon: { fontSize: 22, color: colors.textPrimary },
   headerCenter: { alignItems: 'center' },
-  headerTitle: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
-  headerSubtitle: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  headerTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
+  headerSubtitle: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
 
   section: { paddingHorizontal: 16, marginTop: 20 },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 12 },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: colors.textPrimary, marginBottom: 12 },
 
   visitRow: { flexDirection: 'row', gap: 12 },
   visitCard: {
-    flex: 1, backgroundColor: COLORS.white, borderRadius: 14,
-    padding: 16, alignItems: 'flex-start', borderWidth: 1.5, borderColor: COLORS.border,
+    flex: 1, backgroundColor: colors.card, borderRadius: 14,
+    padding: 16, alignItems: 'flex-start', borderWidth: 1.5, borderColor: colors.border,
   },
-  visitCardActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryFaint },
-  visitIcon:        { fontSize: 24, marginBottom: 8, color: COLORS.textMuted },
-  visitIconActive:  { color: COLORS.primary },
-  visitTitle:       { fontSize: 13, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 4 },
-  visitTitleActive: { color: COLORS.primary },
-  visitSubtitle:    { fontSize: 11, color: COLORS.textMuted, marginBottom: 8 },
-  visitSubtitleActive: { color: COLORS.textSecondary },
-  visitFee:         { fontSize: 14, fontWeight: '700', color: COLORS.textPrimary },
-  visitFeeActive:   { color: COLORS.primary },
+  visitCardActive: { borderColor: colors.primary, backgroundColor: colors.primaryFaint },
+  visitIcon:        { fontSize: 24, marginBottom: 8, color: colors.textMuted },
+  visitIconActive:  { color: colors.primary },
+  visitTitle:       { fontSize: 13, fontWeight: '700', color: colors.textPrimary, marginBottom: 4 },
+  visitTitleActive: { color: colors.primary },
+  visitSubtitle:    { fontSize: 11, color: colors.textMuted, marginBottom: 8 },
+  visitSubtitleActive: { color: colors.textSecondary },
+  visitFee:         { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
+  visitFeeActive:   { color: colors.primary },
 
   calendarCard: {
-    backgroundColor: COLORS.white, borderRadius: 14, padding: 16,
-    shadowColor: COLORS.black, shadowOffset: { width: 0, height: 1 },
+    backgroundColor: colors.card, borderRadius: 14, padding: 16,
+    shadowColor: colors.black, shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05, shadowRadius: 3, elevation: 1,
   },
   calendarHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16,
   },
   monthBtn:      { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  monthBtnText:  { fontSize: 22, color: COLORS.textSecondary, fontWeight: '500' },
-  monthTitle:    { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
+  monthBtnText:  { fontSize: 22, color: colors.textSecondary, fontWeight: '500' },
+  monthTitle:    { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
   dayHeaders:    { flexDirection: 'row', marginBottom: 8 },
-  dayHeader:     { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600', color: COLORS.textMuted },
+  dayHeader:     { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600', color: colors.textMuted },
   calendarGrid:  { flexDirection: 'row', flexWrap: 'wrap' },
   dayCell:       { width: `${100 / 7}%`, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', marginVertical: 2 },
-  dayCellToday:  { backgroundColor: COLORS.primary, borderRadius: 20 },
-  dayCellSelected: { backgroundColor: COLORS.primaryLight, borderRadius: 20, borderWidth: 1, borderColor: COLORS.primary },
-  dayText:         { fontSize: 13, color: COLORS.textPrimary, fontWeight: '500' },
-  dayTextFaded:    { color: COLORS.borderStrong },
-  dayTextPast:     { color: COLORS.borderStrong },
-  dayTextToday:    { color: COLORS.white, fontWeight: '700' },
-  dayTextSelected: { color: COLORS.primary, fontWeight: '700' },
+  dayCellToday:  { backgroundColor: colors.primary, borderRadius: 20 },
+  dayCellSelected: { backgroundColor: colors.primaryLight, borderRadius: 20, borderWidth: 1, borderColor: colors.primary },
+  dayText:         { fontSize: 13, color: colors.textPrimary, fontWeight: '500' },
+  dayTextFaded:    { color: colors.borderStrong },
+  dayTextPast:     { color: colors.borderStrong },
+  dayTextToday:    { color: colors.white, fontWeight: '700' },
+  dayTextSelected: { color: colors.primary, fontWeight: '700' },
 
   timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   timeSlot: {
     width: '47%', paddingVertical: 12, borderRadius: 10,
-    borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.white, alignItems: 'center',
+    borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, alignItems: 'center',
   },
-  timeSlotActive:     { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  timeSlotText:       { fontSize: 12, fontWeight: '500', color: COLORS.textSecondary },
-  timeSlotTextActive: { color: COLORS.white, fontWeight: '700' },
+  timeSlotActive:     { backgroundColor: colors.primary, borderColor: colors.primary },
+  timeSlotText:       { fontSize: 12, fontWeight: '500', color: colors.textSecondary },
+  timeSlotTextActive: { color: colors.white, fontWeight: '700' },
 
   descriptionInput: {
-    backgroundColor: COLORS.white, borderRadius: 14, padding: 14,
-    borderWidth: 1, borderColor: COLORS.border, fontSize: 13,
-    color: COLORS.textPrimary, minHeight: 100,
+    backgroundColor: colors.card, borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: colors.border, fontSize: 13,
+    color: colors.textPrimary, minHeight: 100,
   },
 
   addressCard: {
@@ -422,24 +424,24 @@ const styles = StyleSheet.create({
   },
   addressIcon:    { fontSize: 20 },
   addressInfo:    { flex: 1 },
-  addressTitle:   { fontSize: 14, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 4 },
-  addressText:    { fontSize: 13, color: COLORS.textSecondary, lineHeight: 18 },
-  changeAddress:  { fontSize: 13, color: COLORS.primary, fontWeight: '600', marginTop: 6 },
+  addressTitle:   { fontSize: 14, fontWeight: '700', color: colors.textPrimary, marginBottom: 4 },
+  addressText:    { fontSize: 13, color: colors.textSecondary, lineHeight: 18 },
+  changeAddress:  { fontSize: 13, color: colors.primary, fontWeight: '600', marginTop: 6 },
 
   bottomBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: COLORS.white, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16,
-    borderTopWidth: 1, borderTopColor: COLORS.surfaceMuted, elevation: 10,
-    shadowColor: COLORS.black, shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.06, shadowRadius: 6,
+    backgroundColor: colors.card, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16,
+    borderTopWidth: 1, borderTopColor: colors.surfaceMuted, elevation: 10,
+    shadowColor: colors.black, shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.06, shadowRadius: 6,
   },
   summaryRow:    { marginBottom: 10, gap: 4 },
   summaryItem:   { flexDirection: 'row', alignItems: 'center', gap: 6 },
   summaryIcon:   { fontSize: 13 },
-  summaryText:   { fontSize: 12, color: COLORS.textSecondary },
+  summaryText:   { fontSize: 12, color: colors.textSecondary },
   bottomRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  totalLabel:    { fontSize: 12, color: COLORS.textMuted, marginBottom: 2 },
-  totalAmount:   { fontSize: 20, fontWeight: '700', color: COLORS.primary },
-  confirmBtn:    { backgroundColor: COLORS.primary, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 24 },
-  confirmBtnDisabled: { backgroundColor: COLORS.borderStrong },
-  confirmBtnText:     { fontSize: 15, fontWeight: '700', color: COLORS.white },
+  totalLabel:    { fontSize: 12, color: colors.textMuted, marginBottom: 2 },
+  totalAmount:   { fontSize: 20, fontWeight: '700', color: colors.primary },
+  confirmBtn:    { backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 24 },
+  confirmBtnDisabled: { backgroundColor: colors.borderStrong },
+  confirmBtnText:     { fontSize: 15, fontWeight: '700', color: colors.white },
 });
