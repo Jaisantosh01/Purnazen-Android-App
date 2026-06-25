@@ -114,12 +114,12 @@ const DoctorManagementScreen = ({ navigation }) => {
       >
         {/* ── Stats ── */}
         <View style={styles.statsRow}>
-          <View style={[styles.statCard, { borderColor: '#50C878' }]}>
-            <Text style={[styles.statValue, { color: '#50C878' }]}>{stats.active_doctors}</Text>
+          <View style={[styles.statCard, { borderColor: COLORS.primary }]}>
+            <Text style={[styles.statValue, { color: COLORS.primary }]}>{stats.active_doctors}</Text>
             <Text style={styles.statLabel}>Active</Text>
           </View>
-          <View style={[styles.statCard, { borderColor: '#FF4D4D' }]}>
-            <Text style={[styles.statValue, { color: '#FF4D4D' }]}>{stats.inactive_doctors}</Text>
+          <View style={[styles.statCard, { borderColor: COLORS.danger }]}>
+            <Text style={[styles.statValue, { color: COLORS.danger }]}>{stats.inactive_doctors}</Text>
             <Text style={styles.statLabel}>Inactive</Text>
           </View>
         </View>
