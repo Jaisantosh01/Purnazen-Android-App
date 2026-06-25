@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,12 +11,14 @@ import {
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import therapyService from '../services/therapyService';
-import { COLORS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 
 const EMPTY_STATS = { sessions: 0, minutes: 0 };
 
 const TherapyHistoryScreen = ({ navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [history, setHistory]     = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError]         = useState(null);
@@ -63,7 +65,7 @@ const TherapyHistoryScreen = ({ navigation }) => {
 
       {isLoading ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.stateText}>Loading history...</Text>
         </View>
       ) : error ? (
@@ -106,7 +108,7 @@ const TherapyHistoryScreen = ({ navigation }) => {
               key={session.id}
               style={[
                 styles.sessionCard,
-                { backgroundColor: COLORS.white },
+                { backgroundColor: colors.card },
                 index < sessions.length - 1 && styles.sessionBorder,
               ]}
               onPress={() => navigateToSession(session)}
@@ -151,7 +153,7 @@ const TherapyHistoryScreen = ({ navigation }) => {
                         })
                       : ''}
                   </Text>
-                  <MCIcon name="calendar-clock-outline" size={14} color={COLORS.textMuted} style={{ marginLeft: 4 }} />
+                  <MCIcon name="calendar-clock-outline" size={14} color={colors.textMuted} style={{ marginLeft: 4 }} />
                 </View>
               </View>
             </TouchableOpacity>
@@ -166,7 +168,7 @@ const TherapyHistoryScreen = ({ navigation }) => {
 
 export default TherapyHistoryScreen;
 
-const styles = StyleSheet.create({
+const makeStyles = colors => StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: '#E8F5E9', // Light green
@@ -180,9 +182,9 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     paddingHorizontal: 16,
     paddingBottom: 16,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.surfaceMuted,
+    borderBottomColor: colors.surfaceMuted,
   },
   backBtn: {
     width: 36,
@@ -192,12 +194,12 @@ const styles = StyleSheet.create({
   },
   backIcon: {
     fontSize: 22,
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   headerTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
 
   // Loading / error / empty states
@@ -217,15 +219,15 @@ const styles = StyleSheet.create({
   stateTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   stateText: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     textAlign: 'center',
   },
   retryBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingHorizontal: 32,
     paddingVertical: 12,
     borderRadius: 14,
@@ -234,7 +236,7 @@ const styles = StyleSheet.create({
   retryText: {
     fontSize: 14,
     fontWeight: '700',
-    color: COLORS.white,
+    color: colors.white,
   },
 
   // Stats
@@ -249,10 +251,10 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     paddingVertical: 16,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: 14, // Rounded
     elevation: 2,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -260,12 +262,12 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 22,
     fontWeight: '700',
-    color: COLORS.primary,
+    color: colors.primary,
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
 
   // Session List
@@ -275,11 +277,11 @@ const styles = StyleSheet.create({
   },
   sessionCard: {
     padding: 16,
-    backgroundColor: COLORS.white, // White
+    backgroundColor: colors.card, // White
     borderRadius: 14,
     marginBottom: 16,
     elevation: 2,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -295,22 +297,22 @@ const styles = StyleSheet.create({
   sessionTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   groupTitleText: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginTop: 2,
   },
   progressText: {
     fontSize: 13,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginLeft: 8,
   },
   separator: {
     height: 1,
-    backgroundColor: COLORS.surfaceMuted,
+    backgroundColor: colors.surfaceMuted,
     marginVertical: 8,
   },
   sessionFooter: {
@@ -321,7 +323,7 @@ const styles = StyleSheet.create({
   },
   timeText: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   timeContainer: {
     flexDirection: 'row',
@@ -336,7 +338,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8F5E9',
   },
   statusCancelled: {
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.surfaceMuted,
   },
   statusText: {
     fontSize: 12,

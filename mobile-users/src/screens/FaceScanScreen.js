@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import scanService from '../services/scanService';
 import useScanStore from '../store/scanStore';
-import { COLORS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import FaceOverlayGuide from '../components/scan/FaceOverlayGuide';
 
@@ -58,6 +58,8 @@ function deriveQuality(issues) {
 
 const FaceScanScreen = ({ navigation, route }) => {
   const scanType = route?.params?.scanType ?? 'face';
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const cameraRef = useRef(null);
   const device = useCameraDevice('front');
@@ -326,7 +328,7 @@ const FaceScanScreen = ({ navigation, route }) => {
 
 export default FaceScanScreen;
 
-const styles = StyleSheet.create({
+const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: '#000' },
 
   header: {
@@ -400,10 +402,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 36,
     gap: 16,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
-  permTitle: { fontSize: 20, fontWeight: '800', color: COLORS.textPrimary, textAlign: 'center' },
-  permSub: { fontSize: 14, color: COLORS.textMuted, textAlign: 'center', lineHeight: 21 },
+  permTitle: { fontSize: 20, fontWeight: '800', color: colors.textPrimary, textAlign: 'center' },
+  permSub: { fontSize: 14, color: colors.textMuted, textAlign: 'center', lineHeight: 21 },
   permBtn: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: '#C850C0', borderRadius: 16,

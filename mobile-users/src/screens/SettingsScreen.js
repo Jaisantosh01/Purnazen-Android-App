@@ -212,6 +212,9 @@ const SettingsScreen = ({ navigation }) => {
   // Edit profile modal
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [fullName, setFullName]               = useState('');
+  // Edit phone modal
+  const [showEditPhone, setShowEditPhone] = useState(false);
+  const [phone, setPhone]                 = useState('');
   // Change password modal
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [currentPassword, setCurrentPassword]       = useState('');
@@ -225,6 +228,30 @@ const SettingsScreen = ({ navigation }) => {
     setFullName(user?.full_name || '');
     setFormError('');
     setShowEditProfile(true);
+  };
+
+  const openEditPhone = () => {
+    setPhone(user?.phone || '');
+    setFormError('');
+    setShowEditPhone(true);
+  };
+
+  const handleSavePhone = async () => {
+    const trimmed = phone.trim();
+    if (trimmed && !/^[+0-9 ()-]{6,15}$/.test(trimmed)) {
+      setFormError('Enter a valid phone number.');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await authService.updateProfile({ phone: trimmed });
+      setShowEditPhone(false);
+      Alert.alert('Phone Updated', 'Your phone number has been saved.');
+    } catch (err) {
+      setFormError(err.message || 'Could not update phone number.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const openChangePassword = () => {
@@ -332,7 +359,7 @@ const SettingsScreen = ({ navigation }) => {
               title="Phone Number"
               subtitle="Linked mobile number"
               valueText={user?.phone || 'NA'}
-              onPress={() => Alert.alert('Update Phone', 'Coming soon!')}
+              onPress={openEditPhone}
             />
             <View style={styles.rowDivider} />
             <ArrowRow
@@ -493,6 +520,30 @@ const SettingsScreen = ({ navigation }) => {
           onChangeText={text => { setFullName(text); setFormError(''); }}
           placeholder="Your name"
           autoCapitalize="words"
+          error={formError}
+        />
+      </AppDialog>
+
+      {/* Edit Phone dialog */}
+      <AppDialog
+        visible={showEditPhone}
+        onClose={() => setShowEditPhone(false)}
+        icon="phone-outline"
+        iconColor={HUES.blue}
+        iconBg={soft(HUES.blue)}
+        title="Phone Number"
+        subtitle="Used for appointment reminders & account recovery"
+        confirmLabel="Save"
+        onConfirm={handleSavePhone}
+        confirmLoading={isSubmitting}
+      >
+        <FormInput
+          label="Phone Number"
+          icon="phone-outline"
+          value={phone}
+          onChangeText={text => { setPhone(text); setFormError(''); }}
+          placeholder="+91 98765 43210"
+          keyboardType="phone-pad"
           error={formError}
         />
       </AppDialog>

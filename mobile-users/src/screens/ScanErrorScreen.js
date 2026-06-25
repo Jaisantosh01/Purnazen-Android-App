@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,11 +8,13 @@ import {
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { COLORS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 
 const ScanErrorScreen = ({ navigation, route }) => {
   const { message = 'Scan analysis failed. Please try again.', scanType = 'face' } =
     route?.params ?? {};
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const handleRetry = () => {
     navigation.replace('FaceScan', { scanType });
@@ -24,7 +26,7 @@ const ScanErrorScreen = ({ navigation, route }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
 
       <View style={styles.content}>
         <View style={styles.iconBox}>
@@ -64,10 +66,10 @@ const ScanErrorScreen = ({ navigation, route }) => {
 
 export default ScanErrorScreen;
 
-const styles = StyleSheet.create({
+const makeStyles = colors => StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   content: {
     flex: 1,
@@ -80,7 +82,7 @@ const styles = StyleSheet.create({
     width: 112,
     height: 112,
     borderRadius: 56,
-    backgroundColor: '#fef2f2',
+    backgroundColor: 'rgba(248,113,113,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
@@ -88,18 +90,18 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     textAlign: 'center',
   },
   message: {
     fontSize: 14,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     textAlign: 'center',
     lineHeight: 21,
   },
   tips: {
     alignSelf: 'stretch',
-    backgroundColor: '#fdf4ff',
+    backgroundColor: 'rgba(200,80,192,0.12)',
     borderRadius: 16,
     padding: 18,
     gap: 10,
@@ -108,7 +110,7 @@ const styles = StyleSheet.create({
   tipsTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   tipRow: {
@@ -118,7 +120,7 @@ const styles = StyleSheet.create({
   },
   tipText: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     flex: 1,
     lineHeight: 18,
   },
@@ -145,7 +147,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   homeBtnText: {
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontSize: 14,
     fontWeight: '600',
   },

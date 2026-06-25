@@ -11,6 +11,7 @@ import {
   Animated,
   Keyboard,
   ActivityIndicator,
+  Pressable,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -24,6 +25,7 @@ const LoginScreen = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [focused, setFocused] = useState(null); // 'email' | 'password'
+  const emailRef = useRef(null);
   const passwordRef = useRef(null);
 
   // Keyboard-aware layout. The Android window does not reliably resize on its
@@ -112,9 +114,10 @@ const LoginScreen = () => {
           )}
 
           <Text style={styles.label}>Email</Text>
-          <View style={[styles.inputContainer, focused === 'email' && styles.inputFocused]}>
+          <Pressable onPress={() => emailRef.current?.focus()} style={[styles.inputContainer, focused === 'email' && styles.inputFocused]}>
             <MCIcon name="email-outline" size={20} color={focused === 'email' ? COLORS.primary : COLORS.textMuted} style={styles.inputIcon} />
             <TextInput
+              ref={emailRef}
               style={styles.input}
               placeholder="doctor@example.com"
               placeholderTextColor={COLORS.textMuted}
@@ -128,10 +131,10 @@ const LoginScreen = () => {
               onFocus={() => setFocused('email')}
               onBlur={() => setFocused(null)}
             />
-          </View>
+          </Pressable>
 
           <Text style={styles.label}>Password</Text>
-          <View style={[styles.inputContainer, focused === 'password' && styles.inputFocused]}>
+          <Pressable onPress={() => passwordRef.current?.focus()} style={[styles.inputContainer, focused === 'password' && styles.inputFocused]}>
             <MCIcon name="lock-outline" size={20} color={focused === 'password' ? COLORS.primary : COLORS.textMuted} style={styles.inputIcon} />
             <TextInput
               ref={passwordRef}
@@ -155,7 +158,7 @@ const LoginScreen = () => {
             >
               <MCIcon name={showPassword ? 'eye-outline' : 'eye-off-outline'} size={20} color={COLORS.textMuted} />
             </TouchableOpacity>
-          </View>
+          </Pressable>
 
           <TouchableOpacity
             style={[styles.primaryBtn, isLoading && styles.primaryBtnDisabled]}

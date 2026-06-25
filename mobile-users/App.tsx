@@ -31,6 +31,10 @@ import useToastStore from './src/utils/toast';
 
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
+// @ts-ignore
+import ProfileCompletionScreen from './src/screens/ProfileCompletionScreen';
+// @ts-ignore
+import { useProfileStore } from './src/store/profileStore';
 import HomeScreen from './src/screens/HomeScreen';
 import ReliefScreen from './src/screens/ReliefScreen';
 import WellnessScreen from './src/screens/WellnessScreen';
@@ -220,6 +224,7 @@ export default function App() {
   const [bootstrapped, setBootstrapped] = useState(false);
   // Subscribe to auth state — changes here drive navigator re-render
   const isLoggedIn = useAuthStore((s: any) => s.isLoggedIn);
+  const needsProfile = useProfileStore((s: any) => s.pendingCompletion);
   const { message, type, visible, hide } = useToastStore();
   const { colors, isDark } = useTheme();
 
@@ -270,7 +275,12 @@ export default function App() {
       <RootStack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
         {isLoggedIn ? (
           // ── Authenticated routes ─────────────────────────────────────────
-          <RootStack.Screen name="Main" component={MainTabs} />
+          // One-time post-sign-up profile completion gates the main tabs.
+          needsProfile ? (
+            <RootStack.Screen name="ProfileCompletion" component={ProfileCompletionScreen} />
+          ) : (
+            <RootStack.Screen name="Main" component={MainTabs} />
+          )
         ) : (
           // ── Unauthenticated routes ───────────────────────────────────────
           <>

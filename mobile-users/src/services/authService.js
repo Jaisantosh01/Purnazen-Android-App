@@ -60,9 +60,19 @@ class AuthService {
     useAuthStore.getState().clearAuth();
   }
 
-  /** Update full name / avatar; keeps the cached user and store in sync. */
-  async updateProfile({ fullName, avatarUrl } = {}) {
-    const response = await apiClient.put(ENDPOINTS.ME, { fullName, avatarUrl });
+  /**
+   * Update profile fields; keeps the cached user and store in sync. Only the
+   * keys provided are sent, so partial updates (e.g. just the phone) are fine.
+   */
+  async updateProfile({ fullName, avatarUrl, phone, gender, dateOfBirth } = {}) {
+    const payload = {};
+    if (fullName !== undefined) payload.fullName = fullName;
+    if (avatarUrl !== undefined) payload.avatarUrl = avatarUrl;
+    if (phone !== undefined) payload.phone = phone;
+    if (gender !== undefined) payload.gender = gender;
+    if (dateOfBirth !== undefined) payload.dateOfBirth = dateOfBirth;
+
+    const response = await apiClient.put(ENDPOINTS.ME, payload);
 
     if (!response.success) {
       throw new Error(response.message || 'Profile update failed');

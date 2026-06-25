@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,10 +15,10 @@ import Svg, { Polyline, Circle, Line as SvgLine } from 'react-native-svg';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import scanService from '../services/scanService';
 import useScanStore from '../store/scanStore';
-import { COLORS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 
-function glowColor(score) {
-  if (score == null) return COLORS.textMuted;
+function glowColor(score, muted = '#9CA3AF') {
+  if (score == null) return muted;
   if (score >= 70) return '#22c55e';
   if (score >= 45) return '#f59e0b';
   return '#ef4444';
@@ -31,7 +31,7 @@ function formatDate(iso) {
 }
 
 /** Lightweight glow-score trend line (no chart lib). `points` oldest→newest. */
-function GlowTrend({ points }) {
+function GlowTrend({ points, styles, colors }) {
   const W = 300;
   const H = 90;
   const pad = 10;
@@ -50,10 +50,10 @@ function GlowTrend({ points }) {
     <View style={styles.trendCard}>
       <Text style={styles.trendTitle}>Glow score over time</Text>
       <Svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`}>
-        <SvgLine x1={pad} y1={H - pad} x2={W - pad} y2={H - pad} stroke={COLORS.border} strokeWidth={1} />
-        <Polyline points={polyline} fill="none" stroke={COLORS.primary} strokeWidth={2.5} />
+        <SvgLine x1={pad} y1={H - pad} x2={W - pad} y2={H - pad} stroke={colors.border} strokeWidth={1} />
+        <Polyline points={polyline} fill="none" stroke={colors.primary} strokeWidth={2.5} />
         {coords.map((c, i) => (
-          <Circle key={i} cx={c[0]} cy={c[1]} r={3.5} fill={glowColor(points[i])} />
+          <Circle key={i} cx={c[0]} cy={c[1]} r={3.5} fill={glowColor(points[i], colors.textMuted)} />
         ))}
       </Svg>
     </View>
@@ -61,6 +61,8 @@ function GlowTrend({ points }) {
 }
 
 const ScanHistoryScreen = ({ navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -130,7 +132,7 @@ const ScanHistoryScreen = ({ navigation }) => {
 
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <MCIcon name="arrow-left" size={22} color={COLORS.white} />
+          <MCIcon name="arrow-left" size={22} color={colors.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Scan History</Text>
         <View style={{ width: 38 }} />
@@ -140,7 +142,7 @@ const ScanHistoryScreen = ({ navigation }) => {
         <View style={styles.center}><ActivityIndicator color="#C850C0" size="large" /></View>
       ) : items.length === 0 ? (
         <View style={styles.center}>
-          <MCIcon name="history" size={48} color={COLORS.borderStrong} />
+          <MCIcon name="history" size={48} color={colors.borderStrong} />
           <Text style={styles.emptyTitle}>No scans yet</Text>
           <Text style={styles.emptySub}>Run a face scan to start tracking your skin over time.</Text>
           <TouchableOpacity style={styles.scanCta} onPress={() => navigation.navigate('FaceScan', { scanType: 'face' })}>
@@ -152,7 +154,7 @@ const ScanHistoryScreen = ({ navigation }) => {
           contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#C850C0']} />}
         >
-          <GlowTrend points={trendPoints} />
+          <GlowTrend points={trendPoints} styles={styles} colors={colors} />
 
           {items.map(item => (
             <TouchableOpacity
@@ -162,8 +164,8 @@ const ScanHistoryScreen = ({ navigation }) => {
               onPress={() => openScan(item)}
               onLongPress={() => confirmDelete(item)}
             >
-              <View style={[styles.scoreBadge, { borderColor: glowColor(item.glowScore) }]}>
-                <Text style={[styles.scoreNum, { color: glowColor(item.glowScore) }]}>
+              <View style={[styles.scoreBadge, { borderColor: glowColor(item.glowScore, colors.textMuted) }]}>
+                <Text style={[styles.scoreNum, { color: glowColor(item.glowScore, colors.textMuted) }]}>
                   {item.glowScore != null ? Math.round(item.glowScore) : '--'}
                 </Text>
               </View>
@@ -175,7 +177,7 @@ const ScanHistoryScreen = ({ navigation }) => {
                     : item.status}
                 </Text>
               </View>
-              <MCIcon name="chevron-right" size={22} color={COLORS.textMuted} />
+              <MCIcon name="chevron-right" size={22} color={colors.textMuted} />
             </TouchableOpacity>
           ))}
 
@@ -192,8 +194,8 @@ const ScanHistoryScreen = ({ navigation }) => {
 
 export default ScanHistoryScreen;
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   header: {
     backgroundColor: '#C850C0',
     paddingTop: 52,
@@ -210,28 +212,28 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center', justifyContent: 'center',
   },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: COLORS.white },
+  headerTitle: { fontSize: 18, fontWeight: '800', color: colors.white },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 10 },
-  emptyTitle: { fontSize: 17, fontWeight: '700', color: COLORS.textPrimary },
-  emptySub: { fontSize: 13.5, color: COLORS.textMuted, textAlign: 'center' },
+  emptyTitle: { fontSize: 17, fontWeight: '700', color: colors.textPrimary },
+  emptySub: { fontSize: 13.5, color: colors.textMuted, textAlign: 'center' },
   scanCta: { marginTop: 12, backgroundColor: '#C850C0', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 28 },
-  scanCtaText: { color: COLORS.white, fontWeight: '700', fontSize: 15 },
+  scanCtaText: { color: colors.white, fontWeight: '700', fontSize: 15 },
 
   trendCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
     elevation: 2,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4,
   },
-  trendTitle: { fontSize: 14, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 8 },
+  trendTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary, marginBottom: 8 },
 
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: 14,
     padding: 14,
     marginBottom: 10,
@@ -243,9 +245,9 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   scoreNum: { fontSize: 17, fontWeight: '800' },
-  rowDate: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
-  rowMeta: { fontSize: 12.5, color: COLORS.textMuted, marginTop: 2, textTransform: 'capitalize' },
-  hint: { fontSize: 12, color: COLORS.textMuted, textAlign: 'center', marginTop: 8 },
+  rowDate: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
+  rowMeta: { fontSize: 12.5, color: colors.textMuted, marginTop: 2, textTransform: 'capitalize' },
+  hint: { fontSize: 12, color: colors.textMuted, textAlign: 'center', marginTop: 8 },
 
   overlay: {
     ...StyleSheet.absoluteFillObject,

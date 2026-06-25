@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import scanService from '../services/scanService';
 import TrendChart from '../components/scan/TrendChart';
-import { COLORS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 
 const METRICS = [
   { key: 'glow_score', label: 'Glow' },
@@ -22,14 +22,16 @@ const METRICS = [
   { key: 'wrinkle_score', label: 'Lines' },
 ];
 
-function glowColor(score) {
-  if (score == null) return COLORS.textMuted;
+function glowColor(score, muted = '#9CA3AF') {
+  if (score == null) return muted;
   if (score >= 70) return '#22c55e';
   if (score >= 45) return '#f59e0b';
   return '#ef4444';
 }
 
 const ScanDashboardScreen = ({ navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [dash, setDash] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -75,11 +77,11 @@ const ScanDashboardScreen = ({ navigation }) => {
       <StatusBar barStyle="light-content" backgroundColor="#C850C0" />
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-          <MCIcon name="arrow-left" size={22} color={COLORS.white} />
+          <MCIcon name="arrow-left" size={22} color={colors.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Skin Dashboard</Text>
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.navigate('ScanHistory')}>
-          <MCIcon name="history" size={22} color={COLORS.white} />
+          <MCIcon name="history" size={22} color={colors.white} />
         </TouchableOpacity>
       </View>
 
@@ -87,7 +89,7 @@ const ScanDashboardScreen = ({ navigation }) => {
         <View style={styles.center}><ActivityIndicator color="#C850C0" size="large" /></View>
       ) : !dash?.hasData ? (
         <View style={styles.center}>
-          <MCIcon name="chart-line" size={48} color={COLORS.borderStrong} />
+          <MCIcon name="chart-line" size={48} color={colors.borderStrong} />
           <Text style={styles.emptyTitle}>No analysis yet</Text>
           <Text style={styles.emptySub}>Scan your face to build your skin dashboard and track progress.</Text>
           <TouchableOpacity style={styles.cta} onPress={() => navigation.navigate('FaceScan', { scanType: 'face' })}>
@@ -156,8 +158,8 @@ const ScanDashboardScreen = ({ navigation }) => {
 
 export default ScanDashboardScreen;
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   header: {
     backgroundColor: '#C850C0',
     paddingTop: 52, paddingBottom: 20, paddingHorizontal: 20,
@@ -168,41 +170,41 @@ const styles = StyleSheet.create({
     width: 38, height: 38, borderRadius: 19,
     backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center',
   },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: COLORS.white },
+  headerTitle: { fontSize: 18, fontWeight: '800', color: colors.white },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 10 },
-  emptyTitle: { fontSize: 17, fontWeight: '700', color: COLORS.textPrimary },
-  emptySub: { fontSize: 13.5, color: COLORS.textMuted, textAlign: 'center' },
+  emptyTitle: { fontSize: 17, fontWeight: '700', color: colors.textPrimary },
+  emptySub: { fontSize: 13.5, color: colors.textMuted, textAlign: 'center' },
   cta: { marginTop: 12, backgroundColor: '#C850C0', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 28 },
-  ctaText: { color: COLORS.white, fontWeight: '700', fontSize: 15 },
+  ctaText: { color: colors.white, fontWeight: '700', fontSize: 15 },
 
   summaryRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
   gauge: {
     width: 110, height: 110, borderRadius: 55, borderWidth: 7,
-    alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.white,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card,
   },
   gaugeNum: { fontSize: 32, fontWeight: '900' },
-  gaugeLabel: { fontSize: 12, color: COLORS.textMuted, fontWeight: '600' },
+  gaugeLabel: { fontSize: 12, color: colors.textMuted, fontWeight: '600' },
   statCol: { flex: 1, gap: 12 },
   statCard: {
-    flex: 1, backgroundColor: COLORS.white, borderRadius: 14, padding: 14, justifyContent: 'center',
+    flex: 1, backgroundColor: colors.card, borderRadius: 14, padding: 14, justifyContent: 'center',
     elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3,
   },
-  statNum: { fontSize: 22, fontWeight: '800', color: COLORS.textPrimary },
-  statLabel: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  statNum: { fontSize: 22, fontWeight: '800', color: colors.textPrimary },
+  statLabel: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
 
   chips: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   chip: {
     paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999,
-    backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.border,
+    backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
   },
   chipOn: { backgroundColor: '#C850C0', borderColor: '#C850C0' },
-  chipText: { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary },
-  chipTextOn: { color: COLORS.white },
+  chipText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
+  chipTextOn: { color: colors.white },
 
   actions: { flexDirection: 'row', gap: 12, marginTop: 16 },
   actionBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#fdf4ff', borderRadius: 14, paddingVertical: 14,
+    backgroundColor: 'rgba(200,80,192,0.12)', borderRadius: 14, paddingVertical: 14,
     borderWidth: 1, borderColor: '#f3e8ff',
   },
   actionText: { color: '#C850C0', fontWeight: '700', fontSize: 13.5 },
