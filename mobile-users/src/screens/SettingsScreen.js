@@ -7,9 +7,6 @@ import {
   TouchableOpacity,
   Switch,
   Alert,
-  Modal,
-  TextInput,
-  ActivityIndicator,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -20,6 +17,8 @@ import { resetToLogin } from '../navigation/navigationRef';
 import { useAuthStore } from '../store/authStore';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
+import AppDialog from '../components/AppDialog';
+import FormInput from '../components/FormInput';
 
 // Shared toggle ids with NotificationsScreen (user_preferences.notifications)
 const PREF_KEYS = {
@@ -27,6 +26,19 @@ const PREF_KEYS = {
   appointmentAlerts: 'appointment',
   promotionalEmails: 'offers',
 };
+
+// Per-row accent hues. The icon background is a translucent wash of the same
+// hue (`soft()`), so the tint reads correctly over both light and dark cards
+// instead of the old fixed pastel fills that glowed in dark mode.
+const HUES = {
+  primary: null, // resolved to colors.primary at render
+  purple: '#7C3AED',
+  blue: '#0284C7',
+  amber: '#F59E0B',
+  orange: '#EA580C',
+  rose: '#E11D48',
+};
+const soft = hex => `${hex}22`;
 
 const makeStyles = COLORS => StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
@@ -81,62 +93,6 @@ const makeStyles = COLORS => StyleSheet.create({
     color: COLORS.borderStrong,
     marginTop: 28,
   },
-
-  // Modal forms (edit profile / change password)
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-  },
-  modalCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: 18,
-    padding: 20,
-  },
-  modalTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-    marginBottom: 16,
-  },
-  modalLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.textSecondary,
-    marginBottom: 6,
-    marginTop: 8,
-  },
-  modalInput: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    fontSize: 14,
-    color: COLORS.textPrimary,
-    backgroundColor: COLORS.surfaceMuted,
-  },
-  modalError: {
-    fontSize: 12,
-    color: COLORS.danger,
-    marginTop: 10,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 10,
-    marginTop: 20,
-  },
-  modalBtn: {
-    paddingHorizontal: 18,
-    paddingVertical: 11,
-    borderRadius: 10,
-  },
-  modalBtnCancel: { backgroundColor: COLORS.surfaceMuted },
-  modalBtnSave: { backgroundColor: COLORS.primary, minWidth: 80, alignItems: 'center' },
-  modalBtnCancelText: { fontSize: 14, fontWeight: '600', color: COLORS.textSecondary },
-  modalBtnSaveText: { fontSize: 14, fontWeight: '600', color: COLORS.white },
 });
 
 const SettingsScreen = ({ navigation }) => {
@@ -149,39 +105,48 @@ const SettingsScreen = ({ navigation }) => {
     <Text style={styles.sectionHeader}>{title}</Text>
   );
 
-  const ToggleRow = ({ icon, iconColor = colors.primary, iconBg = colors.primaryLight, title, subtitle, value, onToggle, disabled }) => (
-    <View style={styles.settingRow}>
-      <View style={[styles.settingIconBox, { backgroundColor: iconBg }]}>
-        <MCIcon name={icon} size={20} color={iconColor} />
-      </View>
-      <View style={styles.settingInfo}>
-        <Text style={styles.settingTitle}>{title}</Text>
-        {subtitle ? <Text style={styles.settingSubtitle}>{subtitle}</Text> : null}
-      </View>
-      <Switch
-        value={value}
-        onValueChange={onToggle}
-        disabled={disabled}
-        trackColor={{ false: colors.border, true: colors.primary }}
-        thumbColor={colors.white}
-      />
-    </View>
-  );
+  // hue → saturated icon foreground; soft(hue) → translucent themed background.
+  const tint = hue => hue || colors.primary;
 
-  const ArrowRow = ({ icon, iconColor = colors.primary, iconBg = colors.primaryLight, title, subtitle, onPress, valueText, danger }) => (
-    <TouchableOpacity style={styles.settingRow} onPress={onPress} activeOpacity={0.7}>
-      <View style={[styles.settingIconBox, { backgroundColor: iconBg }]}>
-        <MCIcon name={icon} size={20} color={iconColor} />
+  const ToggleRow = ({ icon, hue, title, subtitle, value, onToggle, disabled }) => {
+    const c = tint(hue);
+    return (
+      <View style={styles.settingRow}>
+        <View style={[styles.settingIconBox, { backgroundColor: soft(c) }]}>
+          <MCIcon name={icon} size={20} color={c} />
+        </View>
+        <View style={styles.settingInfo}>
+          <Text style={styles.settingTitle}>{title}</Text>
+          {subtitle ? <Text style={styles.settingSubtitle}>{subtitle}</Text> : null}
+        </View>
+        <Switch
+          value={value}
+          onValueChange={onToggle}
+          disabled={disabled}
+          trackColor={{ false: colors.border, true: colors.primary }}
+          thumbColor={colors.white}
+        />
       </View>
-      <View style={styles.settingInfo}>
-        <Text style={danger ? styles.settingTitleDanger : styles.settingTitle}>{title}</Text>
-        {subtitle ? <Text style={styles.settingSubtitle}>{subtitle}</Text> : null}
-      </View>
-      {valueText
-        ? <Text style={styles.valueText}>{valueText}</Text>
-        : <MCIcon name="chevron-right" size={20} color={colors.borderStrong} />}
-    </TouchableOpacity>
-  );
+    );
+  };
+
+  const ArrowRow = ({ icon, hue, title, subtitle, onPress, valueText, danger }) => {
+    const c = danger ? colors.danger : tint(hue);
+    return (
+      <TouchableOpacity style={styles.settingRow} onPress={onPress} activeOpacity={0.7}>
+        <View style={[styles.settingIconBox, { backgroundColor: soft(c) }]}>
+          <MCIcon name={icon} size={20} color={c} />
+        </View>
+        <View style={styles.settingInfo}>
+          <Text style={danger ? styles.settingTitleDanger : styles.settingTitle}>{title}</Text>
+          {subtitle ? <Text style={styles.settingSubtitle}>{subtitle}</Text> : null}
+        </View>
+        {valueText
+          ? <Text style={styles.valueText}>{valueText}</Text>
+          : <MCIcon name="chevron-right" size={20} color={colors.borderStrong} />}
+      </TouchableOpacity>
+    );
+  };
 
   const [notifications, setNotifications]         = useState(true);
   const [sessionReminders, setSessionReminders]   = useState(true);
@@ -355,8 +320,7 @@ const SettingsScreen = ({ navigation }) => {
             <View style={styles.rowDivider} />
             <ArrowRow
               icon="lock-outline"
-              iconColor="#7c3aed"
-              iconBg="#F3EEFF"
+              hue={HUES.purple}
               title="Change Password"
               subtitle="Update your login password"
               onPress={openChangePassword}
@@ -364,21 +328,19 @@ const SettingsScreen = ({ navigation }) => {
             <View style={styles.rowDivider} />
             <ArrowRow
               icon="phone-outline"
-              iconColor="#0284c7"
-              iconBg="#E0F2FE"
+              hue={HUES.blue}
               title="Phone Number"
               subtitle="Linked mobile number"
-              valueText="+91 98765 XXXXX"
+              valueText={user?.phone || 'NA'}
               onPress={() => Alert.alert('Update Phone', 'Coming soon!')}
             />
             <View style={styles.rowDivider} />
             <ArrowRow
               icon="email-outline"
-              iconColor="#f59e0b"
-              iconBg="#FFFBEB"
+              hue={HUES.amber}
               title="Email Address"
               subtitle="Linked email"
-              valueText={user?.email || '—'}
+              valueText={user?.email || 'NA'}
               onPress={() => {}}
             />
           </View>
@@ -398,8 +360,7 @@ const SettingsScreen = ({ navigation }) => {
             <View style={styles.rowDivider} />
             <ToggleRow
               icon="yoga"
-              iconColor="#7c3aed"
-              iconBg="#F3EEFF"
+              hue={HUES.purple}
               title="Session Reminders"
               subtitle="Daily wellness session alerts"
               value={sessionReminders}
@@ -408,8 +369,7 @@ const SettingsScreen = ({ navigation }) => {
             <View style={styles.rowDivider} />
             <ToggleRow
               icon="calendar-clock"
-              iconColor="#0284c7"
-              iconBg="#E0F2FE"
+              hue={HUES.blue}
               title="Appointment Alerts"
               subtitle="Reminders before consultations"
               value={appointmentAlerts}
@@ -418,8 +378,7 @@ const SettingsScreen = ({ navigation }) => {
             <View style={styles.rowDivider} />
             <ToggleRow
               icon="tag-outline"
-              iconColor="#f59e0b"
-              iconBg="#FFFBEB"
+              hue={HUES.amber}
               title="Promotional Emails"
               subtitle="Offers, tips & newsletters"
               value={promotionalEmails}
@@ -434,8 +393,7 @@ const SettingsScreen = ({ navigation }) => {
           <View style={styles.card}>
             <ToggleRow
               icon="weather-night"
-              iconColor="#6b7280"
-              iconBg={colors.surfaceMuted}
+              hue={colors.textSecondary}
               title="Dark Mode"
               subtitle="Switch to dark theme"
               value={isDark}
@@ -453,8 +411,7 @@ const SettingsScreen = ({ navigation }) => {
             <View style={styles.rowDivider} />
             <ArrowRow
               icon="translate"
-              iconColor="#ea580c"
-              iconBg="#FFF3E0"
+              hue={HUES.orange}
               title="Language"
               subtitle="App display language"
               valueText="English"
@@ -469,8 +426,7 @@ const SettingsScreen = ({ navigation }) => {
           <View style={styles.card}>
             <ToggleRow
               icon="map-marker-outline"
-              iconColor="#D46F6F"
-              iconBg="#FFEEEE"
+              hue={HUES.rose}
               title="Location Access"
               subtitle="Used for nearby doctor search"
               value={locationAccess}
@@ -479,8 +435,7 @@ const SettingsScreen = ({ navigation }) => {
             <View style={styles.rowDivider} />
             <ArrowRow
               icon="shield-account-outline"
-              iconColor="#7C3AED"
-              iconBg="#F3EEFF"
+              hue={HUES.purple}
               title="Privacy & Data Consent"
               subtitle="Manage scan storage & AI consents"
               onPress={() => navigation.navigate('Consent')}
@@ -488,8 +443,7 @@ const SettingsScreen = ({ navigation }) => {
             <View style={styles.rowDivider} />
             <ArrowRow
               icon="download-outline"
-              iconColor="#0284c7"
-              iconBg="#E0F2FE"
+              hue={HUES.blue}
               title="Download My Data"
               subtitle="Export your health records"
               onPress={() => Alert.alert('Download Data', 'Your data export will be emailed within 24 hours.')}
@@ -503,16 +457,13 @@ const SettingsScreen = ({ navigation }) => {
           <View style={styles.card}>
             <ArrowRow
               icon="logout"
-              iconColor={colors.danger}
-              iconBg="#FFF5F5"
+              hue={colors.danger}
               title="Logout"
               onPress={handleLogout}
             />
             <View style={styles.rowDivider} />
             <ArrowRow
               icon="delete-outline"
-              iconColor={colors.danger}
-              iconBg="#FFF5F5"
               title="Delete Account"
               subtitle="Permanently remove all your data"
               onPress={handleDeleteAccount}
@@ -524,96 +475,67 @@ const SettingsScreen = ({ navigation }) => {
         <Text style={styles.version}>Purnazen v1.0.0</Text>
       </ScrollView>
 
-      {/* Edit Profile modal */}
-      <Modal visible={showEditProfile} transparent animationType="fade"
-        onRequestClose={() => setShowEditProfile(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Edit Profile</Text>
-            <Text style={styles.modalLabel}>Full Name</Text>
-            <TextInput
-              style={styles.modalInput}
-              value={fullName}
-              onChangeText={text => { setFullName(text); setFormError(''); }}
-              placeholder="Your name"
-              placeholderTextColor={colors.textMuted}
-            />
-            {formError ? <Text style={styles.modalError}>{formError}</Text> : null}
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalBtn, styles.modalBtnCancel]}
-                onPress={() => setShowEditProfile(false)}
-              >
-                <Text style={styles.modalBtnCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalBtn, styles.modalBtnSave]}
-                onPress={handleSaveProfile}
-                disabled={isSubmitting}
-              >
-                {isSubmitting
-                  ? <ActivityIndicator size="small" color={colors.white} />
-                  : <Text style={styles.modalBtnSaveText}>Save</Text>}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      {/* Edit Profile dialog */}
+      <AppDialog
+        visible={showEditProfile}
+        onClose={() => setShowEditProfile(false)}
+        icon="account-edit-outline"
+        title="Edit Profile"
+        subtitle="Update the name shown across Purnazen"
+        confirmLabel="Save"
+        onConfirm={handleSaveProfile}
+        confirmLoading={isSubmitting}
+      >
+        <FormInput
+          label="Full Name"
+          icon="account-outline"
+          value={fullName}
+          onChangeText={text => { setFullName(text); setFormError(''); }}
+          placeholder="Your name"
+          autoCapitalize="words"
+          error={formError}
+        />
+      </AppDialog>
 
-      {/* Change Password modal */}
-      <Modal visible={showChangePassword} transparent animationType="fade"
-        onRequestClose={() => setShowChangePassword(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Change Password</Text>
-            <Text style={styles.modalLabel}>Current Password</Text>
-            <TextInput
-              style={styles.modalInput}
-              value={currentPassword}
-              onChangeText={text => { setCurrentPassword(text); setFormError(''); }}
-              secureTextEntry
-              placeholder="Current password"
-              placeholderTextColor={colors.textMuted}
-            />
-            <Text style={styles.modalLabel}>New Password</Text>
-            <TextInput
-              style={styles.modalInput}
-              value={newPassword}
-              onChangeText={text => { setNewPassword(text); setFormError(''); }}
-              secureTextEntry
-              placeholder="At least 6 characters"
-              placeholderTextColor={colors.textMuted}
-            />
-            <Text style={styles.modalLabel}>Confirm New Password</Text>
-            <TextInput
-              style={styles.modalInput}
-              value={confirmPassword}
-              onChangeText={text => { setConfirmPassword(text); setFormError(''); }}
-              secureTextEntry
-              placeholder="Repeat new password"
-              placeholderTextColor={colors.textMuted}
-            />
-            {formError ? <Text style={styles.modalError}>{formError}</Text> : null}
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalBtn, styles.modalBtnCancel]}
-                onPress={() => setShowChangePassword(false)}
-              >
-                <Text style={styles.modalBtnCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalBtn, styles.modalBtnSave]}
-                onPress={handleChangePassword}
-                disabled={isSubmitting}
-              >
-                {isSubmitting
-                  ? <ActivityIndicator size="small" color={colors.white} />
-                  : <Text style={styles.modalBtnSaveText}>Update</Text>}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      {/* Change Password dialog */}
+      <AppDialog
+        visible={showChangePassword}
+        onClose={() => setShowChangePassword(false)}
+        icon="lock-outline"
+        iconColor={HUES.purple}
+        iconBg={soft(HUES.purple)}
+        title="Change Password"
+        subtitle="Choose a strong password you don't reuse elsewhere"
+        confirmLabel="Update"
+        onConfirm={handleChangePassword}
+        confirmLoading={isSubmitting}
+      >
+        <FormInput
+          label="Current Password"
+          icon="lock-outline"
+          value={currentPassword}
+          onChangeText={text => { setCurrentPassword(text); setFormError(''); }}
+          secureTextEntry
+          placeholder="Current password"
+        />
+        <FormInput
+          label="New Password"
+          icon="lock-plus-outline"
+          value={newPassword}
+          onChangeText={text => { setNewPassword(text); setFormError(''); }}
+          secureTextEntry
+          placeholder="At least 6 characters"
+        />
+        <FormInput
+          label="Confirm New Password"
+          icon="lock-check-outline"
+          value={confirmPassword}
+          onChangeText={text => { setConfirmPassword(text); setFormError(''); }}
+          secureTextEntry
+          placeholder="Repeat new password"
+          error={formError}
+        />
+      </AppDialog>
     </View>
   );
 };

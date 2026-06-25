@@ -1,15 +1,17 @@
 import React, { useEffect, useRef, useCallback } from 'react';
 import { Animated, Text, StyleSheet, View } from 'react-native';
+// @ts-ignore
+import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { COLORS, SPACING, RADIUS } from '../constants/theme';
 
 const DURATION = 3000;
 const SLIDE_OFFSET = -80;
 
 const PRESETS = {
-  success: { bg: COLORS.primary,        icon: '✓' },
-  error:   { bg: COLORS.danger,         icon: '✕' },
-  info:    { bg: COLORS.textSecondary,  icon: 'i' },
-  warning: { bg: COLORS.warning,        icon: '!' },
+  success: { bg: COLORS.primary,        icon: 'check' },
+  error:   { bg: COLORS.danger,         icon: 'close' },
+  info:    { bg: COLORS.textSecondary,  icon: 'information' },
+  warning: { bg: COLORS.warning,        icon: 'alert' },
 };
 
 const Toast = ({ message, type = 'success', visible, onHide }) => {
@@ -43,7 +45,7 @@ const Toast = ({ message, type = 'success', visible, onHide }) => {
       pointerEvents="none"
     >
       <View style={styles.iconCircle}>
-        <Text style={styles.icon}>{preset.icon}</Text>
+        <MCIcon name={preset.icon} size={14} color={COLORS.white} />
       </View>
       <Text style={styles.message} numberOfLines={2}>{message}</Text>
     </Animated.View>

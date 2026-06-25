@@ -24,22 +24,25 @@ const DoctorBasicCard = ({ doctor }) => (
     <Text style={styles.doctorSpecialty}>{doctor.specialty}</Text>
 
     <View style={styles.ratingRow}>
-      <Text style={styles.star}>⭐</Text>
+      <MCIcon name="star" size={15} color={COLORS.warning} style={styles.star} />
       <Text style={styles.rating}>{doctor.rating}</Text>
       <Text style={styles.reviews}>({doctor.reviews} reviews)</Text>
     </View>
 
     <View style={styles.locationRow}>
-      <Text style={styles.locationIcon}>📍</Text>
+      <MCIcon name="map-marker" size={14} color={COLORS.textMuted} style={styles.locationIcon} />
       <Text style={styles.location}>{doctor.location}</Text>
     </View>
 
     <View style={styles.tagsRow}>
       {doctor.tags.map((tag, index) => (
         <View key={index} style={styles.tag}>
-          <Text style={styles.tagIcon}>
-            {tag === 'Video' ? '📹' : '🏠'}
-          </Text>
+          <MCIcon
+            name={tag === 'Video' ? 'video-outline' : 'home-outline'}
+            size={14}
+            color={COLORS.primary}
+            style={styles.tagIcon}
+          />
           <Text style={styles.tagText}>
             {tag === 'Video' ? 'Video Consult' : 'Home Visit'}
           </Text>
@@ -123,7 +126,7 @@ const DoctorProfileScreen = ({ navigation, route }) => {
               <Text style={styles.sectionTitle}>Education</Text>
               <View style={styles.sectionCard}>
                 <View style={styles.educationRow}>
-                  <Text style={styles.educationIcon}>🎓</Text>
+                  <MCIcon name="school" size={20} color={COLORS.primary} style={styles.educationIcon} />
                   <View style={styles.educationInfo}>
                     <Text style={styles.educationDegree}>{detailData.education}</Text>
                     <Text style={styles.educationExp}>
@@ -172,7 +175,7 @@ const DoctorProfileScreen = ({ navigation, route }) => {
                         index < detailData.awards.length - 1 && styles.awardBorder,
                       ]}
                     >
-                      <Text style={styles.awardIcon}>🏆</Text>
+                      <MCIcon name="trophy-outline" size={18} color={COLORS.warning} style={styles.awardIcon} />
                       <View style={{flex: 1}}>
                         <Text style={styles.awardText}>{award.title}</Text>
                         <Text style={styles.awardIssuer}>{award.issuer} • {award.year}</Text>

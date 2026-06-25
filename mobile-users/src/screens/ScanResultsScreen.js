@@ -30,7 +30,7 @@ const METRIC_LABELS = {
 };
 
 function buildShareText(results, glowScore, recommendations) {
-  const lines = ['My Purnazen skin analysis ✨', ''];
+  const lines = ['My Purnazen skin analysis', ''];
   if (glowScore != null) lines.push(`Glow Score: ${Math.round(glowScore)}/100`);
   if (results.overallWellnessScore != null) lines.push(`Wellness: ${Math.round(results.overallWellnessScore)}/100`);
   if (results.skinAgeEstimate != null) lines.push(`Skin age estimate: ${results.skinAgeEstimate}`);

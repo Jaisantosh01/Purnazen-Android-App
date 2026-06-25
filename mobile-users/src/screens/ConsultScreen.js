@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import {
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import consultService from '../services/consultService';
-import { COLORS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 import {TAG_ICONS} from '../constants/icons';
 import {CONSULT_SCREEN_FILTER_TABS_FALLBACK} from '../constants/miscellaneous';
 
@@ -24,7 +24,7 @@ const FILTER_TABS_FALLBACK = CONSULT_SCREEN_FILTER_TABS_FALLBACK;
 
 // Shared header reused in loading/error states
 // Fix 1: always pass searchQuery so TextInput is never uncontrolled
-const ScreenHeader = ({ searchQuery = '', onChangeText, onClear, editable = true, navigation }) => (
+const ScreenHeader = ({ styles, colors, searchQuery = '', onChangeText, onClear, editable = true, navigation }) => (
   <View style={styles.header}>
     <View style={styles.headerTopRow}>
       <View style={styles.headerTextCol}>
@@ -32,15 +32,15 @@ const ScreenHeader = ({ searchQuery = '', onChangeText, onClear, editable = true
         <Text style={styles.headerSubtitle}>Connect with expert doctors</Text>
       </View>
       <TouchableOpacity style={styles.historyBtn} onPress={() => navigation?.navigate('AppointmentHistory')}>
-        <MCIcon name="calendar-clock" size={22} color={COLORS.white} />
+        <MCIcon name="calendar-clock" size={22} color={colors.white} />
       </TouchableOpacity>
     </View>
     <View style={styles.searchContainer}>
-      <MCIcon name="magnify" size={20} color={COLORS.textMuted} style={{ marginRight: 8 }} />
+      <MCIcon name="magnify" size={20} color={colors.textMuted} style={{ marginRight: 8 }} />
       <TextInput
         style={styles.searchInput}
         placeholder="Search doctors, specialties..."
-        placeholderTextColor={COLORS.textMuted}
+        placeholderTextColor={colors.textMuted}
         value={searchQuery}
         onChangeText={onChangeText}
         editable={editable}
@@ -48,7 +48,7 @@ const ScreenHeader = ({ searchQuery = '', onChangeText, onClear, editable = true
       {editable && searchQuery.length > 0 && (
         // Fix 7: added padding so touch target is larger
         <TouchableOpacity onPress={onClear} style={styles.clearBtn}>
-          <MCIcon name="close" size={18} color={COLORS.textMuted} />
+          <MCIcon name="close" size={18} color={colors.textMuted} />
         </TouchableOpacity>
       )}
     </View>
@@ -56,6 +56,8 @@ const ScreenHeader = ({ searchQuery = '', onChangeText, onClear, editable = true
 );
 
 const ConsultScreen = ({ navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [activeFilter, setActiveFilter] = useState('All');
   const [searchQuery, setSearchQuery]   = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState(''); // Fix 2: debounce
@@ -142,7 +144,7 @@ const ConsultScreen = ({ navigation }) => {
           <Text style={styles.doctorSpecialty} numberOfLines={1}>{doctor.specialty}</Text>
 
           <View style={styles.ratingRow}>
-            <MCIcon name="star" size={14} color={COLORS.warning} />
+            <MCIcon name="star" size={14} color={colors.warning} />
             <Text style={styles.rating}> {doctor.rating}</Text>
             <Text style={styles.reviews}> ({doctor.reviews})</Text>
             <Text style={styles.separator}>  •  </Text>
@@ -150,7 +152,7 @@ const ConsultScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.locationRow}>
-            <MCIcon name="map-marker-outline" size={13} color={COLORS.textMuted} />
+            <MCIcon name="map-marker-outline" size={13} color={colors.textMuted} />
             <Text style={styles.location} numberOfLines={1}> {doctor.location}</Text>
           </View>
         </View>
@@ -163,7 +165,7 @@ const ConsultScreen = ({ navigation }) => {
             <MCIcon
               name={TAG_ICONS[tag] || 'tag-outline'}
               size={13}
-              color={COLORS.textSecondary}
+              color={colors.textSecondary}
             />
             <Text style={styles.tagText}> {tag}</Text>
           </View>
@@ -197,7 +199,7 @@ const ConsultScreen = ({ navigation }) => {
     if (!isLoading || doctors.length === 0) return null;
     return (
       <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color={COLORS.primary} />
+        <ActivityIndicator size="small" color={colors.primary} />
       </View>
     );
   };
@@ -207,7 +209,7 @@ const ConsultScreen = ({ navigation }) => {
     if (isLoading) return null;
     return (
       <View style={styles.emptyState}>
-        <MCIcon name="doctor" size={60} color={COLORS.borderStrong} />
+        <MCIcon name="doctor" size={60} color={colors.borderStrong} />
         <Text style={styles.emptyTitle}>No doctors found</Text>
         <Text style={styles.emptySubtitle}>Try a different search or filter</Text>
       </View>
@@ -219,10 +221,10 @@ const ConsultScreen = ({ navigation }) => {
   if (isLoading && doctors.length === 0) {
     return (
       <View style={styles.root}>
-        <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
-        <ScreenHeader searchQuery={searchQuery} editable={false} />
+        <StatusBar barStyle="light-content" backgroundColor={colors.headerBg} />
+        <ScreenHeader styles={styles} colors={colors} searchQuery={searchQuery} editable={false} />
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Loading doctors...</Text>
         </View>
       </View>
@@ -234,10 +236,10 @@ const ConsultScreen = ({ navigation }) => {
   if (error && doctors.length === 0) {
     return (
       <View style={styles.root}>
-        <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
-        <ScreenHeader searchQuery={searchQuery} editable={false} />
+        <StatusBar barStyle="light-content" backgroundColor={colors.headerBg} />
+        <ScreenHeader styles={styles} colors={colors} searchQuery={searchQuery} editable={false} />
         <View style={styles.centered}>
-          <MCIcon name="alert-circle-outline" size={60} color={COLORS.danger} />
+          <MCIcon name="alert-circle-outline" size={60} color={colors.danger} />
           <Text style={styles.errorTitle}>Something went wrong</Text>
           <Text style={styles.errorSubtitle}>{error}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={retry} activeOpacity={0.85}>
@@ -251,9 +253,11 @@ const ConsultScreen = ({ navigation }) => {
   // Main screen
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      <StatusBar barStyle="light-content" backgroundColor={colors.headerBg} />
 
       <ScreenHeader
+        styles={styles}
+        colors={colors}
         searchQuery={searchQuery}
         onChangeText={setSearchQuery}
         onClear={() => setSearchQuery('')}
@@ -296,8 +300,8 @@ const ConsultScreen = ({ navigation }) => {
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={refresh}
-            colors={[COLORS.primary]}
-            tintColor={COLORS.primary}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
           />
         }
       />
@@ -307,12 +311,12 @@ const ConsultScreen = ({ navigation }) => {
 
 export default ConsultScreen;
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
 
   // Header
   header: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.headerBg,
     paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 20,
@@ -326,7 +330,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: COLORS.white,
+    color: colors.white,
     marginBottom: 4,
   },
   headerSubtitle: {
@@ -343,7 +347,7 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -351,7 +355,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     padding: 0,
   },
   // Fix 7: larger touch target for clear button
@@ -363,7 +367,7 @@ const styles = StyleSheet.create({
   filterScroll: {
     flexGrow: 0,
     flexShrink: 0,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   filterContent: {
     paddingHorizontal: 16,
@@ -377,20 +381,20 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderRadius: 20,
     borderWidth: 1.5,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.white,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
   },
   filterTabActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   filterTabText: {
     fontSize: 13,
     fontWeight: '500',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   filterTabTextActive: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '600',
   },
 
@@ -401,11 +405,13 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
   },
   doctorCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    shadowColor: COLORS.black,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 4,
@@ -421,7 +427,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 14,
-    backgroundColor: COLORS.primaryFaint,
+    backgroundColor: colors.primaryFaint,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -431,12 +437,12 @@ const styles = StyleSheet.create({
   doctorName: {
     fontSize: 15,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 2,
   },
   doctorSpecialty: {
     fontSize: 12,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginBottom: 6,
   },
   ratingRow: {
@@ -447,19 +453,19 @@ const styles = StyleSheet.create({
   rating: {
     fontSize: 13,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   reviews: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   separator: {
     fontSize: 12,
-    color: COLORS.borderStrong,
+    color: colors.borderStrong,
   },
   experience: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   locationRow: {
     flexDirection: 'row',
@@ -467,7 +473,7 @@ const styles = StyleSheet.create({
   },
   location: {
     fontSize: 12,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
 
   // Tags
@@ -479,21 +485,21 @@ const styles = StyleSheet.create({
   tag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surfaceMuted,
+    backgroundColor: colors.surfaceMuted,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 20,
   },
   tagText: {
     fontSize: 12,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
 
   // Divider & Footer
   divider: {
     height: 1,
-    backgroundColor: COLORS.surfaceMuted,
+    backgroundColor: colors.surfaceMuted,
     marginBottom: 12,
   },
   cardFooter: {
@@ -503,24 +509,24 @@ const styles = StyleSheet.create({
   },
   feeLabel: {
     fontSize: 11,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginBottom: 2,
   },
   feeAmount: {
     fontSize: 17,
     fontWeight: '700',
-    color: COLORS.primary,
+    color: colors.primary,
   },
   availabilityBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
   },
-  availableTodayBadge:    { backgroundColor: COLORS.primaryLight },
-  availableTomorrowBadge: { backgroundColor: COLORS.surfaceMuted },
+  availableTodayBadge:    { backgroundColor: colors.primaryLight },
+  availableTomorrowBadge: { backgroundColor: colors.surfaceMuted },
   availabilityText:       { fontSize: 12, fontWeight: '600' },
-  availableTodayText:     { color: COLORS.primary },
-  availableTomorrowText:  { color: COLORS.textSecondary },
+  availableTodayText:     { color: colors.primary },
+  availableTomorrowText:  { color: colors.textSecondary },
 
   // Centered (loading / error full-screen)
   centered: {
@@ -532,23 +538,23 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 14,
     fontSize: 14,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   errorTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginTop: 16,
     marginBottom: 8,
   },
   errorSubtitle: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     textAlign: 'center',
     marginBottom: 24,
   },
   retryBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingHorizontal: 32,
     paddingVertical: 14,
     borderRadius: 14,
@@ -556,7 +562,7 @@ const styles = StyleSheet.create({
   retryText: {
     fontSize: 15,
     fontWeight: '700',
-    color: COLORS.white,
+    color: colors.white,
   },
 
   // Pagination footer loader
@@ -574,13 +580,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 8,
     marginTop: 16,
   },
   emptySubtitle: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     textAlign: 'center',
   },
 });

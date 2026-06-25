@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import wellnessService from '../services/wellnessService';
 import { ProgramSkeleton, StatsSkeleton } from '../components/SkeletonLoader';
 import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 
 const LEVEL_COLORS = {
   'Beginner':     { bg: '#e8f5e9', text: '#2e7d32' },
@@ -31,6 +32,8 @@ const ICON_MAP = {
 };
 
 const WellnessScreen = ({ navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [programs, setPrograms]     = useState([]);
   const [stats, setStats]           = useState(null);
   const [isLoading, setIsLoading]   = useState(true);
@@ -127,7 +130,7 @@ const WellnessScreen = ({ navigation }) => {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Programs</Text>
             <View style={styles.popularBadge}>
-              <MCIcon name="trending-up" size={13} color={COLORS.primary} />
+              <MCIcon name="trending-up" size={13} color={colors.primary} />
               <Text style={styles.popularText}> Popular</Text>
             </View>
           </View>
@@ -136,7 +139,7 @@ const WellnessScreen = ({ navigation }) => {
             [1, 2, 3].map(i => <ProgramSkeleton key={i} />)
           ) : error ? (
             <View style={styles.errorBox}>
-              <MCIcon name="alert-circle-outline" size={40} color={COLORS.danger} />
+              <MCIcon name="alert-circle-outline" size={40} color={colors.danger} />
               <Text style={styles.errorTitle}>Failed to load programs</Text>
               <Text style={styles.errorText}>{error}</Text>
               <TouchableOpacity style={styles.retryBtn} onPress={() => fetchData()} activeOpacity={0.85}>
@@ -145,11 +148,11 @@ const WellnessScreen = ({ navigation }) => {
             </View>
           ) : programs.length === 0 ? (
             <View style={styles.errorBox}>
-              <MCIcon name="yoga" size={48} color={COLORS.border} />
+              <MCIcon name="yoga" size={48} color={colors.border} />
               <Text style={styles.errorTitle}>No programs yet</Text>
             </View>
           ) : programs.map((program) => {
-            const level = LEVEL_COLORS[program.level] || { bg: COLORS.surfaceMuted, text: COLORS.textSecondary };
+            const level = LEVEL_COLORS[program.level] || { bg: colors.surfaceMuted, text: colors.textSecondary };
             return (
               <TouchableOpacity
                 key={program.id}
@@ -166,7 +169,7 @@ const WellnessScreen = ({ navigation }) => {
                   <Text style={styles.programSubtitle}>{program.subtitle}</Text>
 
                   <View style={styles.metaRow}>
-                    <MCIcon name="clock-outline" size={12} color={COLORS.textMuted} />
+                    <MCIcon name="clock-outline" size={12} color={colors.textMuted} />
                     <Text style={styles.metaDuration}> {program.duration}</Text>
                     <View style={[styles.levelBadge, { backgroundColor: level.bg }]}>
                       <Text style={[styles.levelText, { color: level.text }]}>{program.level}</Text>
@@ -176,7 +179,7 @@ const WellnessScreen = ({ navigation }) => {
                 </View>
 
                 <TouchableOpacity style={styles.playBtn} activeOpacity={0.8} onPress={() => handleProgram(program)}>
-                  <MCIcon name="play" size={14} color={COLORS.primary} />
+                  <MCIcon name="play" size={14} color={colors.primary} />
                 </TouchableOpacity>
               </TouchableOpacity>
             );
@@ -189,9 +192,10 @@ const WellnessScreen = ({ navigation }) => {
 
 export default WellnessScreen;
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
 
+  // Accent-purple hero kept as a fixed brand banner across light/dark.
   header: {
     backgroundColor: COLORS.accent,
     paddingTop: 50,
@@ -233,25 +237,27 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 14,
   },
-  sectionTitle: { fontSize: 17, fontWeight: '700', color: COLORS.textPrimary },
+  sectionTitle: { fontSize: 17, fontWeight: '700', color: colors.textPrimary },
   popularBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.primaryFaint,
+    backgroundColor: colors.primaryFaint,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: RADIUS.pill,
   },
-  popularText: { fontSize: 12, fontWeight: '600', color: COLORS.primary },
+  popularText: { fontSize: 12, fontWeight: '600', color: colors.primary },
 
   programCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     padding: 14,
     marginBottom: SPACING.md,
-    shadowColor: COLORS.black,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 4,
@@ -266,19 +272,19 @@ const styles = StyleSheet.create({
     marginRight: SPACING.md,
   },
   programInfo:     { flex: 1 },
-  programTitle:    { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 3 },
-  programSubtitle: { fontSize: 12, color: COLORS.primary, marginBottom: SPACING.sm },
+  programTitle:    { fontSize: 15, fontWeight: '700', color: colors.textPrimary, marginBottom: 3 },
+  programSubtitle: { fontSize: 12, color: colors.primary, marginBottom: SPACING.sm },
   metaRow:         { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
-  metaDuration:    { fontSize: 12, color: COLORS.textMuted },
+  metaDuration:    { fontSize: 12, color: colors.textMuted },
   levelBadge:      { paddingHorizontal: SPACING.sm, paddingVertical: 2, borderRadius: RADIUS.pill },
   levelText:       { fontSize: 11, fontWeight: '600' },
-  metaCompleted:   { fontSize: 12, color: COLORS.textMuted },
+  metaCompleted:   { fontSize: 12, color: colors.textMuted },
 
   playBtn: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: SPACING.sm,
@@ -289,8 +295,8 @@ const styles = StyleSheet.create({
     paddingVertical: 48,
     gap: SPACING.sm,
   },
-  errorTitle: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
-  errorText:  { fontSize: 13, color: COLORS.textMuted, textAlign: 'center' },
+  errorTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
+  errorText:  { fontSize: 13, color: colors.textMuted, textAlign: 'center' },
   retryBtn: {
     marginTop: SPACING.sm,
     backgroundColor: COLORS.accent,

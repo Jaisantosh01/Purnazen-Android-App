@@ -1,0 +1,97 @@
+name: Service Status
+
+# Manual health/status report for the deployed stack. Read-only — never changes
+# anything. Output lands in the workflow run summary.
+on:
+  workflow_dispatch:
+    inputs:
+      check_database:
+        description: "Also report the Postgres server state"
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  status:
+    name: Report status
+    runs-on: ubuntu-latest
+    steps:
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Backend Container App
+        run: |
+          RG="${{ vars.AZURE_RESOURCE_GROUP }}"
+          APP="${{ vars.BACKEND_CONTAINERAPP }}"
+          {
+            echo "## Backend — Container App \`$APP\`"
+            STATE=$(az containerapp show -n "$APP" -g "$RG" --query "properties.provisioningState" -o tsv)
+            FQDN=$(az containerapp show -n "$APP" -g "$RG" --query "properties.configuration.ingress.fqdn" -o tsv)
+            echo "- Provisioning: **$STATE**"
+            echo "- FQDN: \`$FQDN\`"
+            echo ""
+            echo "### Active revision(s)"
+            echo '```'
+            az containerapp revision list -n "$APP" -g "$RG" \
+              --query "[?properties.active].{revision:name, active:properties.active, healthy:properties.healthState, replicas:properties.replicas, created:properties.createdTime}" \
+              -o table
+            echo '```'
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 "https://${FQDN}/health" || echo 000)
+            if [ "$CODE" = "200" ]; then
+              echo "- Health probe (\`/health\`): ✅ **200 OK**"
+            else
+              echo "- Health probe (\`/health\`): ❌ **HTTP $CODE**"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Container Registry
+        run: |
+          {
+            echo "## Container Registry — \`${{ vars.ACR_NAME }}\`"
+            echo '```'
+            az acr repository show-tags --name "${{ vars.ACR_NAME }}" --repository purnazen-backend \
+              --orderby time_desc --top 5 -o table 2>/dev/null || echo "no repository yet"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Database (Postgres)
+        if: ${{ inputs.check_database }}
+        run: |
+          {
+            echo "## Database — Postgres \`${{ vars.POSTGRES_SERVER_NAME }}\`"
+            if [ -z "${{ vars.POSTGRES_SERVER_NAME }}" ]; then
+              echo "_POSTGRES_SERVER_NAME variable not set — skipping._"
+            else
+              echo '```'
+              az postgres flexible-server show \
+                -n "${{ vars.POSTGRES_SERVER_NAME }}" -g "${{ vars.AZURE_RESOURCE_GROUP }}" \
+                --query "{name:name, state:state, version:version, tier:sku.tier}" -o table \
+                2>/dev/null || echo "could not read server (check name / permissions)"
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Mobile releases
+        run: |
+          {
+            echo "## Latest mobile releases"
+            echo '```'
+            gh release list --limit 6 2>/dev/null || echo "no releases yet"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Azure logout
+        if: always()
+        run: az logout || true
+
+# registered on prod 2026-06-24

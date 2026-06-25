@@ -47,11 +47,11 @@ cd mobile-doctors
 npm install
 ```
 
-Create `.env` (see `.env.example`):
-
-```
-EXPO_PUBLIC_API_URL=http://10.0.2.2:5000   # emulator → host; device → LAN IP
-```
+`BASE_URL` is in `src/config/index.js` (`EXPO_PUBLIC_API_URL || 'http://localhost:5000'`).
+Note `react-native start` does **not** load `.env` — the `||` fallback is what
+ships in dev. `localhost:5000` works on a USB device/emulator with
+`adb reverse tcp:5000 tcp:5000`; for an emulator without it use `http://10.0.2.2:5000`,
+for a device over Wi-Fi use the PC's LAN IP. See [docs/RUNNING.md §2.1](../docs/RUNNING.md#21-point-the-app-at-the-backend).
 
 ### Native projects (android/ios)
 

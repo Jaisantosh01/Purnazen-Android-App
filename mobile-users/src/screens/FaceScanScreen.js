@@ -22,13 +22,12 @@ import FaceOverlayGuide from '../components/scan/FaceOverlayGuide';
 
 const QUALITY_CHECK_INTERVAL_MS = 2200;
 
-// Dev: test image pre-loaded via:
-//   adb push face_test_1.jpg /data/local/tmp/test_face.jpg
-//   adb shell run-as com.purnazen cp /data/local/tmp/test_face.jpg /data/data/com.purnazen/cache/test_face.jpg
-const TEST_IMAGE_URI = 'file:///data/data/com.purnazen/cache/test_face.jpg';
-
+// Trailing slash matches the FastAPI route ("/consent/"). Without it the
+// no-slash request hits a 307 redirect that downgrades https→http behind the
+// Container Apps proxy, which fails on-device (network error) and never saves
+// the consent — so the prompt would reappear on every scan.
 const grantScanConsent = () =>
-  apiClient.post(ENDPOINTS.CONSENT, { consent_type: 'scan_storage', granted: true });
+  apiClient.post(`${ENDPOINTS.CONSENT}/`, { consent_type: 'scan_storage', granted: true });
 
 const isConsentError = (msg = '') => msg.toLowerCase().includes('consent');
 
@@ -196,19 +195,6 @@ const FaceScanScreen = ({ navigation, route }) => {
     }
   };
 
-  const handleTestImage = async () => {
-    if (uploading) return;
-    setUploading(true);
-    try {
-      try { await grantScanConsent(); } catch {}
-      await doUpload(TEST_IMAGE_URI);
-    } catch (err) {
-      Alert.alert('Error', err?.response?.data?.message || err?.message || 'Upload failed');
-    } finally {
-      setUploading(false);
-    }
-  };
-
   // ── Permission denied ────────────────────────────────────────────────────────
   if (!hasPermission) {
     return (
@@ -331,15 +317,8 @@ const FaceScanScreen = ({ navigation, route }) => {
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.sideBtn}
-          onPress={handleTestImage}
-          disabled={uploading || capturing}
-          activeOpacity={0.7}
-        >
-          <MCIcon name="test-tube" size={26} color="#fff" />
-          <Text style={styles.sideBtnLabel}>Test</Text>
-        </TouchableOpacity>
+        {/* Spacer keeps the capture button centred (mirrors the Gallery button width). */}
+        <View style={styles.sideBtn} />
       </View>
     </View>
   );

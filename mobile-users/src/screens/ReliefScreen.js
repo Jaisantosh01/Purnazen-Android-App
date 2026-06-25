@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,9 +13,12 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import SkeletonBox from '../components/SkeletonLoader';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { SPACING, RADIUS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 
 const ReliefScreen = ({ navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [items, setItems]             = useState([]);
   const [isLoading, setIsLoading]     = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -49,7 +52,7 @@ const ReliefScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      <StatusBar barStyle="light-content" backgroundColor={colors.headerBg} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -58,8 +61,8 @@ const ReliefScreen = ({ navigation }) => {
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={() => fetchData(true)}
-            colors={[COLORS.primary]}
-            tintColor={COLORS.primary}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
           />
         }
       >
@@ -78,7 +81,7 @@ const ReliefScreen = ({ navigation }) => {
           </View>
         ) : error ? (
           <View style={styles.errorBox}>
-            <MCIcon name="alert-circle-outline" size={52} color={COLORS.danger} />
+            <MCIcon name="alert-circle-outline" size={52} color={colors.danger} />
             <Text style={styles.errorTitle}>Failed to load</Text>
             <Text style={styles.errorText}>{error}</Text>
             <TouchableOpacity style={styles.retryBtn} onPress={() => fetchData()} activeOpacity={0.85}>
@@ -87,7 +90,7 @@ const ReliefScreen = ({ navigation }) => {
           </View>
         ) : items.length === 0 ? (
           <View style={styles.errorBox}>
-            <MCIcon name="heart-outline" size={52} color={COLORS.border} />
+            <MCIcon name="heart-outline" size={52} color={colors.border} />
             <Text style={styles.errorTitle}>No relief sessions yet</Text>
           </View>
         ) : (
@@ -95,7 +98,7 @@ const ReliefScreen = ({ navigation }) => {
             {items.map((item) => (
               <TouchableOpacity
                 key={item.id || item.key}
-                style={[styles.card, { backgroundColor: item.background_color || item.bgColor || COLORS.primaryLight }]}
+                style={[styles.card, { backgroundColor: item.background_color || item.bgColor || colors.primaryLight }]}
                 activeOpacity={0.8}
                 onPress={() => {
                   if (item.chatQuestionId) {
@@ -116,18 +119,18 @@ const ReliefScreen = ({ navigation }) => {
                 <MCIcon
                   name={item.icon_name || item.icon || 'heart-pulse'}
                   size={32}
-                  color={item.text_color || item.iconColor || COLORS.primary}
+                  color={item.text_color || item.iconColor || colors.primary}
                   style={styles.cardIcon}
                 />
-                <Text style={[styles.cardTitle, { color: item.text_color || item.iconColor || COLORS.primary }]}>
+                <Text style={[styles.cardTitle, { color: item.text_color || item.iconColor || colors.primary }]}>
                   {item.title}
                 </Text>
                 <Text style={styles.cardSubtitle}>{item.subtitle}</Text>
                 <View style={styles.cardFooter}>
-                  <Text style={[styles.sessions, { color: item.text_color || item.iconColor || COLORS.primary }]}>
+                  <Text style={[styles.sessions, { color: item.text_color || item.iconColor || colors.primary }]}>
                     {item.sessions || item.session_count || 0} sessions
                   </Text>
-                  <MCIcon name="arrow-right" size={16} color={item.text_color || item.iconColor || COLORS.primary} />
+                  <MCIcon name="arrow-right" size={16} color={item.text_color || item.iconColor || colors.primary} />
                 </View>
               </TouchableOpacity>
             ))}
@@ -140,17 +143,17 @@ const ReliefScreen = ({ navigation }) => {
 
 export default ReliefScreen;
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   header: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.headerBg,
     paddingTop: 50,
     paddingHorizontal: SPACING.xl,
     paddingBottom: 28,
     borderBottomLeftRadius: RADIUS.lg,
     borderBottomRightRadius: RADIUS.lg,
   },
-  headerTitle:    { fontSize: 26, fontWeight: '700', color: COLORS.white, marginBottom: 6 },
+  headerTitle:    { fontSize: 26, fontWeight: '700', color: colors.white, marginBottom: 6 },
   headerSubtitle: { fontSize: 13, color: 'rgba(255,255,255,0.85)' },
   grid: {
     flexDirection: 'row',
@@ -173,12 +176,12 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
     marginBottom: 14,
     minHeight: 168,
-    backgroundColor: COLORS.surfaceMuted,
+    backgroundColor: colors.surfaceMuted,
     justifyContent: 'space-between',
   },
   cardIcon:     { marginBottom: SPACING.sm },
   cardTitle:    { fontSize: 16, fontWeight: '700', marginBottom: SPACING.xs },
-  cardSubtitle: { fontSize: 12, color: COLORS.textSecondary, marginBottom: 12, flexShrink: 1 },
+  cardSubtitle: { fontSize: 12, color: colors.textSecondary, marginBottom: 12, flexShrink: 1 },
   cardFooter:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sessions:     { fontSize: 12, fontWeight: '500' },
   errorBox: {
@@ -187,14 +190,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xxl,
     gap: SPACING.sm,
   },
-  errorTitle: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
-  errorText:  { fontSize: 13, color: COLORS.textMuted, textAlign: 'center' },
+  errorTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
+  errorText:  { fontSize: 13, color: colors.textMuted, textAlign: 'center' },
   retryBtn: {
     marginTop: SPACING.sm,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingHorizontal: SPACING.xxl,
     paddingVertical: SPACING.md,
     borderRadius: RADIUS.md,
   },
-  retryText: { fontSize: 14, fontWeight: '700', color: COLORS.white },
+  retryText: { fontSize: 14, fontWeight: '700', color: colors.white },
 });

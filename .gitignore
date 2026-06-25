@@ -38,6 +38,18 @@ mobile-*/android/.cxx/
 mobile-*/android/*.keystore
 !mobile-*/android/app/debug.keystore
 
+# Upload signing keystore + generated provisioning secrets — never commit
+*.keystore
+*.jks
+keystore.b64
+.keystore-password.txt
+scripts/.azure*.env
+scripts/.provision*.log
+
+# Local Docker APK build output + caches
+/release/
+.docker-cache/
+
 # iOS
 mobile-*/ios/build/
 mobile-*/ios/DerivedData/

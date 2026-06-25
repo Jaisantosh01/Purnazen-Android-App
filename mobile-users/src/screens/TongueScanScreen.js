@@ -29,8 +29,11 @@ const TIPS = [
   'No food or drink 30 min before scanning',
 ];
 
+// Trailing slash matches the FastAPI route ("/consent/"); without it the
+// no-slash request 307-redirects https→http behind the Container Apps proxy,
+// which fails on-device and never persists the consent.
 const grantScanConsent = () =>
-  apiClient.post(ENDPOINTS.CONSENT, { consent_type: 'scan_storage', granted: true });
+  apiClient.post(`${ENDPOINTS.CONSENT}/`, { consent_type: 'scan_storage', granted: true });
 
 const isConsentError = (msg = '') => msg.toLowerCase().includes('consent');
 

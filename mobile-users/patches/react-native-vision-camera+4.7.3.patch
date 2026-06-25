@@ -1,8 +1,9 @@
 diff --git a/node_modules/react-native-vision-camera/android/src/main/java/com/mrousavy/camera/react/CameraViewModule.kt b/node_modules/react-native-vision-camera/android/src/main/java/com/mrousavy/camera/react/CameraViewModule.kt
-index 0000001..0000002 100644
+index 059f677..49c3aa5 100644
 --- a/node_modules/react-native-vision-camera/android/src/main/java/com/mrousavy/camera/react/CameraViewModule.kt
 +++ b/node_modules/react-native-vision-camera/android/src/main/java/com/mrousavy/camera/react/CameraViewModule.kt
-@@ -189,7 +189,7 @@ class CameraViewModule(reactContext: ReactApplicationContext) :
+@@ -189,7 +189,7 @@ class CameraViewModule(reactContext: ReactApplicationContext) : ReactContextBase
+   }
  
    private fun canRequestPermission(permission: String): Boolean {
 -    val activity = reactApplicationContext.currentActivity as? PermissionAwareActivity
@@ -10,9 +11,12 @@ index 0000001..0000002 100644
      return activity?.shouldShowRequestPermissionRationale(permission) ?: false
    }
  
-@@ -226,7 +226,7 @@ class CameraViewModule(reactContext: ReactApplicationContext) :
+@@ -226,7 +226,7 @@ class CameraViewModule(reactContext: ReactApplicationContext) : ReactContextBase
+   }
  
    private fun requestPermission(permission: String, promise: Promise) {
 -    val activity = reactApplicationContext.currentActivity
 +    val activity = reactApplicationContext.getCurrentActivity()
      if (activity is PermissionAwareActivity) {
+       val currentRequestCode = sharedRequestCode++
+       val listener = PermissionListener { requestCode: Int, _: Array<String>, grantResults: IntArray ->
