@@ -29,12 +29,16 @@ export function compareSemver(a, b) {
 }
 
 /**
+ * @param {{force?: boolean}} [opts] force=true runs the check even in dev (used
+ *   by the manual "Check for Updates" button); the automatic launch check leaves
+ *   it false so Metro/dev sessions aren't nagged.
  * @returns {Promise<null | {version, current, forced, notes, apkUrl, pageUrl}>}
- *   null when up to date, offline, or running in dev.
+ *   null when up to date, offline, or (unless forced) running in dev.
  */
-export async function checkForUpdate() {
-  // Don't nag during Metro/dev — APP_VERSION isn't baked there.
-  if (typeof __DEV__ !== 'undefined' && __DEV__) return null;
+export async function checkForUpdate({ force = false } = {}) {
+  // Don't nag during Metro/dev — APP_VERSION isn't baked there. A manual check
+  // (force) still runs so the feature is testable from a dev build.
+  if (!force && typeof __DEV__ !== 'undefined' && __DEV__) return null;
   try {
     const res = await fetch(RELEASES_URL, {
       headers: { Accept: 'application/vnd.github+json' },

@@ -12,6 +12,10 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+    # RBAC: the client app sends the role it serves (patient/doctor/admin) so a
+    # valid credential signing into the wrong app is rejected. Optional for
+    # backward compatibility — when omitted, no role gate is applied.
+    expected_role: str | None = None
 
 
 class UpdateProfileRequest(BaseModel):
