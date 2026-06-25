@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAuthStore } from '../store/authStore';
-import { COLORS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 
 const PLANS = [
@@ -20,9 +20,9 @@ const PLANS = [
     name: 'Free',
     price: '₹0',
     period: 'Forever',
-    color: COLORS.textSecondary,
-    bg: '#f9fafb',
-    border: COLORS.border,
+    color: '#6B7280',
+    bg: 'rgba(148,163,184,0.10)',
+    border: 'rgba(148,163,184,0.35)',
     features: [
       { text: '3 wellness sessions/month',  included: true  },
       { text: 'Basic yoga & meditation',     included: true  },
@@ -38,9 +38,9 @@ const PLANS = [
     price: '₹499',
     period: '/month',
     badge: 'Most Popular',
-    color: COLORS.primary,
-    bg: COLORS.primaryFaint,
-    border: COLORS.primary,
+    color: '#1FA77A',
+    bg: 'rgba(31,167,122,0.10)',
+    border: '#1FA77A',
     features: [
       { text: 'Unlimited wellness sessions', included: true },
       { text: 'All yoga & meditation programs', included: true },
@@ -55,9 +55,9 @@ const PLANS = [
     name: 'Pro',
     price: '₹999',
     period: '/month',
-    color: COLORS.accent,
-    bg: COLORS.accentLight,
-    border: COLORS.accent,
+    color: '#7C3AED',
+    bg: 'rgba(124,58,237,0.10)',
+    border: '#7C3AED',
     features: [
       { text: 'Unlimited wellness sessions', included: true },
       { text: 'All yoga & meditation programs', included: true },
@@ -70,6 +70,8 @@ const PLANS = [
 ];
 
 const SubscriptionsScreen = ({ navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const user = useAuthStore(state => state.user);
   const currentPlan = user?.plan ?? 'free';
 
@@ -80,10 +82,10 @@ const SubscriptionsScreen = ({ navigation }) => {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40, paddingHorizontal: 16 }}>
 
         <View style={styles.currentBanner}>
-          <MCIcon name="shield-check" size={20} color={COLORS.primary} />
+          <MCIcon name="shield-check" size={20} color={colors.primary} />
           <Text style={styles.currentBannerText}>
             You're on the{' '}
-            <Text style={{ fontWeight: '700', color: COLORS.primary }}>
+            <Text style={{ fontWeight: '700', color: colors.primary }}>
               {PLANS.find(p => p.id === currentPlan)?.name ?? 'Free'} Plan
             </Text>
           </Text>
@@ -123,7 +125,7 @@ const SubscriptionsScreen = ({ navigation }) => {
                   <MCIcon
                     name={f.included ? 'check-circle' : 'close-circle-outline'}
                     size={18}
-                    color={f.included ? plan.color : COLORS.borderStrong}
+                    color={f.included ? plan.color : colors.borderStrong}
                   />
                   <Text style={[styles.featureText, !f.included && styles.featureTextDim]}>
                     {f.text}
@@ -148,7 +150,7 @@ const SubscriptionsScreen = ({ navigation }) => {
         ))}
 
         <View style={styles.note}>
-          <MCIcon name="information-outline" size={14} color={COLORS.textMuted} />
+          <MCIcon name="information-outline" size={14} color={colors.textMuted} />
           <Text style={styles.noteText}>
             {'  '}All plans include a 7-day free trial. Cancel anytime.
           </Text>
@@ -161,11 +163,11 @@ const SubscriptionsScreen = ({ navigation }) => {
 
 export default SubscriptionsScreen;
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
 
   header: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.headerBg,
     paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 24,
@@ -184,13 +186,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerText: { flex: 1 },
-  headerTitle:    { fontSize: 22, fontWeight: '700', color: COLORS.white },
+  headerTitle:    { fontSize: 22, fontWeight: '700', color: colors.white },
   headerSubtitle: { fontSize: 13, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
 
   currentBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: colors.primaryLight,
     borderRadius: 12,
     padding: 14,
     marginTop: 20,
@@ -206,7 +208,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   planCardActive: {
-    shadowColor: COLORS.primary,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 6,
@@ -214,13 +216,13 @@ const styles = StyleSheet.create({
   },
   badge: {
     alignSelf: 'flex-start',
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: 20,
     marginBottom: 10,
   },
-  badgeText: { fontSize: 11, fontWeight: '700', color: COLORS.white },
+  badgeText: { fontSize: 11, fontWeight: '700', color: colors.white },
 
   planHeader: {
     flexDirection: 'row',
@@ -231,20 +233,20 @@ const styles = StyleSheet.create({
   planName:   { fontSize: 18, fontWeight: '700' },
   priceRow:   { flexDirection: 'row', alignItems: 'flex-end', gap: 4, marginTop: 2 },
   planPrice:  { fontSize: 26, fontWeight: '800' },
-  planPeriod: { fontSize: 13, color: COLORS.textMuted, marginBottom: 3 },
+  planPeriod: { fontSize: 13, color: colors.textMuted, marginBottom: 3 },
 
   activePill: {
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: colors.primaryLight,
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 20,
   },
-  activePillText: { fontSize: 12, fontWeight: '600', color: COLORS.primary },
+  activePillText: { fontSize: 12, fontWeight: '600', color: colors.primary },
 
   featureList: { gap: 10, marginBottom: 16 },
   featureRow:  { flexDirection: 'row', alignItems: 'center', gap: 10 },
   featureText: { fontSize: 13, color: '#374151', flex: 1 },
-  featureTextDim: { color: COLORS.borderStrong },
+  featureTextDim: { color: colors.borderStrong },
 
   selectBtn: {
     borderRadius: 12,
@@ -252,7 +254,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 4,
   },
-  selectBtnText: { fontSize: 15, fontWeight: '700', color: COLORS.white },
+  selectBtnText: { fontSize: 15, fontWeight: '700', color: colors.white },
 
   note: {
     flexDirection: 'row',
@@ -260,5 +262,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 20,
   },
-  noteText: { fontSize: 12, color: COLORS.textMuted },
+  noteText: { fontSize: 12, color: colors.textMuted },
 });

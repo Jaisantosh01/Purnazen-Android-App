@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { COLORS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 
 const FAQS = [
@@ -53,8 +53,8 @@ const CONTACT_OPTIONS = [
     icon: 'chat-outline',
     title: 'Live Chat',
     subtitle: 'Typically replies in 2 minutes',
-    color: COLORS.primary,
-    bg: COLORS.primaryLight,
+    color: '#1FA77A',
+    bg: '#E8F8F2',
     action: () => Alert.alert('Live Chat', 'Connecting you to a support agent...'),
   },
   {
@@ -87,13 +87,15 @@ const CONTACT_OPTIONS = [
 ];
 
 const QUICK_LINKS = [
-  { icon: 'file-document-outline', title: 'Terms & Conditions',  color: COLORS.textSecondary },
-  { icon: 'shield-check-outline',  title: 'Privacy Policy',      color: COLORS.textSecondary },
-  { icon: 'star-outline',          title: 'Rate the App',        color: COLORS.warning },
-  { icon: 'share-variant-outline', title: 'Share with Friends',  color: COLORS.primary },
+  { icon: 'file-document-outline', title: 'Terms & Conditions',  color: '#6B7280' },
+  { icon: 'shield-check-outline',  title: 'Privacy Policy',      color: '#6B7280' },
+  { icon: 'star-outline',          title: 'Rate the App',        color: '#F59E0B' },
+  { icon: 'share-variant-outline', title: 'Share with Friends',  color: '#1FA77A' },
 ];
 
 const HelpSupportScreen = ({ navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [expandedFaq, setExpandedFaq] = useState(null);
 
   return (
@@ -136,7 +138,7 @@ const HelpSupportScreen = ({ navigation }) => {
                 <MCIcon
                   name={expandedFaq === faq.id ? 'chevron-up' : 'chevron-down'}
                   size={20}
-                  color={COLORS.textMuted}
+                  color={colors.textMuted}
                 />
               </View>
               {expandedFaq === faq.id && (
@@ -159,14 +161,14 @@ const HelpSupportScreen = ({ navigation }) => {
                   <MCIcon name={link.icon} size={20} color={link.color} />
                   <Text style={styles.quickLinkText}>{link.title}</Text>
                 </View>
-                <MCIcon name="chevron-right" size={20} color={COLORS.borderStrong} />
+                <MCIcon name="chevron-right" size={20} color={colors.borderStrong} />
               </TouchableOpacity>
             ))}
           </View>
         </View>
 
         <View style={styles.versionRow}>
-          <MCIcon name="information-outline" size={14} color={COLORS.textMuted} />
+          <MCIcon name="information-outline" size={14} color={colors.textMuted} />
           <Text style={styles.versionText}>  Purnazen v1.0.0 · Crafted for your wellness</Text>
         </View>
 
@@ -177,11 +179,11 @@ const HelpSupportScreen = ({ navigation }) => {
 
 export default HelpSupportScreen;
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
 
   header: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.headerBg,
     paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 24,
@@ -203,7 +205,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: COLORS.white,
+    color: colors.white,
   },
   headerSubtitle: {
     fontSize: 13,
@@ -218,7 +220,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 12,
   },
 
@@ -249,16 +251,16 @@ const styles = StyleSheet.create({
   },
   contactSub: {
     fontSize: 11,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     lineHeight: 16,
   },
 
   faqCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: 14,
     padding: 16,
     marginBottom: 10,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 3,
@@ -272,25 +274,25 @@ const styles = StyleSheet.create({
   faqQuestion: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     flex: 1,
     paddingRight: 8,
   },
   faqAnswer: {
     fontSize: 13,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     lineHeight: 20,
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: COLORS.surfaceMuted,
+    borderTopColor: colors.surfaceMuted,
   },
 
   quickLinksCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 3,
@@ -305,7 +307,7 @@ const styles = StyleSheet.create({
   },
   quickLinkBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.surfaceMuted,
+    borderBottomColor: colors.surfaceMuted,
   },
   quickLinkLeft: {
     flexDirection: 'row',
@@ -315,7 +317,7 @@ const styles = StyleSheet.create({
   quickLinkText: {
     fontSize: 14,
     fontWeight: '500',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
 
   versionRow: {
@@ -326,6 +328,6 @@ const styles = StyleSheet.create({
   },
   versionText: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
 });

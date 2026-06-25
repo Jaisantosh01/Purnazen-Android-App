@@ -9,7 +9,6 @@ import {
   Platform,
   ActivityIndicator,
   Pressable,
-  ScrollView,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -87,17 +86,7 @@ export default function AppDialog({
             {title ? <Text style={styles.title}>{title}</Text> : null}
             {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
 
-            {children ? (
-              <ScrollView
-                style={styles.bodyScroll}
-                contentContainerStyle={styles.body}
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-                bounces={false}
-              >
-                {children}
-              </ScrollView>
-            ) : null}
+            {children ? <View style={styles.body}>{children}</View> : null}
 
             <View style={styles.actions}>
               {onClose ? (
@@ -179,8 +168,7 @@ const makeStyles = colors => StyleSheet.create({
     marginTop: 6,
     lineHeight: 19,
   },
-  bodyScroll: { marginTop: 18, flexGrow: 0 },
-  body: { paddingBottom: 2 },
+  body: { marginTop: 18 },
   actions: {
     flexDirection: 'row',
     gap: 10,

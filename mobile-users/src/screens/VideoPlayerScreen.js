@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,81 +6,98 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
-  Animated,
   ActivityIndicator,
 } from 'react-native';
-import Video from 'react-native-video';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { syncVideoProgress } from '../utils/videoTracker';
+import VideoPlayer from '../components/VideoPlayer';
 
 const VideoPlayerScreen = ({ route, navigation }) => {
-  const { groupId, groupTitle } = route.params;
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const { groupId } = route.params;
 
   const [catalog, setCatalog] = useState(null);
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
-  const videoProgressRef = useRef({
-    lastVideoId: null,
-    watchedTime: 0
-  });
 
-  // Track progress when playing
-  const onProgress = (data) => {
-    if (!catalog) return;
-    const currentVideo = catalog.videos[currentVideoIndex];
-    const watchedTime = data.currentTime;
-    const duration = currentVideo.duration;
-
-    // Send completed if > 90%
-    if (watchedTime / duration > 0.9 && videoProgressRef.current.watchedTime / duration <= 0.9) {
-      syncVideoProgress(groupId, currentVideo.id, 'Completed', duration / 60, 'wellness');
-    }
-    videoProgressRef.current.watchedTime = watchedTime;
-  };
-
-  const changeVideo = (index) => {
-    // Mark previous as Pending before switching
-    if (catalog && catalog.videos[currentVideoIndex]) {
-        syncVideoProgress(groupId, catalog.videos[currentVideoIndex].id, 'Pending', videoProgressRef.current.watchedTime / 60, 'wellness');
-    }
-    
-    setCurrentVideoIndex(index);
-    setIsPlaying(true);
-    videoProgressRef.current.watchedTime = 0;
-    
-    // Mark new as Pending on start
-    syncVideoProgress(groupId, catalog.videos[index].id, 'Pending', 0, 'wellness');
-  };
+  const watchedRef = useRef(0); // seconds watched of the current video
 
   useEffect(() => {
     apiClient
       .get(ENDPOINTS.VIDEO_GROUP_CATALOG(groupId))
-      .then(res => {
-        setCatalog(res.data);
-      })
-      .catch(err => {
-        setError(err.message || 'Failed to load video catalog');
-      })
+      .then(res => setCatalog(res.data))
+      .catch(err => setError(err.message || 'Failed to load video catalog'))
       .finally(() => setLoading(false));
   }, [groupId]);
 
-  // Initial sync on mount if catalog loads
+  // Mark the first video as started once the catalog is in.
   useEffect(() => {
-    if (catalog && catalog.videos.length > 0) {
-      syncVideoProgress(groupId, catalog.videos[currentVideoIndex].id, 'Pending', 0, 'wellness');
+    if (catalog?.videos?.length) {
+      syncVideoProgress(groupId, catalog.videos[0].id, 'Pending', 0, 'wellness');
     }
   }, [catalog, groupId]);
+
+  const onProgress = useCallback(
+    data => {
+      const video = catalog?.videos?.[currentVideoIndex];
+      if (!video) return;
+      const dur = video.duration || data.seekableDuration || 0;
+      const watched = data.currentTime;
+      // Fire "Completed" once when crossing 90%.
+      if (dur > 0 && watched / dur > 0.9 && watchedRef.current / dur <= 0.9) {
+        syncVideoProgress(groupId, video.id, 'Completed', dur / 60, 'wellness');
+      }
+      watchedRef.current = watched;
+    },
+    [catalog, currentVideoIndex, groupId],
+  );
+
+  // Switch to a playlist item. `completedPrev` marks the outgoing video done
+  // (used when the current video reached its end) instead of leaving it pending.
+  const goToVideo = useCallback(
+    (index, completedPrev = false) => {
+      if (!catalog?.videos?.[index]) return;
+      const prev = catalog.videos[currentVideoIndex];
+      if (prev) {
+        syncVideoProgress(
+          groupId,
+          prev.id,
+          completedPrev ? 'Completed' : 'Pending',
+          (completedPrev ? prev.duration : watchedRef.current) / 60,
+          'wellness',
+        );
+      }
+      watchedRef.current = 0;
+      setCurrentVideoIndex(index);
+      syncVideoProgress(groupId, catalog.videos[index].id, 'Pending', 0, 'wellness');
+    },
+    [catalog, currentVideoIndex, groupId],
+  );
+
+  const handleEnd = useCallback(() => {
+    const video = catalog?.videos?.[currentVideoIndex];
+    if (video) syncVideoProgress(groupId, video.id, 'Completed', video.duration / 60, 'wellness');
+  }, [catalog, currentVideoIndex, groupId]);
+
+  const hasNext = !!catalog && currentVideoIndex < catalog.videos.length - 1;
+  const goNext = useCallback(() => {
+    if (hasNext) goToVideo(currentVideoIndex + 1, true);
+  }, [hasNext, currentVideoIndex, goToVideo]);
 
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
+        <View style={styles.loadBadge}>
+          <MCIcon name="play-circle-outline" size={40} color={colors.primary} />
+        </View>
+        <ActivityIndicator size="small" color={colors.primary} style={{ marginTop: 16 }} />
+        <Text style={styles.loadText}>Loading sessions…</Text>
       </View>
     );
   }
@@ -88,7 +105,7 @@ const VideoPlayerScreen = ({ route, navigation }) => {
   if (error || !catalog || !catalog.videos.length) {
     return (
       <View style={styles.center}>
-        <MCIcon name="alert-circle-outline" size={60} color={COLORS.danger} />
+        <MCIcon name="alert-circle-outline" size={60} color={colors.danger} />
         <Text style={styles.errorText}>{error || 'No videos found in this group'}</Text>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Text style={styles.backBtnText}>Go Back</Text>
@@ -101,53 +118,44 @@ const VideoPlayerScreen = ({ route, navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
-      
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBackBtn}>
-          <MCIcon name="arrow-left" size={24} color={COLORS.textPrimary} />
-        </TouchableOpacity>
-        <View style={styles.headerInfo}>
-          <Text style={styles.headerTitle}>{catalog.title}</Text>
-          <Text style={styles.headerSubtitle}>{catalog.videos.length} recommended sessions</Text>
-        </View>
-      </View>
+      <StatusBar barStyle="light-content" backgroundColor="#000" />
+
+      {/* Player */}
+      <VideoPlayer
+        source={currentVideo.videoUrl ? { uri: currentVideo.videoUrl } : null}
+        poster={
+          <MCIcon name={currentVideo.icon || 'play-circle-outline'} size={80} color={colors.primary} />
+        }
+        onProgress={onProgress}
+        onEnd={handleEnd}
+        onNext={goNext}
+        hasNext={hasNext}
+      />
+
+      {/* Floating back button over the player */}
+      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.floatingBack} hitSlop={hit}>
+        <MCIcon name="arrow-left" size={22} color="#fff" />
+      </TouchableOpacity>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-        {/* Player Area */}
-        <View style={styles.playerArea}>
-          {currentVideo.videoUrl ? (
-            <Video
-              source={{ uri: currentVideo.videoUrl }}
-              style={styles.video}
-              paused={!isPlaying}
-              resizeMode="contain"
-              repeat={false}
-              onProgress={onProgress}
-              onEnd={() => setIsPlaying(false)}
-            />
-          ) : (
-            <View style={styles.placeholderIcon}>
-              <MCIcon name={currentVideo.icon || 'play-circle-outline'} size={80} color={COLORS.primary} />
-            </View>
-          )}
-          <TouchableOpacity 
-            style={styles.floatingPlayBtn} 
-            onPress={() => setIsPlaying(!isPlaying)}
-            activeOpacity={0.85}
-          >
-            <MCIcon name={isPlaying ? 'pause' : 'play'} size={24} color={COLORS.white} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Current Video Info */}
+        {/* Current video info */}
         <View style={styles.currentInfoCard}>
+          <Text style={styles.groupLabel}>{catalog.title}</Text>
           <Text style={styles.videoTitle}>{currentVideo.title}</Text>
-          <Text style={styles.videoDescription}>{currentVideo.description}</Text>
+          {currentVideo.description ? (
+            <Text style={styles.videoDescription}>{currentVideo.description}</Text>
+          ) : null}
           <View style={styles.metaRow}>
-             <MCIcon name="clock-outline" size={14} color={COLORS.textMuted} />
-             <Text style={styles.metaText}>{Math.floor(currentVideo.duration / 60)} min</Text>
+            <View style={styles.metaChip}>
+              <MCIcon name="clock-outline" size={13} color={colors.textMuted} />
+              <Text style={styles.metaText}>{Math.floor(currentVideo.duration / 60)} min</Text>
+            </View>
+            <View style={styles.metaChip}>
+              <MCIcon name="playlist-play" size={14} color={colors.textMuted} />
+              <Text style={styles.metaText}>
+                {currentVideoIndex + 1} of {catalog.videos.length}
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -160,20 +168,23 @@ const VideoPlayerScreen = ({ route, navigation }) => {
               <TouchableOpacity
                 key={video.id}
                 style={[styles.videoRow, isActive && styles.videoRowActive]}
-                onPress={() => changeVideo(index)}
+                onPress={() => goToVideo(index)}
+                activeOpacity={0.8}
               >
                 <View style={[styles.rowNumberCircle, isActive && styles.rowNumberActive]}>
-                   {isActive ? (
-                     <MCIcon name="play" size={14} color={COLORS.white} />
-                   ) : (
-                     <Text style={styles.rowNumberText}>{index + 1}</Text>
-                   )}
+                  {isActive ? (
+                    <MCIcon name="play" size={14} color={colors.white} />
+                  ) : (
+                    <Text style={styles.rowNumberText}>{index + 1}</Text>
+                  )}
                 </View>
                 <View style={styles.rowInfo}>
-                   <Text style={[styles.rowTitle, isActive && styles.rowTitleActive]}>{video.title}</Text>
-                   <Text style={styles.rowDuration}>{Math.floor(video.duration / 60)} min</Text>
+                  <Text style={[styles.rowTitle, isActive && styles.rowTitleActive]} numberOfLines={1}>
+                    {video.title}
+                  </Text>
+                  <Text style={styles.rowDuration}>{Math.floor(video.duration / 60)} min</Text>
                 </View>
-                <MCIcon name="chevron-right" size={20} color={COLORS.border} />
+                <MCIcon name={isActive ? 'equalizer' : 'chevron-right'} size={20} color={isActive ? colors.primary : colors.borderStrong} />
               </TouchableOpacity>
             );
           })}
@@ -185,78 +196,74 @@ const VideoPlayerScreen = ({ route, navigation }) => {
 
 export default VideoPlayerScreen;
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  header: {
-    flexDirection: 'row',
+const hit = { top: 10, bottom: 10, left: 10, right: 10 };
+
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: colors.background },
+  loadBadge: {
+    width: 84,
+    height: 84,
+    borderRadius: 24,
+    backgroundColor: colors.primaryLight,
     alignItems: 'center',
-    paddingTop: 50,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    backgroundColor: COLORS.white,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  headerBackBtn: {
-    padding: 8,
-    marginRight: 8,
-  },
-  headerInfo: { flex: 1 },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: COLORS.textPrimary },
-  headerSubtitle: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
-  
-  playerArea: {
-    width: '100%',
-    height: 250,
-    backgroundColor: COLORS.black,
     justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
   },
-  video: { width: '100%', height: '100%' },
-  placeholderIcon: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: COLORS.white,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  floatingPlayBtn: {
+  loadText: { fontSize: 13, color: colors.textMuted, marginTop: 10 },
+
+  floatingBack: {
     position: 'absolute',
-    bottom: 16,
-    right: 16,
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center',
+    top: 14,
+    left: 12,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(0,0,0,0.45)',
     alignItems: 'center',
-    elevation: 5,
+    justifyContent: 'center',
+    zIndex: 20,
   },
 
   currentInfoCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
   },
-  videoTitle: { fontSize: 20, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 8 },
-  videoDescription: { fontSize: 14, color: COLORS.textSecondary, lineHeight: 22, marginBottom: 12 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  metaText: { fontSize: 13, color: COLORS.textMuted },
+  groupLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  videoTitle: { fontSize: 20, fontWeight: '800', color: colors.textPrimary, marginBottom: 8 },
+  videoDescription: { fontSize: 14, color: colors.textSecondary, lineHeight: 22, marginBottom: 14 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  metaChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.surfaceMuted,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  metaText: { fontSize: 12, color: colors.textMuted, fontWeight: '600' },
 
   playlistSection: { padding: 20 },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: COLORS.textMuted, letterSpacing: 1, marginBottom: 16 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: colors.textMuted, letterSpacing: 1, marginBottom: 16 },
   videoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 14,
     marginBottom: 10,
-    shadowColor: '#000',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
@@ -264,31 +271,31 @@ const styles = StyleSheet.create({
   },
   videoRowActive: {
     borderWidth: 1,
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.primaryLight,
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLight,
   },
   rowNumberCircle: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.surfaceMuted,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
-  rowNumberActive: { backgroundColor: COLORS.primary },
-  rowNumberText: { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary },
+  rowNumberActive: { backgroundColor: colors.primary },
+  rowNumberText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
   rowInfo: { flex: 1 },
-  rowTitle: { fontSize: 15, fontWeight: '600', color: COLORS.textPrimary },
-  rowTitleActive: { color: COLORS.primary },
-  rowDuration: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
-  
-  errorText: { fontSize: 16, color: COLORS.textSecondary, marginTop: 16, marginBottom: 24, textAlign: 'center' },
+  rowTitle: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
+  rowTitleActive: { color: colors.primary },
+  rowDuration: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+
+  errorText: { fontSize: 16, color: colors.textSecondary, marginTop: 16, marginBottom: 24, textAlign: 'center' },
   backBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingVertical: 12,
     paddingHorizontal: 30,
     borderRadius: 25,
   },
-  backBtnText: { color: COLORS.white, fontWeight: '700' },
+  backBtnText: { color: colors.white, fontWeight: '700' },
 });

@@ -79,7 +79,7 @@ def generate(scan_result: Any) -> list[dict]:
             "title": "Balance Combination Skin",
             "description": (
                 "Low hydration with excess oil points to Yin deficiency alongside "
-                "Damp-heat — your skin overproduces oil to compensate for dryness. "
+                "Damp-heat - your skin overproduces oil to compensate for dryness. "
                 "Hydrate with light, water-based care and use Gua Sha to move stagnation "
                 "rather than stripping the skin."
             ),
@@ -110,7 +110,7 @@ def generate(scan_result: Any) -> list[dict]:
             "title": "Restore Radiance",
             "description": (
                 "Pronounced dark circles with a low glow score reflect Qi and Blood "
-                "depletion — often from poor sleep or overwork. Prioritise rest and "
+                "depletion - often from poor sleep or overwork. Prioritise rest and "
                 "this circulation-boosting routine to bring back radiance."
             ),
             "routine_key": "NightRepair",
@@ -226,7 +226,7 @@ def generate(scan_result: Any) -> list[dict]:
             "title": "Prioritise Sleep",
             "description": (
                 "Pronounced dark circles are a classic sign of Qi deficiency. "
-                "Aim for 7–9 hours of quality sleep and consider a relaxing "
+                "Aim for 7-9 hours of quality sleep and consider a relaxing "
                 "night-time ritual to support your body's overnight repair."
             ),
             "routine_key": "NightRepair",
@@ -277,8 +277,8 @@ def generate(scan_result: Any) -> list[dict]:
             "title": "Collagen-Rich Foods",
             "description": (
                 "Reduced skin elasticity points to Qi and Blood deficiency. "
-                "Incorporate collagen-boosting foods — bone broth, fish, eggs, "
-                "and vitamin C-rich fruits — to support skin structure."
+                "Incorporate collagen-boosting foods - bone broth, fish, eggs, "
+                "and vitamin C-rich fruits - to support skin structure."
             ),
             "routine_key": "FacialAcupressure",
             "tip_category": "nutrition",
@@ -411,7 +411,7 @@ def generate(scan_result: Any) -> list[dict]:
             "priority": 15,
             "title": "Excellent Skin Vitality",
             "description": (
-                "Your skin shows excellent vitality — keep up your wellness "
+                "Your skin shows excellent vitality - keep up your wellness "
                 "routine! Consistency is the key to lasting radiance."
             ),
             "routine_key": None,

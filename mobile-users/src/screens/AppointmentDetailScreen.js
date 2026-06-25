@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,8 @@ import {
   StatusBar,
 } from 'react-native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { COLORS, APPOINTMENT_DETAIL_STATUS_COLORS } from '../constants/theme';
+import { APPOINTMENT_DETAIL_STATUS_COLORS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 import { APPOINTMENT_HISTORY_STATUS_LABELS, APPOINTMENT_PAYMENT_LABELS } from '../constants/strings';
 
 
@@ -26,6 +27,8 @@ const getInitials = (name) => {
 };
 
 const AppointmentDetailScreen = ({ navigation, route }) => {
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { appointment } = route.params;
 
   const DetailRow = ({ label, value, highlight }) => (
@@ -37,11 +40,11 @@ const AppointmentDetailScreen = ({ navigation, route }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
 
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <MCIcon name="arrow-left" size={22} color={COLORS.textPrimary} />
+          <MCIcon name="arrow-left" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Appointment Details</Text>
         <View style={styles.backBtn} />
@@ -73,13 +76,13 @@ const AppointmentDetailScreen = ({ navigation, route }) => {
                   ) : null}
                   {appointment.experience ? (
                     <View style={styles.metaItem}>
-                      <MCIcon name="briefcase-outline" size={13} color={COLORS.textMuted} />
+                      <MCIcon name="briefcase-outline" size={13} color={colors.textMuted} />
                       <Text style={styles.metaText}>{appointment.experience} yrs</Text>
                     </View>
                   ) : null}
                   {appointment.location ? (
                     <View style={styles.metaItem}>
-                      <MCIcon name="map-marker-outline" size={13} color={COLORS.textMuted} />
+                      <MCIcon name="map-marker-outline" size={13} color={colors.textMuted} />
                       <Text style={styles.metaText} numberOfLines={1}>{appointment.location}</Text>
                     </View>
                   ) : null}
@@ -142,7 +145,7 @@ const AppointmentDetailScreen = ({ navigation, route }) => {
         {appointment.doctorDescription ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Doctor's Notes</Text>
-            <View style={[styles.descriptionCard, { borderLeftColor: COLORS.accent }]}>
+            <View style={[styles.descriptionCard, { borderLeftColor: colors.accent }]}>
               <Text style={styles.descriptionText}>{appointment.doctorDescription}</Text>
             </View>
           </View>
@@ -154,22 +157,22 @@ const AppointmentDetailScreen = ({ navigation, route }) => {
 
 export default AppointmentDetailScreen;
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingTop: 50, paddingHorizontal: 16, paddingBottom: 14,
-    backgroundColor: COLORS.white, borderBottomWidth: 1, borderBottomColor: COLORS.surfaceMuted,
+    backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.surfaceMuted,
   },
   backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
+  headerTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
 
   content: { padding: 16, gap: 16, paddingBottom: 40 },
 
   doctorCard: {
-    backgroundColor: COLORS.white, borderRadius: 16, overflow: 'hidden',
-    shadowColor: COLORS.black, shadowOffset: { width: 0, height: 2 },
+    backgroundColor: colors.card, borderRadius: 16, overflow: 'hidden',
+    shadowColor: colors.black, shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08, shadowRadius: 8, elevation: 3,
   },
   doctorCardTop: {
@@ -177,50 +180,50 @@ const styles = StyleSheet.create({
   },
   avatarCircle: {
     width: 56, height: 56, borderRadius: 28,
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: colors.primaryLight,
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: COLORS.primary,
+    borderWidth: 2, borderColor: colors.primary,
   },
-  avatarText: { fontSize: 20, fontWeight: '700', color: COLORS.primary },
+  avatarText: { fontSize: 20, fontWeight: '700', color: colors.primary },
   doctorInfo: { flex: 1, gap: 4 },
   doctorNameRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8,
   },
-  doctorName: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary, flexShrink: 1 },
-  specialty: { fontSize: 13, color: COLORS.textMuted },
+  doctorName: { fontSize: 16, fontWeight: '700', color: colors.textPrimary, flexShrink: 1 },
+  specialty: { fontSize: 13, color: colors.textMuted },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 2 },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  metaText: { fontSize: 12, color: COLORS.textMuted },
+  metaText: { fontSize: 12, color: colors.textMuted },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-  statusText: { fontSize: 10, fontWeight: '700', color: COLORS.white },
+  statusText: { fontSize: 10, fontWeight: '700', color: colors.white },
 
   section: { gap: 10 },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
 
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
   chip: {
     paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12,
-    backgroundColor: COLORS.primaryFaint, borderWidth: 1, borderColor: COLORS.primaryLight,
+    backgroundColor: colors.primaryFaint, borderWidth: 1, borderColor: colors.primaryLight,
   },
-  chipText: { fontSize: 11, fontWeight: '500', color: COLORS.primary },
+  chipText: { fontSize: 11, fontWeight: '500', color: colors.primary },
 
   infoCard: {
-    backgroundColor: COLORS.white, borderRadius: 14, padding: 16, gap: 12,
-    shadowColor: COLORS.black, shadowOffset: { width: 0, height: 1 },
+    backgroundColor: colors.card, borderRadius: 14, padding: 16, gap: 12,
+    shadowColor: colors.black, shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05, shadowRadius: 3, elevation: 1,
   },
   detailRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
   },
-  detailLabel: { fontSize: 13, color: COLORS.textMuted },
-  detailValue: { fontSize: 13, fontWeight: '600', color: COLORS.textPrimary },
-  detailValueHighlight: { color: COLORS.primary, fontSize: 15, fontWeight: '700' },
+  detailLabel: { fontSize: 13, color: colors.textMuted },
+  detailValue: { fontSize: 13, fontWeight: '600', color: colors.textPrimary },
+  detailValueHighlight: { color: colors.primary, fontSize: 15, fontWeight: '700' },
 
   descriptionCard: {
-    backgroundColor: COLORS.white, borderRadius: 14, padding: 16,
-    borderLeftWidth: 3, borderLeftColor: COLORS.primary,
-    shadowColor: COLORS.black, shadowOffset: { width: 0, height: 1 },
+    backgroundColor: colors.card, borderRadius: 14, padding: 16,
+    borderLeftWidth: 3, borderLeftColor: colors.primary,
+    shadowColor: colors.black, shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05, shadowRadius: 3, elevation: 1,
   },
-  descriptionText: { fontSize: 13, color: COLORS.textSecondary, lineHeight: 20 },
+  descriptionText: { fontSize: 13, color: colors.textSecondary, lineHeight: 20 },
 });

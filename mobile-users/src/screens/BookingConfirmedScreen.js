@@ -5,19 +5,23 @@ import {
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { COLORS } from '../constants/theme';
+import { useMemo } from 'react';
+import useTheme from '../hooks/useTheme';
+import { doctorInitial } from '../utils/doctorAvatar';
 
 const BookingConfirmedScreen = ({ navigation, route }) => {
   const { doctor, date, time, visitType, fee, bookingRef, appointmentId } = route.params;
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
 
         <View style={styles.iconCircle}>
-          <MCIcon name="check-bold" size={36} color={COLORS.primary} />
+          <MCIcon name="check-bold" size={36} color={colors.primary} />
         </View>
 
         <Text style={styles.title}>Booking Confirmed!</Text>
@@ -26,7 +30,7 @@ const BookingConfirmedScreen = ({ navigation, route }) => {
         <View style={styles.card}>
           <View style={styles.doctorRow}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarIcon}>{doctor.avatar}</Text>
+              <Text style={styles.avatarIcon}>{doctorInitial(doctor.name)}</Text>
             </View>
             <View>
               <Text style={styles.doctorName}>{doctor.name}</Text>
@@ -37,7 +41,7 @@ const BookingConfirmedScreen = ({ navigation, route }) => {
           <View style={styles.divider} />
 
           <View style={styles.detailRow}>
-            <MCIcon name="calendar-blank-outline" size={18} color={COLORS.primary} style={styles.detailIcon} />
+            <MCIcon name="calendar-blank-outline" size={18} color={colors.primary} style={styles.detailIcon} />
             <View>
               <Text style={styles.detailLabel}>Date</Text>
               <Text style={styles.detailValue}>{date}</Text>
@@ -45,7 +49,7 @@ const BookingConfirmedScreen = ({ navigation, route }) => {
           </View>
 
           <View style={styles.detailRow}>
-            <MCIcon name="clock-outline" size={18} color={COLORS.primary} style={styles.detailIcon} />
+            <MCIcon name="clock-outline" size={18} color={colors.primary} style={styles.detailIcon} />
             <View>
               <Text style={styles.detailLabel}>Time</Text>
               <Text style={styles.detailValue}>{time}</Text>
@@ -53,7 +57,7 @@ const BookingConfirmedScreen = ({ navigation, route }) => {
           </View>
 
           <View style={styles.detailRow}>
-            <MCIcon name="stethoscope" size={18} color={COLORS.primary} style={styles.detailIcon} />
+            <MCIcon name="stethoscope" size={18} color={colors.primary} style={styles.detailIcon} />
             <View>
               <Text style={styles.detailLabel}>Visit Type</Text>
               <Text style={styles.detailValue}>{visitType}</Text>
@@ -62,7 +66,7 @@ const BookingConfirmedScreen = ({ navigation, route }) => {
 
           {bookingRef ? (
             <View style={styles.detailRow}>
-              <MCIcon name="bookmark-outline" size={18} color={COLORS.primary} style={styles.detailIcon} />
+              <MCIcon name="bookmark-outline" size={18} color={colors.primary} style={styles.detailIcon} />
               <View>
                 <Text style={styles.detailLabel}>Booking ID</Text>
                 <Text style={styles.detailValue}>{bookingRef}</Text>
@@ -77,7 +81,7 @@ const BookingConfirmedScreen = ({ navigation, route }) => {
           activeOpacity={0.85}
         >
           <Text style={styles.payBtnText}>Proceed to Payment</Text>
-          <MCIcon name="arrow-right" size={18} color={COLORS.white} />
+          <MCIcon name="arrow-right" size={18} color={colors.white} />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -89,7 +93,7 @@ const BookingConfirmedScreen = ({ navigation, route }) => {
         </TouchableOpacity>
 
         <View style={styles.noteCard}>
-          <MCIcon name="lightbulb-on-outline" size={16} color={COLORS.primary} style={styles.noteIcon} />
+          <MCIcon name="lightbulb-on-outline" size={16} color={colors.primary} style={styles.noteIcon} />
           <Text style={styles.noteText}>
             You will receive a confirmation email and SMS with joining details
           </Text>
@@ -102,8 +106,8 @@ const BookingConfirmedScreen = ({ navigation, route }) => {
 
 export default BookingConfirmedScreen;
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.white },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   container: {
     alignItems: 'center',
     paddingHorizontal: 20,
@@ -114,35 +118,35 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: colors.primaryLight,
     borderWidth: 2,
-    borderColor: COLORS.primary,
+    borderColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
   },
-  checkIcon: { fontSize: 36, color: COLORS.primary },
+  checkIcon: { fontSize: 36, color: colors.primary },
   title: {
     fontSize: 22,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 13,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: 28,
   },
   card: {
     width: '100%',
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     marginBottom: 20,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 3,
@@ -158,27 +162,27 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: COLORS.primaryFaint,
+    backgroundColor: colors.primaryFaint,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarIcon: { fontSize: 24 },
-  doctorName: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
-  doctorSpecialty: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
-  divider: { height: 1, backgroundColor: COLORS.surfaceMuted, marginBottom: 14 },
+  avatarIcon: { fontSize: 22, fontWeight: '800', color: colors.primary },
+  doctorName: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
+  doctorSpecialty: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  divider: { height: 1, backgroundColor: colors.surfaceMuted, marginBottom: 14 },
   detailRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
     marginBottom: 12,
   },
-  detailIcon: { fontSize: 18, marginTop: 2, color: COLORS.primary },
-  detailLabel: { fontSize: 11, color: COLORS.textMuted, marginBottom: 2 },
-  detailValue: { fontSize: 14, fontWeight: '600', color: COLORS.textPrimary },
+  detailIcon: { fontSize: 18, marginTop: 2, color: colors.primary },
+  detailLabel: { fontSize: 11, color: colors.textMuted, marginBottom: 2 },
+  detailValue: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
   payBtn: {
     width: '100%',
     flexDirection: 'row',
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
@@ -186,26 +190,26 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 12,
   },
-  payBtnText: { fontSize: 15, fontWeight: '700', color: COLORS.white },
+  payBtnText: { fontSize: 15, fontWeight: '700', color: colors.white },
   homeBtn: {
     width: '100%',
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     marginBottom: 20,
   },
-  homeBtnText: { fontSize: 15, fontWeight: '600', color: COLORS.primary },
+  homeBtnText: { fontSize: 15, fontWeight: '600', color: colors.primary },
   noteCard: {
     width: '100%',
     flexDirection: 'row',
-    backgroundColor: COLORS.primaryFaint,
+    backgroundColor: colors.primaryFaint,
     borderRadius: 12,
     padding: 14,
     gap: 10,
     alignItems: 'flex-start',
   },
   noteIcon: { fontSize: 16 },
-  noteText: { flex: 1, fontSize: 12, color: COLORS.textSecondary, lineHeight: 18 },
+  noteText: { flex: 1, fontSize: 12, color: colors.textSecondary, lineHeight: 18 },
 });

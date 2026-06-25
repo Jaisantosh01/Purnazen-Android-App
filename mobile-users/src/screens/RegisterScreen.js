@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,12 +15,15 @@ import {
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import authService from '../services/authService';
-import { COLORS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
+import { useProfileStore } from '../store/profileStore';
 
 const { height: SCREEN_H } = Dimensions.get('window');
 const EMAIL_RE = /^\S+@\S+\.\S+$/;
 
 const RegisterScreen = ({ navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [fullName, setFullName]         = useState('');
   const [email, setEmail]               = useState('');
   const [password, setPassword]         = useState('');
@@ -58,9 +61,12 @@ const RegisterScreen = ({ navigation }) => {
     setError('');
     setIsLoading(true);
     try {
+      // Show the one-time "complete your profile" step right after sign-up.
+      useProfileStore.getState().setPendingCompletion(true);
       await authService.register(fullName.trim(), email.trim(), password);
       // Navigation handled by App.tsx auth-state listener
     } catch (err) {
+      useProfileStore.getState().setPendingCompletion(false);
       setError(err.message || 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
@@ -69,7 +75,7 @@ const RegisterScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
 
       <KeyboardAvoidingView
         style={styles.flex}
@@ -87,7 +93,7 @@ const RegisterScreen = ({ navigation }) => {
             <View style={styles.blobTwo} />
 
             <View style={styles.logoBadge}>
-              <MCIcon name="leaf" size={34} color={COLORS.white} />
+              <MCIcon name="leaf" size={34} color={colors.white} />
             </View>
             <Text style={styles.appName}>Purnazen</Text>
             <Text style={styles.tagline}>AI Assisted Acupressure & Wellness</Text>
@@ -101,7 +107,7 @@ const RegisterScreen = ({ navigation }) => {
 
             {error.length > 0 && (
               <View style={styles.errorBox}>
-                <MCIcon name="alert-circle-outline" size={16} color={COLORS.danger} />
+                <MCIcon name="alert-circle-outline" size={16} color={colors.danger} />
                 <Text style={styles.errorText}>{error}</Text>
               </View>
             )}
@@ -112,11 +118,11 @@ const RegisterScreen = ({ navigation }) => {
               style={[styles.inputContainer, focused === 'name' && styles.inputFocused]}
               onLayout={e => { fieldY.current.name = e.nativeEvent.layout.y + e.nativeEvent.layout.height; }}
             >
-              <MCIcon name="account-outline" size={20} color={focused === 'name' ? COLORS.primary : COLORS.textMuted} style={styles.inputIcon} />
+              <MCIcon name="account-outline" size={20} color={focused === 'name' ? colors.primary : colors.textMuted} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Enter your full name"
-                placeholderTextColor={COLORS.textMuted}
+                placeholderTextColor={colors.textMuted}
                 value={fullName}
                 onChangeText={text => { setFullName(text); setError(''); }}
                 autoCapitalize="words"
@@ -133,12 +139,12 @@ const RegisterScreen = ({ navigation }) => {
               style={[styles.inputContainer, focused === 'email' && styles.inputFocused]}
               onLayout={e => { fieldY.current.email = e.nativeEvent.layout.y + e.nativeEvent.layout.height; }}
             >
-              <MCIcon name="email-outline" size={20} color={focused === 'email' ? COLORS.primary : COLORS.textMuted} style={styles.inputIcon} />
+              <MCIcon name="email-outline" size={20} color={focused === 'email' ? colors.primary : colors.textMuted} style={styles.inputIcon} />
               <TextInput
                 ref={emailRef}
                 style={styles.input}
                 placeholder="you@example.com"
-                placeholderTextColor={COLORS.textMuted}
+                placeholderTextColor={colors.textMuted}
                 value={email}
                 onChangeText={text => { setEmail(text); setError(''); }}
                 keyboardType="email-address"
@@ -157,12 +163,12 @@ const RegisterScreen = ({ navigation }) => {
               style={[styles.inputContainer, focused === 'password' && styles.inputFocused]}
               onLayout={e => { fieldY.current.password = e.nativeEvent.layout.y + e.nativeEvent.layout.height; }}
             >
-              <MCIcon name="lock-outline" size={20} color={focused === 'password' ? COLORS.primary : COLORS.textMuted} style={styles.inputIcon} />
+              <MCIcon name="lock-outline" size={20} color={focused === 'password' ? colors.primary : colors.textMuted} style={styles.inputIcon} />
               <TextInput
                 ref={passwordRef}
                 style={styles.input}
                 placeholder="At least 6 characters"
-                placeholderTextColor={COLORS.textMuted}
+                placeholderTextColor={colors.textMuted}
                 value={password}
                 onChangeText={text => { setPassword(text); setError(''); }}
                 secureTextEntry={!showPassword}
@@ -181,7 +187,7 @@ const RegisterScreen = ({ navigation }) => {
                 <MCIcon
                   name={showPassword ? 'eye-outline' : 'eye-off-outline'}
                   size={20}
-                  color={COLORS.textMuted}
+                  color={colors.textMuted}
                 />
               </TouchableOpacity>
             </View>
@@ -192,12 +198,12 @@ const RegisterScreen = ({ navigation }) => {
               style={[styles.inputContainer, focused === 'confirm' && styles.inputFocused]}
               onLayout={e => { fieldY.current.confirm = e.nativeEvent.layout.y + e.nativeEvent.layout.height; }}
             >
-              <MCIcon name="lock-check-outline" size={20} color={focused === 'confirm' ? COLORS.primary : COLORS.textMuted} style={styles.inputIcon} />
+              <MCIcon name="lock-check-outline" size={20} color={focused === 'confirm' ? colors.primary : colors.textMuted} style={styles.inputIcon} />
               <TextInput
                 ref={confirmRef}
                 style={styles.input}
                 placeholder="Repeat your password"
-                placeholderTextColor={COLORS.textMuted}
+                placeholderTextColor={colors.textMuted}
                 value={confirm}
                 onChangeText={text => { setConfirm(text); setError(''); }}
                 secureTextEntry={!showPassword}
@@ -217,11 +223,11 @@ const RegisterScreen = ({ navigation }) => {
               disabled={isLoading}
             >
               {isLoading ? (
-                <ActivityIndicator color={COLORS.white} />
+                <ActivityIndicator color={colors.white} />
               ) : (
                 <>
                   <Text style={styles.primaryBtnText}>Sign Up</Text>
-                  <MCIcon name="arrow-right" size={20} color={COLORS.white} />
+                  <MCIcon name="arrow-right" size={20} color={colors.white} />
                 </>
               )}
             </TouchableOpacity>
@@ -243,8 +249,8 @@ const RegisterScreen = ({ navigation }) => {
 
 export default RegisterScreen;
 
-const styles = StyleSheet.create({
-  root:  { flex: 1, backgroundColor: COLORS.primary },
+const makeStyles = colors => StyleSheet.create({
+  root:  { flex: 1, backgroundColor: colors.primary },
   flex:  { flex: 1 },
   scroll: { flexGrow: 1, minHeight: SCREEN_H },
 
@@ -286,7 +292,7 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 30,
     fontWeight: '800',
-    color: COLORS.white,
+    color: colors.white,
     letterSpacing: 0.3,
     marginBottom: 6,
   },
@@ -297,7 +303,7 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     paddingHorizontal: 24,
@@ -305,7 +311,7 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     marginTop: -28,
     flexGrow: 1,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -316,28 +322,28 @@ const styles = StyleSheet.create({
     width: 44,
     height: 5,
     borderRadius: 3,
-    backgroundColor: COLORS.border,
+    backgroundColor: colors.border,
     marginBottom: 22,
   },
   title: {
     fontSize: 25,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 6,
   },
   subtitle: {
     fontSize: 14,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginBottom: 26,
   },
 
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fef2f2',
+    backgroundColor: 'rgba(239,68,68,0.10)',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: 'rgba(239,68,68,0.30)',
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginBottom: 18,
@@ -345,36 +351,36 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 13,
-    color: COLORS.danger,
+    color: colors.danger,
     flex: 1,
   },
 
   label: {
     fontSize: 13,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surfaceMuted,
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     paddingHorizontal: 14,
     paddingVertical: Platform.OS === 'ios' ? 14 : 11,
     marginBottom: 18,
   },
   inputFocused: {
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.primaryFaint,
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryFaint,
   },
   inputIcon: { marginRight: 10 },
   input: {
     flex: 1,
     fontSize: 15,
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     padding: 0,
     includeFontPadding: false,
   },
@@ -382,7 +388,7 @@ const styles = StyleSheet.create({
 
   primaryBtn: {
     flexDirection: 'row',
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
@@ -390,7 +396,7 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 10,
     minHeight: 54,
-    shadowColor: COLORS.primary,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
@@ -400,7 +406,7 @@ const styles = StyleSheet.create({
   primaryBtnText: {
     fontSize: 16,
     fontWeight: '800',
-    color: COLORS.white,
+    color: colors.white,
   },
 
   switchRow: {
@@ -408,8 +414,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 24,
   },
-  switchHint: { fontSize: 14, color: COLORS.textSecondary },
-  switchLink:  { fontSize: 14, fontWeight: '800', color: COLORS.primary },
+  switchHint: { fontSize: 14, color: colors.textSecondary },
+  switchLink:  { fontSize: 14, fontWeight: '800', color: colors.primary },
 
   keyboardSpacer: { height: 240 },
 });

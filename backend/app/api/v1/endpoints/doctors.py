@@ -21,7 +21,9 @@ def doctor_card(doctor):
         "name": f"Dr. {doctor.user.full_name}",
         "specialties": [mapping.specialty.name for mapping in doctor.speciality_mappings],
         "specialty_ids": [mapping.speciality_id for mapping in doctor.speciality_mappings],
-        "avatar": doctor.user.avatar_url or "👨‍⚕️",
+        # Image URL when set, else null — the app falls back to the doctor's
+        # initial (no emoji, which renders inconsistently across devices).
+        "avatar": doctor.user.avatar_url or None,
         "rating": float(doctor.average_rating),
         "reviews": doctor.reviews_count,
         "experience": doctor.experience_years,

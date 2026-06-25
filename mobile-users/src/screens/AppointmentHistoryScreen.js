@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,8 @@ import {
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import consultService from '../services/consultService';
-import { COLORS, APPOINTMENT_STATUS_COLORS } from '../constants/theme';
+import { APPOINTMENT_STATUS_COLORS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 import { APPOINTMENT_HISTORY_STATUS_LABELS } from '../constants/strings';
 
 
@@ -20,6 +21,8 @@ const STATUS_COLORS = APPOINTMENT_STATUS_COLORS;
 const STATUS_LABELS = APPOINTMENT_HISTORY_STATUS_LABELS;
 
 const AppointmentHistoryScreen = ({ navigation }) => {
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [appointments, setAppointments] = useState([]);
   const [consultTypes, setConsultTypes] = useState([]);
   const [activeFilter, setActiveFilter] = useState('All');
@@ -101,18 +104,18 @@ const AppointmentHistoryScreen = ({ navigation }) => {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
 
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <MCIcon name="arrow-left" size={22} color={COLORS.textPrimary} />
+          <MCIcon name="arrow-left" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Appointments</Text>
         <View style={styles.backBtn} />
@@ -142,7 +145,7 @@ const AppointmentHistoryScreen = ({ navigation }) => {
 
       {filtered.length === 0 ? (
         <View style={styles.center}>
-          <MCIcon name="clipboard-text-outline" size={48} color={COLORS.textMuted} style={styles.emptyIcon} />
+          <MCIcon name="clipboard-text-outline" size={48} color={colors.textMuted} style={styles.emptyIcon} />
           <Text style={styles.emptyTitle}>No Appointments</Text>
           <Text style={styles.emptySubtitle}>
             {activeFilter === 'All'
@@ -157,7 +160,7 @@ const AppointmentHistoryScreen = ({ navigation }) => {
           renderItem={renderAppointment}
           contentContainerStyle={styles.list}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
           }
         />
       )}
@@ -167,41 +170,41 @@ const AppointmentHistoryScreen = ({ navigation }) => {
 
 export default AppointmentHistoryScreen;
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
 
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 },
   emptyIcon: { fontSize: 48, marginBottom: 12 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 6 },
-  emptySubtitle: { fontSize: 14, color: COLORS.textMuted, textAlign: 'center', lineHeight: 20 },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginBottom: 6 },
+  emptySubtitle: { fontSize: 14, color: colors.textMuted, textAlign: 'center', lineHeight: 20 },
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingTop: 50, paddingHorizontal: 16, paddingBottom: 14,
-    backgroundColor: COLORS.white, borderBottomWidth: 1, borderBottomColor: COLORS.surfaceMuted,
+    backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.surfaceMuted,
   },
   backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  backIcon: { fontSize: 22, color: COLORS.textPrimary },
-  headerTitle: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
+  backIcon: { fontSize: 22, color: colors.textPrimary },
+  headerTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
 
   filterRow: {
-    backgroundColor: COLORS.white, paddingVertical: 10, borderBottomWidth: 1,
-    borderBottomColor: COLORS.surfaceMuted,
+    backgroundColor: colors.card, paddingVertical: 10, borderBottomWidth: 1,
+    borderBottomColor: colors.surfaceMuted,
   },
   filterContent: { paddingHorizontal: 16, gap: 8 },
   filterChip: {
     paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20,
-    backgroundColor: COLORS.surfaceMuted, borderWidth: 1, borderColor: COLORS.border,
+    backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border,
   },
-  filterChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  filterChipText: { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary },
-  filterChipTextActive: { color: COLORS.white },
+  filterChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  filterChipText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
+  filterChipTextActive: { color: colors.white },
 
   list: { padding: 16, gap: 14 },
 
   card: {
-    backgroundColor: COLORS.white, borderRadius: 14, padding: 16,
-    shadowColor: COLORS.black, shadowOffset: { width: 0, height: 1 },
+    backgroundColor: colors.card, borderRadius: 14, padding: 16,
+    shadowColor: colors.black, shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05, shadowRadius: 3, elevation: 2,
   },
   cardHeader: {
@@ -209,18 +212,18 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   cardDoctorInfo: { flex: 1, marginRight: 12 },
-  doctorName: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 2 },
-  specialty: { fontSize: 12, color: COLORS.textMuted },
+  doctorName: { fontSize: 15, fontWeight: '700', color: colors.textPrimary, marginBottom: 2 },
+  specialty: { fontSize: 12, color: colors.textMuted },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-  statusText: { fontSize: 11, fontWeight: '700', color: COLORS.white },
+  statusText: { fontSize: 11, fontWeight: '700', color: colors.white },
 
   cardBody: { gap: 6 },
   detailRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  detailLabel: { fontSize: 13, color: COLORS.textMuted },
-  detailValue: { fontSize: 13, fontWeight: '600', color: COLORS.textPrimary },
+  detailLabel: { fontSize: 13, color: colors.textMuted },
+  detailValue: { fontSize: 13, fontWeight: '600', color: colors.textPrimary },
 
   descriptionPreview: {
-    marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: COLORS.surfaceMuted,
+    marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.surfaceMuted,
   },
-  descriptionText: { fontSize: 12, color: COLORS.textSecondary, lineHeight: 17 },
+  descriptionText: { fontSize: 12, color: colors.textSecondary, lineHeight: 17 },
 });

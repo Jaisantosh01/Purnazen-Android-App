@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,12 +11,15 @@ import {
 import Video from 'react-native-video';
 import wellnessService from '../services/wellnessService';
 import { SessionPlayerSkeleton } from '../components/SkeletonLoader';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { SPACING, RADIUS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { syncVideoProgress } from '../utils/videoTracker';
 
 const SessionPlayer = ({ session, navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [isPlaying, setIsPlaying]       = useState(false);
   const [currentStep, setCurrentStep]   = useState(0);
   const [timeLeft, setTimeLeft]         = useState(session.steps[0].duration);
@@ -96,7 +99,7 @@ const SessionPlayer = ({ session, navigation }) => {
     <View style={styles.root}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <MCIcon name="arrow-left" size={22} color={COLORS.textPrimary} />
+          <MCIcon name="arrow-left" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>{session.title}</Text>
@@ -116,7 +119,7 @@ const SessionPlayer = ({ session, navigation }) => {
             </View>
           )}
           <TouchableOpacity style={styles.floatingPlayBtn} onPress={() => setIsPlaying(p => !p)} activeOpacity={0.85}>
-            <MCIcon name={isPlaying ? 'pause' : 'play'} size={18} color={COLORS.white} style={styles.floatingPlayIcon} />
+            <MCIcon name={isPlaying ? 'pause' : 'play'} size={18} color={colors.white} style={styles.floatingPlayIcon} />
           </TouchableOpacity>
         </View>
         {/* ... Rest of the UI remains the same ... */}
@@ -163,7 +166,7 @@ const SessionPlayer = ({ session, navigation }) => {
                   isActive && styles.stepRowNumberActive,
                 ]}>
                   {isCompleted
-                    ? <MCIcon name="check" size={14} color={COLORS.white} />
+                    ? <MCIcon name="check" size={14} color={colors.white} />
                     : <Text style={[styles.stepRowNumberText, isActive && styles.stepRowNumberTextActive]}>{index + 1}</Text>}
                 </View>
                 <View style={styles.stepRowInfo}>
@@ -178,11 +181,11 @@ const SessionPlayer = ({ session, navigation }) => {
 
       <View style={styles.bottomBar}>
         <TouchableOpacity style={styles.restartBtn} onPress={handleRestart} activeOpacity={0.85}>
-          <MCIcon name="restart" size={16} color={COLORS.textSecondary} style={styles.restartIcon} />
+          <MCIcon name="restart" size={16} color={colors.textSecondary} style={styles.restartIcon} />
           <Text style={styles.restartText}>Restart</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.startBtn} onPress={() => setIsPlaying(p => !p)} activeOpacity={0.85}>
-          <MCIcon name={isPlaying ? 'pause' : 'play'} size={16} color={COLORS.white} style={styles.startBtnIcon} />
+          <MCIcon name={isPlaying ? 'pause' : 'play'} size={16} color={colors.white} style={styles.startBtnIcon} />
           <Text style={styles.startBtnText}>{isPlaying ? 'Pause' : 'Start'}</Text>
         </TouchableOpacity>
       </View>
@@ -191,6 +194,8 @@ const SessionPlayer = ({ session, navigation }) => {
 };
 
 const YogaSessionScreen = ({ navigation, route }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const sessionKey = route?.params?.sessionKey || 'YogaSession';
   const [session, setSession]     = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -205,10 +210,10 @@ const YogaSessionScreen = ({ navigation, route }) => {
   if (isLoading) {
     return (
       <View style={styles.root}>
-        <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
+        <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-            <MCIcon name="arrow-left" size={22} color={COLORS.textPrimary} />
+            <MCIcon name="arrow-left" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>Loading…</Text>
@@ -223,14 +228,14 @@ const YogaSessionScreen = ({ navigation, route }) => {
   if (error || !session) {
     return (
       <View style={styles.root}>
-        <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
+        <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-            <MCIcon name="arrow-left" size={22} color={COLORS.textPrimary} />
+            <MCIcon name="arrow-left" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
         </View>
         <View style={styles.errorState}>
-          <MCIcon name="alert-circle-outline" size={60} color={COLORS.danger} />
+          <MCIcon name="alert-circle-outline" size={60} color={colors.danger} />
           <Text style={styles.errorTitle}>Session not found</Text>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity style={styles.errorRetryBtn} onPress={() => navigation.goBack()} activeOpacity={0.85}>
@@ -243,7 +248,7 @@ const YogaSessionScreen = ({ navigation, route }) => {
 
   return (
     <>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
       <SessionPlayer session={session} navigation={navigation} />
     </>
   );
@@ -251,8 +256,8 @@ const YogaSessionScreen = ({ navigation, route }) => {
 
 export default YogaSessionScreen;
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
 
   header: {
     flexDirection: 'row',
@@ -261,132 +266,132 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     paddingHorizontal: SPACING.lg,
     paddingBottom: SPACING.lg,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.surfaceMuted,
+    borderBottomColor: colors.surfaceMuted,
   },
   backBtn:      { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  backIcon:     { fontSize: 22, color: COLORS.textPrimary },
+  backIcon:     { fontSize: 22, color: colors.textPrimary },
   headerCenter: { alignItems: 'center' },
-  headerTitle:  { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
-  headerSubtitle: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
-  cycleText:    { fontSize: 13, fontWeight: '600', color: COLORS.primary },
+  headerTitle:  { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
+  headerSubtitle: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+  cycleText:    { fontSize: 13, fontWeight: '600', color: colors.primary },
 
   animationArea: {
     width: '100%',
     aspectRatio: 16 / 9,
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
   },
   iconCircle: {
-    width: 80, height: 80, borderRadius: 40, backgroundColor: COLORS.white,
+    width: 80, height: 80, borderRadius: 40, backgroundColor: colors.card,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: COLORS.black, shadowOffset: { width: 0, height: 2 },
+    shadowColor: colors.black, shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08, shadowRadius: 8, elevation: 3,
   },
   poseIcon: { fontSize: 40 },
   video:    { width: '100%', height: '100%' },
   floatingPlayBtn: {
     position: 'absolute', bottom: SPACING.lg, right: SPACING.lg,
-    width: 48, height: 48, borderRadius: 24, backgroundColor: COLORS.primary,
+    width: 48, height: 48, borderRadius: 24, backgroundColor: colors.primary,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 },
+    shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
   },
-  floatingPlayIcon: { fontSize: 18, color: COLORS.white },
+  floatingPlayIcon: { fontSize: 18, color: colors.white },
 
   progressCard: {
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: colors.primaryLight,
     borderRadius: RADIUS.lg,
     marginHorizontal: SPACING.lg,
     marginTop: SPACING.lg,
     padding: SPACING.lg,
   },
   progressHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  stepCount:  { fontSize: 14, fontWeight: '600', color: COLORS.textPrimary },
-  timerText:  { fontSize: 18, fontWeight: '700', color: COLORS.primary },
+  stepCount:  { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
+  timerText:  { fontSize: 18, fontWeight: '700', color: colors.primary },
   progressBarBg: {
     height: 6, backgroundColor: 'rgba(31,167,122,0.2)',
     borderRadius: 3, marginBottom: 12, overflow: 'hidden',
   },
-  progressBarFill: { height: '100%', backgroundColor: COLORS.primary, borderRadius: 3 },
+  progressBarFill: { height: '100%', backgroundColor: colors.primary, borderRadius: 3 },
   dotsRow:     { flexDirection: 'row', gap: 6 },
   dot:         { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(31,167,122,0.3)' },
-  dotActive:   { backgroundColor: COLORS.primary, width: 10, height: 10, borderRadius: 5 },
-  dotCompleted:{ backgroundColor: COLORS.primary },
+  dotActive:   { backgroundColor: colors.primary, width: 10, height: 10, borderRadius: 5 },
+  dotCompleted:{ backgroundColor: colors.primary },
 
   currentStepCard: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: COLORS.white, borderRadius: RADIUS.lg,
+    backgroundColor: colors.card, borderRadius: RADIUS.lg,
     marginHorizontal: SPACING.lg, marginTop: SPACING.md, padding: SPACING.lg,
-    shadowColor: COLORS.black, shadowOffset: { width: 0, height: 1 },
+    shadowColor: colors.black, shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06, shadowRadius: 4, elevation: 1,
   },
   stepNumberCircle: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: COLORS.primaryLight, alignItems: 'center',
+    backgroundColor: colors.primaryLight, alignItems: 'center',
     justifyContent: 'center', marginRight: SPACING.md,
   },
-  stepNumber:      { fontSize: 15, fontWeight: '700', color: COLORS.primary },
+  stepNumber:      { fontSize: 15, fontWeight: '700', color: colors.primary },
   stepInfo:        { flex: 1 },
-  stepName:        { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary, marginBottom: SPACING.xs },
-  stepDescription: { fontSize: 13, color: COLORS.textSecondary },
+  stepName:        { fontSize: 15, fontWeight: '700', color: colors.textPrimary, marginBottom: SPACING.xs },
+  stepDescription: { fontSize: 13, color: colors.textSecondary },
 
   sessionStepsSection: { marginHorizontal: SPACING.lg, marginTop: SPACING.xl },
   sessionStepsLabel: {
-    fontSize: 11, fontWeight: '700', color: COLORS.textMuted,
+    fontSize: 11, fontWeight: '700', color: colors.textMuted,
     letterSpacing: 1, marginBottom: SPACING.md,
   },
   stepRow: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: COLORS.white, borderRadius: RADIUS.sm,
+    backgroundColor: colors.card, borderRadius: RADIUS.sm,
     padding: 14, marginBottom: SPACING.sm,
-    shadowColor: COLORS.black, shadowOffset: { width: 0, height: 1 },
+    shadowColor: colors.black, shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
-  stepRowActive:          { backgroundColor: COLORS.primaryLight, borderWidth: 1, borderColor: COLORS.primary },
-  stepRowNumber:          { width: 30, height: 30, borderRadius: 15, backgroundColor: COLORS.surfaceMuted, alignItems: 'center', justifyContent: 'center', marginRight: SPACING.md },
-  stepRowNumberActive:    { backgroundColor: COLORS.primary },
-  stepRowNumberCompleted: { backgroundColor: COLORS.primary },
-  stepRowNumberText:      { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary },
-  stepRowNumberTextActive:{ color: COLORS.white },
-  checkIcon:       { fontSize: 14, color: COLORS.white, fontWeight: '700' },
+  stepRowActive:          { backgroundColor: colors.primaryLight, borderWidth: 1, borderColor: colors.primary },
+  stepRowNumber:          { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center', marginRight: SPACING.md },
+  stepRowNumberActive:    { backgroundColor: colors.primary },
+  stepRowNumberCompleted: { backgroundColor: colors.primary },
+  stepRowNumberText:      { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
+  stepRowNumberTextActive:{ color: colors.white },
+  checkIcon:       { fontSize: 14, color: colors.white, fontWeight: '700' },
   stepRowInfo:     { flex: 1 },
-  stepRowName:     { fontSize: 14, fontWeight: '600', color: COLORS.textPrimary },
-  stepRowNameActive: { color: COLORS.primary },
-  stepRowDuration: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  stepRowName:     { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
+  stepRowNameActive: { color: colors.primary },
+  stepRowDuration: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
 
   bottomBar: {
     flexDirection: 'row', position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: COLORS.white, paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md, borderTopWidth: 1, borderTopColor: COLORS.surfaceMuted,
+    backgroundColor: colors.card, paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md, borderTopWidth: 1, borderTopColor: colors.surfaceMuted,
     gap: SPACING.md, elevation: 10,
   },
   restartBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.md,
+    borderWidth: 1, borderColor: colors.border, borderRadius: RADIUS.md,
     paddingVertical: 14, gap: 6,
   },
-  restartIcon: { fontSize: 16, color: COLORS.textSecondary },
-  restartText: { fontSize: 15, fontWeight: '600', color: COLORS.textSecondary },
+  restartIcon: { fontSize: 16, color: colors.textSecondary },
+  restartText: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
   startBtn: {
     flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: COLORS.primary, borderRadius: RADIUS.md, paddingVertical: 14, gap: SPACING.sm,
+    backgroundColor: colors.primary, borderRadius: RADIUS.md, paddingVertical: 14, gap: SPACING.sm,
   },
-  startBtnIcon: { fontSize: 16, color: COLORS.white },
-  startBtnText: { fontSize: 15, fontWeight: '700', color: COLORS.white },
+  startBtnIcon: { fontSize: 16, color: colors.white },
+  startBtnText: { fontSize: 15, fontWeight: '700', color: colors.white },
 
   errorState: {
     flex: 1, alignItems: 'center', justifyContent: 'center',
     paddingHorizontal: SPACING.xxl, gap: SPACING.sm,
   },
-  errorTitle:    { fontSize: 18, fontWeight: '700', color: COLORS.textPrimary, marginTop: SPACING.lg },
-  errorText:     { fontSize: 13, color: COLORS.textMuted, textAlign: 'center' },
+  errorTitle:    { fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginTop: SPACING.lg },
+  errorText:     { fontSize: 13, color: colors.textMuted, textAlign: 'center' },
   errorRetryBtn: {
-    marginTop: SPACING.md, backgroundColor: COLORS.primary,
+    marginTop: SPACING.md, backgroundColor: colors.primary,
     paddingHorizontal: SPACING.xxl, paddingVertical: SPACING.md, borderRadius: RADIUS.md,
   },
-  retryText:     { fontSize: 14, fontWeight: '700', color: COLORS.white },
+  retryText:     { fontSize: 14, fontWeight: '700', color: colors.white },
 });
