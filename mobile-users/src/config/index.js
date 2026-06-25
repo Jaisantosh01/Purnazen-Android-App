@@ -29,7 +29,7 @@ export const API_VERSION = '/api/v1';
 // injected at build time (EXPO_PUBLIC_APP_VERSION) to match the gradle versionName.
 export const APP_SLUG = 'mobile-users';
 export const APP_VERSION = process.env.EXPO_PUBLIC_APP_VERSION || '0.0.0';
-export const GITHUB_REPO = 'Jaisantosh01/Purnazen-Android-App';
+export const GITHUB_REPO = 'Calypsion-Innovations/PurnaZen_Android_App';
 
 // ── RBAC ─────────────────────────────────────────────────────────────────────
 // The single backend role this app serves. Login is gated to this role both
