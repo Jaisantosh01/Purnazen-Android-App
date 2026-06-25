@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,9 @@ import {
   StyleSheet,
   StatusBar,
   ScrollView,
-  KeyboardAvoidingView,
   Platform,
+  Animated,
+  Keyboard,
   ActivityIndicator,
 } from 'react-native';
 // @ts-ignore
@@ -22,17 +23,40 @@ const LoginScreen = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [focused, setFocused] = useState(null); // 'email' | 'password'
   const passwordRef = useRef(null);
 
+  // Keyboard-aware layout. The Android window does not reliably resize on its
+  // own (RN edge-to-edge), so we lift the bottom-anchored card by the keyboard
+  // height ourselves. `pad` animates layout (non-native), `kb` collapses the
+  // hero (native). 0 = keyboard hidden, 1 = visible.
+  const pad = useRef(new Animated.Value(0)).current;
+  const kb = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const onShow = e => {
+      const height = e?.endCoordinates?.height ?? 0;
+      Animated.parallel([
+        Animated.timing(pad, { toValue: height, duration: 260, useNativeDriver: false }),
+        Animated.timing(kb, { toValue: 1, duration: 260, useNativeDriver: true }),
+      ]).start();
+    };
+    const onHide = () => {
+      Animated.parallel([
+        Animated.timing(pad, { toValue: 0, duration: 220, useNativeDriver: false }),
+        Animated.timing(kb, { toValue: 0, duration: 220, useNativeDriver: true }),
+      ]).start();
+    };
+    const s = Keyboard.addListener(showEvt, onShow);
+    const h = Keyboard.addListener(hideEvt, onHide);
+    return () => { s.remove(); h.remove(); };
+  }, [pad, kb]);
+
   const handleLogin = async () => {
-    if (!email.trim()) {
-      setError('Please enter your email.');
-      return;
-    }
-    if (!password.trim()) {
-      setError('Please enter your password.');
-      return;
-    }
+    if (!email.trim()) { setError('Please enter your email.'); return; }
+    if (!password.trim()) { setError('Please enter your password.'); return; }
     setError('');
     setIsLoading(true);
     try {
@@ -45,112 +69,117 @@ const LoginScreen = () => {
     }
   };
 
+  const heroAnimStyle = {
+    opacity: kb.interpolate({ inputRange: [0, 0.6], outputRange: [1, 0] }),
+    transform: [
+      { scale: kb.interpolate({ inputRange: [0, 1], outputRange: [1, 0.82] }) },
+      { translateY: kb.interpolate({ inputRange: [0, 1], outputRange: [0, -18] }) },
+    ],
+  };
+
   return (
-    <View style={styles.root}>
+    <Animated.View style={[styles.root, { paddingBottom: pad }]}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+
+      {/* ── Hero (collapses under the keyboard) ─────────────────────────── */}
+      <View style={styles.heroWrap}>
+        <Animated.View style={[styles.hero, heroAnimStyle]}>
+          <View style={styles.logoBadge}>
+            <MCIcon name="stethoscope" size={38} color={COLORS.white} />
+          </View>
+          <Text style={styles.appName}>Purnazen for Doctors</Text>
+          <Text style={styles.tagline}>Manage appointments, schedule & patients</Text>
+        </Animated.View>
+      </View>
+
+      {/* ── Form card (anchored to the bottom, rides above the keyboard) ── */}
+      <View style={styles.card}>
         <ScrollView
-          contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}>
-          {/* Hero */}
-          <View style={styles.top}>
-            <View style={styles.logoBadge}>
-              <MCIcon name="stethoscope" size={38} color={COLORS.white} />
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.cardContent}
+          bounces={false}
+        >
+          <View style={styles.handle} />
+          <Text style={styles.title}>Doctor sign in</Text>
+          <Text style={styles.subtitle}>Use your clinician account to continue</Text>
+
+          {error.length > 0 && (
+            <View style={styles.errorBox}>
+              <MCIcon name="alert-circle-outline" size={16} color={COLORS.danger} />
+              <Text style={styles.errorText}>{error}</Text>
             </View>
-            <Text style={styles.appName}>Purnazen for Doctors</Text>
-            <Text style={styles.tagline}>Manage appointments, schedule & patients</Text>
+          )}
+
+          <Text style={styles.label}>Email</Text>
+          <View style={[styles.inputContainer, focused === 'email' && styles.inputFocused]}>
+            <MCIcon name="email-outline" size={20} color={focused === 'email' ? COLORS.primary : COLORS.textMuted} style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="doctor@example.com"
+              placeholderTextColor={COLORS.textMuted}
+              value={email}
+              onChangeText={t => { setEmail(t); setError(''); }}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="next"
+              onSubmitEditing={() => passwordRef.current?.focus()}
+              onFocus={() => setFocused('email')}
+              onBlur={() => setFocused(null)}
+            />
           </View>
 
-          {/* Form */}
-          <View style={styles.card}>
-            <View style={styles.handle} />
-            <Text style={styles.title}>Doctor sign in</Text>
-            <Text style={styles.subtitle}>Use your clinician account to continue</Text>
-
-            {error.length > 0 && (
-              <View style={styles.errorBox}>
-                <MCIcon name="alert-circle-outline" size={16} color={COLORS.danger} />
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            )}
-
-            <Text style={styles.label}>Email</Text>
-            <View style={styles.inputContainer}>
-              <MCIcon name="email-outline" size={20} color={COLORS.textMuted} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="doctor@example.com"
-                placeholderTextColor={COLORS.textMuted}
-                value={email}
-                onChangeText={t => {
-                  setEmail(t);
-                  setError('');
-                }}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                returnKeyType="next"
-                onSubmitEditing={() => passwordRef.current?.focus()}
-              />
-            </View>
-
-            <Text style={styles.label}>Password</Text>
-            <View style={styles.inputContainer}>
-              <MCIcon name="lock-outline" size={20} color={COLORS.textMuted} style={styles.inputIcon} />
-              <TextInput
-                ref={passwordRef}
-                style={styles.input}
-                placeholder="Enter your password"
-                placeholderTextColor={COLORS.textMuted}
-                value={password}
-                onChangeText={t => {
-                  setPassword(t);
-                  setError('');
-                }}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-                autoCorrect={false}
-                returnKeyType="done"
-                onSubmitEditing={handleLogin}
-              />
-              <TouchableOpacity
-                onPress={() => setShowPassword(p => !p)}
-                style={styles.eyeBtn}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <MCIcon
-                  name={showPassword ? 'eye-outline' : 'eye-off-outline'}
-                  size={20}
-                  color={COLORS.textMuted}
-                />
-              </TouchableOpacity>
-            </View>
-
+          <Text style={styles.label}>Password</Text>
+          <View style={[styles.inputContainer, focused === 'password' && styles.inputFocused]}>
+            <MCIcon name="lock-outline" size={20} color={focused === 'password' ? COLORS.primary : COLORS.textMuted} style={styles.inputIcon} />
+            <TextInput
+              ref={passwordRef}
+              style={styles.input}
+              placeholder="Enter your password"
+              placeholderTextColor={COLORS.textMuted}
+              value={password}
+              onChangeText={t => { setPassword(t); setError(''); }}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="done"
+              onSubmitEditing={handleLogin}
+              onFocus={() => setFocused('password')}
+              onBlur={() => setFocused(null)}
+            />
             <TouchableOpacity
-              style={[styles.primaryBtn, isLoading && styles.primaryBtnDisabled]}
-              activeOpacity={0.85}
-              onPress={handleLogin}
-              disabled={isLoading}>
-              {isLoading ? (
-                <ActivityIndicator color={COLORS.white} />
-              ) : (
-                <>
-                  <Text style={styles.primaryBtnText}>Sign In</Text>
-                  <MCIcon name="arrow-right" size={20} color={COLORS.white} />
-                </>
-              )}
+              onPress={() => setShowPassword(p => !p)}
+              style={styles.eyeBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <MCIcon name={showPassword ? 'eye-outline' : 'eye-off-outline'} size={20} color={COLORS.textMuted} />
             </TouchableOpacity>
-
-            <Text style={styles.note}>
-              Doctor accounts are provisioned by the Purnazen team — there is no
-              self sign-up.
-            </Text>
           </View>
+
+          <TouchableOpacity
+            style={[styles.primaryBtn, isLoading && styles.primaryBtnDisabled]}
+            activeOpacity={0.85}
+            onPress={handleLogin}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color={COLORS.white} />
+            ) : (
+              <>
+                <Text style={styles.primaryBtnText}>Sign In</Text>
+                <MCIcon name="arrow-right" size={20} color={COLORS.white} />
+              </>
+            )}
+          </TouchableOpacity>
+
+          <Text style={styles.note}>
+            Doctor accounts are provisioned by the Purnazen team — there is no
+            self sign-up.
+          </Text>
         </ScrollView>
-      </KeyboardAvoidingView>
-    </View>
+      </View>
+    </Animated.View>
   );
 };
 
@@ -158,9 +187,17 @@ export default LoginScreen;
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.primary },
-  flex: { flex: 1 },
-  scroll: { flexGrow: 1 },
-  top: { alignItems: 'center', paddingTop: 76, paddingBottom: 56 },
+
+  // flex:1 + minHeight:0 lets the hero shrink first when the keyboard opens,
+  // pushing the card up instead of letting the keyboard cover it.
+  heroWrap: {
+    flex: 1,
+    minHeight: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  hero: { alignItems: 'center' },
   logoBadge: {
     width: 84,
     height: 84,
@@ -172,17 +209,24 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.25)',
   },
-  appName: { fontSize: 27, fontWeight: '800', color: COLORS.white, marginBottom: 6 },
-  tagline: { fontSize: 13.5, color: 'rgba(255,255,255,0.85)' },
+  appName: { fontSize: 27, fontWeight: '800', color: COLORS.white, marginBottom: 6, textAlign: 'center' },
+  tagline: { fontSize: 13.5, color: 'rgba(255,255,255,0.85)', textAlign: 'center' },
+
   card: {
     backgroundColor: COLORS.white,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
+    flexShrink: 1,
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 16,
+  },
+  cardContent: {
     paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 32,
-    marginTop: -28,
-    flexGrow: 1,
+    paddingTop: 14,
+    paddingBottom: 28,
   },
   handle: {
     alignSelf: 'center',
@@ -190,10 +234,10 @@ const styles = StyleSheet.create({
     height: 5,
     borderRadius: 3,
     backgroundColor: COLORS.border,
-    marginBottom: 22,
+    marginBottom: 20,
   },
   title: { fontSize: 24, fontWeight: '800', color: COLORS.textPrimary, marginBottom: 6 },
-  subtitle: { fontSize: 14, color: COLORS.textSecondary, marginBottom: 24 },
+  subtitle: { fontSize: 14, color: COLORS.textSecondary, marginBottom: 22 },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -219,8 +263,9 @@ const styles = StyleSheet.create({
     paddingVertical: Platform.OS === 'ios' ? 14 : 11,
     marginBottom: 18,
   },
+  inputFocused: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryFaint },
   inputIcon: { marginRight: 10 },
-  input: { flex: 1, fontSize: 15, color: COLORS.textPrimary, padding: 0 },
+  input: { flex: 1, fontSize: 15, color: COLORS.textPrimary, padding: 0, includeFontPadding: false },
   eyeBtn: { padding: 4 },
   primaryBtn: {
     flexDirection: 'row',
@@ -230,8 +275,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    marginTop: 10,
+    marginTop: 6,
     minHeight: 54,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 6,
   },
   primaryBtnDisabled: { opacity: 0.7 },
   primaryBtnText: { fontSize: 16, fontWeight: '800', color: COLORS.white },
@@ -239,7 +289,7 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     color: COLORS.textMuted,
     textAlign: 'center',
-    marginTop: 22,
+    marginTop: 20,
     lineHeight: 18,
   },
 });

@@ -1,0 +1,23 @@
+# Keep the build context (and image) small + free of secrets/local state.
+**/__pycache__/
+**/*.pyc
+venv/
+venv*/
+.venv/
+.env
+.env.*
+*.db
+*.sqlite3
+uploads/
+sandbox/
+ml/
+tests/
+.pytest_cache/
+.git/
+.gitignore
+.github/
+*.log
+*.sql
+README.md
+Dockerfile
+.dockerignore

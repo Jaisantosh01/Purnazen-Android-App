@@ -18,7 +18,7 @@ const NO_REFRESH_PATHS = [ENDPOINTS.LOGIN, ENDPOINTS.REFRESH, ENDPOINTS.LOGOUT];
 
 const client = axios.create({
   baseURL: BASE_URL,
-  timeout: 15000,
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
     Accept: 'application/json',
@@ -27,9 +27,15 @@ const client = axios.create({
 
 // Attach the auth token to every request
 client.interceptors.request.use(async config => {
-  const token = await secureStorage.getAccessToken();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  // Never let a keychain read failure abort the request — a throw here surfaces
+  // as a misleading "network error". Proceed unauthenticated if it can't be read.
+  try {
+    const token = await secureStorage.getAccessToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  } catch (e) {
+    // ignore — request continues without the Authorization header
   }
   return config;
 });
@@ -46,7 +52,7 @@ async function refreshAccessToken() {
   // Bare axios call so it skips this instance's interceptors
   const response = await axios.post(`${BASE_URL}${ENDPOINTS.REFRESH}`, null, {
     headers: { Authorization: `Bearer ${refreshToken}` },
-    timeout: 15000,
+    timeout: 30000,
   });
 
   const accessToken = response.data?.data?.access_token;
@@ -82,7 +88,7 @@ function normalizeError(error) {
     serverMessage ||
     STATUS_MESSAGES[status] ||
     (isNetworkError
-      ? 'Network error. Please check your connection and try again.'
+      ? `Network error: ${error.message || error.code || 'request did not reach the server'}. Please check your connection and try again.`
       : status
       ? `Request failed with status ${status}`
       : error.message || 'Something went wrong.');

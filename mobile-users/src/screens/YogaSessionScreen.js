@@ -96,7 +96,7 @@ const SessionPlayer = ({ session, navigation }) => {
     <View style={styles.root}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.backIcon}>←</Text>
+          <MCIcon name="arrow-left" size={22} color={COLORS.textPrimary} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>{session.title}</Text>
@@ -116,7 +116,7 @@ const SessionPlayer = ({ session, navigation }) => {
             </View>
           )}
           <TouchableOpacity style={styles.floatingPlayBtn} onPress={() => setIsPlaying(p => !p)} activeOpacity={0.85}>
-            <Text style={styles.floatingPlayIcon}>{isPlaying ? '⏸' : '▶'}</Text>
+            <MCIcon name={isPlaying ? 'pause' : 'play'} size={18} color={COLORS.white} style={styles.floatingPlayIcon} />
           </TouchableOpacity>
         </View>
         {/* ... Rest of the UI remains the same ... */}
@@ -163,7 +163,7 @@ const SessionPlayer = ({ session, navigation }) => {
                   isActive && styles.stepRowNumberActive,
                 ]}>
                   {isCompleted
-                    ? <Text style={styles.checkIcon}>✓</Text>
+                    ? <MCIcon name="check" size={14} color={COLORS.white} />
                     : <Text style={[styles.stepRowNumberText, isActive && styles.stepRowNumberTextActive]}>{index + 1}</Text>}
                 </View>
                 <View style={styles.stepRowInfo}>
@@ -178,11 +178,11 @@ const SessionPlayer = ({ session, navigation }) => {
 
       <View style={styles.bottomBar}>
         <TouchableOpacity style={styles.restartBtn} onPress={handleRestart} activeOpacity={0.85}>
-          <Text style={styles.restartIcon}>↺</Text>
+          <MCIcon name="restart" size={16} color={COLORS.textSecondary} style={styles.restartIcon} />
           <Text style={styles.restartText}>Restart</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.startBtn} onPress={() => setIsPlaying(p => !p)} activeOpacity={0.85}>
-          <Text style={styles.startBtnIcon}>{isPlaying ? '⏸' : '▶'}</Text>
+          <MCIcon name={isPlaying ? 'pause' : 'play'} size={16} color={COLORS.white} style={styles.startBtnIcon} />
           <Text style={styles.startBtnText}>{isPlaying ? 'Pause' : 'Start'}</Text>
         </TouchableOpacity>
       </View>
@@ -208,7 +208,7 @@ const YogaSessionScreen = ({ navigation, route }) => {
         <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-            <Text style={styles.backIcon}>←</Text>
+            <MCIcon name="arrow-left" size={22} color={COLORS.textPrimary} />
           </TouchableOpacity>
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>Loading…</Text>
@@ -226,7 +226,7 @@ const YogaSessionScreen = ({ navigation, route }) => {
         <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-            <Text style={styles.backIcon}>←</Text>
+            <MCIcon name="arrow-left" size={22} color={COLORS.textPrimary} />
           </TouchableOpacity>
         </View>
         <View style={styles.errorState}>

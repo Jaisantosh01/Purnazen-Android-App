@@ -17,12 +17,12 @@ import { COLORS } from '../constants/theme';
 
 // Static — informational copy, not a DB resource
 const BENEFITS = [
-  { id: 1, icon: '💫', title: 'Reduces Puffiness' },
-  { id: 2, icon: '🌸', title: 'Natural Glow' },
-  { id: 3, icon: '🧬', title: 'Boosts Collagen' },
-  { id: 4, icon: '🩸', title: 'Better Circulation' },
-  { id: 5, icon: '😌', title: 'Stress Relief' },
-  { id: 6, icon: '🌿', title: 'Detoxifies Skin' },
+  { id: 1, icon: 'blur',                  title: 'Reduces Puffiness' },
+  { id: 2, icon: 'flower-outline',        title: 'Natural Glow' },
+  { id: 3, icon: 'dna',                   title: 'Boosts Collagen' },
+  { id: 4, icon: 'heart-pulse',           title: 'Better Circulation' },
+  { id: 5, icon: 'emoticon-happy-outline', title: 'Stress Relief' },
+  { id: 6, icon: 'leaf',                  title: 'Detoxifies Skin' },
 ];
 
 const FaceGlowScreen = ({ navigation }) => {
@@ -132,7 +132,7 @@ const FaceGlowScreen = ({ navigation }) => {
 
         {/* ── Routines ── */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>✨ General Routines</Text>
+          <Text style={styles.sectionTitle}>General Routines</Text>
 
           {loading ? (
             [1, 2, 3].map(i => <RoutineCardSkeleton key={i} />)
@@ -178,7 +178,7 @@ const FaceGlowScreen = ({ navigation }) => {
             <View style={styles.benefitsGrid}>
               {BENEFITS.map(benefit => (
                 <View key={benefit.id} style={styles.benefitBox}>
-                  <Text style={styles.benefitIcon}>{benefit.icon}</Text>
+                  <MCIcon name={benefit.icon} size={22} color={COLORS.primary} style={styles.benefitIcon} />
                   <Text style={styles.benefitText}>{benefit.title}</Text>
                 </View>
               ))}

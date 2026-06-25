@@ -9,16 +9,36 @@ import {
   StatusBar,
   Alert,
 } from 'react-native';
+// @ts-ignore
+import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import consultService from '../services/consultService';
 import { COLORS } from '../constants/theme';
 import ScreenHeader from '../components/ScreenHeader';
 import {DAYS, MONTHS} from '../constants/strings';
 
+// Fallback shown until consultService.getVisitTypes() resolves (or if it fails).
+// Same shape the API returns: { id, icon, title, subtitle, fee }.
+const DEFAULT_VISIT_TYPES = [
+  { id: 'video',  icon: 'video-outline',     title: 'Video Call',   subtitle: 'Online consultation', fee: 500 },
+  { id: 'home',   icon: 'home-outline',      title: 'Home Visit',    subtitle: 'Doctor visits you',   fee: 1200 },
+  { id: 'clinic', icon: 'hospital-building', title: 'Clinic Visit',  subtitle: 'In-person at clinic', fee: 800 },
+];
+
+// Same shape the API returns ({ id, time, end_time }) so list keys are unique
+// and the slot label renders before getTimeSlots() resolves.
 const DEFAULT_TIME_SLOTS = [
-  '09:00 AM', '09:30 AM', '10:00 AM',
-  '10:30 AM', '11:00 AM', '11:30 AM',
-  '02:00 PM', '02:30 PM', '03:00 PM',
-  '03:30 PM', '04:00 PM', '04:30 PM',
+  { id: 'd1',  time: '09:00 AM', end_time: '09:30 AM' },
+  { id: 'd2',  time: '09:30 AM', end_time: '10:00 AM' },
+  { id: 'd3',  time: '10:00 AM', end_time: '10:30 AM' },
+  { id: 'd4',  time: '10:30 AM', end_time: '11:00 AM' },
+  { id: 'd5',  time: '11:00 AM', end_time: '11:30 AM' },
+  { id: 'd6',  time: '11:30 AM', end_time: '12:00 PM' },
+  { id: 'd7',  time: '02:00 PM', end_time: '02:30 PM' },
+  { id: 'd8',  time: '02:30 PM', end_time: '03:00 PM' },
+  { id: 'd9',  time: '03:00 PM', end_time: '03:30 PM' },
+  { id: 'd10', time: '03:30 PM', end_time: '04:00 PM' },
+  { id: 'd11', time: '04:00 PM', end_time: '04:30 PM' },
+  { id: 'd12', time: '04:30 PM', end_time: '05:00 PM' },
 ];
 
 const HOME_ADDRESS = {
@@ -169,9 +189,12 @@ const BookAppointmentScreen = ({ navigation, route }) => {
                 onPress={() => setSelectedVisit(visit.id)}
                 activeOpacity={0.8}
               >
-                <Text style={[styles.visitIcon, selectedVisit === visit.id && styles.visitIconActive]}>
-                  {visit.icon}
-                </Text>
+                <MCIcon
+                  name={visit.icon}
+                  size={24}
+                  color={selectedVisit === visit.id ? COLORS.primary : COLORS.textMuted}
+                  style={styles.visitIcon}
+                />
                 <Text style={[styles.visitTitle, selectedVisit === visit.id && styles.visitTitleActive]}>
                   {visit.title}
                 </Text>
@@ -271,7 +294,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
         {selectedVisit === 'home' && (
           <View style={styles.section}>
             <View style={styles.addressCard}>
-              <Text style={styles.addressIcon}>📍</Text>
+              <MCIcon name="map-marker" size={20} color={COLORS.primary} style={styles.addressIcon} />
               <View style={styles.addressInfo}>
                 <Text style={styles.addressTitle}>Home Address</Text>
                 <Text style={styles.addressText}>{HOME_ADDRESS.street}</Text>
@@ -290,13 +313,13 @@ const BookAppointmentScreen = ({ navigation, route }) => {
         <View style={styles.summaryRow}>
           {selectedDate && (
             <View style={styles.summaryItem}>
-              <Text style={styles.summaryIcon}>📅</Text>
+              <MCIcon name="calendar-blank-outline" size={14} color={COLORS.textSecondary} style={styles.summaryIcon} />
               <Text style={styles.summaryText}>{getSelectedDateString()}</Text>
             </View>
           )}
           {selectedTime && (
             <View style={styles.summaryItem}>
-              <Text style={styles.summaryIcon}>🕐</Text>
+              <MCIcon name="clock-outline" size={14} color={COLORS.textSecondary} style={styles.summaryIcon} />
               <Text style={styles.summaryText}>{selectedTime.time}</Text>
             </View>
           )}

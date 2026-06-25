@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+// @ts-ignore
+import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import consultService from '../services/consultService';
 import { COLORS, APPOINTMENT_STATUS_COLORS } from '../constants/theme';
 import { APPOINTMENT_HISTORY_STATUS_LABELS } from '../constants/strings';
@@ -110,7 +112,7 @@ const AppointmentHistoryScreen = ({ navigation }) => {
 
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.backIcon}>←</Text>
+          <MCIcon name="arrow-left" size={22} color={COLORS.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Appointments</Text>
         <View style={styles.backBtn} />
@@ -140,7 +142,7 @@ const AppointmentHistoryScreen = ({ navigation }) => {
 
       {filtered.length === 0 ? (
         <View style={styles.center}>
-          <Text style={styles.emptyIcon}>📋</Text>
+          <MCIcon name="clipboard-text-outline" size={48} color={COLORS.textMuted} style={styles.emptyIcon} />
           <Text style={styles.emptyTitle}>No Appointments</Text>
           <Text style={styles.emptySubtitle}>
             {activeFilter === 'All'
