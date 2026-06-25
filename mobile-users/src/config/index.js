@@ -1,5 +1,3 @@
-import { Platform } from 'react-native';
-
 /**
  * Build-time configuration.
  *
@@ -11,26 +9,17 @@ import { Platform } from 'react-native';
  *   - Local release builds pass it to scripts/build-apks.sh.
  *   - Dev uses a git-ignored .env (e.g. http://localhost:5000, or your LAN IP).
  * The only in-source fallback is localhost for dev — never a real backend URL.
+ *
+ * The configured URL is used verbatim — we deliberately do NOT rewrite
+ * `localhost` to the emulator alias 10.0.2.2. That alias only exists inside an
+ * Android emulator; on a physical USB device it is unreachable and every request
+ * fails with a "Network Error", and from JS we can't tell an emulator from a real
+ * device. Instead, the recommended dev setup is `localhost:5000` +
+ * `adb reverse tcp:5000 tcp:5000`, which forwards the device/emulator's loopback
+ * to the host and works for BOTH. (Emulator without adb reverse: set 10.0.2.2 in
+ * .env; physical device over Wi-Fi: set your machine's LAN IP.)
  */
-const RAW_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
-
-/**
- * Android emulators cannot reach the host machine via `localhost` — inside the
- * emulator that resolves to the emulator's own loopback, so a dev backend on the
- * host is unreachable and every request fails with a "Network Error". The host
- * loopback is exposed to the emulator at the special alias 10.0.2.2, so we
- * transparently rewrite a localhost dev URL on Android. iOS simulators share the
- * host network, so localhost works there as-is; production builds inject a real
- * (non-localhost) URL, which is left untouched.
- */
-function resolveBaseUrl(url) {
-  if (Platform.OS === 'android') {
-    return url.replace(/^(https?:\/\/)(localhost|127\.0\.0\.1)(?=[:/]|$)/i, '$110.0.2.2');
-  }
-  return url;
-}
-
-export const BASE_URL = resolveBaseUrl(RAW_BASE_URL);
+export const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
 
 export const API_VERSION = '/api/v1';
 
@@ -41,3 +30,8 @@ export const API_VERSION = '/api/v1';
 export const APP_SLUG = 'mobile-users';
 export const APP_VERSION = process.env.EXPO_PUBLIC_APP_VERSION || '0.0.0';
 export const GITHUB_REPO = 'Jaisantosh01/Purnazen-Android-App';
+
+// ── RBAC ─────────────────────────────────────────────────────────────────────
+// The single backend role this app serves. Login is gated to this role both
+// client-side (authService) and server-side (login `expected_role`).
+export const APP_ROLE = 'patient';
