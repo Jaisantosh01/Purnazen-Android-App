@@ -262,7 +262,7 @@ export default function App() {
     if (!isLoggedIn || needsProfile) return;
     (async () => {
       try {
-        const result = await permissionsService.ensureRequested();
+        const result: any = await permissionsService.ensureRequested();
         if (result) {
           await preferencesService
             .updatePreferences({ locationEnabled: !!result.location })

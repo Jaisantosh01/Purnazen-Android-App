@@ -57,7 +57,9 @@ def test_book_appointment_success(client, db_session):
     assert data["date"] == on_date.isoformat()
     assert data["time"] == "09:00 AM"
     assert data["endTime"] == "09:30 AM"
-    assert data["consultationType"] == "video"
+    # consultationType is the human-readable consultation type NAME (shown in the
+    # app's appointment list/detail), resolved from the "video" visit-type slug.
+    assert data["consultationType"] == "Video Call"
     assert data["fee"] == 1200.0
 
 
