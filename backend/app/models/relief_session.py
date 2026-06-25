@@ -1,4 +1,6 @@
-from sqlalchemy import JSON, Boolean, Column, DateTime, Integer, String, func
+from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, Integer, String, func
+from app.db.types import GUID
+import uuid
 
 from app.db.base_class import Base
 
@@ -9,10 +11,10 @@ class ReliefSession(Base):
 
     __tablename__ = "relief_sessions"
 
-    id = Column(Integer, primary_key=True)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4, nullable=False)
     key = Column(String(100), nullable=False, unique=True)
     title = Column(String(150), nullable=False)
-    duration_label = Column(String(30), nullable=False)
+    duration = Column(String(30), nullable=False)
     icon = Column(String(20))
     video_url = Column(String(500))
     total_cycles = Column(Integer, nullable=False, default=1)
@@ -21,15 +23,19 @@ class ReliefSession(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_by = Column(GUID(), ForeignKey("users.id"), nullable=True)
+    updated_by = Column(GUID(), ForeignKey("users.id"), nullable=True)
 
     def to_dict(self):
         # Shape consumed by ReliefSessionScreen (matches the old mock objects)
         return {
+            "id": str(self.id),
             "key": self.key,
             "title": self.title,
-            "duration": self.duration_label,
+            "duration": self.duration,
             "icon": self.icon,
             "videoUrl": self.video_url,
             "totalCycles": self.total_cycles,
             "steps": self.steps or [],
+
         }

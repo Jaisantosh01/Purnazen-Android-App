@@ -9,3 +9,6 @@ class UpdatePreferencesRequest(BaseModel):
 
     push_enabled: bool | None = Field(default=None, alias="pushEnabled")
     notifications: dict[str, bool] | None = None
+    language: str | None = Field(default=None, max_length=10)
+    address: str | None = Field(default=None, max_length=255)
+    location_enabled: bool | None = Field(default=None, alias="locationEnabled")

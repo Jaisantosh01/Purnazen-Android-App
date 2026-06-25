@@ -7,17 +7,25 @@ STEPS = [
 ]
 
 
-def seed_wellness(db, key="YogaSession", title="Morning Yoga", active=True, order=0):
+def seed_wellness(db, title="Morning Yoga", active=True, order=0):
+    from app.models.user import User
+    admin = db.query(User).filter_by(email="admin@example.com").first()
+    if not admin:
+        from app.models.role import Role
+        admin_role = db.query(Role).filter_by(name="admin").first()
+        from app.core.security import hash_password
+        admin = User(full_name="Admin", email="admin@example.com", password=hash_password("admin123"), role_id=admin_role.id)
+        db.add(admin)
+        db.commit()
+
     session = WellnessSession(
-        key=key,
         title=title,
-        duration_label="20 min",
+        duration="20 min",
         icon="🧘",
-        video_url=None,
-        total_cycles=2,
-        steps=STEPS,
         sort_order=order,
         is_active=active,
+        created_by=admin.id,
+        updated_by=admin.id,
     )
     db.add(session)
     db.commit()
@@ -28,7 +36,7 @@ def seed_relief(db, key="Headache", title="Headache Relief", active=True, order=
     session = ReliefSession(
         key=key,
         title=title,
-        duration_label="5 min",
+        duration="5 min",
         icon="🧠",
         video_url="https://example.com/video.mp4",
         total_cycles=3,
@@ -45,36 +53,16 @@ def seed_relief(db, key="Headache", title="Headache Relief", active=True, order=
 
 
 def test_list_wellness_sessions(client, db_session):
-    seed_wellness(db_session, key="MeditationSession", title="Meditation", order=2)
-    seed_wellness(db_session, key="YogaSession", title="Morning Yoga", order=1)
-    seed_wellness(db_session, key="Hidden", title="Hidden", active=False)
+    seed_wellness(db_session, title="Meditation", order=2)
+    seed_wellness(db_session, title="Morning Yoga", order=1)
+    seed_wellness(db_session, title="Hidden", active=False)
 
     response = client.get("/api/v1/sessions")
     assert response.status_code == 200
     data = response.json()["data"]
     assert data["total"] == 2
     # ordered by sort_order, inactive rows excluded
-    assert [s["key"] for s in data["sessions"]] == ["YogaSession", "MeditationSession"]
-
-
-def test_get_wellness_session_player_shape(client, db_session):
-    seed_wellness(db_session)
-
-    response = client.get("/api/v1/sessions/YogaSession")
-    assert response.status_code == 200
-    data = response.json()["data"]
-    assert data["title"] == "Morning Yoga"
-    assert data["duration"] == "20 min"
-    assert data["icon"] == "🧘"
-    assert data["videoUrl"] is None
-    assert data["totalCycles"] == 2
-    assert data["steps"] == STEPS
-
-
-def test_get_wellness_session_unknown_key(client):
-    response = client.get("/api/v1/sessions/Nope")
-    assert response.status_code == 404
-    assert response.json()["success"] is False
+    assert [s["title"] for s in data["sessions"]] == ["Morning Yoga", "Meditation"]
 
 
 # ── relief ───────────────────────────────────────────────────────────────────

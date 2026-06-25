@@ -1,6 +1,6 @@
 # Architecture
 
-**Last updated:** 2026-06-12 (post P2 first batch: T12/T15/T18/T19; CI added)
+**Last updated:** 2026-06-15 (Face Analysis Sprints 1–3: consent, upload, mobile camera, and the **real OpenCV/MediaPipe AI pipeline** — see [FACE_ANALYSIS_AI.md](FACE_ANALYSIS_AI.md))
 
 ## System Overview
 
@@ -19,7 +19,7 @@
                                             └──────────────────────┘
 ```
 
-- **Base URL:** from `wellness-frontend/.env` → `EXPO_PUBLIC_API_URL`; defaults to `http://10.0.2.2:5000` (Android emulator → host machine)
+- **Base URL:** `BASE_URL` in each app's `src/config/index.js` (`EXPO_PUBLIC_API_URL || 'http://localhost:5000'`). Note `react-native start` does **not** load `.env`, so the `||` fallback is what ships in dev; `localhost:5000` reaches the host via `adb reverse tcp:5000 tcp:5000` on both device and emulator. See [RUNNING.md §2.1](RUNNING.md#21-point-the-app-at-the-backend)
 - **Auth:** JWT Bearer. Access token (15 min) for API calls; refresh token (30 days) for `/refresh` and `/logout`. Revoked tokens tracked by `jti` in the `token_blocklist` table (cached in Redis when `REDIS_URL` is set) **plus** a per-user `token_version` (`ver` claim) that invalidates every outstanding token on password change or account deletion. On the device, tokens live in the keystore (react-native-keychain), not AsyncStorage; the axios client silently refreshes expired access tokens on 401 and resets to Login when the refresh token dies.
 - **Rate limiting:** slowapi, per client IP, on login (5/min), register (3/min), refresh (10/min) — `RATE_LIMIT_*` env vars; 429 + standard envelope when exceeded. Counters are shared across workers when Redis is configured, per-process in-memory otherwise.
 - **CORS:** origins from `CORS_ORIGINS` (comma-separated); default `*` is dev-only.
@@ -27,7 +27,7 @@
 
 ---
 
-## Backend (`wellness-backend/`) — FastAPI
+## Backend (`backend/`) — FastAPI
 
 ### Request Flow
 
@@ -46,7 +46,7 @@ HTTP request
 ### Layout
 
 ```text
-wellness-backend/
+backend/
 ├── app/
 │   ├── main.py              # App factory: CORS, routers, exception handlers, /health
 │   ├── api/
@@ -66,7 +66,12 @@ wellness-backend/
 │   │           ├── therapy_history.py # POST /therapy-history/save, GET /therapy-history (auth)
 │   │           ├── sessions.py        # GET /sessions[/:key], /relief-sessions[/:key]
 │   │           ├── payments.py        # POST /payments/process, /payments/verify (auth)
-│   │           └── users.py           # GET/PUT /users/me/preferences (auth)
+│   │           ├── users.py           # GET/PUT /users/me/preferences (auth)
+│   │           ├── face_glow.py       # GET /face-glow/routines[/:key]
+│   │           ├── face_scan.py       # POST /face-glow/scan/upload (consent-gated),
+│   │           │                      #   GET /scan/:id/status, /history, DELETE /scan/:id
+│   │           ├── consent.py         # GET/POST/DELETE /consent (GDPR consents)
+│   │           └── error_report.py    # POST /errors/report (client error triage)
 │   ├── core/
 │   │   ├── config.py        # Settings (pydantic-settings): secrets, DB URL, expiries,
 │   │   │                    #   CORS_ORIGINS, REDIS_URL, RATE_LIMIT_*, RAZORPAY_KEY_*
@@ -89,7 +94,14 @@ wellness-backend/
 │   │                        #   PaymentRepository, PreferenceRepository — all take a Session arg
 │   ├── services/            # AuthService, DoctorService, HomeService,
 │   │                        #   AppointmentService, TherapyService,
-│   │                        #   SessionCatalogService, PaymentService, PreferenceService
+│   │                        #   SessionCatalogService, PaymentService, PreferenceService,
+│   │                        #   FaceGlowRoutineService, ConsentService, UploadService,
+│   │                        #   scan_pipeline_service, recommendation_engine_service
+│   ├── ai/                  # Face analysis pipeline (Sprint 3) — see FACE_ANALYSIS_AI.md
+│   │   ├── face_detector.py      # MediaPipe FaceLandmarker singleton (+ Haar fallback)
+│   │   ├── image_preprocessor.py # resize, blur/lighting checks, landmark-indexed ROIs
+│   │   ├── face_landmarker.task   # MediaPipe model asset (auto-downloaded if absent)
+│   │   └── analyzers/             # 9 metric analyzers + glow_score_engine + toxin_indicator
 │   └── utils/responses.py   # success_response / error_response (JSON envelope)
 ├── alembic/                 # Plain Alembic (env.py reads settings.DATABASE_URL)
 │   └── versions/            # 10 revisions (users → doctor module → quick_reliefs → avatar
@@ -104,7 +116,7 @@ wellness-backend/
 └── run.py                   # uvicorn app.main:app --reload, port 5000
 ```
 
-### Database Schema (20 tables)
+### Database Schema (26 tables)
 
 | Table | Purpose |
 |-------|---------|
@@ -124,6 +136,23 @@ wellness-backend/
 | `relief_sessions` | Relief player catalog (same shape, keyed by reliefKey e.g. "Neck Pain") |
 | `payments` | Razorpay payments: user FK, appointment FK, amount, order/payment ids, status (created/paid/failed) |
 | `user_preferences` | Per-user notification prefs: push_enabled master + JSON dict of toggle ids |
+| `face_glow_routines` | Face Glow routine catalog (DB-backed; Redis cache-aside) |
+| `user_consents` | GDPR consents (scan_storage/ai_training/gdpr_data; granted/revoked + IP/UA) |
+| `face_scans` | Uploaded scan records: image refs, status, `progress_stage`, `face_detected`/`face_confidence`, `blur_score`, `lighting_quality`, `landmarks_json` |
+| `scan_results` | Per-scan metric scores (9 metrics + glow/toxin/skin-age/overall) + raw_metrics |
+| `scan_recommendations` | TCM recommendations per scan (type, priority, title, body, routine key) |
+
+### Face Analysis pipeline (Sprint 3)
+
+`POST /face-glow/scan/upload` validates + stores the image (`UploadService` →
+Cloudinary or local disk), creates a `face_scans` row, and schedules
+`scan_pipeline_service.run_scan_pipeline()` as a FastAPI **BackgroundTask** (it
+opens its **own** `SessionLocal()` — the request session is already closed). The
+task streams `progress_stage` (`preprocessing→detecting→analyzing→scoring→done`)
+that the mobile `ScanProcessingScreen` polls via `GET /scan/:id/status`. It runs
+MediaPipe landmark detection (with OpenCV Haar / centred-crop fallbacks), the 9
+analyzers in a `ThreadPoolExecutor`, composite scoring, then persists
+`scan_results` + `scan_recommendations`. Full detail: **[FACE_ANALYSIS_AI.md](FACE_ANALYSIS_AI.md)**.
 
 ### Conventions
 
@@ -134,7 +163,15 @@ wellness-backend/
 
 ---
 
-## Frontend (`wellness-frontend/`) — React Native 0.85 (bare + Expo modules, SDK 56)
+## Frontend (`mobile-users/`) — React Native 0.85 (bare + Expo modules, SDK 56)
+
+> Three RN apps share this backend: **`mobile-users/`** (patient app — described
+> below, full feature set), **`mobile-doctors/`** (doctor app — a scaffolded
+> skeleton with the same stack/infra; see `mobile-doctors/README.md`) and
+> **`mobile-admin/`** (admin app). Each pins a distinct Metro port (8081 / 8082 /
+> 8083) and a distinct `applicationId` (`com.purnazen` / `.doctor` / `.admin`) so
+> they coexist on one device — see [RUNNING.md](RUNNING.md). The architecture
+> below is the patient app.
 
 ### Data Flow
 
@@ -154,19 +191,24 @@ Persistence: tokens in the device keystore via src/utils/secureStorage.js
 ### Layout
 
 ```text
-wellness-frontend/src/
+mobile-users/src/
 ├── config/index.js          # BASE_URL from EXPO_PUBLIC_API_URL (.env), API_VERSION
 ├── api/client.js            # axios instance + get/post/put/delete (returns body);
 │                            #   silent refresh-on-401 with single-flight queueing
 ├── navigation/navigationRef.js # Root nav handle (resetToLogin from interceptors/screens)
 ├── utils/secureStorage.js   # Keystore-backed token storage (react-native-keychain)
 │                            #   + one-time AsyncStorage migration
-├── store/authStore.js       # Zustand: user, isLoggedIn, setAuth, clearAuth
+├── store/                   # Zustand stores: authStore (user/isLoggedIn),
+│                            #   scanStore (face-scan flow state)
 ├── services/                # authService (register/login/profile/password/delete),
 │                            #   consultService (incl. payments), wellnessService,
-│                            #   reliefService, therapyService, preferencesService
-├── screens/                 # 20 screens (see FEATURES.md) — incl. RegisterScreen
-├── components/              # QuickCards
+│                            #   reliefService, therapyService, preferencesService,
+│                            #   scanService, errorReportingService
+├── screens/                 # Screens (see FEATURES.md) — incl. RegisterScreen and the
+│                            #   scan flow (FaceScan/ScanProcessing/ScanResults/ScanError)
+├── components/              # QuickCards, ErrorBoundary, ServiceUnavailable,
+│                            #   scan/ (FaceOverlayGuide, FaceMeshOverlay,
+│                            #   MetricScoreRow, RecommendationCard)
 ├── constants/
 │   ├── apiEndpoints.js      # All endpoint paths (re-exports BASE_URL from config)
 │   ├── theme.js             # COLORS / SPACING / RADIUS design tokens
@@ -184,7 +226,8 @@ RootStack
 ├── Login
 ├── Register
 └── Main (Bottom Tabs)
-    ├── Home Stack     → Home, SelectSymptom, FaceGlow, YogaSession, ReliefSession
+    ├── Home Stack     → Home, SelectSymptom, FaceGlow, FaceScan, ScanProcessing,
+    │                     ScanResults, ScanError, YogaSession, ReliefSession
     ├── Relief Stack   → Relief, ReliefSession
     ├── Wellness Stack → Wellness, YogaSession
     ├── Consult Stack  → Consult, DoctorProfile, BookAppointment, BookingConfirmed, Payment

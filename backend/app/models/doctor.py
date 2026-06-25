@@ -8,22 +8,22 @@ from sqlalchemy import (
     Text,
     func,
 )
+from app.db.types import GUID
+import uuid
 from sqlalchemy.orm import relationship
 
 from app.db.base_class import Base
-from app.models.associations import (
-    doctor_consultation_types,
-    doctor_expertise,
-    doctor_languages,
-)
+from app.models.doctor_expertise_mapping import DoctorExpertiseMapping
+from app.models.doctor_language_mapping import DoctorLanguageMapping
+from app.models.doctor_speciality_mapping import DoctorSpecialityMapping
 
 
 class Doctor(Base):
     __tablename__ = "doctors"
 
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True)
-    specialty_id = Column(Integer, ForeignKey("specialties.id"), nullable=False)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4, nullable=False)
+    user_id = Column(GUID(), ForeignKey("users.id"), nullable=False, unique=True)
+    specialty_id = Column(GUID(), ForeignKey("specialties.id"), nullable=False)
 
     about = Column(Text)
     education = Column(Text)
@@ -33,37 +33,64 @@ class Doctor(Base):
     reviews_count = Column(Integer, default=0)
     is_available_today = Column(Boolean, default=False)
     created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, nullable=True)
+    created_by = Column(GUID(), ForeignKey("users.id"), nullable=True)
+    updated_by = Column(GUID(), ForeignKey("users.id"), nullable=True)
+    is_active = Column(Boolean, default=True)
 
-    user = relationship("User", backref="doctor_profile")
+    user = relationship("User",foreign_keys=[user_id])
     specialty = relationship("Specialty", backref="doctors")
     clinics = relationship("Clinic", back_populates="doctor", cascade="all, delete-orphan")
     awards = relationship("Award", backref="doctor")
     availabilities = relationship("DoctorAvailability", backref="doctor")
-    languages = relationship("Language", secondary=doctor_languages, backref="doctors")
-    consultation_types = relationship(
-        "ConsultationType", secondary=doctor_consultation_types, backref="doctors"
+    
+    # New relationships using mapping tables
+    language_mappings = relationship("DoctorLanguageMapping", backref="doctor")
+    expertise_mappings = relationship("DoctorExpertiseMapping", backref="doctor")
+    speciality_mappings = relationship("DoctorSpecialityMapping", backref="doctor")
+    
+    # Relationships for convenience, using association_proxy or just accessing via mapping
+    # Assuming standard access to language/expertise through these mappings in to_dict()
+    languages = relationship("Language", secondary="doctor_language_mapping", viewonly=True)
+    expertises = relationship("Expertise", secondary="doctor_expertise_mapping", viewonly=True)
+    # specialty is already linked via specialty_id
+
+    consultation_type_links = relationship(
+        "DoctorConsultationType", back_populates="doctor", cascade="all, delete-orphan"
     )
-    expertises = relationship("Expertise", secondary=doctor_expertise, backref="doctors")
 
     def to_dict(self):
         return {
             "id": self.id,
             "user_id": self.user_id,
-            "specialty_id": self.specialty_id,
+            "name": self.user.full_name,
+            "specialty": self.specialty.name,
             "about": self.about,
             "education": self.education,
             "experience_years": self.experience_years,
             "consultation_fee": float(self.consultation_fee),
             "average_rating": float(self.average_rating),
             "reviews_count": self.reviews_count,
-            "languages": [lang.to_dict() for lang in self.languages],
-            "consultation_types": [ct.to_dict() for ct in self.consultation_types],
-            "expertises": [expertise.to_dict() for expertise in self.expertises],
+            "languages": [mapping.language.name for mapping in self.language_mappings],
+            "consultation_types": [link.consultation_type.name for link in self.consultation_type_links],
+            "consultation_type_prices": {
+                link.consultation_type.name: float(link.price) if link.price else None
+                for link in self.consultation_type_links
+            },
+            "expertise": [mapping.expertise.name for mapping in self.expertise_mappings],
             "is_available_today": self.is_available_today,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "user": self.user.to_dict(),
-            "specialty": self.specialty.to_dict(),
-            "clinics": [clinic.to_dict() for clinic in self.clinics],
-            "awards": [award.to_dict() for award in self.awards],
-            "availabilities": [a.to_dict() for a in self.availabilities],
+            "is_active": self.is_active,
+            "clinics": [
+                {
+                    "id": str(clinic.id),
+                    "name": clinic.name,
+                    "address": clinic.address,
+                    "city": clinic.city,
+                    "latitude": clinic.latitude,
+                    "longitude": clinic.longitude,
+                    "phone": clinic.phone,
+                    "is_primary": clinic.is_primary,
+                }
+                for clinic in self.clinics
+            ],
         }

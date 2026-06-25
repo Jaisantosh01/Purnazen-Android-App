@@ -1,12 +1,15 @@
 from datetime import date as date_cls
 from datetime import datetime
 
+import uuid
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db
+from app.api.deps import get_db, get_current_user, require_role
 from app.services.doctor_service import DoctorService
 from app.utils.responses import error_response, success_response
+from app.models.user import User
 
 router = APIRouter(tags=["Doctors"])
 
@@ -16,13 +19,16 @@ def doctor_card(doctor):
     return {
         "id": str(doctor.id),
         "name": f"Dr. {doctor.user.full_name}",
-        "specialty": doctor.specialty.name,
-        "avatar": doctor.user.avatar_url or "👨‍⚕️",
+        "specialties": [mapping.specialty.name for mapping in doctor.speciality_mappings],
+        "specialty_ids": [mapping.speciality_id for mapping in doctor.speciality_mappings],
+        # Image URL when set, else null — the app falls back to the doctor's
+        # initial (no emoji, which renders inconsistently across devices).
+        "avatar": doctor.user.avatar_url or None,
         "rating": float(doctor.average_rating),
         "reviews": doctor.reviews_count,
         "experience": doctor.experience_years,
         "location": "",
-        "tags": [ct.name for ct in doctor.consultation_types],
+        "tags": [link.consultation_type.name for link in doctor.consultation_type_links],
         "fee": float(doctor.consultation_fee),
         "availability": (
             "Available today" if doctor.is_available_today else "Not Available"
@@ -30,9 +36,33 @@ def doctor_card(doctor):
         "availableToday": doctor.is_available_today,
         "about": doctor.about,
         "education": doctor.education,
-        "expertise": [expertise.name for expertise in doctor.expertises],
-        "languages": [language.name for language in doctor.languages],
-        "awards": [award.title for award in doctor.awards],
+        "expertise": [mapping.expertise.name for mapping in doctor.expertise_mappings],
+        "expertise_ids": [mapping.expertise_id for mapping in doctor.expertise_mappings],
+        "languages": [mapping.language.name for mapping in doctor.language_mappings],
+        "language_ids": [mapping.language_id for mapping in doctor.language_mappings],
+        "awards": [
+            {
+                "id": award.id,
+                "title": award.title,
+                "issuer": award.issuer,
+                "year": award.year,
+                "description": award.description,
+            }
+            for award in doctor.awards
+        ],
+        "clinics": [
+            {
+                "id": str(clinic.id),
+                "name": clinic.name,
+                "address": clinic.address,
+                "city": clinic.city,
+                "latitude": clinic.latitude,
+                "longitude": clinic.longitude,
+                "phone": clinic.phone,
+                "is_primary": clinic.is_primary,
+            }
+            for clinic in doctor.clinics
+        ],
     }
 
 
@@ -128,7 +158,7 @@ def get_doctors_top_rated(
     summary="Doctor detail",
     description="Single doctor in the same card shape as the list endpoint; 404 when missing.",
 )
-def get_doctor(doctor_id: int, db: Session = Depends(get_db)):
+def get_doctor(doctor_id: uuid.UUID, db: Session = Depends(get_db)):
     doctor = DoctorService.get_doctor_by_id(db, doctor_id)
     if not doctor:
         return error_response("Doctor not found", 404)
@@ -141,7 +171,7 @@ def get_doctor(doctor_id: int, db: Session = Depends(get_db)):
     summary="Doctor visit types",
     description="Visit-type cards (video/home/clinic) derived from the doctor's consultation types.",
 )
-def get_visit_types(doctor_id: int, db: Session = Depends(get_db)):
+def get_visit_types(doctor_id: uuid.UUID, db: Session = Depends(get_db)):
     doctor = DoctorService.get_doctor_by_id(db, doctor_id)
     if not doctor:
         return error_response("Doctor not found", 404)
@@ -149,6 +179,64 @@ def get_visit_types(doctor_id: int, db: Session = Depends(get_db)):
     return success_response(
         "Visit types fetched successfully",
         {"visitTypes": DoctorService.get_visit_types(doctor)},
+    )
+
+
+@router.post(
+    "/doctors",
+    summary="Create a new doctor",
+    dependencies=[Depends(require_role("admin"))],
+)
+def create_doctor(
+    data: dict, 
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    new_doctor = DoctorService.create(db, data, user)
+    if not new_doctor:
+        return error_response("Failed to create doctor", 400)
+    return success_response("Doctor created successfully", doctor_card(new_doctor))
+
+
+@router.put(
+    "/doctors/{doctor_id}",
+    summary="Update doctor details",
+    dependencies=[Depends(require_role("admin"))],
+)
+def update_doctor(
+    doctor_id: uuid.UUID, 
+    data: dict, 
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    updated_doctor = DoctorService.update(db, doctor_id, data, user)
+    if not updated_doctor:
+        return error_response("Doctor not found", 404)
+    return success_response("Doctor updated successfully", doctor_card(updated_doctor))
+
+
+@router.get(
+    "/doctors/{doctor_id}/availability",
+    summary="Doctor weekly availability",
+    description="Returns the slot_timing_ids that this doctor is available for (weekly schedule).",
+)
+def get_doctor_availability(
+    doctor_id: uuid.UUID,
+    db: Session = Depends(get_db),
+):
+    doctor = DoctorService.get_doctor_by_id(db, doctor_id)
+    if not doctor:
+        return error_response("Doctor not found", 404)
+
+    from app.models.doctor_availability import DoctorAvailability
+    rows = db.query(DoctorAvailability).filter(
+        DoctorAvailability.doctor_id == doctor_id,
+        DoctorAvailability.is_active == True,
+    ).all()
+
+    return success_response(
+        "Doctor availability fetched successfully",
+        [{"slot_timing_id": str(a.slot_timing_id)} for a in rows]
     )
 
 
@@ -161,7 +249,7 @@ def get_visit_types(doctor_id: int, db: Session = Depends(get_db)):
     ),
 )
 def get_time_slots(
-    doctor_id: int,
+    doctor_id: uuid.UUID,
     date: str = Query(description="YYYY-MM-DD"),
     db: Session = Depends(get_db),
 ):

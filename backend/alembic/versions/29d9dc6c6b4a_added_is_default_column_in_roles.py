@@ -1,0 +1,146 @@
+"""Added is default column in roles
+
+Revision ID: 29d9dc6c6b4a
+Revises: 4a3fb0eadafa
+Create Date: 2026-06-18 10:03:15.994478
+
+"""
+from alembic import op
+import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
+
+# revision identifiers, used by Alembic.
+revision = '29d9dc6c6b4a'
+down_revision = '4a3fb0eadafa'
+branch_labels = None
+depends_on = None
+
+
+def _add_if_missing(inspector, table, col, col_type, **kwargs):
+    existing = {c['name'] for c in inspector.get_columns(table)}
+    if col not in existing:
+        op.add_column(table, sa.Column(col, col_type, nullable=True, **kwargs))
+
+def _drop_column_if_exists(inspector, table, col):
+    existing = {c['name'] for c in inspector.get_columns(table)}
+    if col in existing:
+        op.drop_column(table, col)
+
+def _drop_constraint_if_exists(inspector, table, constraint_name, type_='foreignkey'):
+    existing_fks = {fk['name'] for fk in inspector.get_foreign_keys(table)}
+    if constraint_name in existing_fks:
+        op.drop_constraint(constraint_name, table, type_=type_)
+
+def _create_fk_if_missing(inspector, table, ref_table, local_cols, remote_cols, fk_name=None):
+    existing_fks = inspector.get_foreign_keys(table)
+    exists = False
+    for fk in existing_fks:
+        if fk['referred_table'] == ref_table and fk['referred_columns'] == remote_cols and fk['constrained_columns'] == local_cols:
+            exists = True
+            break
+    if not exists:
+        op.create_foreign_key(fk_name, table, ref_table, local_cols, remote_cols)
+
+
+def upgrade():
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+
+    _add_if_missing(inspector, 'appointments', 'is_active', sa.Boolean())
+    _add_if_missing(inspector, 'appointments', 'created_by', sa.Integer())
+    _add_if_missing(inspector, 'appointments', 'updated_at', sa.DateTime(), server_default=sa.text('now()'))
+    _add_if_missing(inspector, 'appointments', 'updated_by', sa.Integer())
+
+    _add_if_missing(inspector, 'awards', 'is_active', sa.Boolean())
+    _add_if_missing(inspector, 'awards', 'created_at', sa.DateTime(), server_default=sa.text('now()'))
+    _add_if_missing(inspector, 'awards', 'created_by', sa.Integer())
+    _add_if_missing(inspector, 'awards', 'updated_at', sa.DateTime(), server_default=sa.text('now()'))
+    _add_if_missing(inspector, 'awards', 'updated_by', sa.Integer())
+
+    _add_if_missing(inspector, 'chat_options', 'is_active', sa.Boolean())
+    _add_if_missing(inspector, 'chat_options', 'created_at', sa.DateTime(), server_default=sa.text('now()'))
+    _add_if_missing(inspector, 'chat_options', 'created_by', sa.Integer())
+    _add_if_missing(inspector, 'chat_options', 'updated_at', sa.DateTime(), server_default=sa.text('now()'))
+    _add_if_missing(inspector, 'chat_options', 'updated_by', sa.Integer())
+
+    _add_if_missing(inspector, 'chat_questions', 'is_active', sa.Boolean())
+
+    _add_if_missing(inspector, 'clinics', 'is_active', sa.Boolean())
+    _add_if_missing(inspector, 'clinics', 'created_at', sa.DateTime(), server_default=sa.text('now()'))
+    _add_if_missing(inspector, 'clinics', 'created_by', sa.Integer())
+    _add_if_missing(inspector, 'clinics', 'updated_at', sa.DateTime(), server_default=sa.text('now()'))
+    _add_if_missing(inspector, 'clinics', 'updated_by', sa.Integer())
+
+    _add_if_missing(inspector, 'payments', 'created_by', sa.Integer())
+    _add_if_missing(inspector, 'payments', 'updated_by', sa.Integer())
+    _add_if_missing(inspector, 'payments', 'is_active', sa.Boolean())
+
+    _add_if_missing(inspector, 'quick_reliefs', 'created_by', sa.Integer())
+    _add_if_missing(inspector, 'quick_reliefs', 'updated_by', sa.Integer())
+
+    _add_if_missing(inspector, 'relief_sessions', 'created_by', sa.Integer())
+    _add_if_missing(inspector, 'relief_sessions', 'updated_by', sa.Integer())
+
+    _add_if_missing(inspector, 'roles', 'is_default', sa.Boolean())
+
+    _add_if_missing(inspector, 'therapy_sessions', 'updated_at', sa.DateTime(), server_default=sa.text('now()'))
+    _add_if_missing(inspector, 'therapy_sessions', 'updated_by', sa.Integer())
+
+    _drop_constraint_if_exists(inspector, 'therapy_sessions', 'therapy_sessions_modified_by_fkey', type_='foreignkey')
+    _create_fk_if_missing(inspector, 'therapy_sessions', 'users', ['updated_by'], ['id'])
+    _drop_column_if_exists(inspector, 'therapy_sessions', 'modified_at')
+    _drop_column_if_exists(inspector, 'therapy_sessions', 'modified_by')
+
+    _add_if_missing(inspector, 'user_preferences', 'created_by', sa.Integer())
+    _add_if_missing(inspector, 'user_preferences', 'updated_by', sa.Integer())
+    _add_if_missing(inspector, 'user_preferences', 'is_active', sa.Boolean())
+
+    _add_if_missing(inspector, 'users', 'created_by', sa.Integer())
+    _add_if_missing(inspector, 'users', 'updated_at', sa.DateTime(), server_default=sa.text('now()'))
+    _add_if_missing(inspector, 'users', 'updated_by', sa.Integer())
+    # ### end Alembic commands ###
+
+
+def downgrade():
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_column('users', 'updated_by')
+    op.drop_column('users', 'updated_at')
+    op.drop_column('users', 'created_by')
+    op.drop_column('user_preferences', 'is_active')
+    op.drop_column('user_preferences', 'updated_by')
+    op.drop_column('user_preferences', 'created_by')
+    op.add_column('therapy_sessions', sa.Column('modified_by', sa.INTEGER(), autoincrement=False, nullable=False))
+    op.add_column('therapy_sessions', sa.Column('modified_at', postgresql.TIMESTAMP(), server_default=sa.text('now()'), autoincrement=False, nullable=True))
+    op.drop_constraint(None, 'therapy_sessions', type_='foreignkey')
+    op.create_foreign_key(op.f('therapy_sessions_modified_by_fkey'), 'therapy_sessions', 'users', ['modified_by'], ['id'])
+    op.drop_column('therapy_sessions', 'updated_by')
+    op.drop_column('therapy_sessions', 'updated_at')
+    op.drop_column('roles', 'is_default')
+    op.drop_column('relief_sessions', 'updated_by')
+    op.drop_column('relief_sessions', 'created_by')
+    op.drop_column('quick_reliefs', 'updated_by')
+    op.drop_column('quick_reliefs', 'created_by')
+    op.drop_column('payments', 'is_active')
+    op.drop_column('payments', 'updated_by')
+    op.drop_column('payments', 'created_by')
+    op.drop_column('clinics', 'updated_by')
+    op.drop_column('clinics', 'updated_at')
+    op.drop_column('clinics', 'created_by')
+    op.drop_column('clinics', 'created_at')
+    op.drop_column('clinics', 'is_active')
+    op.drop_column('chat_questions', 'is_active')
+    op.drop_column('chat_options', 'updated_by')
+    op.drop_column('chat_options', 'updated_at')
+    op.drop_column('chat_options', 'created_by')
+    op.drop_column('chat_options', 'created_at')
+    op.drop_column('chat_options', 'is_active')
+    op.drop_column('awards', 'updated_by')
+    op.drop_column('awards', 'updated_at')
+    op.drop_column('awards', 'created_by')
+    op.drop_column('awards', 'created_at')
+    op.drop_column('awards', 'is_active')
+    op.drop_column('appointments', 'updated_by')
+    op.drop_column('appointments', 'updated_at')
+    op.drop_column('appointments', 'created_by')
+    op.drop_column('appointments', 'is_active')
+    # ### end Alembic commands ###

@@ -1,6 +1,11 @@
+import logging
+import os
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from slowapi.errors import RateLimitExceeded
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -11,6 +16,8 @@ from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.limiter import limiter
 from app.utils.responses import error_response
+
+logger = logging.getLogger(__name__)
 
 API_DESCRIPTION = """
 REST API for the Purnazen wellness app (React Native client).
@@ -60,10 +67,47 @@ OPENAPI_TAGS = [
         "description": "Per-user settings (notification preferences).",
     },
     {
+        "name": "Videos",
+        "description": "Manage video categories (Quick Relief, Wellness, etc.) and their associated video content.",
+    },
+    {
         "name": "Health",
         "description": "Liveness probe.",
     },
 ]
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Startup / shutdown lifecycle for the FastAPI application.
+
+    On startup: pre-warm the MediaPipe FaceLandmarker model so the first
+    scan request doesn't incur the full model-load latency.
+    On shutdown: release MediaPipe resources cleanly.
+    """
+    # --- Startup ---
+    detector = None
+    try:
+        from app.ai.face_detector import get_face_detector
+        detector = get_face_detector()
+        app.state.face_detector = detector
+        logger.info("MediaPipe FaceLandmarker pre-warmed successfully.")
+    except Exception as exc:
+        app.state.face_detector = None
+        logger.warning(
+            "MediaPipe pre-warm skipped (AI packages may not be installed): %s", exc
+        )
+
+    yield  # application is running
+
+    # --- Shutdown ---
+    detector = getattr(app.state, "face_detector", None)
+    if detector is not None:
+        try:
+            detector.close()
+            logger.info("MediaPipe FaceLandmarker closed.")
+        except Exception as exc:
+            logger.warning("Error closing FaceLandmarker on shutdown: %s", exc)
 
 
 def create_app() -> FastAPI:
@@ -74,6 +118,7 @@ def create_app() -> FastAPI:
         openapi_tags=OPENAPI_TAGS,
         docs_url="/apidocs",
         redoc_url="/redoc",
+        lifespan=lifespan,
     )
 
     app.state.limiter = limiter
@@ -87,6 +132,11 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(api_router, prefix=settings.API_V1_PREFIX)
+
+    # Serve locally-saved scan images in dev/test mode (no Cloudinary required).
+    uploads_dir = os.path.join(os.getcwd(), settings.LOCAL_UPLOADS_DIR)
+    os.makedirs(uploads_dir, exist_ok=True)
+    app.mount(f"/{settings.LOCAL_UPLOADS_DIR}", StaticFiles(directory=uploads_dir), name="uploads")
 
     @app.exception_handler(RateLimitExceeded)
     async def rate_limit_handler(request: Request, exc: RateLimitExceeded):

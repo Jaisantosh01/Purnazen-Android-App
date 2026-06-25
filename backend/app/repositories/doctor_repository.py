@@ -1,5 +1,8 @@
+import uuid
+
 from sqlalchemy.orm import Session
 
+from app.models.associations import DoctorConsultationType
 from app.models.consultation_type import ConsultationType
 from app.models.doctor import Doctor
 from app.models.user import User
@@ -16,7 +19,7 @@ _CONSULTATION_TYPE_FILTERS = {
 class DoctorRepository:
 
     @staticmethod
-    def get_by_id(db: Session, doctor_id: int) -> Doctor | None:
+    def get_by_id(db: Session, doctor_id: uuid.UUID) -> Doctor | None:
         return db.get(Doctor, doctor_id)
 
     @staticmethod
@@ -33,8 +36,12 @@ class DoctorRepository:
         if filter_key == "available_today":
             query = query.filter(Doctor.is_available_today.is_(True))
         elif filter_key in _CONSULTATION_TYPE_FILTERS:
-            query = query.join(Doctor.consultation_types).filter(
-                ConsultationType.name == _CONSULTATION_TYPE_FILTERS[filter_key]
+            query = (
+                query.join(Doctor.consultation_type_links)
+                .join(DoctorConsultationType.consultation_type)
+                .filter(
+                    ConsultationType.name == _CONSULTATION_TYPE_FILTERS[filter_key]
+                )
             )
         elif filter_key == "top_rated":
             query = query.filter(Doctor.average_rating >= TOP_RATED_MIN_RATING)

@@ -6,7 +6,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.api.deps import get_db
 from app.core.limiter import limiter
-from app.db.base import Base
+from app.db.base import Base, Role
 from app.main import app
 
 engine = create_engine(
@@ -22,6 +22,11 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 def db_session():
     Base.metadata.create_all(bind=engine)
     session = TestingSessionLocal()
+    # Seed roles
+    roles = ["admin", "doctor", "patient"]
+    for name in roles:
+        session.add(Role(name=name))
+    session.commit()
     try:
         yield session
     finally:
@@ -36,7 +41,7 @@ def client(db_session):
 
     limiter.enabled = False
     app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app, raise_server_exceptions=False) as test_client:
+    with TestClient(app, raise_server_exceptions=True) as test_client:
         yield test_client
     app.dependency_overrides.clear()
 

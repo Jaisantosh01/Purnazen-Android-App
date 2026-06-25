@@ -1,0 +1,25 @@
+diff --git a/node_modules/react-native-worklets/android/build.gradle.kts b/node_modules/react-native-worklets/android/build.gradle.kts
+index 3318937..0a25b42 100644
+--- a/node_modules/react-native-worklets/android/build.gradle.kts
++++ b/node_modules/react-native-worklets/android/build.gradle.kts
+@@ -8,7 +8,6 @@ import javax.inject.Inject
+ plugins {
+     id("com.android.library")
+     id("maven-publish")
+-    id("com.diffplug.spotless") version "8.1.0"
+     id("org.jetbrains.kotlin.android")
+ }
+ 
+@@ -144,12 +143,6 @@ fun reactNativeArchitectures(): List<String> {
+ }
+ 
+ if (project == rootProject) {
+-    spotless {
+-        kotlin {
+-            target("src/**/*.kt")
+-            ktlint()
+-        }
+-    }
+ }
+ 
+ apply(from = "./fix-prefab.gradle.kts")

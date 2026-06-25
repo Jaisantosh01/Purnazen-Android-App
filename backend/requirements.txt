@@ -11,6 +11,31 @@ psycopg2-binary>=2.9.10
 python-dotenv>=1.0
 slowapi>=0.1.9
 redis>=5.0
+azure-core==1.41.0
+azure-storage-blob==12.30.0
+
+python-multipart>=0.0.9
+
+# AI pipeline (Sprint 3+)
+# Note: mediapipe/opencv/scikit-image wheels are only available for Python <=3.12.
+# On Python 3.14 install these in a Python 3.12 venv or use conda.
+# The server starts without them (AI scans will fail gracefully).
+opencv-python-headless>=4.10.0
+mediapipe>=0.10.14
+Pillow>=10.4.0
+scikit-image>=0.24.0
+python-magic>=0.4.27  # Note: on Windows install python-magic-bin instead
+numpy>=2.0  # 2.x required for Python 3.14+
+# Trained skin-analysis model inference (CPU). Model file is dropped at
+# app/ai/models/skin_model.onnx; pipeline falls back to CV when absent.
+onnxruntime>=1.18.0
+
+# Social auth (Sprint 5+)
+# google-auth>=2.28.0
+# cryptography>=42.0.0
+
+# Async task queue (Sprint 7+)
+# celery>=5.4.0
 
 # Dev / test
 pytest>=8.3

@@ -6,14 +6,51 @@ A wellness and mental health app built with React Native (Expo bare workflow) an
 
 ```
 .
-├── mobile/          # React Native frontend (Expo SDK 56, RN 0.85)
+├── mobile-users/    # React Native patient app (Expo SDK 56, RN 0.85)
+├── mobile-doctors/  # React Native doctor app — skeleton (same stack)
+├── mobile-admin/    # React Native admin app (same stack)
 ├── backend/         # FastAPI backend (Python 3.13, SQLite → Postgres)
 ├── docs/            # Architecture, features, changelog
 └── .github/
     └── workflows/
-        ├── ci.yml          # PR/push checks (pytest + jest + tsc + eslint)
-        └── android-build.yml  # Manual APK release build
+        └── ci.yml   # PR/push checks (pytest + jest + tsc + eslint)
 ```
+
+> Three front-end apps share one backend: **mobile-users** (patients — full
+> feature set), **mobile-doctors** (doctors — scaffolded skeleton, see
+> [mobile-doctors/README.md](mobile-doctors/README.md)) and **mobile-admin**
+> (admin console).
+
+### Running the apps side by side (Metro ports)
+
+Each app pins its own Metro / dev-server port so all three can run at once
+without colliding on the default 8081. The port is baked into the debug build
+via `reactNativeDevServerPort` in `android/gradle.properties` and matched by the
+`start` / `android` npm scripts:
+
+| App | Metro port |
+|-----|-----------|
+| `mobile-users`   | 8081 |
+| `mobile-doctors` | 8082 |
+| `mobile-admin`   | 8083 |
+
+`npm run android` / `npm start` in each folder already pass the right `--port`.
+
+### Windows: enable long paths (required for native builds)
+
+React Native's C++ codegen produces object-file paths well over Windows' legacy
+260-character limit, which makes the `:app:buildCMakeDebug` (ninja) task fail
+with `Filename longer than 260 characters`. Enable long-path support once, as
+Administrator, then restart:
+
+```powershell
+# Run in an elevated PowerShell
+Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' `
+  -Name LongPathsEnabled -Value 1 -Type DWord
+git config --system core.longpaths true   # (this repo already sets it per-user)
+```
+
+After enabling, do a clean native build: `cd mobile-admin/android && ./gradlew clean`.
 
 ## Prerequisites
 
@@ -68,16 +105,19 @@ python -m pytest -q
 
 ---
 
-## Mobile Setup
+## Mobile Setup (patient app — `mobile-users`)
+
+> The doctor app (`mobile-doctors`) is a runnable skeleton with its own setup
+> notes — see [mobile-doctors/README.md](mobile-doctors/README.md).
 
 ```bash
-cd mobile
+cd mobile-users
 npm install
 ```
 
 ### Environment Variables
 
-Create `.env` in `mobile/` with:
+Create `.env` in `mobile-users/` with:
 
 ```
 EXPO_PUBLIC_API_URL=http://10.0.2.2:5000   # emulator → host machine
@@ -131,9 +171,16 @@ After seeding, a demo user is available:
 
 ---
 
-## Android APK Build (manual)
+## Deployment & releases (Azure + GitHub Actions)
 
-Trigger the **Android APK Build** workflow from the Actions tab on GitHub.  
-The signed APK is uploaded as a workflow artifact for download.
+Manual, OIDC-secured pipelines deploy the backend to **Azure Container Apps** and
+publish signed Android **AAB/APK** artifacts as **GitHub Releases**:
+
+- **Deploy Backend** — build image in ACR → roll the Container App → validate `/health`
+- **Release Mobile Apps** — signed, renamed `purnazen-<app>-v<version>` artifacts → GitHub Release
+- **Service Status** — read-only health/status report
+
+Full setup (Azure provisioning, OIDC federation, required GitHub secrets/variables,
+keystore) is in **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for architectural decisions.
