@@ -16,6 +16,16 @@ class WellnessService {
     }
   }
 
+  /** Fetch a single wellness session catalog entry by its key. */
+  async getSession(key) {
+    try {
+      const json = await this.get(ENDPOINTS.SESSION(key));
+      return json?.data;
+    } catch (err) {
+      throw new Error(err?.message ?? 'Failed to fetch session');
+    }
+  }
+
 }
 
 export default new WellnessService();
