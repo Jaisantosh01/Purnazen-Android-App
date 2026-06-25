@@ -23,6 +23,12 @@ class PreferenceService:
                 **(preference.notifications or {}),
                 **data.notifications,
             }
+        if data.language is not None:
+            preference.language = data.language
+        if data.address is not None:
+            preference.address = data.address
+        if data.location_enabled is not None:
+            preference.location_enabled = data.location_enabled
 
         db.commit()
         db.refresh(preference)

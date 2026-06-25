@@ -17,14 +17,20 @@ class PreferencesService {
    * Partial update — pass only what changed:
    *   updatePreferences({ pushEnabled: false })
    *   updatePreferences({ notifications: { offers: true } })
-   * The backend merges the notifications dict with stored values.
+   *   updatePreferences({ language: 'hi' })
+   *   updatePreferences({ address: '12 MG Road, Pune' })
+   *   updatePreferences({ locationEnabled: true })
+   * The backend merges the notifications dict and only applies the keys present.
    */
-  async updatePreferences({ pushEnabled, notifications } = {}) {
+  async updatePreferences({ pushEnabled, notifications, language, address, locationEnabled } = {}) {
+    const payload = {};
+    if (pushEnabled !== undefined) payload.pushEnabled = pushEnabled;
+    if (notifications !== undefined) payload.notifications = notifications;
+    if (language !== undefined) payload.language = language;
+    if (address !== undefined) payload.address = address;
+    if (locationEnabled !== undefined) payload.locationEnabled = locationEnabled;
     try {
-      const json = await apiClient.put(ENDPOINTS.PREFERENCES, {
-        pushEnabled,
-        notifications,
-      });
+      const json = await apiClient.put(ENDPOINTS.PREFERENCES, payload);
       return json?.data;
     } catch (err) {
       throw new Error(err?.message ?? 'Failed to update preferences');

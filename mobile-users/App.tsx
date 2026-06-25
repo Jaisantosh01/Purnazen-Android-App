@@ -11,6 +11,10 @@ import authService from './src/services/authService';
 // @ts-ignore
 import biometricService from './src/services/biometricService';
 // @ts-ignore
+import permissionsService from './src/services/permissionsService';
+// @ts-ignore
+import preferencesService from './src/services/preferencesService';
+// @ts-ignore
 import { useAuthStore } from './src/store/authStore';
 // @ts-ignore
 import { navigationRef } from './src/navigation/navigationRef';
@@ -250,6 +254,25 @@ export default function App() {
       setBootstrapped(true);
     })();
   }, []);
+
+  // One-time permission onboarding: after the user is in the app (and past the
+  // profile-completion step), request mandatory + optional permissions once and
+  // mirror the location grant into server preferences so it syncs across devices.
+  useEffect(() => {
+    if (!isLoggedIn || needsProfile) return;
+    (async () => {
+      try {
+        const result = await permissionsService.ensureRequested();
+        if (result) {
+          await preferencesService
+            .updatePreferences({ locationEnabled: !!result.location })
+            .catch(() => {});
+        }
+      } catch {
+        // never block the app on a permission flow
+      }
+    })();
+  }, [isLoggedIn, needsProfile]);
 
   // Feed the active palette into React Navigation so inter-screen backgrounds
   // (and any default headers) follow dark mode instead of flashing white.
