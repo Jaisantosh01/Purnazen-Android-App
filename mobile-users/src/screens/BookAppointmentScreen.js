@@ -12,8 +12,11 @@ import {
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import consultService from '../services/consultService';
+import preferencesService from '../services/preferencesService';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
+import AppDialog from '../components/AppDialog';
+import FormInput from '../components/FormInput';
 import {DAYS, MONTHS} from '../constants/strings';
 
 // Fallback shown until consultService.getVisitTypes() resolves (or if it fails).
@@ -41,10 +44,6 @@ const DEFAULT_TIME_SLOTS = [
   { id: 'd12', time: '04:30 PM', end_time: '05:00 PM' },
 ];
 
-const HOME_ADDRESS = {
-  street: '123 Main Street, Apartment 4B',
-  city: 'Mumbai, Maharashtra 400001',
-};
 
 const BookAppointmentScreen = ({ navigation, route }) => {
   const { colors } = useTheme();
@@ -60,6 +59,24 @@ const BookAppointmentScreen = ({ navigation, route }) => {
   const [currentYear, setCurrentYear]       = useState(today.getFullYear());
   const [selectedDate, setSelectedDate]     = useState(today.getDate());
   const [userDescription, setUserDescription] = useState('');
+  const [savedAddress, setSavedAddress]     = useState('');
+  const [showAddress, setShowAddress]       = useState(false);
+  const [addressDraft, setAddressDraft]     = useState('');
+
+  // Load the saved address (shared with Settings) for the Home Visit card.
+  useEffect(() => {
+    preferencesService.getPreferences()
+      .then(prefs => { if (prefs?.address) setSavedAddress(prefs.address); })
+      .catch(() => {});
+  }, []);
+
+  const openAddress = () => { setAddressDraft(savedAddress); setShowAddress(true); };
+  const handleSaveAddress = () => {
+    const trimmed = addressDraft.trim();
+    setSavedAddress(trimmed);
+    setShowAddress(false);
+    preferencesService.updatePreferences({ address: trimmed }).catch(() => {});
+  };
 
   const selectedVisitData = visitTypes.find(v => v.id === selectedVisit);
 
@@ -299,10 +316,11 @@ const BookAppointmentScreen = ({ navigation, route }) => {
               <MCIcon name="map-marker" size={20} color={colors.primary} style={styles.addressIcon} />
               <View style={styles.addressInfo}>
                 <Text style={styles.addressTitle}>Home Address</Text>
-                <Text style={styles.addressText}>{HOME_ADDRESS.street}</Text>
-                <Text style={styles.addressText}>{HOME_ADDRESS.city}</Text>
-                <TouchableOpacity onPress={() => Alert.alert('Change Address', 'Coming soon!')}>
-                  <Text style={styles.changeAddress}>Change Address</Text>
+                <Text style={styles.addressText}>
+                  {savedAddress || 'No address saved yet — add one for the doctor to visit.'}
+                </Text>
+                <TouchableOpacity onPress={openAddress}>
+                  <Text style={styles.changeAddress}>{savedAddress ? 'Change Address' : 'Add Address'}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -342,6 +360,25 @@ const BookAppointmentScreen = ({ navigation, route }) => {
         </View>
       </View>
 
+      {/* Address editor (shared with Settings via preferences) */}
+      <AppDialog
+        visible={showAddress}
+        onClose={() => setShowAddress(false)}
+        icon="home-map-marker"
+        title="Home Address"
+        subtitle="Where should the doctor visit?"
+        confirmLabel="Save"
+        onConfirm={handleSaveAddress}
+      >
+        <FormInput
+          label="Address"
+          icon="map-marker-outline"
+          value={addressDraft}
+          onChangeText={setAddressDraft}
+          placeholder="House / street, area, city, pincode"
+          multiline
+        />
+      </AppDialog>
     </View>
   );
 };

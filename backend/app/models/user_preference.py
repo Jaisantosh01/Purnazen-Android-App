@@ -1,4 +1,4 @@
-from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, Integer, func
+from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.orm import relationship
 from app.db.types import GUID
 import uuid
@@ -17,6 +17,11 @@ class UserPreference(Base):
     user_id = Column(GUID(), ForeignKey("users.id"), nullable=False, unique=True)
     push_enabled = Column(Boolean, nullable=False, default=True)
     notifications = Column(JSON, nullable=False, default=dict)
+    language = Column(String(10), nullable=False, server_default="en", default="en")
+    address = Column(String(255), nullable=True)
+    location_enabled = Column(
+        Boolean, nullable=False, server_default="false", default=False
+    )
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     created_by = Column(GUID(), ForeignKey("users.id"), nullable=True)
@@ -29,4 +34,7 @@ class UserPreference(Base):
         return {
             "pushEnabled": self.push_enabled,
             "notifications": self.notifications or {},
+            "language": self.language or "en",
+            "address": self.address,
+            "locationEnabled": bool(self.location_enabled),
         }

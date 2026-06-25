@@ -13,6 +13,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import authService from '../services/authService';
 import preferencesService from '../services/preferencesService';
 import biometricService from '../services/biometricService';
+import permissionsService from '../services/permissionsService';
 import { resetToLogin } from '../navigation/navigationRef';
 import { useAuthStore } from '../store/authStore';
 import useTheme from '../hooks/useTheme';
@@ -39,6 +40,18 @@ const HUES = {
   rose: '#E11D48',
 };
 const soft = hex => `${hex}22`;
+
+// Supported app languages. The selected code persists to user_preferences;
+// full UI translation (i18n) is wired separately.
+const LANGUAGES = [
+  { code: 'en', label: 'English',  native: 'English'   },
+  { code: 'hi', label: 'Hindi',    native: 'हिन्दी'    },
+  { code: 'mr', label: 'Marathi',  native: 'मराठी'     },
+  { code: 'ta', label: 'Tamil',    native: 'தமிழ்'      },
+  { code: 'te', label: 'Telugu',   native: 'తెలుగు'     },
+  { code: 'bn', label: 'Bengali',  native: 'বাংলা'      },
+];
+const languageLabel = code => (LANGUAGES.find(l => l.code === code) || LANGUAGES[0]).label;
 
 const makeStyles = COLORS => StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
@@ -86,6 +99,22 @@ const makeStyles = COLORS => StyleSheet.create({
   settingTitleDanger: { fontSize: 14, fontWeight: '600', color: COLORS.danger },
   settingSubtitle: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
   valueText: { fontSize: 13, color: COLORS.textMuted, fontWeight: '500' },
+
+  // Language selector rows (inside AppDialog)
+  langRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.surfaceMuted,
+    marginBottom: 8,
+  },
+  langRowActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryFaint },
+  langLabel: { fontSize: 15, fontWeight: '600', color: COLORS.textPrimary },
+  langNative: { fontSize: 12.5, color: COLORS.textMuted, marginTop: 1 },
 
   version: {
     textAlign: 'center',
@@ -154,9 +183,12 @@ const SettingsScreen = ({ navigation }) => {
   const [promotionalEmails, setPromotionalEmails] = useState(false);
   const [biometric, setBiometric]                 = useState(false);
   const [biometricBusy, setBiometricBusy]         = useState(false);
-  const [locationAccess, setLocationAccess]       = useState(true);
+  const [locationAccess, setLocationAccess]       = useState(false);
+  const [locationBusy, setLocationBusy]           = useState(false);
+  const [language, setLanguage]                   = useState('en');
+  const [address, setAddress]                     = useState('');
 
-  // Hydrate the notification toggles from the server (defaults kept offline)
+  // Hydrate the toggles/values from the server (defaults kept offline)
   React.useEffect(() => {
     preferencesService.getPreferences()
       .then(prefs => {
@@ -165,6 +197,9 @@ const SettingsScreen = ({ navigation }) => {
         if (PREF_KEYS.sessionReminders in saved) setSessionReminders(saved[PREF_KEYS.sessionReminders]);
         if (PREF_KEYS.appointmentAlerts in saved) setAppointmentAlerts(saved[PREF_KEYS.appointmentAlerts]);
         if (PREF_KEYS.promotionalEmails in saved) setPromotionalEmails(saved[PREF_KEYS.promotionalEmails]);
+        if (prefs.language) setLanguage(prefs.language);
+        if (prefs.address != null) setAddress(prefs.address);
+        if (typeof prefs.locationEnabled === 'boolean') setLocationAccess(prefs.locationEnabled);
       })
       .catch(err => console.log('Preferences fetch failed:', err.message));
 
@@ -184,6 +219,47 @@ const SettingsScreen = ({ navigation }) => {
   const makeToggle = (setter, prefKey) => value => {
     setter(value);
     savePreference({ notifications: { [prefKey]: value } });
+  };
+
+  // Language — persist immediately on select.
+  const selectLanguage = code => {
+    setLanguage(code);
+    setShowLanguage(false);
+    savePreference({ language: code });
+  };
+
+  // Address editor.
+  const openAddress = () => { setAddressDraft(address); setFormError(''); setShowAddress(true); };
+  const handleSaveAddress = () => {
+    const trimmed = addressDraft.trim();
+    setAddress(trimmed);
+    setShowAddress(false);
+    savePreference({ address: trimmed });
+  };
+
+  // Location — request the real OS permission, then persist the enabled flag.
+  const toggleLocation = async value => {
+    if (!value) {
+      setLocationAccess(false);
+      savePreference({ locationEnabled: false });
+      return;
+    }
+    setLocationBusy(true);
+    try {
+      const granted = await permissionsService.enable('location');
+      setLocationAccess(granted);
+      savePreference({ locationEnabled: granted });
+      if (!granted) {
+        Alert.alert(
+          'Location Permission',
+          'Location access was not granted. You can enable it from your device Settings.',
+        );
+      }
+    } catch {
+      setLocationAccess(false);
+    } finally {
+      setLocationBusy(false);
+    }
   };
 
   // Dark mode is global — drives the persisted theme store via useTheme().
@@ -215,6 +291,10 @@ const SettingsScreen = ({ navigation }) => {
   // Edit phone modal
   const [showEditPhone, setShowEditPhone] = useState(false);
   const [phone, setPhone]                 = useState('');
+  // Language + address modals
+  const [showLanguage, setShowLanguage]   = useState(false);
+  const [showAddress, setShowAddress]     = useState(false);
+  const [addressDraft, setAddressDraft]   = useState('');
   // Change password modal
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [currentPassword, setCurrentPassword]       = useState('');
@@ -441,8 +521,8 @@ const SettingsScreen = ({ navigation }) => {
               hue={HUES.orange}
               title="Language"
               subtitle="App display language"
-              valueText="English"
-              onPress={() => Alert.alert('Language', 'More languages coming soon!')}
+              valueText={languageLabel(language)}
+              onPress={() => setShowLanguage(true)}
             />
           </View>
         </View>
@@ -457,7 +537,17 @@ const SettingsScreen = ({ navigation }) => {
               title="Location Access"
               subtitle="Used for nearby doctor search"
               value={locationAccess}
-              onToggle={setLocationAccess}
+              onToggle={toggleLocation}
+              disabled={locationBusy}
+            />
+            <View style={styles.rowDivider} />
+            <ArrowRow
+              icon="home-map-marker"
+              hue={HUES.amber}
+              title="Address"
+              subtitle="Used for home visits & nearby search"
+              valueText={address ? 'Edit' : 'Add'}
+              onPress={openAddress}
             />
             <View style={styles.rowDivider} />
             <ArrowRow
@@ -585,6 +675,58 @@ const SettingsScreen = ({ navigation }) => {
           secureTextEntry
           placeholder="Repeat new password"
           error={formError}
+        />
+      </AppDialog>
+
+      {/* Language selector */}
+      <AppDialog
+        visible={showLanguage}
+        onClose={() => setShowLanguage(false)}
+        icon="translate"
+        iconColor={HUES.orange}
+        iconBg={soft(HUES.orange)}
+        title="App Language"
+        subtitle="Choose your preferred language"
+        cancelLabel="Close"
+      >
+        {LANGUAGES.map(l => {
+          const active = language === l.code;
+          return (
+            <TouchableOpacity
+              key={l.code}
+              style={[styles.langRow, active && styles.langRowActive]}
+              onPress={() => selectLanguage(l.code)}
+              activeOpacity={0.8}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.langLabel}>{l.label}</Text>
+                <Text style={styles.langNative}>{l.native}</Text>
+              </View>
+              {active ? <MCIcon name="check-circle" size={20} color={colors.primary} /> : null}
+            </TouchableOpacity>
+          );
+        })}
+      </AppDialog>
+
+      {/* Address editor */}
+      <AppDialog
+        visible={showAddress}
+        onClose={() => setShowAddress(false)}
+        icon="home-map-marker"
+        iconColor={HUES.amber}
+        iconBg={soft(HUES.amber)}
+        title="Your Address"
+        subtitle="Used for home visits & nearby doctor search"
+        confirmLabel="Save"
+        onConfirm={handleSaveAddress}
+      >
+        <FormInput
+          label="Address"
+          icon="map-marker-outline"
+          value={addressDraft}
+          onChangeText={setAddressDraft}
+          placeholder="House / street, area, city, pincode"
+          multiline
         />
       </AppDialog>
     </View>
