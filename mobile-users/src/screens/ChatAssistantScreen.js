@@ -40,7 +40,7 @@ const ChatAssistantScreen = ({ route, navigation }) => {
         console.error('Chat flow error:', err);
       })
       .finally(() => setLoading(false));
-  }, [startQuestionId]);
+  }, [startQuestionId, reliefTitle]);
 
   const handleOptionSelect = (option) => {
     // Add user selection to history
