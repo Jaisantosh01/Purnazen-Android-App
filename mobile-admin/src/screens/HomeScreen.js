@@ -43,12 +43,14 @@ const HomeScreen = ({ navigation }) => {
   const dateStr = `${DAYS[now.getDay()]}, ${MONTHS[now.getMonth()]} ${now.getDate()}`;
   const todayStr = now.toISOString().slice(0, 10);
 
-  const KpiCard = ({ title, value, icon, color, onPress }) => (
+  // Single-accent KPI tiles: neutral value text with the brand accent reserved
+  // for the icon, instead of a per-tile rainbow.
+  const KpiCard = ({ title, value, icon, onPress }) => (
     <TouchableOpacity style={styles.kpiCard} onPress={onPress} activeOpacity={0.7}>
-      <View style={[styles.kpiIconCircle, { backgroundColor: color + '18' }]}>
-        <MCIcon name={icon} size={22} color={color} />
+      <View style={[styles.kpiIconCircle, { backgroundColor: COLORS.primaryLight }]}>
+        <MCIcon name={icon} size={22} color={COLORS.primary} />
       </View>
-      <Text style={[styles.kpiValue, { color }]}>{value ?? '-'}</Text>
+      <Text style={styles.kpiValue}>{value ?? '-'}</Text>
       <Text style={styles.kpiTitle}>{title}</Text>
     </TouchableOpacity>
   );
@@ -107,41 +109,35 @@ const HomeScreen = ({ navigation }) => {
                   title="Active Doctors"
                   value={stats?.total_active_doctors}
                   icon="doctor"
-                  color="#4A90E2"
                   onPress={() => navigation.navigate('Doctors', { screen: 'DoctorsMain' })}
                 />
                 <KpiCard
                   title="Active Users"
                   value={stats?.total_active_users}
                   icon="account-group"
-                  color="#50C878"
                   onPress={() => navigation.navigate('Users', { screen: 'UsersMain' })}
                 />
                 <KpiCard
                   title="Today's Appts"
                   value={stats?.today_appointments}
                   icon="calendar-today"
-                  color="#FF7F50"
                   onPress={() => navigation.navigate('Appointments', { screen: 'AppointmentsMain', params: { filterDate: todayStr } })}
                 />
                 <KpiCard
                   title="Scheduled Appts"
                   value={stats?.scheduled_appointments}
                   icon="calendar-clock"
-                  color="#9370DB"
                 />
                 <KpiCard
                   title="Today Leaves"
                   value={stats?.today_doctor_leaves}
                   icon="beach"
-                  color="#F59E0B"
                   onPress={() => navigation.navigate('DoctorLeaveManagement')}
                 />
                 <KpiCard
                   title="Total Leaves"
                   value={stats?.total_doctor_leaves}
                   icon="calendar-remove"
-                  color="#EF4444"
                   onPress={() => navigation.navigate('DoctorLeaveManagement')}
                 />
               </>
@@ -157,8 +153,8 @@ const HomeScreen = ({ navigation }) => {
           </View>
           <View style={{ gap: 10 }}>
             <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('DoctorLeaveManagement')} activeOpacity={0.7}>
-              <View style={[styles.mgmtIconCircle, { backgroundColor: '#F59E0B18' }]}>
-                <MCIcon name="beach" size={24} color="#F59E0B" />
+              <View style={[styles.mgmtIconCircle, { backgroundColor: COLORS.primaryLight }]}>
+                <MCIcon name="beach" size={24} color={COLORS.primary} />
               </View>
               <View style={styles.mgmtTextCol}>
                 <Text style={styles.mgmtTitle}>Doctor Leaves</Text>
@@ -177,8 +173,8 @@ const HomeScreen = ({ navigation }) => {
               <MCIcon name="chevron-right" size={22} color={COLORS.textMuted} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('VideoManagement')} activeOpacity={0.7}>
-              <View style={[styles.mgmtIconCircle, { backgroundColor: '#9A341218' }]}>
-                <MCIcon name="video-outline" size={24} color={COLORS.accent} />
+              <View style={[styles.mgmtIconCircle, { backgroundColor: COLORS.primaryLight }]}>
+                <MCIcon name="video-outline" size={24} color={COLORS.primary} />
               </View>
               <View style={styles.mgmtTextCol}>
                 <Text style={styles.mgmtTitle}>Wellness Videos</Text>
@@ -242,7 +238,7 @@ const styles = StyleSheet.create({
     width: 46, height: 46, borderRadius: 23,
     alignItems: 'center', justifyContent: 'center',
   },
-  kpiValue: { fontSize: 22, fontWeight: '800', marginTop: 10 },
+  kpiValue: { fontSize: 22, fontWeight: '800', marginTop: 10, color: COLORS.textPrimary },
   kpiTitle: { fontSize: 12, color: COLORS.textMuted, marginTop: 4, textAlign: 'center', fontWeight: '600' },
 
   // Management

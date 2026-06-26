@@ -11,6 +11,7 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -19,6 +20,8 @@ import authService from '../services/authService';
 import { useAuthStore } from '../store/authStore';
 import { resetToLogin } from '../navigation/navigationRef';
 import { COLORS } from '../constants/theme';
+import { checkForUpdate, FORCE_MARKER } from '../services/updateService';
+import { APP_VERSION } from '../config';
 
 // Shared toggle ids with NotificationsScreen (user_preferences.notifications)
 const PREF_KEYS = {
@@ -163,10 +166,13 @@ const SectionHeader = ({ title }) => (
   <Text style={styles.sectionHeader}>{title}</Text>
 );
 
-const ToggleRow = ({ icon, iconColor = COLORS.primary, iconBg = COLORS.primaryLight, title, subtitle, value, onToggle }) => (
+// Neutral, low-chroma icon treatment (grey on a soft grey chip). The brand
+// primary is reserved as the single accent (header, switches), so per-row icon
+// colors are dropped to keep the screen mostly neutral.
+const ToggleRow = ({ icon, title, subtitle, value, onToggle }) => (
   <View style={styles.settingRow}>
-    <View style={[styles.settingIconBox, { backgroundColor: iconBg }]}>
-      <MCIcon name={icon} size={20} color={iconColor} />
+    <View style={[styles.settingIconBox, { backgroundColor: COLORS.surfaceMuted }]}>
+      <MCIcon name={icon} size={20} color={COLORS.textSecondary} />
     </View>
     <View style={styles.settingInfo}>
       <Text style={styles.settingTitle}>{title}</Text>
@@ -181,10 +187,10 @@ const ToggleRow = ({ icon, iconColor = COLORS.primary, iconBg = COLORS.primaryLi
   </View>
 );
 
-const ArrowRow = ({ icon, iconColor = COLORS.primary, iconBg = COLORS.primaryLight, title, subtitle, onPress, valueText, danger }) => (
+const ArrowRow = ({ icon, title, subtitle, onPress, valueText, danger }) => (
   <TouchableOpacity style={styles.settingRow} onPress={onPress} activeOpacity={0.7}>
-    <View style={[styles.settingIconBox, { backgroundColor: iconBg }]}>
-      <MCIcon name={icon} size={20} color={iconColor} />
+    <View style={[styles.settingIconBox, { backgroundColor: danger ? '#FFF5F5' : COLORS.surfaceMuted }]}>
+      <MCIcon name={icon} size={20} color={danger ? COLORS.danger : COLORS.textSecondary} />
     </View>
     <View style={styles.settingInfo}>
       <Text style={danger ? styles.settingTitleDanger : styles.settingTitle}>{title}</Text>
@@ -206,6 +212,7 @@ const SettingsScreen = ({ navigation }) => {
   const [darkMode, setDarkMode]                   = useState(false);
   const [biometric, setBiometric]                 = useState(false);
   const [locationAccess, setLocationAccess]       = useState(true);
+  const [updateChecking, setUpdateChecking]       = useState(false);
 
   // Hydrate the notification toggles from the server (defaults kept offline)
   // React.useEffect(() => {
@@ -220,10 +227,10 @@ const SettingsScreen = ({ navigation }) => {
   //     .catch(err => console.log('Preferences fetch failed:', err.message));
   // }, []);
 
-  // const savePreference = payload => {
-  //   preferencesService.updatePreferences(payload)
-  //     .catch(err => console.log('Preference save failed:', err.message));
-  // };
+  // Admin preferences aren't persisted to the backend yet, so the toggles are
+  // local-only. A no-op keeps the toggle handlers from calling an undefined
+  // savePreference (which crashed the screen with a ReferenceError).
+  const savePreference = () => {};
 
   const togglePush = value => {
     setNotifications(value);
@@ -288,6 +295,47 @@ const SettingsScreen = ({ navigation }) => {
       setFormError(err.message || 'Password change failed.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Manual "Check for Updates" — the same GitHub-release check the launch prompt
+  // uses (force:true so it runs from dev builds too). A forced/critical release
+  // offers only "Update now"; otherwise the user can defer.
+  const handleCheckForUpdate = async () => {
+    if (updateChecking) return;
+    setUpdateChecking(true);
+    try {
+      const u = await checkForUpdate({ force: true });
+      if (!u) {
+        Alert.alert('Up to date', `You're on the latest version (v${APP_VERSION}).`);
+        return;
+      }
+      const openApk = () => { Linking.openURL(u.apkUrl).catch(() => {}); };
+      const notes = (u.notes || '')
+        .split('\n')
+        .filter(l => !l.includes(FORCE_MARKER))
+        .join('\n')
+        .trim();
+      const body =
+        `Version ${u.version} is available${u.current ? ` (you have v${u.current})` : ''}.` +
+        (u.forced ? '\n\nThis is a critical update and is required to continue.' : '') +
+        (notes ? `\n\n${notes}` : '');
+      const buttons = u.forced
+        ? [{ text: 'Update now', onPress: openApk }]
+        : [
+            { text: 'Later', style: 'cancel' },
+            { text: 'Update now', onPress: openApk },
+          ];
+      Alert.alert(
+        u.forced ? 'Update required' : 'Update available',
+        body,
+        buttons,
+        { cancelable: !u.forced },
+      );
+    } catch {
+      Alert.alert('Check for Updates', 'Could not check for updates. Please try again later.');
+    } finally {
+      setUpdateChecking(false);
     }
   };
 
@@ -491,6 +539,20 @@ const SettingsScreen = ({ navigation }) => {
           </View>
         </View>
 
+        {/* About */}
+        <View style={styles.section}>
+          <SectionHeader title="About" />
+          <View style={styles.card}>
+            <ArrowRow
+              icon="cloud-download-outline"
+              title="Check for Updates"
+              subtitle={updateChecking ? 'Checking…' : `Current version v${APP_VERSION}`}
+              valueText={updateChecking ? '…' : undefined}
+              onPress={handleCheckForUpdate}
+            />
+          </View>
+        </View>
+
         {/* Danger Zone */}
         <View style={styles.section}>
           <SectionHeader title="Danger Zone" />
@@ -515,7 +577,7 @@ const SettingsScreen = ({ navigation }) => {
           </View>
         </View>
 
-        <Text style={styles.version}>M-Heal v1.0.0</Text>
+        <Text style={styles.version}>Purnazen Admin v{APP_VERSION}</Text>
       </ScrollView>
 
       {/* Edit Profile modal */}

@@ -3,6 +3,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // @ts-ignore
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 // @ts-ignore
@@ -109,6 +110,11 @@ function AppointmentsStackNavigator() {
 }
 
 function MainTabs() {
+  // Respect the device's bottom safe area (gesture bar / home indicator) so the
+  // tab bar isn't flush against the screen edge — matches the users & doctors apps.
+  const insets = useSafeAreaInsets();
+  const bottomPad = Math.max(insets.bottom, 10);
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -124,8 +130,8 @@ function MainTabs() {
           backgroundColor: COLORS.white,
           borderTopWidth: 1,
           borderTopColor: '#f0f0f0',
-          height: 60,
-          paddingBottom: 8,
+          height: 60 + bottomPad,
+          paddingBottom: bottomPad,
           paddingTop: 6,
           elevation: 10,
           shadowColor: '#000',
@@ -136,6 +142,7 @@ function MainTabs() {
         tabBarLabelStyle: {
           fontSize: 10,
           fontWeight: '600',
+          paddingBottom: 2,
         },
       })}
     >

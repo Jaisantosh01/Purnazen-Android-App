@@ -3,6 +3,11 @@ import apiClient from '../api/client';
 import secureStorage from '../utils/secureStorage';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { useAuthStore } from '../store/authStore';
+import { APP_ROLE } from '../config';
+
+// RBAC: shown when a valid credential belongs to a different app's role.
+const ROLE_MISMATCH_MESSAGE =
+  'This account is not a Purnazen patient account. Please use the correct app.';
 
 class AuthService {
 
@@ -10,6 +15,7 @@ class AuthService {
     const response = await apiClient.post(ENDPOINTS.LOGIN, {
       email,
       password,
+      expected_role: APP_ROLE,
     });
 
     if (!response.success) {
@@ -17,6 +23,13 @@ class AuthService {
     }
 
     const { access_token, refresh_token, user } = response.data;
+
+    // RBAC: this app only serves APP_ROLE accounts. Reject a wrong-role login
+    // client-side too (covers an older backend without the role gate) and never
+    // persist its tokens.
+    if (!user || user.role !== APP_ROLE) {
+      throw new Error(ROLE_MISMATCH_MESSAGE);
+    }
 
     // Tokens go to the device keystore; the user profile is not a secret
     await secureStorage.setTokens(access_token, refresh_token);
@@ -139,10 +152,17 @@ class AuthService {
     }
 
     const user = await this.getUser();
-    if (user) {
+    // RBAC: only restore a session that belongs to this app's role. A stale or
+    // cross-app session is cleared so it can't slip past the login gate.
+    if (user && user.role === APP_ROLE) {
       useAuthStore.getState().setAuth(user);
+      return user;
     }
-    return user;
+    if (user) {
+      await secureStorage.clearTokens();
+      await AsyncStorage.removeItem('user');
+    }
+    return null;
   }
 
 }

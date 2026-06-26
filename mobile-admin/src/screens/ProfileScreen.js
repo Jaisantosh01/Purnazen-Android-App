@@ -17,12 +17,14 @@ import { resetToLogin } from '../navigation/navigationRef';
 import { StatsSkeleton } from '../components/SkeletonLoader';
 import { COLORS } from '../constants/theme';
 
+// Neutral menu rows — grey icon chips, brand color reserved as the single accent
+// (header). Drops the previous per-row rainbow icon colors.
 const MENU_ITEMS = [
-  { icon: 'history',          iconColor: COLORS.primary,        iconBg: COLORS.primaryLight,  title: 'Therapy History',  subtitle: 'View past sessions',  screen: 'TherapyHistory' },
-  { icon: 'credit-card',      iconColor: COLORS.accent,         iconBg: COLORS.accentLight,   title: 'Subscriptions',    subtitle: 'Manage your plan',    screen: 'Subscriptions' },
-  { icon: 'bell-outline',     iconColor: '#ea580c',             iconBg: '#FFF3E0',            title: 'Notifications',    subtitle: 'Manage alerts',       screen: 'Notifications' },
-  { icon: 'cog-outline',      iconColor: COLORS.textSecondary,  iconBg: COLORS.surfaceMuted,  title: 'Settings',         subtitle: 'App preferences',     screen: 'Settings' },
-  { icon: 'help-circle-outline', iconColor: '#0284c7',          iconBg: '#E0F2FE',            title: 'Help & Support',   subtitle: 'Get assistance',      screen: 'HelpSupport' },
+  { icon: 'history',             title: 'Therapy History', subtitle: 'View past sessions', screen: 'TherapyHistory' },
+  { icon: 'credit-card',         title: 'Subscriptions',   subtitle: 'Manage your plan',   screen: 'Subscriptions' },
+  { icon: 'bell-outline',        title: 'Notifications',   subtitle: 'Manage alerts',      screen: 'Notifications' },
+  { icon: 'cog-outline',         title: 'Settings',        subtitle: 'App preferences',    screen: 'Settings' },
+  { icon: 'help-circle-outline', title: 'Help & Support',  subtitle: 'Get assistance',     screen: 'HelpSupport' },
 ];
 
 const ProfileScreen = ({ navigation }) => {
@@ -116,8 +118,8 @@ const ProfileScreen = ({ navigation }) => {
               activeOpacity={0.7}
               onPress={() => navigation.navigate(item.screen)}
             >
-              <View style={[styles.menuIconCircle, { backgroundColor: item.iconBg }]}>
-                <MCIcon name={item.icon} size={20} color={item.iconColor} />
+              <View style={[styles.menuIconCircle, { backgroundColor: COLORS.surfaceMuted }]}>
+                <MCIcon name={item.icon} size={20} color={COLORS.textSecondary} />
               </View>
               <View style={styles.menuInfo}>
                 <Text style={styles.menuTitle}>{item.title}</Text>
