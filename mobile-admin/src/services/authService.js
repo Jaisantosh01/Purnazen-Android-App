@@ -73,9 +73,13 @@ class AuthService {
     useAuthStore.getState().clearAuth();
   }
 
-  /** Update full name / avatar; keeps the cached user and store in sync. */
-  async updateProfile({ fullName, avatarUrl } = {}) {
-    const response = await apiClient.put(ENDPOINTS.ME, { fullName, avatarUrl });
+  /** Update full name / avatar / phone; keeps the cached user and store in sync. */
+  async updateProfile({ fullName, avatarUrl, phone } = {}) {
+    const payload = {};
+    if (fullName !== undefined) payload.fullName = fullName;
+    if (avatarUrl !== undefined) payload.avatarUrl = avatarUrl;
+    if (phone !== undefined) payload.phone = phone;
+    const response = await apiClient.put(ENDPOINTS.ME, payload);
 
     if (!response.success) {
       throw new Error(response.message || 'Profile update failed');

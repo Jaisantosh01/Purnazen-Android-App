@@ -5,6 +5,12 @@ _Last updated: 2026-06-26. Scope: `mobile-users` (patient app)._
 This tracks the in-flight refinement pass: dark-mode coverage, emoji/encoding
 fixes, mock/incomplete data, responsiveness, and the profile/permissions epic.
 
+> **Note:** this tracker is **patient-app scoped**. The admin & doctor apps adopted
+> the same Profile/Settings system (dark mode, biometric, themed alerts) on
+> 2026-06-26 — see [CHANGELOG.md](CHANGELOG.md). Open items below (mock
+> subscriptions, sandbox payments, FaceGlow routine player, responsiveness sweep)
+> remain live for the patient app.
+
 ---
 
 ## 0. Environment / dev fixes

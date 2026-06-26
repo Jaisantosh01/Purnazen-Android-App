@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { View, ActivityIndicator, StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,11 +10,21 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 // @ts-ignore
 import authService from './src/services/authService';
 // @ts-ignore
+import biometricService from './src/services/biometricService';
+// @ts-ignore
+import { useAuthStore } from './src/store/authStore';
+// @ts-ignore
 import { navigationRef } from './src/navigation/navigationRef';
 // @ts-ignore
 import { COLORS } from './src/constants/theme';
 // @ts-ignore
+import useTheme from './src/hooks/useTheme';
+// @ts-ignore
+import { useThemeStore } from './src/store/themeStore';
+// @ts-ignore
 import Toast from './src/components/Toast';
+// @ts-ignore
+import AppAlertHost from './src/components/AppAlertHost';
 // @ts-ignore
 import UpdatePrompt from './src/components/UpdatePrompt';
 // @ts-ignore
@@ -114,6 +125,7 @@ function MainTabs() {
   // tab bar isn't flush against the screen edge — matches the users & doctors apps.
   const insets = useSafeAreaInsets();
   const bottomPad = Math.max(insets.bottom, 10);
+  const { colors } = useTheme();
 
   return (
     <Tab.Navigator
@@ -124,12 +136,12 @@ function MainTabs() {
           const iconName = focused ? icons.active : icons.inactive;
           return <Icon name={iconName} size={22} color={color} />;
         },
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.textMuted,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
-          backgroundColor: COLORS.white,
+          backgroundColor: colors.card,
           borderTopWidth: 1,
-          borderTopColor: '#f0f0f0',
+          borderTopColor: colors.border,
           height: 60 + bottomPad,
           paddingBottom: bottomPad,
           paddingTop: 6,
@@ -155,22 +167,79 @@ function MainTabs() {
   );
 }
 
+// ── Minimal splash shown while bootstrap is in-flight ─────────────────────────
+function SplashScreen() {
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary }}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      <ActivityIndicator size="large" color="#fff" />
+    </View>
+  );
+}
+
 export default function App() {
+  const [bootstrapped, setBootstrapped] = useState(false);
+  // Subscribe to auth state — changes here drive the navigator re-render
+  const isLoggedIn = useAuthStore((s: any) => s.isLoggedIn);
+  const { message, type, visible, hide } = useToastStore();
+  const { colors, isDark } = useTheme();
+
   useEffect(() => {
-    authService.bootstrap();
+    // Load the saved theme preference alongside the auth session.
+    useThemeStore.getState().hydrate();
+    (async () => {
+      await authService.bootstrap();
+      // If biometric login is enabled and a session was restored, require the
+      // fingerprint / Face ID prompt before unlocking. Fail closed: any
+      // cancellation or failure drops back to the password login screen.
+      try {
+        const loggedIn = useAuthStore.getState().isLoggedIn;
+        if (loggedIn && (await biometricService.isEnabled())) {
+          const ok = await biometricService.authenticate('Unlock Purnazen Admin');
+          if (!ok) {
+            await authService.logout();
+          }
+        }
+      } catch {
+        // never block app start on a biometric error
+      }
+      setBootstrapped(true);
+    })();
   }, []);
 
-  const { message, type, visible, hide } = useToastStore();
+  // Feed the active palette into React Navigation so inter-screen backgrounds
+  // (and any default headers) follow dark mode instead of flashing white.
+  const navTheme = {
+    ...(isDark ? DarkTheme : DefaultTheme),
+    colors: {
+      ...(isDark ? DarkTheme : DefaultTheme).colors,
+      background: colors.background,
+      card: colors.card,
+      text: colors.textPrimary,
+      border: colors.border,
+      primary: colors.primary,
+    },
+  };
+
+  if (!bootstrapped) {
+    return <SplashScreen />;
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <NavigationContainer ref={navigationRef}>
-        <RootStack.Navigator screenOptions={{ headerShown: false }}>
-          <RootStack.Screen name="Login"    component={LoginScreen}    />
-          <RootStack.Screen name="Register" component={RegisterScreen} />
-          <RootStack.Screen name="Main"     component={MainTabs}       />
+      <NavigationContainer ref={navigationRef} theme={navTheme}>
+        <RootStack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
+          {isLoggedIn ? (
+            <RootStack.Screen name="Main" component={MainTabs} />
+          ) : (
+            <>
+              <RootStack.Screen name="Login"    component={LoginScreen}    />
+              <RootStack.Screen name="Register" component={RegisterScreen} />
+            </>
+          )}
         </RootStack.Navigator>
         <Toast message={message} type={type} visible={visible} onHide={hide} />
+        <AppAlertHost />
         <UpdatePrompt />
       </NavigationContainer>
     </GestureHandlerRootView>

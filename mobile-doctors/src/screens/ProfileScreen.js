@@ -1,408 +1,311 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
-  Modal,
-  TextInput,
-  Alert,
-  Linking,
+  StatusBar,
 } from 'react-native';
+import { showAlert } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
-import authService from '../services/authService';
 import { useAuthStore } from '../store/authStore';
-import { showError, showSuccess } from '../utils/toast';
-import ScreenHeader from '../components/ScreenHeader';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
-import { checkForUpdate, FORCE_MARKER } from '../services/updateService';
-import { APP_VERSION } from '../config';
+import authService from '../services/authService';
+import appointmentService from '../services/appointmentService';
+import useTheme from '../hooks/useTheme';
 
-const ProfileScreen = () => {
-  const doctor = useAuthStore(s => s.doctor);
-  const [loggingOut, setLoggingOut] = useState(false);
+// Icon backgrounds are a translucent wash of the icon hue so the tint reads
+// correctly over both light and dark cards.
+const soft = hex => `${hex}22`;
 
-  const name = doctor?.full_name || doctor?.name || 'Doctor';
-  const email = doctor?.email || '';
+const SUPPORT_EMAIL = 'support@purnazen.com';
 
-  // Edit profile modal
-  const [showEditProfile, setShowEditProfile] = useState(false);
-  const [fullName, setFullName] = useState('');
-  // Change password modal
-  const [showChangePassword, setShowChangePassword] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+const isToday = value => {
+  if (!value) return false;
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return false;
+  return d.toDateString() === new Date().toDateString();
+};
 
-  const [formError, setFormError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [updateChecking, setUpdateChecking] = useState(false);
+const ProfileScreen = ({ navigation }) => {
+  const doctor = useAuthStore(state => state.doctor);
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const [stats, setStats] = useState(null);
+  const [statsLoading, setStatsLoading] = useState(true);
 
-  const openEditProfile = () => {
-    setFullName(doctor?.full_name || '');
-    setFormError('');
-    setShowEditProfile(true);
+  // Trackers derive from the doctor's own appointment list — no separate stats
+  // endpoint needed. Counts: today, upcoming (scheduled), and completed.
+  useEffect(() => {
+    appointmentService
+      .getDoctorAppointments()
+      .then(data => {
+        const list = data?.appointments ?? [];
+        const today = list.filter(a => isToday(a.date)).length;
+        const upcoming = list.filter(a => a.status === 'booked' || a.status === 'pending').length;
+        const completed = list.filter(a => a.status === 'completed').length;
+        setStats({ today, upcoming, completed });
+      })
+      .catch(() => setStats(null))
+      .finally(() => setStatsLoading(false));
+  }, []);
+
+  const handleLogout = () => {
+    showAlert(
+      'Logout',
+      'Are you sure you want to log out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await authService.logout();
+              // Auth-state flip swaps the root navigator back to Login (App.tsx).
+            } catch {
+              // logout clears local state even if the server call fails
+            }
+          },
+        },
+      ],
+    );
   };
 
-  const handleSaveProfile = async () => {
-    if (!fullName.trim()) { setFormError('Name cannot be empty.'); return; }
-    setIsSubmitting(true);
-    try {
-      await authService.updateProfile({ fullName: fullName.trim() });
-      setShowEditProfile(false);
-      showSuccess('Your name has been updated.');
-    } catch (err) {
-      setFormError(err.message || 'Profile update failed.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  const openSupport = () =>
+    showAlert(
+      'Help & Support',
+      `Reach the Purnazen team at ${SUPPORT_EMAIL} for help with the doctor app.`,
+    );
 
-  const openChangePassword = () => {
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    setFormError('');
-    setShowChangePassword(true);
-  };
+  const MENU_ITEMS = [
+    { icon: 'cog-outline',         iconColor: '#6B7280', title: 'Settings',       subtitle: 'App preferences', onPress: () => navigation.navigate('Settings') },
+    { icon: 'help-circle-outline', iconColor: '#0284c7', title: 'Help & Support', subtitle: 'Get assistance',  onPress: openSupport },
+  ];
 
-  const handleChangePassword = async () => {
-    if (!currentPassword) { setFormError('Enter your current password.'); return; }
-    if (newPassword.length < 6) { setFormError('New password must be at least 6 characters.'); return; }
-    if (newPassword !== confirmPassword) { setFormError('Passwords do not match.'); return; }
-    setIsSubmitting(true);
-    try {
-      await authService.changePassword(currentPassword, newPassword);
-      setShowChangePassword(false);
-      showSuccess('Your password has been updated.');
-    } catch (err) {
-      setFormError(err.message || 'Password change failed.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // Manual "Check for Updates" — same GitHub-release check the launch prompt
-  // uses (force:true so it runs from dev builds too).
-  const handleCheckForUpdate = async () => {
-    if (updateChecking) return;
-    setUpdateChecking(true);
-    try {
-      const u = await checkForUpdate({ force: true });
-      if (!u) {
-        Alert.alert('Up to date', `You're on the latest version (v${APP_VERSION}).`);
-        return;
-      }
-      const openApk = () => { Linking.openURL(u.apkUrl).catch(() => {}); };
-      const notes = (u.notes || '')
-        .split('\n')
-        .filter(l => !l.includes(FORCE_MARKER))
-        .join('\n')
-        .trim();
-      const body =
-        `Version ${u.version} is available${u.current ? ` (you have v${u.current})` : ''}.` +
-        (u.forced ? '\n\nThis is a critical update and is required to continue.' : '') +
-        (notes ? `\n\n${notes}` : '');
-      const buttons = u.forced
-        ? [{ text: 'Update now', onPress: openApk }]
-        : [
-            { text: 'Later', style: 'cancel' },
-            { text: 'Update now', onPress: openApk },
-          ];
-      Alert.alert(
-        u.forced ? 'Update required' : 'Update available',
-        body,
-        buttons,
-        { cancelable: !u.forced },
-      );
-    } catch {
-      Alert.alert('Check for Updates', 'Could not check for updates. Please try again later.');
-    } finally {
-      setUpdateChecking(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    setLoggingOut(true);
-    try {
-      await authService.logout();
-      // Navigation handled by App.tsx auth-state listener
-    } catch (err) {
-      showError(err.message || 'Could not log out.');
-    } finally {
-      setLoggingOut(false);
-    }
-  };
-
-  const Row = ({ icon, label, value, onPress, last }) => (
-    <TouchableOpacity
-      style={[styles.row, last && styles.rowLast]}
-      activeOpacity={0.7}
-      onPress={onPress}
-    >
-      <MCIcon name={icon} size={22} color={COLORS.textSecondary} />
-      <Text style={styles.rowLabel}>{label}</Text>
-      {value ? <Text style={styles.rowValue}>{value}</Text> : null}
-      <MCIcon name="chevron-right" size={22} color={COLORS.textMuted} />
-    </TouchableOpacity>
-  );
+  const displayName = doctor?.full_name ?? doctor?.name ?? 'Doctor';
+  const displayEmail = doctor?.email ?? '';
+  const avatarLetter = displayName.charAt(0).toUpperCase();
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Profile" />
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.card}>
-          <View style={styles.avatar}>
-            <MCIcon name="doctor" size={34} color={COLORS.primary} />
+      <StatusBar barStyle="light-content" backgroundColor={colors.headerBg} />
+
+      <ScrollView
+        style={styles.container}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 24 }}
+      >
+        {/* ── Header ── */}
+        <View style={styles.header}>
+          <View style={styles.profileRow}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarLetter}>{avatarLetter}</Text>
+            </View>
+            <View style={styles.profileInfo}>
+              <Text style={styles.profileName} numberOfLines={1}>{displayName}</Text>
+              <Text style={styles.profileEmail} numberOfLines={1}>{displayEmail}</Text>
+              <View style={styles.planBadge}>
+                <MCIcon name="stethoscope" size={12} color={colors.white} style={{ marginRight: 4 }} />
+                <Text style={styles.planText}>Doctor</Text>
+              </View>
+            </View>
           </View>
-          <Text style={styles.name}>{name}</Text>
-          {email ? <Text style={styles.email}>{email}</Text> : null}
+
+          {/* ── Trackers ── */}
+          <View style={styles.statsRow}>
+            <View style={[styles.statBox, styles.statBorder]}>
+              <Text style={styles.statValue}>{statsLoading ? '·' : (stats?.today ?? '—')}</Text>
+              <Text style={styles.statLabel}>Today</Text>
+            </View>
+            <View style={[styles.statBox, styles.statBorder]}>
+              <Text style={styles.statValue}>{statsLoading ? '·' : (stats?.upcoming ?? '—')}</Text>
+              <Text style={styles.statLabel}>Upcoming</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>{statsLoading ? '·' : (stats?.completed ?? '—')}</Text>
+              <Text style={styles.statLabel}>Completed</Text>
+            </View>
+          </View>
         </View>
 
-        <View style={styles.list}>
-          <Row icon="account-edit-outline" label="Edit profile" onPress={openEditProfile} />
-          <Row icon="lock-reset" label="Change password" onPress={openChangePassword} />
-          <Row
-            icon="cloud-download-outline"
-            label="Check for updates"
-            value={updateChecking ? 'Checking…' : `v${APP_VERSION}`}
-            onPress={handleCheckForUpdate}
-          />
-          <Row
-            icon="lifebuoy"
-            label="Help & support"
-            onPress={() => Alert.alert('Help & Support', 'Reach the Purnazen team at support@purnazen.com.')}
-            last
-          />
+        {/* ── Menu ── */}
+        <View style={styles.menuSection}>
+          {MENU_ITEMS.map((item) => (
+            <TouchableOpacity
+              key={item.title}
+              style={styles.menuCard}
+              activeOpacity={0.7}
+              onPress={item.onPress}
+            >
+              <View style={[styles.menuIconCircle, { backgroundColor: soft(item.iconColor) }]}>
+                <MCIcon name={item.icon} size={20} color={item.iconColor} />
+              </View>
+              <View style={styles.menuInfo}>
+                <Text style={styles.menuTitle}>{item.title}</Text>
+                <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+              </View>
+              <MCIcon name="chevron-right" size={20} color={colors.borderStrong} />
+            </TouchableOpacity>
+          ))}
         </View>
 
+        {/* ── Logout ── */}
         <TouchableOpacity
           style={styles.logoutBtn}
-          activeOpacity={0.85}
+          activeOpacity={0.8}
           onPress={handleLogout}
-          disabled={loggingOut}>
-          {loggingOut ? (
-            <ActivityIndicator color={COLORS.danger} />
-          ) : (
-            <>
-              <MCIcon name="logout" size={20} color={COLORS.danger} />
-              <Text style={styles.logoutText}>Log out</Text>
-            </>
-          )}
+        >
+          <MCIcon name="logout" size={18} color={colors.danger} style={{ marginRight: 8 }} />
+          <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
 
-        <Text style={styles.note}>Purnazen Doctor v{APP_VERSION}</Text>
       </ScrollView>
-
-      {/* Edit Profile modal */}
-      <Modal visible={showEditProfile} transparent animationType="fade"
-        onRequestClose={() => setShowEditProfile(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Edit Profile</Text>
-            <Text style={styles.modalLabel}>Full Name</Text>
-            <TextInput
-              style={styles.modalInput}
-              value={fullName}
-              onChangeText={text => { setFullName(text); setFormError(''); }}
-              placeholder="Your name"
-              placeholderTextColor={COLORS.textMuted}
-            />
-            {formError ? <Text style={styles.modalError}>{formError}</Text> : null}
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalBtn, styles.modalBtnCancel]}
-                onPress={() => setShowEditProfile(false)}
-              >
-                <Text style={styles.modalBtnCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalBtn, styles.modalBtnSave]}
-                onPress={handleSaveProfile}
-                disabled={isSubmitting}
-              >
-                {isSubmitting
-                  ? <ActivityIndicator size="small" color={COLORS.white} />
-                  : <Text style={styles.modalBtnSaveText}>Save</Text>}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Change Password modal */}
-      <Modal visible={showChangePassword} transparent animationType="fade"
-        onRequestClose={() => setShowChangePassword(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Change Password</Text>
-            <Text style={styles.modalLabel}>Current Password</Text>
-            <TextInput
-              style={styles.modalInput}
-              value={currentPassword}
-              onChangeText={text => { setCurrentPassword(text); setFormError(''); }}
-              secureTextEntry
-              placeholder="Current password"
-              placeholderTextColor={COLORS.textMuted}
-            />
-            <Text style={styles.modalLabel}>New Password</Text>
-            <TextInput
-              style={styles.modalInput}
-              value={newPassword}
-              onChangeText={text => { setNewPassword(text); setFormError(''); }}
-              secureTextEntry
-              placeholder="At least 6 characters"
-              placeholderTextColor={COLORS.textMuted}
-            />
-            <Text style={styles.modalLabel}>Confirm New Password</Text>
-            <TextInput
-              style={styles.modalInput}
-              value={confirmPassword}
-              onChangeText={text => { setConfirmPassword(text); setFormError(''); }}
-              secureTextEntry
-              placeholder="Repeat new password"
-              placeholderTextColor={COLORS.textMuted}
-            />
-            {formError ? <Text style={styles.modalError}>{formError}</Text> : null}
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalBtn, styles.modalBtnCancel]}
-                onPress={() => setShowChangePassword(false)}
-              >
-                <Text style={styles.modalBtnCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalBtn, styles.modalBtnSave]}
-                onPress={handleChangePassword}
-                disabled={isSubmitting}
-              >
-                {isSubmitting
-                  ? <ActivityIndicator size="small" color={COLORS.white} />
-                  : <Text style={styles.modalBtnSaveText}>Update</Text>}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 };
 
 export default ProfileScreen;
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
-  scroll: { padding: SPACING.lg },
-  card: {
-    backgroundColor: COLORS.white,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    padding: SPACING.xl,
-    alignItems: 'center',
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1 },
+
+  header: {
+    backgroundColor: colors.headerBg,
+    paddingTop: 56,
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
-  avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: COLORS.primaryFaint,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: SPACING.md,
-  },
-  name: { fontSize: 19, fontWeight: '800', color: COLORS.textPrimary },
-  email: { fontSize: 13.5, color: COLORS.textSecondary, marginTop: 4 },
-  list: {
-    backgroundColor: COLORS.white,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    marginTop: SPACING.lg,
-    overflow: 'hidden',
-  },
-  row: {
+  profileRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.md,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: 15,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: COLORS.border,
+    marginBottom: 20,
   },
-  rowLast: { borderBottomWidth: 0 },
-  rowLabel: { flex: 1, fontSize: 15, color: COLORS.textPrimary },
-  rowValue: { fontSize: 13, color: COLORS.textMuted, fontWeight: '500' },
+  avatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  avatarLetter: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.white,
+  },
+  profileInfo: { flex: 1 },
+  profileName: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.white,
+  },
+  profileEmail: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 2,
+  },
+  planBadge: {
+    marginTop: 6,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 20,
+  },
+  planText: {
+    fontSize: 11,
+    color: colors.white,
+    fontWeight: '600',
+  },
+
+  statsRow: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 16,
+    paddingVertical: 16,
+  },
+  statBox: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statBorder: {
+    borderRightWidth: 1,
+    borderRightColor: 'rgba(255,255,255,0.3)',
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.white,
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.8)',
+  },
+
+  menuSection: {
+    marginHorizontal: 16,
+    marginTop: 20,
+    gap: 10,
+  },
+  menuCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  menuIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  menuInfo: { flex: 1 },
+  menuTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  menuSubtitle: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 1,
+  },
+
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    backgroundColor: COLORS.white,
-    borderRadius: RADIUS.md,
+    marginHorizontal: 16,
+    marginTop: 16,
     borderWidth: 1,
-    borderColor: '#fecaca',
-    paddingVertical: 15,
-    marginTop: SPACING.lg,
+    borderColor: soft(colors.danger),
+    borderRadius: 16,
+    paddingVertical: 16,
+    backgroundColor: soft(colors.danger),
   },
-  logoutText: { fontSize: 15, fontWeight: '800', color: COLORS.danger },
-  note: { fontSize: 12, color: COLORS.textMuted, textAlign: 'center', marginTop: SPACING.lg },
-
-  // Modal forms (edit profile / change password) — admin plain-modal style.
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-  },
-  modalCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: 18,
-    padding: 20,
-  },
-  modalTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-    marginBottom: 16,
-  },
-  modalLabel: {
-    fontSize: 12,
+  logoutText: {
+    fontSize: 15,
     fontWeight: '600',
-    color: COLORS.textSecondary,
-    marginBottom: 6,
-    marginTop: 8,
+    color: colors.danger,
   },
-  modalInput: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    fontSize: 14,
-    color: COLORS.textPrimary,
-    backgroundColor: '#fafafa',
-  },
-  modalError: {
-    fontSize: 12,
-    color: COLORS.danger,
-    marginTop: 10,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 10,
-    marginTop: 20,
-  },
-  modalBtn: {
-    paddingHorizontal: 18,
-    paddingVertical: 11,
-    borderRadius: 10,
-  },
-  modalBtnCancel: { backgroundColor: COLORS.surfaceMuted },
-  modalBtnSave: { backgroundColor: COLORS.primary, minWidth: 80, alignItems: 'center' },
-  modalBtnCancelText: { fontSize: 14, fontWeight: '600', color: COLORS.textSecondary },
-  modalBtnSaveText: { fontSize: 14, fontWeight: '600', color: COLORS.white },
 });

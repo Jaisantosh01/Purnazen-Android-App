@@ -63,7 +63,7 @@ const LoginScreen = ({ navigation }) => {
     setIsLoading(true);
     try {
       await authService.login(email.trim(), password);
-      navigation.replace('Main');
+      // Auth-state flip in authStore swaps the root navigator to Main (App.tsx).
     } catch (err) {
       setError(err.message || 'Login failed. Please try again.');
     } finally {

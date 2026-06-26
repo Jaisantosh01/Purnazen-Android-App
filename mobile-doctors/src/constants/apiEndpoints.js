@@ -18,6 +18,9 @@ export const ENDPOINTS = {
   ME: `${API_VERSION}/auth/me`,
   CHANGE_PASSWORD: `${API_VERSION}/auth/change-password`,
 
+  // User preferences (user-scoped; the shared route serves any authenticated role)
+  PREFERENCES: `${API_VERSION}/users/me/preferences`,
+
   // Doctor directory / profile
   DOCTORS: `${API_VERSION}/doctors`,
   DOCTOR_DETAIL: id => `${API_VERSION}/doctors/${id}`,

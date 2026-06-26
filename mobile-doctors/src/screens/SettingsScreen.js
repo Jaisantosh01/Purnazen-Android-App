@@ -54,7 +54,7 @@ const LANGUAGES = [
 const languageLabel = code => (LANGUAGES.find(l => l.code === code) || LANGUAGES[0]).label;
 
 const SettingsScreen = ({ navigation }) => {
-  const user = useAuthStore(state => state.user);
+  const doctor = useAuthStore(state => state.doctor);
   const { colors, isDark, setMode } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
@@ -158,7 +158,7 @@ const SettingsScreen = ({ navigation }) => {
       if (value) {
         const type = await biometricService.enable();
         setBiometric(true);
-        showAlert('Biometric Login Enabled', `You can now unlock Purnazen Admin with ${type || 'biometrics'}.`);
+        showAlert('Biometric Login Enabled', `You can now unlock Purnazen Doctor with ${type || 'biometrics'}.`);
       } else {
         await biometricService.disable();
         setBiometric(false);
@@ -189,13 +189,13 @@ const SettingsScreen = ({ navigation }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const openEditProfile = () => {
-    setFullName(user?.full_name || '');
+    setFullName(doctor?.full_name || '');
     setFormError('');
     setShowEditProfile(true);
   };
 
   const openEditPhone = () => {
-    setPhone(user?.phone || '');
+    setPhone(doctor?.phone || '');
     setFormError('');
     setShowEditPhone(true);
   };
@@ -299,7 +299,7 @@ const SettingsScreen = ({ navigation }) => {
   const openSupport = () =>
     showAlert(
       'Help & Support',
-      `Reach the Purnazen team at ${SUPPORT_EMAIL} for help with the admin console.`,
+      `Reach the Purnazen team at ${SUPPORT_EMAIL} for help with the doctor app.`,
     );
 
   const handleLogout = () => {
@@ -357,7 +357,7 @@ const SettingsScreen = ({ navigation }) => {
               hue={HUES.blue}
               title="Phone Number"
               subtitle="Linked mobile number"
-              valueText={user?.phone || 'NA'}
+              valueText={doctor?.phone || 'NA'}
               onPress={openEditPhone}
             />
             <View style={styles.rowDivider} />
@@ -366,8 +366,8 @@ const SettingsScreen = ({ navigation }) => {
               hue={HUES.amber}
               title="Email Address"
               subtitle="Linked email"
-              valueText={user?.email || 'NA'}
-              onPress={() => showAlert('Email Address', 'Contact a super-admin to change your account email.')}
+              valueText={doctor?.email || 'NA'}
+              onPress={() => showAlert('Email Address', 'Contact an admin to change your account email.')}
             />
           </View>
         </View>
@@ -464,7 +464,7 @@ const SettingsScreen = ({ navigation }) => {
           </View>
         </View>
 
-        <Text style={styles.version}>Purnazen Admin v{APP_VERSION}</Text>
+        <Text style={styles.version}>Purnazen Doctor v{APP_VERSION}</Text>
       </ScrollView>
 
       {/* Edit Profile modal */}

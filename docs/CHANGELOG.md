@@ -2,6 +2,53 @@
 
 All notable changes to the Purnazen App are documented here.
 
+## [2026-06-26] — Admin & Doctor app Profile/Settings parity (theme, biometric, alerts, trackers)
+
+Brought the **admin** (`mobile-admin`) and **doctor** (`mobile-doctors`) apps up to
+the patient app's Profile/Settings standard, keeping each app's brand color
+(admin burnt-orange, doctor clinical-blue) while sharing the same UX system.
+
+### Added — shared infrastructure (ported from `mobile-users`)
+- **Dark mode**: each app's `constants/theme.js` refactored into
+  `LIGHT_COLORS`/`DARK_COLORS` + `getColors(scheme)` (static `COLORS` still exports
+  the light palette for unmigrated screens). New `store/themeStore.js` (persisted
+  `light`/`dark`/`system`) + `hooks/useTheme.js`. `App.tsx` hydrates the theme,
+  feeds the palette into `NavigationContainer` + the bottom tab bar, and the
+  Settings "Dark Mode" toggle is now real.
+- **Biometric login**: `services/biometricService.js` (react-native-keychain
+  ACCESS_CONTROL; per-app keychain service id). Bootstrap requires fingerprint /
+  Face ID before unlocking a restored session (fail-closed → Login); Settings
+  toggle enrols/disenrols with a real OS prompt.
+- **Themed alerts**: `utils/alert.js` (`showAlert`/`showConfirm`) + globally
+  mounted `components/AppAlertHost.js`, replacing dated native `Alert.alert`.
+- **Preferences**: `services/preferencesService.js` persists push/appointment/
+  language prefs to `PUT /users/me/preferences` (added `PREFERENCES` to the doctor
+  endpoints).
+
+### Added — profile trackers
+- **Admin** profile shows live **Doctors / Users / Appointments-today** from
+  `GET /admin/stats` (fixes the previous permanently-stuck loading skeleton).
+- **Doctor** profile shows **Today / Upcoming / Completed** derived from the
+  doctor's own appointment list.
+
+### Changed
+- **Settings** reworked on both apps to the themed `ToggleRow`/`ArrowRow` card UI
+  with real Edit Profile, **editable Phone** (`updateProfile({ phone })`), Change
+  Password, Dark Mode, Biometric, Language, Check-for-Updates, and Help & Support.
+  Patient-only rows dropped (session reminders, promotional emails, location/
+  address, privacy/data consent, download-my-data).
+- **Doctor** app gained a `ProfileStack` (Profile → Settings); admin/doctor root
+  navigators are now session-aware (auth-state flip drives Login↔Main, so
+  `LoginScreen`/`RegisterScreen` no longer imperatively `replace('Main')`).
+- **Delete Account** intentionally omitted from both staff apps (accounts are
+  provisioned server-side; the doctor app has no delete API).
+
+### Docs
+- Removed stale `docs/SCREENS.md` (user-app "all 20 screens" inventory, superseded
+  by FEATURES.md; the app now has 30+ screens).
+- Updated `SRS_AUDIT.md`, `FEATURES.md`, `ARCHITECTURE.md` and the per-app READMEs
+  to reflect the native admin/doctor apps.
+
 ## [2026-06-19] — Rebrand to com.purnazen, app icon, dark mode, biometric login, header polish
 
 ### Changed — package rename `wellness` → `purnazen`

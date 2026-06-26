@@ -41,7 +41,7 @@ describe('RegisterScreen', () => {
     expect(findButtonByText(tree.root, 'Sign Up')).toBeTruthy();
   });
 
-  it('registers and lands on Main on success', async () => {
+  it('registers on success (nav is driven by the auth-state flip, not replace)', async () => {
     authService.register.mockResolvedValueOnce({ id: 1 });
     let tree;
     await ReactTestRenderer.act(async () => {
@@ -63,7 +63,9 @@ describe('RegisterScreen', () => {
       'new@example.com',
       'secret123',
     );
-    expect(navigation.replace).toHaveBeenCalledWith('Main');
+    // The root navigator (App.tsx) swaps to Main when authStore.isLoggedIn flips,
+    // so the screen no longer imperatively replaces to 'Main'.
+    expect(navigation.replace).not.toHaveBeenCalled();
   });
 
   it('blocks mismatched passwords without calling the API', async () => {
