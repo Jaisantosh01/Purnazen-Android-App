@@ -12,6 +12,7 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
 import useConsultationStore from '../store/consultationStore';
+import { showError } from '../utils/toast';
 import { COLORS, SPACING, RADIUS } from '../constants/theme';
 
 const PrescriptionEditorScreen = ({ route, navigation }) => {
@@ -23,16 +24,23 @@ const PrescriptionEditorScreen = ({ route, navigation }) => {
 
   const existing = mode === 'edit' ? records.find(r => r.id === recordId) : null;
   const [text, setText] = useState(existing?.content || '');
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const trimmed = text.trim();
-    if (!trimmed) return;
-    if (mode === 'edit' && recordId) {
-      updateRecord(recordId, trimmed);
-    } else {
-      addRecord(trimmed);
+    if (!trimmed || saving) return;
+    setSaving(true);
+    try {
+      if (mode === 'edit' && recordId) {
+        await updateRecord(recordId, trimmed);
+      } else {
+        await addRecord(trimmed);
+      }
+      navigation.goBack();
+    } catch (err) {
+      showError(err?.message || 'Could not save. Please try again.');
+      setSaving(false);
     }
-    navigation.goBack();
   };
 
   return (
@@ -64,12 +72,12 @@ const PrescriptionEditorScreen = ({ route, navigation }) => {
 
         <View style={styles.footer}>
           <TouchableOpacity
-            style={[styles.saveBtn, !text.trim() && styles.btnDisabled]}
+            style={[styles.saveBtn, (!text.trim() || saving) && styles.btnDisabled]}
             activeOpacity={0.85}
-            disabled={!text.trim()}
+            disabled={!text.trim() || saving}
             onPress={handleSave}>
             <MCIcon name="content-save-outline" size={20} color={COLORS.white} />
-            <Text style={styles.saveBtnText}>Save</Text>
+            <Text style={styles.saveBtnText}>{saving ? 'Saving…' : 'Save'}</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

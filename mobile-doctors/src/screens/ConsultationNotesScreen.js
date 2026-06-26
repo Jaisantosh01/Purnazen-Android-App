@@ -151,15 +151,21 @@ const ConsultationNotesScreen = ({ route, navigation }) => {
   const doctorNotes = useConsultationStore(s => s.doctorNotes);
   const diagnoses = useConsultationStore(s => s.diagnoses);
   const prescriptions = useConsultationStore(s => s.prescriptions);
+  const loading = useConsultationStore(s => s.loading);
+  const hydrate = useConsultationStore(s => s.hydrate);
   const reset = useConsultationStore(s => s.reset);
   const deleteDoctorNote = useConsultationStore(s => s.deleteDoctorNote);
   const deleteDiagnosis = useConsultationStore(s => s.deleteDiagnosis);
   const deletePrescription = useConsultationStore(s => s.deletePrescription);
 
-  // Reset on first mount (new consultation)
+  // Load this appointment's saved records on mount.
   useEffect(() => {
-    reset();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    if (appointment?.id) {
+      hydrate(appointment.id).catch(e => showError(e?.message || 'Could not load records.'));
+    } else {
+      reset();
+    }
+  }, [appointment?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const storeArrays = { doctorNotes, diagnoses, prescriptions };
   const deleteActions = { deleteDoctorNote, deleteDiagnosis, deletePrescription };
@@ -187,7 +193,13 @@ const ConsultationNotesScreen = ({ route, navigation }) => {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => deleteActions[deleteAction](recordId),
+          onPress: async () => {
+            try {
+              await deleteActions[deleteAction](recordId);
+            } catch (e) {
+              showError(e?.message || 'Could not delete record.');
+            }
+          },
         },
       ],
     );
@@ -222,7 +234,11 @@ const ConsultationNotesScreen = ({ route, navigation }) => {
         }
       />
 
-      {!hasRecords ? (
+      {loading ? (
+        <View style={styles.emptyWrap}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      ) : !hasRecords ? (
         /* ── Empty State ──────────────────────────────────────────────────── */
         <View style={styles.emptyWrap}>
           <TouchableOpacity

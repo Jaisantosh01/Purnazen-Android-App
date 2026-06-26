@@ -36,6 +36,10 @@ export const ENDPOINTS = {
   APPOINTMENTS_DOCTOR: `${API_VERSION}/appointments/doctor`,
   APPOINTMENT_DETAIL: id => `${API_VERSION}/appointments/${id}`,
 
+  // Clinical records (doctor notes / diagnosis / prescription) for an appointment
+  CONSULTATION_RECORDS: id => `${API_VERSION}/appointments/${id}/records`,
+  CONSULTATION_RECORD: (id, recordId) => `${API_VERSION}/appointments/${id}/records/${recordId}`,
+
   // Patients — a doctor's patients view (TODO: backend endpoint).
   PATIENTS: `${API_VERSION}/patients`,
   PATIENT_DETAIL: id => `${API_VERSION}/patients/${id}`,

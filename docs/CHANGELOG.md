@@ -2,6 +2,31 @@
 
 All notable changes to the Purnazen App are documented here.
 
+## [2026-06-26] — Doctor app features (Dashboard, Patients, clinical records) + sign-up polish
+
+### Added — clinical records (notes / diagnosis / prescription) persistence
+- **Backend:** new `consultation_records` table + model, schema, repository,
+  service and doctor-scoped endpoints under
+  `/appointments/{id}/records` (GET/POST and `/{record_id}` PUT/DELETE). Records
+  are owner-checked (a doctor can only touch their own appointments') and
+  soft-deleted. Migration `f3a4b5c6d7e8` (**run migrations + redeploy** to apply).
+- **Doctor app:** the Consultation Notes flow now persists — `consultationStore`
+  is API-backed via a new `consultationService`; records load on open and
+  add/edit/delete save to the server (were previously in-memory only).
+
+### Added — doctor app screens
+- **Dashboard:** real data from `GET /appointments/doctor` — today's count,
+  pending requests, active patients, a today's-schedule list (tap → patient
+  detail) and pull-to-refresh (replaces the hardcoded scaffold).
+- **Patients tab + patient profile:** real screens. The roster is derived from
+  the doctor's appointment feed (no separate patients table); profile shows full
+  details (`GET /users/:id`) + visit history. Replaces the placeholders.
+
+### Changed — user app sign-up
+- `RegisterScreen` rebuilt on `LoginScreen`'s keyboard-aware pattern: fixes the
+  empty band below the form and keyboard overlap; adds an inline password-match
+  indicator. The root navigators (admin/doctor) drive Login↔Main from auth state.
+
 ## [2026-06-26] — Admin & Doctor app Profile/Settings parity (theme, biometric, alerts, trackers)
 
 Brought the **admin** (`mobile-admin`) and **doctor** (`mobile-doctors`) apps up to
