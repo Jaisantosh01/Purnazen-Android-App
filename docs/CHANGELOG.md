@@ -2,6 +2,35 @@
 
 All notable changes to the Purnazen App are documented here.
 
+## [2026-06-26] — OTA updates from private Azure Blob (no more public GitHub releases)
+
+The in-app "Check for Updates" polled the **private** prod repo's GitHub Releases
+API, which 401s unauthenticated — so updates never surfaced in prod. Replaced with
+a backend-brokered flow against a **private** blob container. Full setup +
+runbook: [OTA_RELEASES.md](OTA_RELEASES.md).
+
+### Added — backend
+- `app_releases` table + model/schema/repository/service and endpoints under
+  `/app-releases`: JWT-gated `GET /latest?app=<slug>` and
+  `GET /<slug>/<version>/download` (mints a ~15-min read-only SAS via the existing
+  `azure_storage` helper), plus a CI-only `POST /app-releases` guarded by an
+  `X-Release-Token` header. Keeps the newest `RELEASE_KEEP_VERSIONS` (4) per app.
+  Migration `a4b5c6d7e8f9`. New config: `AZURE_RELEASES_CONTAINER_NAME`,
+  `AZURE_RELEASE_SAS_EXPIRY_MINUTES`, `RELEASE_REGISTER_TOKEN`, `RELEASE_KEEP_VERSIONS`.
+
+### Changed — apps & CI
+- All three `updateService.js` now poll the backend (api client, JWT attached)
+  instead of the GitHub API; force-update still supported via a `forced` flag.
+- `release-mobile.yml`: after the signed build, logs in to Azure via **OIDC** and
+  uploads the APK to the private `app-releases` container, then registers the
+  version with the backend. Steps are skipped until `AZURE_STORAGE_ACCOUNT` is set,
+  so they're non-breaking before infra is configured.
+
+### Security
+- Container stays private; per-request short-lived read-only SAS; storage key
+  never leaves the server; CI uses OIDC (no long-lived cloud secret). Codebase
+  stays private throughout.
+
 ## [2026-06-26] — Doctor app features (Dashboard, Patients, clinical records) + sign-up polish
 
 ### Added — clinical records (notes / diagnosis / prescription) persistence
