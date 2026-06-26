@@ -6,8 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
-  Alert,
 } from 'react-native';
+import { showAlert } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
@@ -163,7 +163,7 @@ const FaceGlowScreen = ({ navigation }) => {
                   </View>
                   <TouchableOpacity
                     style={styles.playBtn}
-                    onPress={() => Alert.alert(routine.title, 'Starting routine!')}
+                    onPress={() => showAlert(routine.title, 'Starting routine!')}
                   >
                     <MCIcon name="play" size={14} color={GLOW} />
                   </TouchableOpacity>

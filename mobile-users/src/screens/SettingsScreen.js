@@ -6,12 +6,12 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
-  Alert,
   Linking,
   Modal,
   TextInput,
   ActivityIndicator,
 } from 'react-native';
+import { showAlert } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import authService from '../services/authService';
@@ -169,6 +169,11 @@ const SettingsScreen = ({ navigation }) => {
   const { colors, isDark, setMode } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
+  // Features that are designed but not yet functional get an honest placeholder
+  // instead of a dead tap or a faked success message.
+  const comingSoon = label =>
+    showAlert('Coming soon', `${label} will be available in an upcoming update.`);
+
   // Inline rows so they pick up the active (themed) styles + palette.
   const SectionHeader = ({ title }) => (
     <Text style={styles.sectionHeader}>{title}</Text>
@@ -291,7 +296,7 @@ const SettingsScreen = ({ navigation }) => {
       setLocationAccess(granted);
       savePreference({ locationEnabled: granted });
       if (!granted) {
-        Alert.alert(
+        showAlert(
           'Location Permission',
           'Location access was not granted. You can enable it from your device Settings.',
         );
@@ -313,14 +318,14 @@ const SettingsScreen = ({ navigation }) => {
       if (value) {
         const type = await biometricService.enable();
         setBiometric(true);
-        Alert.alert('Biometric Login Enabled', `You can now unlock Purnazen with ${type || 'biometrics'}.`);
+        showAlert('Biometric Login Enabled', `You can now unlock Purnazen with ${type || 'biometrics'}.`);
       } else {
         await biometricService.disable();
         setBiometric(false);
       }
     } catch (err) {
       setBiometric(false);
-      Alert.alert('Biometric Login', err.message || 'Could not update biometric login.');
+      showAlert('Biometric Login', err.message || 'Could not update biometric login.');
     } finally {
       setBiometricBusy(false);
     }
@@ -367,7 +372,7 @@ const SettingsScreen = ({ navigation }) => {
     try {
       await authService.updateProfile({ phone: trimmed });
       setShowEditPhone(false);
-      Alert.alert('Phone Updated', 'Your phone number has been saved.');
+      showAlert('Phone Updated', 'Your phone number has been saved.');
     } catch (err) {
       setFormError(err.message || 'Could not update phone number.');
     } finally {
@@ -389,7 +394,7 @@ const SettingsScreen = ({ navigation }) => {
     try {
       await authService.updateProfile({ fullName: fullName.trim() });
       setShowEditProfile(false);
-      Alert.alert('Profile Updated', 'Your name has been updated.');
+      showAlert('Profile Updated', 'Your name has been updated.');
     } catch (err) {
       setFormError(err.message || 'Profile update failed.');
     } finally {
@@ -405,7 +410,7 @@ const SettingsScreen = ({ navigation }) => {
     try {
       await authService.changePassword(currentPassword, newPassword);
       setShowChangePassword(false);
-      Alert.alert('Password Changed', 'Your password has been updated.');
+      showAlert('Password Changed', 'Your password has been updated.');
     } catch (err) {
       setFormError(err.message || 'Password change failed.');
     } finally {
@@ -423,7 +428,7 @@ const SettingsScreen = ({ navigation }) => {
     try {
       const u = await checkForUpdate({ force: true });
       if (!u) {
-        Alert.alert('Up to date', `You're on the latest version (v${APP_VERSION}).`);
+        showAlert('Up to date', `You're on the latest version (v${APP_VERSION}).`);
         return;
       }
       const openApk = () => { Linking.openURL(u.apkUrl).catch(() => {}); };
@@ -442,21 +447,21 @@ const SettingsScreen = ({ navigation }) => {
             { text: 'Later', style: 'cancel' },
             { text: 'Update now', onPress: openApk },
           ];
-      Alert.alert(
+      showAlert(
         u.forced ? 'Update required' : 'Update available',
         body,
         buttons,
         { cancelable: !u.forced },
       );
     } catch {
-      Alert.alert('Check for Updates', 'Could not check for updates. Please try again later.');
+      showAlert('Check for Updates', 'Could not check for updates. Please try again later.');
     } finally {
       setUpdateChecking(false);
     }
   };
 
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure?', [
+    showAlert('Logout', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Logout',
@@ -470,7 +475,7 @@ const SettingsScreen = ({ navigation }) => {
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert(
+    showAlert(
       'Delete Account',
       'This will permanently delete your account and all your data. This action cannot be undone.',
       [
@@ -483,7 +488,7 @@ const SettingsScreen = ({ navigation }) => {
               await authService.deleteAccount();
               resetToLogin();
             } catch (err) {
-              Alert.alert('Deletion Failed', err.message || 'Please try again later.');
+              showAlert('Deletion Failed', err.message || 'Please try again later.');
             }
           },
         },
@@ -531,7 +536,7 @@ const SettingsScreen = ({ navigation }) => {
               title="Email Address"
               subtitle="Linked email"
               valueText={user?.email || 'NA'}
-              onPress={() => {}}
+              onPress={() => comingSoon('Changing your email address')}
             />
           </View>
         </View>
@@ -646,7 +651,7 @@ const SettingsScreen = ({ navigation }) => {
               hue={HUES.blue}
               title="Download My Data"
               subtitle="Export your health records"
-              onPress={() => Alert.alert('Download Data', 'Your data export will be emailed within 24 hours.')}
+              onPress={() => comingSoon('Exporting your data')}
             />
           </View>
         </View>

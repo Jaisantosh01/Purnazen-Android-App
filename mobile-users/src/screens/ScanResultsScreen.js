@@ -8,8 +8,8 @@ import {
   TouchableOpacity,
   StatusBar,
   Share,
-  Alert,
 } from 'react-native';
+import { showAlert } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import MetricScoreRow from '../components/scan/MetricScoreRow';
@@ -88,7 +88,7 @@ const ScanResultsScreen = ({ navigation, route }) => {
   const shownUri = showEnhanced && canShowEnhanced ? enhancedUri : originalUri;
 
   const handleRoutinePress = (routineKey) => {
-    Alert.alert('Routine', `Opening ${routineKey} routine…`);
+    showAlert('Routine', `Opening ${routineKey} routine…`);
   };
 
   const handleShare = async () => {

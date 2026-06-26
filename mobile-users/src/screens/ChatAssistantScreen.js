@@ -5,17 +5,18 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
+  StatusBar,
   ActivityIndicator,
-  Animated,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import useTheme from '../hooks/useTheme';
 
 const ChatAssistantScreen = ({ route, navigation }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { startQuestionId, reliefTitle } = route.params;
 
@@ -98,8 +99,10 @@ const ChatAssistantScreen = ({ route, navigation }) => {
                 key={idx}
                 style={styles.optionBtn}
                 onPress={() => handleOptionSelect(opt)}
+                activeOpacity={0.85}
               >
                 <Text style={styles.optionText}>{opt.optionText}</Text>
+                <MCIcon name="arrow-right" size={16} color={colors.primary} />
               </TouchableOpacity>
             ))}
           </View>
@@ -109,10 +112,16 @@ const ChatAssistantScreen = ({ route, navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.root}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <MCIcon name="arrow-left" size={24} color={colors.textPrimary} />
+    <View style={styles.root}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.card} />
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 8 }]}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backBtn}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          activeOpacity={0.7}
+        >
+          <MCIcon name="arrow-left" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <View style={styles.headerIcon}>
@@ -134,7 +143,7 @@ const ChatAssistantScreen = ({ route, navigation }) => {
       </ScrollView>
 
       {history[history.length - 1]?.isFinal && (
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) + 4 }]}>
            <TouchableOpacity 
             style={styles.startSessionBtn}
             onPress={() => {
@@ -154,7 +163,7 @@ const ChatAssistantScreen = ({ route, navigation }) => {
            </TouchableOpacity>
         </View>
       )}
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -260,18 +269,22 @@ const makeStyles = colors => StyleSheet.create({
     gap: 8,
   },
   optionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
     backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 20,
-    paddingVertical: 10,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderRadius: 14,
+    paddingVertical: 13,
     paddingHorizontal: 16,
-    alignItems: 'flex-start',
   },
   optionText: {
+    flex: 1,
     fontSize: 14,
     color: colors.textPrimary,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   startSessionBtn: {
     backgroundColor: colors.primary,

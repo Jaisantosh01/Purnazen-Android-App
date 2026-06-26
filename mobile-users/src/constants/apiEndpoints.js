@@ -58,6 +58,9 @@ export const ENDPOINTS = {
   // Consent
   CONSENT: `${API_VERSION}/consent`,
 
+  // Help & Support (admin-configurable contacts + FAQs)
+  SUPPORT_HELP: `${API_VERSION}/support/help`,
+
   // Error reporting
   ERROR_REPORT: `${API_VERSION}/errors/report`,
 

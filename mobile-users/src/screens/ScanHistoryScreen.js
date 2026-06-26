@@ -8,8 +8,8 @@ import {
   StatusBar,
   ActivityIndicator,
   RefreshControl,
-  Alert,
 } from 'react-native';
+import { showAlert } from '../utils/alert';
 import Svg, { Polyline, Circle, Line as SvgLine } from 'react-native-svg';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -90,7 +90,7 @@ const ScanHistoryScreen = ({ navigation }) => {
 
   const openScan = async (item) => {
     if (item.status !== 'completed') {
-      Alert.alert('Not ready', 'This scan didn’t finish analysing.');
+      showAlert('Not ready', 'This scan didn’t finish analysing.');
       return;
     }
     setOpening(true);
@@ -98,14 +98,14 @@ const ScanHistoryScreen = ({ navigation }) => {
       const payload = await scanService.getScanStatus(item.id);
       navigation.navigate('ScanResults', { scan: payload });
     } catch (e) {
-      Alert.alert('Error', 'Could not open this scan. Please try again.');
+      showAlert('Error', 'Could not open this scan. Please try again.');
     } finally {
       setOpening(false);
     }
   };
 
   const confirmDelete = (item) => {
-    Alert.alert('Delete scan?', 'This permanently removes the scan and its results.', [
+    showAlert('Delete scan?', 'This permanently removes the scan and its results.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -116,7 +116,7 @@ const ScanHistoryScreen = ({ navigation }) => {
             removeScanFromHistory(item.id);
             setItems(prev => prev.filter(s => s.id !== item.id));
           } catch (e) {
-            Alert.alert('Error', 'Could not delete this scan.');
+            showAlert('Error', 'Could not delete this scan.');
           }
         },
       },
