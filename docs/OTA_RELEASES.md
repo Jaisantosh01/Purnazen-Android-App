@@ -56,8 +56,10 @@ Repository **variables**:
 
 ### 4. Backend — environment variables (Container App)
 - `AZURE_STORAGE_ACCOUNT_NAME`, `AZURE_STORAGE_ACCOUNT_KEY` — already set (reused).
-- `AZURE_RELEASES_CONTAINER_NAME=app-releases` (optional; defaults to that).
-- `RELEASE_REGISTER_TOKEN` — **same** value as the GitHub secret.
+- `RELEASE_REGISTER_TOKEN` (as a Container App secret `release-register-token`) and
+  `AZURE_RELEASES_CONTAINER_NAME` are **applied automatically by the Deploy Backend
+  workflow** from the repo secret/variable (`RELEASE_REGISTER_TOKEN` /
+  `AZURE_RELEASES_CONTAINER`) — no manual `az` step needed; just run a deploy.
 - Optional: `AZURE_RELEASE_SAS_EXPIRY_MINUTES` (default 15),
   `RELEASE_KEEP_VERSIONS` (default 4).
 
