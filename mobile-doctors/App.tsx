@@ -34,6 +34,8 @@ import DashboardScreen from './src/screens/DashboardScreen';
 import AppointmentsScreen from './src/screens/AppointmentsScreen';
 import AppointmentDetailScreen from './src/screens/AppointmentDetailScreen';
 import ScheduleScreen from './src/screens/ScheduleScreen';
+// @ts-ignore
+import AddAvailabilityScreen from './src/screens/AddAvailabilityScreen';
 import PatientsScreen from './src/screens/PatientsScreen';
 import PatientDetailScreen from './src/screens/PatientDetailScreen';
 import PatientDetailsScreen from './src/screens/PatientDetailsScreen';
@@ -118,7 +120,7 @@ function MainTabs() {
       })}>
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
       <Tab.Screen name="Appointments" component={AppointmentsStackNavigator} />
-      <Tab.Screen name="Schedule" component={ScheduleScreen} />
+      <Tab.Screen name="Schedule" component={ScheduleStackNavigator} />
       <Tab.Screen name="Patients" component={PatientsStackNavigator} />
       <Tab.Screen name="Profile" component={ProfileStackNavigator} />
     </Tab.Navigator>

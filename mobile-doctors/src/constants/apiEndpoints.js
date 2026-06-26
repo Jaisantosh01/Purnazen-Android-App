@@ -33,6 +33,7 @@ export const ENDPOINTS = {
   // Availability / schedule (backend: doctor_availability.py)
   AVAILABILITY: `${API_VERSION}/doctor-availability`,
   AVAILABILITY_ITEM: id => `${API_VERSION}/doctor-availability/${id}`,
+  SLOT_TIMINGS: `${API_VERSION}/slot-timings`,
 
   // Appointments (backend: appointments.py)
   // NOTE: backend currently exposes booking from the patient side; a
