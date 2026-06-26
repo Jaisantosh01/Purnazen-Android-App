@@ -51,6 +51,7 @@ const Tab = createBottomTabNavigator();
 const AppointmentsStack = createNativeStackNavigator();
 const PatientsStack = createNativeStackNavigator();
 const ProfileStack = createNativeStackNavigator();
+const ScheduleStack = createNativeStackNavigator();
 
 const TAB_ICONS: Record<string, { active: string; inactive: string }> = {
   Dashboard: { active: 'view-dashboard', inactive: 'view-dashboard-outline' },
@@ -89,6 +90,16 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="ProfileMain" component={ProfileScreen} />
       <ProfileStack.Screen name="Settings" component={SettingsScreen} />
     </ProfileStack.Navigator>
+  );
+}
+
+// Schedule feature (owned by a colleague) — kept wired alongside the Profile stack.
+function ScheduleStackNavigator() {
+  return (
+    <ScheduleStack.Navigator screenOptions={{ headerShown: false }}>
+      <ScheduleStack.Screen name="ScheduleMain" component={ScheduleScreen} />
+      <ScheduleStack.Screen name="AddAvailability" component={AddAvailabilityScreen} />
+    </ScheduleStack.Navigator>
   );
 }
 
