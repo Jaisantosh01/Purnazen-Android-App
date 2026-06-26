@@ -4,11 +4,11 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Alert,
   StatusBar,
   ActivityIndicator,
   Linking,
 } from 'react-native';
+import { showAlert } from '../utils/alert';
 import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
 import { launchImageLibrary } from 'react-native-image-picker';
 // @ts-ignore
@@ -126,12 +126,12 @@ const FaceScanScreen = ({ navigation, route }) => {
       await doUpload(uri);
     } catch (err) {
       if (err?.guidance) {
-        Alert.alert("Let's retake that", err.guidance, [{ text: 'Got it' }]);
+        showAlert("Let's retake that", err.guidance, [{ text: 'Got it' }]);
         return;
       }
       const msg = err?.response?.data?.message || err?.message || 'Upload failed';
       if (isConsentError(msg)) {
-        Alert.alert(
+        showAlert(
           'Storage Permission',
           'Allow Purnazen to store your scan results securely?',
           [
@@ -144,7 +144,7 @@ const FaceScanScreen = ({ navigation, route }) => {
                   await grantScanConsent();
                   await doUpload(uri);
                 } catch (e2) {
-                  Alert.alert('Error', e2?.response?.data?.message || e2?.message || 'Upload failed');
+                  showAlert('Error', e2?.response?.data?.message || e2?.message || 'Upload failed');
                 } finally {
                   setUploading(false);
                 }
@@ -153,7 +153,7 @@ const FaceScanScreen = ({ navigation, route }) => {
           ],
         );
       } else {
-        Alert.alert('Error', msg);
+        showAlert('Error', msg);
       }
     }
   };
@@ -169,7 +169,7 @@ const FaceScanScreen = ({ navigation, route }) => {
       await uploadWithConsentRetry(uri);
     } catch (err) {
       setCapturing(false);
-      Alert.alert('Error', err?.message || 'Failed to capture photo');
+      showAlert('Error', err?.message || 'Failed to capture photo');
     } finally {
       setUploading(false);
     }
@@ -191,7 +191,7 @@ const FaceScanScreen = ({ navigation, route }) => {
       });
       await uploadWithConsentRetry(uri);
     } catch (err) {
-      if (err?.message !== 'cancelled') Alert.alert('Error', err?.message || 'Failed to pick image');
+      if (err?.message !== 'cancelled') showAlert('Error', err?.message || 'Failed to pick image');
     } finally {
       setUploading(false);
     }

@@ -7,8 +7,8 @@ import {
   TouchableOpacity,
   TextInput,
   StatusBar,
-  Alert,
 } from 'react-native';
+import { showAlert } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import consultService from '../services/consultService';
@@ -133,7 +133,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
 
   const handleConfirm = async () => {
     if (!selectedDate || !selectedTime) {
-      Alert.alert('Missing Info', 'Please select a date and time slot.');
+      showAlert('Missing Info', 'Please select a date and time slot.');
       return;
     }
     const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(selectedDate).padStart(2, '0')}`;
@@ -156,7 +156,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
         appointmentId: booking?.id,
       });
     } catch (err) {
-      Alert.alert('Booking Failed', err.message);
+      showAlert('Booking Failed', err.message);
     }
   };
 

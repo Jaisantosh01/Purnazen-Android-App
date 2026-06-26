@@ -6,8 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
-  Alert,
 } from 'react-native';
+import { showAlert } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAuthStore } from '../store/authStore';
@@ -138,9 +138,9 @@ const SubscriptionsScreen = ({ navigation }) => {
               <TouchableOpacity
                 style={[styles.selectBtn, { backgroundColor: plan.color }]}
                 activeOpacity={0.85}
-                onPress={() => Alert.alert(`Upgrade to ${plan.name}`, `You'll be charged ${plan.price}${plan.period}. Proceed?`, [
+                onPress={() => showAlert(`Upgrade to ${plan.name}`, `You'll be charged ${plan.price}${plan.period}. Proceed?`, [
                   { text: 'Cancel', style: 'cancel' },
-                  { text: 'Upgrade', onPress: () => Alert.alert('Success', `Upgraded to ${plan.name}!`) },
+                  { text: 'Upgrade', onPress: () => showAlert('Success', `Upgraded to ${plan.name}!`) },
                 ])}
               >
                 <Text style={styles.selectBtnText}>Get {plan.name}</Text>

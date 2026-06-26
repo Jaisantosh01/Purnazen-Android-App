@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import SkeletonBox from '../components/SkeletonLoader';
@@ -18,6 +19,7 @@ import useTheme from '../hooks/useTheme';
 
 const ReliefScreen = ({ navigation }) => {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [items, setItems]             = useState([]);
   const [isLoading, setIsLoading]     = useState(true);
@@ -67,7 +69,7 @@ const ReliefScreen = ({ navigation }) => {
         }
       >
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 16 }]}>
           <Text style={styles.headerTitle}>Quick Relief</Text>
           <Text style={styles.headerSubtitle}>
             Instant acupressure therapy for common issues
@@ -127,8 +129,8 @@ const ReliefScreen = ({ navigation }) => {
                 </Text>
                 <Text style={styles.cardSubtitle}>{item.subtitle}</Text>
                 <View style={styles.cardFooter}>
-                  <Text style={[styles.sessions, { color: item.text_color || item.iconColor || colors.primary }]}>
-                    {item.sessions || item.session_count || 0} sessions
+                  <Text style={[styles.cardCta, { color: item.text_color || item.iconColor || colors.primary }]}>
+                    Start
                   </Text>
                   <MCIcon name="arrow-right" size={16} color={item.text_color || item.iconColor || colors.primary} />
                 </View>
@@ -147,7 +149,6 @@ const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   header: {
     backgroundColor: colors.headerBg,
-    paddingTop: 50,
     paddingHorizontal: SPACING.xl,
     paddingBottom: 28,
     borderBottomLeftRadius: RADIUS.lg,
@@ -183,7 +184,7 @@ const makeStyles = colors => StyleSheet.create({
   cardTitle:    { fontSize: 16, fontWeight: '700', marginBottom: SPACING.xs },
   cardSubtitle: { fontSize: 12, color: colors.textSecondary, marginBottom: 12, flexShrink: 1 },
   cardFooter:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sessions:     { fontSize: 12, fontWeight: '500' },
+  cardCta:      { fontSize: 12, fontWeight: '700' },
   errorBox: {
     alignItems: 'center',
     paddingVertical: 60,
