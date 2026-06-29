@@ -2,6 +2,107 @@
 
 All notable changes to the Purnazen App are documented here.
 
+## [2026-06-26] — OTA updates from private Azure Blob (no more public GitHub releases)
+
+The in-app "Check for Updates" polled the **private** prod repo's GitHub Releases
+API, which 401s unauthenticated — so updates never surfaced in prod. Replaced with
+a backend-brokered flow against a **private** blob container. Full setup +
+runbook: [OTA_RELEASES.md](OTA_RELEASES.md).
+
+### Added — backend
+- `app_releases` table + model/schema/repository/service and endpoints under
+  `/app-releases`: JWT-gated `GET /latest?app=<slug>` and
+  `GET /<slug>/<version>/download` (mints a ~15-min read-only SAS via the existing
+  `azure_storage` helper), plus a CI-only `POST /app-releases` guarded by an
+  `X-Release-Token` header. Keeps the newest `RELEASE_KEEP_VERSIONS` (4) per app.
+  Migration `a4b5c6d7e8f9`. New config: `AZURE_RELEASES_CONTAINER_NAME`,
+  `AZURE_RELEASE_SAS_EXPIRY_MINUTES`, `RELEASE_REGISTER_TOKEN`, `RELEASE_KEEP_VERSIONS`.
+
+### Changed — apps & CI
+- All three `updateService.js` now poll the backend (api client, JWT attached)
+  instead of the GitHub API; force-update still supported via a `forced` flag.
+- `release-mobile.yml`: after the signed build, logs in to Azure via **OIDC** and
+  uploads the APK to the private `app-releases` container, then registers the
+  version with the backend. Steps are skipped until `AZURE_STORAGE_ACCOUNT` is set,
+  so they're non-breaking before infra is configured.
+
+### Security
+- Container stays private; per-request short-lived read-only SAS; storage key
+  never leaves the server; CI uses OIDC (no long-lived cloud secret). Codebase
+  stays private throughout.
+
+## [2026-06-26] — Doctor app features (Dashboard, Patients, clinical records) + sign-up polish
+
+### Added — clinical records (notes / diagnosis / prescription) persistence
+- **Backend:** new `consultation_records` table + model, schema, repository,
+  service and doctor-scoped endpoints under
+  `/appointments/{id}/records` (GET/POST and `/{record_id}` PUT/DELETE). Records
+  are owner-checked (a doctor can only touch their own appointments') and
+  soft-deleted. Migration `f3a4b5c6d7e8` (**run migrations + redeploy** to apply).
+- **Doctor app:** the Consultation Notes flow now persists — `consultationStore`
+  is API-backed via a new `consultationService`; records load on open and
+  add/edit/delete save to the server (were previously in-memory only).
+
+### Added — doctor app screens
+- **Dashboard:** real data from `GET /appointments/doctor` — today's count,
+  pending requests, active patients, a today's-schedule list (tap → patient
+  detail) and pull-to-refresh (replaces the hardcoded scaffold).
+- **Patients tab + patient profile:** real screens. The roster is derived from
+  the doctor's appointment feed (no separate patients table); profile shows full
+  details (`GET /users/:id`) + visit history. Replaces the placeholders.
+
+### Changed — user app sign-up
+- `RegisterScreen` rebuilt on `LoginScreen`'s keyboard-aware pattern: fixes the
+  empty band below the form and keyboard overlap; adds an inline password-match
+  indicator. The root navigators (admin/doctor) drive Login↔Main from auth state.
+
+## [2026-06-26] — Admin & Doctor app Profile/Settings parity (theme, biometric, alerts, trackers)
+
+Brought the **admin** (`mobile-admin`) and **doctor** (`mobile-doctors`) apps up to
+the patient app's Profile/Settings standard, keeping each app's brand color
+(admin burnt-orange, doctor clinical-blue) while sharing the same UX system.
+
+### Added — shared infrastructure (ported from `mobile-users`)
+- **Dark mode**: each app's `constants/theme.js` refactored into
+  `LIGHT_COLORS`/`DARK_COLORS` + `getColors(scheme)` (static `COLORS` still exports
+  the light palette for unmigrated screens). New `store/themeStore.js` (persisted
+  `light`/`dark`/`system`) + `hooks/useTheme.js`. `App.tsx` hydrates the theme,
+  feeds the palette into `NavigationContainer` + the bottom tab bar, and the
+  Settings "Dark Mode" toggle is now real.
+- **Biometric login**: `services/biometricService.js` (react-native-keychain
+  ACCESS_CONTROL; per-app keychain service id). Bootstrap requires fingerprint /
+  Face ID before unlocking a restored session (fail-closed → Login); Settings
+  toggle enrols/disenrols with a real OS prompt.
+- **Themed alerts**: `utils/alert.js` (`showAlert`/`showConfirm`) + globally
+  mounted `components/AppAlertHost.js`, replacing dated native `Alert.alert`.
+- **Preferences**: `services/preferencesService.js` persists push/appointment/
+  language prefs to `PUT /users/me/preferences` (added `PREFERENCES` to the doctor
+  endpoints).
+
+### Added — profile trackers
+- **Admin** profile shows live **Doctors / Users / Appointments-today** from
+  `GET /admin/stats` (fixes the previous permanently-stuck loading skeleton).
+- **Doctor** profile shows **Today / Upcoming / Completed** derived from the
+  doctor's own appointment list.
+
+### Changed
+- **Settings** reworked on both apps to the themed `ToggleRow`/`ArrowRow` card UI
+  with real Edit Profile, **editable Phone** (`updateProfile({ phone })`), Change
+  Password, Dark Mode, Biometric, Language, Check-for-Updates, and Help & Support.
+  Patient-only rows dropped (session reminders, promotional emails, location/
+  address, privacy/data consent, download-my-data).
+- **Doctor** app gained a `ProfileStack` (Profile → Settings); admin/doctor root
+  navigators are now session-aware (auth-state flip drives Login↔Main, so
+  `LoginScreen`/`RegisterScreen` no longer imperatively `replace('Main')`).
+- **Delete Account** intentionally omitted from both staff apps (accounts are
+  provisioned server-side; the doctor app has no delete API).
+
+### Docs
+- Removed stale `docs/SCREENS.md` (user-app "all 20 screens" inventory, superseded
+  by FEATURES.md; the app now has 30+ screens).
+- Updated `SRS_AUDIT.md`, `FEATURES.md`, `ARCHITECTURE.md` and the per-app READMEs
+  to reflect the native admin/doctor apps.
+
 ## [2026-06-19] — Rebrand to com.purnazen, app icon, dark mode, biometric login, header polish
 
 ### Changed — package rename `wellness` → `purnazen`

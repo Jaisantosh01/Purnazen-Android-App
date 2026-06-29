@@ -65,6 +65,44 @@ def generate_sas_url(blob_name: str, expiry_minutes: int | None = None) -> str:
     )
 
 
+def generate_release_sas_url(blob_name: str, expiry_minutes: int | None = None) -> str:
+    """Generate a short-lived read-only SAS URL for an APK in the PRIVATE
+    releases container (``settings.AZURE_RELEASES_CONTAINER_NAME``).
+
+    The container is never public; this is the only way the in-app updater can
+    reach an APK, and the token expires within minutes. Returns ``blob_name``
+    unchanged when Azure isn't configured (local/dev).
+    """
+    if not all([
+        settings.AZURE_STORAGE_ACCOUNT_NAME,
+        settings.AZURE_STORAGE_ACCOUNT_KEY,
+        settings.AZURE_RELEASES_CONTAINER_NAME,
+    ]):
+        return blob_name
+
+    if blob_name.startswith("http"):
+        return blob_name
+
+    minutes = (
+        expiry_minutes
+        if expiry_minutes is not None
+        else settings.AZURE_RELEASE_SAS_EXPIRY_MINUTES
+    )
+    sas_token = generate_blob_sas(
+        account_name=settings.AZURE_STORAGE_ACCOUNT_NAME,
+        container_name=settings.AZURE_RELEASES_CONTAINER_NAME,
+        blob_name=blob_name,
+        account_key=settings.AZURE_STORAGE_ACCOUNT_KEY,
+        permission=BlobSasPermissions(read=True),
+        expiry=datetime.now(timezone.utc) + timedelta(minutes=minutes),
+    )
+    encoded_blob = quote(blob_name, safe="/")
+    return (
+        f"https://{settings.AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net"
+        f"/{settings.AZURE_RELEASES_CONTAINER_NAME}/{encoded_blob}?{sas_token}"
+    )
+
+
 def generate_video_sas_url(blob_name: str) -> str:
     """Generate a SAS URL with extended expiry for video streaming.
 

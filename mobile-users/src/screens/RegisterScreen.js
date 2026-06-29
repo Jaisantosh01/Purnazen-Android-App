@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,11 +6,12 @@ import {
   TouchableOpacity,
   StyleSheet,
   StatusBar,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
-  Dimensions,
+  Platform,
+  Animated,
+  Keyboard,
   ActivityIndicator,
+  Pressable,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -18,7 +19,6 @@ import authService from '../services/authService';
 import useTheme from '../hooks/useTheme';
 import { useProfileStore } from '../store/profileStore';
 
-const { height: SCREEN_H } = Dimensions.get('window');
 const EMAIL_RE = /^\S+@\S+\.\S+$/;
 
 const RegisterScreen = ({ navigation }) => {
@@ -33,25 +33,38 @@ const RegisterScreen = ({ navigation }) => {
   const [isLoading, setIsLoading]       = useState(false);
   const [focused, setFocused]           = useState(null); // 'name' | 'email' | 'password' | 'confirm'
 
-  const scrollRef   = useRef(null);
+  const nameRef     = useRef(null);
   const emailRef    = useRef(null);
   const passwordRef = useRef(null);
   const confirmRef  = useRef(null);
 
-  // Bottom-edge Y of each field within the scroll content, so we can lift the
-  // focused field above the keyboard.
-  const fieldY = useRef({ name: 0, email: 0, password: 0, confirm: 0 });
+  // Keyboard-aware layout — mirrors LoginScreen. The Android window does not
+  // reliably resize on its own (RN edge-to-edge), so we lift the bottom-anchored
+  // card by the keyboard height ourselves. `pad` animates layout (non-native),
+  // `kb` collapses the hero (native). 0 = keyboard hidden, 1 = visible.
+  const pad = useRef(new Animated.Value(0)).current;
+  const kb = useRef(new Animated.Value(0)).current;
 
-  const scrollToY = useCallback((y) => {
-    setTimeout(() => {
-      scrollRef.current?.scrollTo({ y: Math.max(0, y - 24), animated: true });
-    }, 100);
-  }, []);
-
-  const focusField = useCallback((key) => {
-    setFocused(key);
-    scrollToY(fieldY.current[key]);
-  }, [scrollToY]);
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const onShow = e => {
+      const height = e?.endCoordinates?.height ?? 0;
+      Animated.parallel([
+        Animated.timing(pad, { toValue: height, duration: 260, useNativeDriver: false }),
+        Animated.timing(kb, { toValue: 1, duration: 260, useNativeDriver: true }),
+      ]).start();
+    };
+    const onHide = () => {
+      Animated.parallel([
+        Animated.timing(pad, { toValue: 0, duration: 220, useNativeDriver: false }),
+        Animated.timing(kb, { toValue: 0, duration: 220, useNativeDriver: true }),
+      ]).start();
+    };
+    const s = Keyboard.addListener(showEvt, onShow);
+    const h = Keyboard.addListener(hideEvt, onHide);
+    return () => { s.remove(); h.remove(); };
+  }, [pad, kb]);
 
   const handleRegister = async () => {
     if (!fullName.trim())             { setError('Please enter your name.');                 return; }
@@ -73,197 +86,214 @@ const RegisterScreen = ({ navigation }) => {
     }
   };
 
+  const heroAnimStyle = {
+    opacity: kb.interpolate({ inputRange: [0, 0.6], outputRange: [1, 0] }),
+    transform: [
+      { scale: kb.interpolate({ inputRange: [0, 1], outputRange: [1, 0.82] }) },
+      { translateY: kb.interpolate({ inputRange: [0, 1], outputRange: [0, -18] }) },
+    ],
+  };
+
+  // Inline confirm-password affordance: show a check when the two match, an
+  // alert when they differ — only once the user has started confirming.
+  const confirmMatch = confirm.length > 0 && password === confirm;
+  const confirmMismatch = confirm.length > 0 && password !== confirm;
+
   return (
-    <View style={styles.root}>
+    <Animated.View style={[styles.root, { paddingBottom: pad }]}>
       <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
 
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      {/* ── Hero (collapses under the keyboard) ─────────────────────────── */}
+      <View style={styles.heroWrap}>
+        <Animated.View style={[styles.hero, heroAnimStyle]}>
+          <View style={styles.blobOne} />
+          <View style={styles.blobTwo} />
+          <View style={styles.logoBadge}>
+            <MCIcon name="leaf" size={36} color={colors.white} />
+          </View>
+          <Text style={styles.appName}>Purnazen</Text>
+          <Text style={styles.tagline}>AI Assisted Acupressure & Wellness</Text>
+        </Animated.View>
+      </View>
+
+      {/* ── Form card (anchored to the bottom, rides above the keyboard) ── */}
+      <View style={styles.card}>
         <ScrollView
-          ref={scrollRef}
-          contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.cardContent}
+          bounces={false}
         >
-          {/* ── Hero ──────────────────────────────────────────────────────── */}
-          <View style={styles.topSection}>
-            <View style={styles.blobOne} />
-            <View style={styles.blobTwo} />
+          <View style={styles.handle} />
+          <Text style={styles.title}>Create account</Text>
+          <Text style={styles.subtitle}>Sign up to begin your wellness journey</Text>
 
-            <View style={styles.logoBadge}>
-              <MCIcon name="leaf" size={34} color={colors.white} />
+          {error.length > 0 && (
+            <View style={styles.errorBox}>
+              <MCIcon name="alert-circle-outline" size={16} color={colors.danger} />
+              <Text style={styles.errorText}>{error}</Text>
             </View>
-            <Text style={styles.appName}>Purnazen</Text>
-            <Text style={styles.tagline}>AI Assisted Acupressure & Wellness</Text>
-          </View>
+          )}
 
-          {/* ── Form card ─────────────────────────────────────────────────── */}
-          <View style={styles.card}>
-            <View style={styles.handle} />
-            <Text style={styles.title}>Create account</Text>
-            <Text style={styles.subtitle}>Sign up to begin your wellness journey</Text>
+          {/* Full name */}
+          <Text style={styles.label}>Full Name</Text>
+          <Pressable
+            onPress={() => nameRef.current?.focus()}
+            style={[styles.inputContainer, focused === 'name' && styles.inputFocused]}
+          >
+            <MCIcon name="account-outline" size={20} color={focused === 'name' ? colors.primary : colors.textMuted} style={styles.inputIcon} />
+            <TextInput
+              ref={nameRef}
+              style={styles.input}
+              placeholder="Enter your full name"
+              placeholderTextColor={colors.textMuted}
+              value={fullName}
+              onChangeText={text => { setFullName(text); setError(''); }}
+              autoCapitalize="words"
+              returnKeyType="next"
+              onSubmitEditing={() => emailRef.current?.focus()}
+              onFocus={() => setFocused('name')}
+              onBlur={() => setFocused(null)}
+            />
+          </Pressable>
 
-            {error.length > 0 && (
-              <View style={styles.errorBox}>
-                <MCIcon name="alert-circle-outline" size={16} color={colors.danger} />
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            )}
+          {/* Email */}
+          <Text style={styles.label}>Email</Text>
+          <Pressable
+            onPress={() => emailRef.current?.focus()}
+            style={[styles.inputContainer, focused === 'email' && styles.inputFocused]}
+          >
+            <MCIcon name="email-outline" size={20} color={focused === 'email' ? colors.primary : colors.textMuted} style={styles.inputIcon} />
+            <TextInput
+              ref={emailRef}
+              style={styles.input}
+              placeholder="you@example.com"
+              placeholderTextColor={colors.textMuted}
+              value={email}
+              onChangeText={text => { setEmail(text); setError(''); }}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="next"
+              onSubmitEditing={() => passwordRef.current?.focus()}
+              onFocus={() => setFocused('email')}
+              onBlur={() => setFocused(null)}
+            />
+          </Pressable>
 
-            {/* Full name */}
-            <Text style={styles.label}>Full Name</Text>
-            <View
-              style={[styles.inputContainer, focused === 'name' && styles.inputFocused]}
-              onLayout={e => { fieldY.current.name = e.nativeEvent.layout.y + e.nativeEvent.layout.height; }}
-            >
-              <MCIcon name="account-outline" size={20} color={focused === 'name' ? colors.primary : colors.textMuted} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your full name"
-                placeholderTextColor={colors.textMuted}
-                value={fullName}
-                onChangeText={text => { setFullName(text); setError(''); }}
-                autoCapitalize="words"
-                returnKeyType="next"
-                onSubmitEditing={() => emailRef.current?.focus()}
-                onFocus={() => focusField('name')}
-                onBlur={() => setFocused(null)}
-              />
-            </View>
-
-            {/* Email */}
-            <Text style={styles.label}>Email</Text>
-            <View
-              style={[styles.inputContainer, focused === 'email' && styles.inputFocused]}
-              onLayout={e => { fieldY.current.email = e.nativeEvent.layout.y + e.nativeEvent.layout.height; }}
-            >
-              <MCIcon name="email-outline" size={20} color={focused === 'email' ? colors.primary : colors.textMuted} style={styles.inputIcon} />
-              <TextInput
-                ref={emailRef}
-                style={styles.input}
-                placeholder="you@example.com"
-                placeholderTextColor={colors.textMuted}
-                value={email}
-                onChangeText={text => { setEmail(text); setError(''); }}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                returnKeyType="next"
-                onSubmitEditing={() => passwordRef.current?.focus()}
-                onFocus={() => focusField('email')}
-                onBlur={() => setFocused(null)}
-              />
-            </View>
-
-            {/* Password */}
-            <Text style={styles.label}>Password</Text>
-            <View
-              style={[styles.inputContainer, focused === 'password' && styles.inputFocused]}
-              onLayout={e => { fieldY.current.password = e.nativeEvent.layout.y + e.nativeEvent.layout.height; }}
-            >
-              <MCIcon name="lock-outline" size={20} color={focused === 'password' ? colors.primary : colors.textMuted} style={styles.inputIcon} />
-              <TextInput
-                ref={passwordRef}
-                style={styles.input}
-                placeholder="At least 6 characters"
-                placeholderTextColor={colors.textMuted}
-                value={password}
-                onChangeText={text => { setPassword(text); setError(''); }}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-                autoCorrect={false}
-                returnKeyType="next"
-                onSubmitEditing={() => confirmRef.current?.focus()}
-                onFocus={() => focusField('password')}
-                onBlur={() => setFocused(null)}
-              />
-              <TouchableOpacity
-                onPress={() => setShowPassword(prev => !prev)}
-                style={styles.eyeBtn}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <MCIcon
-                  name={showPassword ? 'eye-outline' : 'eye-off-outline'}
-                  size={20}
-                  color={colors.textMuted}
-                />
-              </TouchableOpacity>
-            </View>
-
-            {/* Confirm password */}
-            <Text style={styles.label}>Confirm Password</Text>
-            <View
-              style={[styles.inputContainer, focused === 'confirm' && styles.inputFocused]}
-              onLayout={e => { fieldY.current.confirm = e.nativeEvent.layout.y + e.nativeEvent.layout.height; }}
-            >
-              <MCIcon name="lock-check-outline" size={20} color={focused === 'confirm' ? colors.primary : colors.textMuted} style={styles.inputIcon} />
-              <TextInput
-                ref={confirmRef}
-                style={styles.input}
-                placeholder="Repeat your password"
-                placeholderTextColor={colors.textMuted}
-                value={confirm}
-                onChangeText={text => { setConfirm(text); setError(''); }}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-                autoCorrect={false}
-                returnKeyType="done"
-                onSubmitEditing={handleRegister}
-                onFocus={() => focusField('confirm')}
-                onBlur={() => setFocused(null)}
-              />
-            </View>
-
+          {/* Password */}
+          <Text style={styles.label}>Password</Text>
+          <Pressable
+            onPress={() => passwordRef.current?.focus()}
+            style={[styles.inputContainer, focused === 'password' && styles.inputFocused]}
+          >
+            <MCIcon name="lock-outline" size={20} color={focused === 'password' ? colors.primary : colors.textMuted} style={styles.inputIcon} />
+            <TextInput
+              ref={passwordRef}
+              style={styles.input}
+              placeholder="At least 6 characters"
+              placeholderTextColor={colors.textMuted}
+              value={password}
+              onChangeText={text => { setPassword(text); setError(''); }}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="next"
+              onSubmitEditing={() => confirmRef.current?.focus()}
+              onFocus={() => setFocused('password')}
+              onBlur={() => setFocused(null)}
+            />
             <TouchableOpacity
-              style={[styles.primaryBtn, isLoading && styles.primaryBtnDisabled]}
-              activeOpacity={0.85}
-              onPress={handleRegister}
-              disabled={isLoading}
+              onPress={() => setShowPassword(prev => !prev)}
+              style={styles.eyeBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              {isLoading ? (
-                <ActivityIndicator color={colors.white} />
-              ) : (
-                <>
-                  <Text style={styles.primaryBtnText}>Sign Up</Text>
-                  <MCIcon name="arrow-right" size={20} color={colors.white} />
-                </>
-              )}
+              <MCIcon
+                name={showPassword ? 'eye-outline' : 'eye-off-outline'}
+                size={20}
+                color={colors.textMuted}
+              />
             </TouchableOpacity>
+          </Pressable>
 
-            <View style={styles.switchRow}>
-              <Text style={styles.switchHint}>Already have an account? </Text>
-              <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}>
-                <Text style={styles.switchLink}>Login</Text>
-              </TouchableOpacity>
-            </View>
+          {/* Confirm password */}
+          <Text style={styles.label}>Confirm Password</Text>
+          <Pressable
+            onPress={() => confirmRef.current?.focus()}
+            style={[
+              styles.inputContainer,
+              focused === 'confirm' && styles.inputFocused,
+              confirmMismatch && styles.inputError,
+            ]}
+          >
+            <MCIcon name="lock-check-outline" size={20} color={focused === 'confirm' ? colors.primary : colors.textMuted} style={styles.inputIcon} />
+            <TextInput
+              ref={confirmRef}
+              style={styles.input}
+              placeholder="Repeat your password"
+              placeholderTextColor={colors.textMuted}
+              value={confirm}
+              onChangeText={text => { setConfirm(text); setError(''); }}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="done"
+              onSubmitEditing={handleRegister}
+              onFocus={() => setFocused('confirm')}
+              onBlur={() => setFocused(null)}
+            />
+            {confirmMatch && <MCIcon name="check-circle" size={20} color={colors.primary} />}
+            {confirmMismatch && <MCIcon name="close-circle" size={20} color={colors.danger} />}
+          </Pressable>
+
+          <TouchableOpacity
+            style={[styles.primaryBtn, isLoading && styles.primaryBtnDisabled]}
+            activeOpacity={0.85}
+            onPress={handleRegister}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color={colors.white} />
+            ) : (
+              <>
+                <Text style={styles.primaryBtnText}>Sign Up</Text>
+                <MCIcon name="arrow-right" size={20} color={colors.white} />
+              </>
+            )}
+          </TouchableOpacity>
+
+          <View style={styles.switchRow}>
+            <Text style={styles.switchHint}>Already have an account? </Text>
+            <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}>
+              <Text style={styles.switchLink}>Login</Text>
+            </TouchableOpacity>
           </View>
-
-          <View style={styles.keyboardSpacer} />
         </ScrollView>
-      </KeyboardAvoidingView>
-    </View>
+      </View>
+    </Animated.View>
   );
 };
 
 export default RegisterScreen;
 
 const makeStyles = colors => StyleSheet.create({
-  root:  { flex: 1, backgroundColor: colors.primary },
-  flex:  { flex: 1 },
-  scroll: { flexGrow: 1, minHeight: SCREEN_H },
+  root: { flex: 1, backgroundColor: colors.primary },
 
-  topSection: {
+  // flex:1 + minHeight:0 lets the hero shrink first when the keyboard opens,
+  // pushing the card up instead of letting the keyboard cover it.
+  heroWrap: {
+    flex: 1,
+    minHeight: 0,
     alignItems: 'center',
-    paddingTop: 64,
-    paddingBottom: 48,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
     overflow: 'hidden',
   },
+  hero: { alignItems: 'center' },
   blobOne: {
     position: 'absolute',
-    top: -50,
-    right: -40,
+    top: -90,
+    right: -120,
     width: 170,
     height: 170,
     borderRadius: 85,
@@ -271,17 +301,17 @@ const makeStyles = colors => StyleSheet.create({
   },
   blobTwo: {
     position: 'absolute',
-    top: 50,
-    left: -50,
+    bottom: -70,
+    left: -120,
     width: 130,
     height: 130,
     borderRadius: 65,
     backgroundColor: 'rgba(255,255,255,0.06)',
   },
   logoBadge: {
-    width: 76,
-    height: 76,
-    borderRadius: 24,
+    width: 80,
+    height: 80,
+    borderRadius: 26,
     backgroundColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -289,33 +319,24 @@ const makeStyles = colors => StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.25)',
   },
-  appName: {
-    fontSize: 30,
-    fontWeight: '800',
-    color: colors.white,
-    letterSpacing: 0.3,
-    marginBottom: 6,
-  },
-  tagline: {
-    fontSize: 13.5,
-    color: 'rgba(255,255,255,0.85)',
-    letterSpacing: 0.2,
-  },
+  appName: { fontSize: 30, fontWeight: '800', color: colors.white, letterSpacing: 0.3, marginBottom: 6, textAlign: 'center' },
+  tagline: { fontSize: 13.5, color: 'rgba(255,255,255,0.85)', letterSpacing: 0.2, textAlign: 'center' },
 
   card: {
     backgroundColor: colors.card,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 24,
-    marginTop: -28,
-    flexGrow: 1,
+    flexShrink: 1,
     shadowColor: colors.black,
     shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 12,
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 16,
+  },
+  cardContent: {
+    paddingHorizontal: 24,
+    paddingTop: 14,
+    paddingBottom: 28,
   },
   handle: {
     alignSelf: 'center',
@@ -323,19 +344,10 @@ const makeStyles = colors => StyleSheet.create({
     height: 5,
     borderRadius: 3,
     backgroundColor: colors.border,
-    marginBottom: 22,
+    marginBottom: 20,
   },
-  title: {
-    fontSize: 25,
-    fontWeight: '800',
-    color: colors.textPrimary,
-    marginBottom: 6,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 26,
-  },
+  title: { fontSize: 25, fontWeight: '800', color: colors.textPrimary, marginBottom: 6 },
+  subtitle: { fontSize: 14, color: colors.textSecondary, marginBottom: 22 },
 
   errorBox: {
     flexDirection: 'row',
@@ -349,18 +361,9 @@ const makeStyles = colors => StyleSheet.create({
     marginBottom: 18,
     gap: 8,
   },
-  errorText: {
-    fontSize: 13,
-    color: colors.danger,
-    flex: 1,
-  },
+  errorText: { fontSize: 13, color: colors.danger, flex: 1 },
 
-  label: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: 8,
-  },
+  label: { fontSize: 13, fontWeight: '700', color: colors.textPrimary, marginBottom: 8 },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -370,20 +373,13 @@ const makeStyles = colors => StyleSheet.create({
     borderColor: colors.border,
     paddingHorizontal: 14,
     paddingVertical: Platform.OS === 'ios' ? 14 : 11,
-    marginBottom: 18,
+    marginBottom: 16,
+    gap: 6,
   },
-  inputFocused: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryFaint,
-  },
-  inputIcon: { marginRight: 10 },
-  input: {
-    flex: 1,
-    fontSize: 15,
-    color: colors.textPrimary,
-    padding: 0,
-    includeFontPadding: false,
-  },
+  inputFocused: { borderColor: colors.primary, backgroundColor: colors.primaryFaint },
+  inputError: { borderColor: colors.danger },
+  inputIcon: { marginRight: 4 },
+  input: { flex: 1, fontSize: 15, color: colors.textPrimary, padding: 0, includeFontPadding: false },
   eyeBtn: { padding: 4 },
 
   primaryBtn: {
@@ -394,7 +390,7 @@ const makeStyles = colors => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    marginTop: 10,
+    marginTop: 8,
     minHeight: 54,
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 6 },
@@ -403,19 +399,13 @@ const makeStyles = colors => StyleSheet.create({
     elevation: 6,
   },
   primaryBtnDisabled: { opacity: 0.7 },
-  primaryBtnText: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: colors.white,
-  },
+  primaryBtnText: { fontSize: 16, fontWeight: '800', color: colors.white },
 
   switchRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 24,
+    marginTop: 22,
   },
   switchHint: { fontSize: 14, color: colors.textSecondary },
-  switchLink:  { fontSize: 14, fontWeight: '800', color: colors.primary },
-
-  keyboardSpacer: { height: 240 },
+  switchLink: { fontSize: 14, fontWeight: '800', color: colors.primary },
 });

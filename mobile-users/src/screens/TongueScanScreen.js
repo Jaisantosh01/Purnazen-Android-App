@@ -4,11 +4,11 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Alert,
   StatusBar,
   ActivityIndicator,
   Linking,
 } from 'react-native';
+import { showAlert } from '../utils/alert';
 import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
 import { launchImageLibrary } from 'react-native-image-picker';
 // @ts-ignore
@@ -131,12 +131,12 @@ const TongueScanScreen = ({ navigation }) => {
       await doUpload(uri);
     } catch (err) {
       if (err?.guidance) {
-        Alert.alert("Let's retake that", err.guidance, [{ text: 'Got it' }]);
+        showAlert("Let's retake that", err.guidance, [{ text: 'Got it' }]);
         return;
       }
       const msg = err?.response?.data?.message || err?.message || 'Upload failed';
       if (isConsentError(msg)) {
-        Alert.alert(
+        showAlert(
           'Storage Permission',
           'Allow Purnazen to store your scan results securely?',
           [
@@ -149,7 +149,7 @@ const TongueScanScreen = ({ navigation }) => {
                   await grantScanConsent();
                   await doUpload(uri);
                 } catch (e2) {
-                  Alert.alert('Error', e2?.response?.data?.message || e2?.message || 'Upload failed');
+                  showAlert('Error', e2?.response?.data?.message || e2?.message || 'Upload failed');
                 } finally {
                   setUploading(false);
                 }
@@ -158,7 +158,7 @@ const TongueScanScreen = ({ navigation }) => {
           ],
         );
       } else {
-        Alert.alert('Error', msg);
+        showAlert('Error', msg);
       }
     }
   };
@@ -174,7 +174,7 @@ const TongueScanScreen = ({ navigation }) => {
       await uploadWithConsentRetry(uri);
     } catch (err) {
       setCapturing(false);
-      Alert.alert('Error', err?.message || 'Failed to capture photo');
+      showAlert('Error', err?.message || 'Failed to capture photo');
     } finally {
       setUploading(false);
     }
@@ -195,7 +195,7 @@ const TongueScanScreen = ({ navigation }) => {
       });
       await uploadWithConsentRetry(uri);
     } catch (err) {
-      if (err?.message !== 'cancelled') Alert.alert('Error', err?.message || 'Failed to pick image');
+      if (err?.message !== 'cancelled') showAlert('Error', err?.message || 'Failed to pick image');
     } finally {
       setUploading(false);
     }
@@ -335,7 +335,7 @@ const TongueScanScreen = ({ navigation }) => {
         {/* TCM info button */}
         <TouchableOpacity
           style={styles.sideBtn}
-          onPress={() => Alert.alert(
+          onPress={() => showAlert(
             'TCM Tongue Diagnosis',
             'Traditional Chinese Medicine uses tongue colour, coating and moisture as diagnostic markers for organ system health and Qi balance.',
             [{ text: 'Got it' }],

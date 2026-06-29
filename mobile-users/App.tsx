@@ -27,6 +27,8 @@ import { useThemeStore } from './src/store/themeStore';
 // @ts-ignore
 import Toast from './src/components/Toast';
 // @ts-ignore
+import AppAlertHost from './src/components/AppAlertHost';
+// @ts-ignore
 import ErrorBoundary from './src/components/ErrorBoundary';
 // @ts-ignore
 import UpdatePrompt from './src/components/UpdatePrompt';
@@ -313,6 +315,7 @@ export default function App() {
         )}
       </RootStack.Navigator>
       <Toast message={message} type={type} visible={visible} onHide={hide} />
+      <AppAlertHost />
       <UpdatePrompt />
     </NavigationContainer>
     </ErrorBoundary>

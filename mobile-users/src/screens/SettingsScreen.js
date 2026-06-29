@@ -6,20 +6,24 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
-  Alert,
+  Linking,
+  Modal,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
+import { showAlert } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import authService from '../services/authService';
 import preferencesService from '../services/preferencesService';
 import biometricService from '../services/biometricService';
 import permissionsService from '../services/permissionsService';
+import { checkForUpdate, FORCE_MARKER } from '../services/updateService';
+import { APP_VERSION } from '../config';
 import { resetToLogin } from '../navigation/navigationRef';
 import { useAuthStore } from '../store/authStore';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
-import AppDialog from '../components/AppDialog';
-import FormInput from '../components/FormInput';
 
 // Shared toggle ids with NotificationsScreen (user_preferences.notifications)
 const PREF_KEYS = {
@@ -122,12 +126,53 @@ const makeStyles = COLORS => StyleSheet.create({
     color: COLORS.borderStrong,
     marginTop: 28,
   },
+
+  // Plain-modal forms (edit profile / phone / password / language / address) —
+  // standardized on the admin app's modal style.
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  modalCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 18,
+    padding: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.border,
+  },
+  modalTitle: { fontSize: 17, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 16 },
+  modalLabel: { fontSize: 12, fontWeight: '600', color: COLORS.textSecondary, marginBottom: 6, marginTop: 8 },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    fontSize: 14,
+    color: COLORS.textPrimary,
+    backgroundColor: COLORS.surfaceMuted,
+  },
+  modalInputMultiline: { minHeight: 80, textAlignVertical: 'top' },
+  modalError: { fontSize: 12, color: COLORS.danger, marginTop: 10 },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 20 },
+  modalBtn: { paddingHorizontal: 18, paddingVertical: 11, borderRadius: 10 },
+  modalBtnCancel: { backgroundColor: COLORS.surfaceMuted },
+  modalBtnSave: { backgroundColor: COLORS.primary, minWidth: 80, alignItems: 'center' },
+  modalBtnCancelText: { fontSize: 14, fontWeight: '600', color: COLORS.textSecondary },
+  modalBtnSaveText: { fontSize: 14, fontWeight: '600', color: COLORS.white },
 });
 
 const SettingsScreen = ({ navigation }) => {
   const user = useAuthStore(state => state.user);
   const { colors, isDark, setMode } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  // Features that are designed but not yet functional get an honest placeholder
+  // instead of a dead tap or a faked success message.
+  const comingSoon = label =>
+    showAlert('Coming soon', `${label} will be available in an upcoming update.`);
 
   // Inline rows so they pick up the active (themed) styles + palette.
   const SectionHeader = ({ title }) => (
@@ -187,6 +232,7 @@ const SettingsScreen = ({ navigation }) => {
   const [locationBusy, setLocationBusy]           = useState(false);
   const [language, setLanguage]                   = useState('en');
   const [address, setAddress]                     = useState('');
+  const [updateChecking, setUpdateChecking]       = useState(false);
 
   // Hydrate the toggles/values from the server (defaults kept offline)
   React.useEffect(() => {
@@ -250,7 +296,7 @@ const SettingsScreen = ({ navigation }) => {
       setLocationAccess(granted);
       savePreference({ locationEnabled: granted });
       if (!granted) {
-        Alert.alert(
+        showAlert(
           'Location Permission',
           'Location access was not granted. You can enable it from your device Settings.',
         );
@@ -272,14 +318,14 @@ const SettingsScreen = ({ navigation }) => {
       if (value) {
         const type = await biometricService.enable();
         setBiometric(true);
-        Alert.alert('Biometric Login Enabled', `You can now unlock Purnazen with ${type || 'biometrics'}.`);
+        showAlert('Biometric Login Enabled', `You can now unlock Purnazen with ${type || 'biometrics'}.`);
       } else {
         await biometricService.disable();
         setBiometric(false);
       }
     } catch (err) {
       setBiometric(false);
-      Alert.alert('Biometric Login', err.message || 'Could not update biometric login.');
+      showAlert('Biometric Login', err.message || 'Could not update biometric login.');
     } finally {
       setBiometricBusy(false);
     }
@@ -326,7 +372,7 @@ const SettingsScreen = ({ navigation }) => {
     try {
       await authService.updateProfile({ phone: trimmed });
       setShowEditPhone(false);
-      Alert.alert('Phone Updated', 'Your phone number has been saved.');
+      showAlert('Phone Updated', 'Your phone number has been saved.');
     } catch (err) {
       setFormError(err.message || 'Could not update phone number.');
     } finally {
@@ -348,7 +394,7 @@ const SettingsScreen = ({ navigation }) => {
     try {
       await authService.updateProfile({ fullName: fullName.trim() });
       setShowEditProfile(false);
-      Alert.alert('Profile Updated', 'Your name has been updated.');
+      showAlert('Profile Updated', 'Your name has been updated.');
     } catch (err) {
       setFormError(err.message || 'Profile update failed.');
     } finally {
@@ -364,7 +410,7 @@ const SettingsScreen = ({ navigation }) => {
     try {
       await authService.changePassword(currentPassword, newPassword);
       setShowChangePassword(false);
-      Alert.alert('Password Changed', 'Your password has been updated.');
+      showAlert('Password Changed', 'Your password has been updated.');
     } catch (err) {
       setFormError(err.message || 'Password change failed.');
     } finally {
@@ -372,8 +418,50 @@ const SettingsScreen = ({ navigation }) => {
     }
   };
 
+  // Manual "Check for Updates". Reuses the same GitHub-release check the launch
+  // prompt uses (force:true so it runs from dev builds too). A forced/critical
+  // release (notes contain the force marker) offers only "Update now"; otherwise
+  // the user can defer. "Up to date" is reported when no newer release exists.
+  const handleCheckForUpdate = async () => {
+    if (updateChecking) return;
+    setUpdateChecking(true);
+    try {
+      const u = await checkForUpdate({ force: true });
+      if (!u) {
+        showAlert('Up to date', `You're on the latest version (v${APP_VERSION}).`);
+        return;
+      }
+      const openApk = () => { Linking.openURL(u.apkUrl).catch(() => {}); };
+      const notes = (u.notes || '')
+        .split('\n')
+        .filter(l => !l.includes(FORCE_MARKER))
+        .join('\n')
+        .trim();
+      const body =
+        `Version ${u.version} is available${u.current ? ` (you have v${u.current})` : ''}.` +
+        (u.forced ? '\n\nThis is a critical update and is required to continue.' : '') +
+        (notes ? `\n\n${notes}` : '');
+      const buttons = u.forced
+        ? [{ text: 'Update now', onPress: openApk }]
+        : [
+            { text: 'Later', style: 'cancel' },
+            { text: 'Update now', onPress: openApk },
+          ];
+      showAlert(
+        u.forced ? 'Update required' : 'Update available',
+        body,
+        buttons,
+        { cancelable: !u.forced },
+      );
+    } catch {
+      showAlert('Check for Updates', 'Could not check for updates. Please try again later.');
+    } finally {
+      setUpdateChecking(false);
+    }
+  };
+
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure?', [
+    showAlert('Logout', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Logout',
@@ -387,7 +475,7 @@ const SettingsScreen = ({ navigation }) => {
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert(
+    showAlert(
       'Delete Account',
       'This will permanently delete your account and all your data. This action cannot be undone.',
       [
@@ -400,7 +488,7 @@ const SettingsScreen = ({ navigation }) => {
               await authService.deleteAccount();
               resetToLogin();
             } catch (err) {
-              Alert.alert('Deletion Failed', err.message || 'Please try again later.');
+              showAlert('Deletion Failed', err.message || 'Please try again later.');
             }
           },
         },
@@ -448,7 +536,7 @@ const SettingsScreen = ({ navigation }) => {
               title="Email Address"
               subtitle="Linked email"
               valueText={user?.email || 'NA'}
-              onPress={() => {}}
+              onPress={() => comingSoon('Changing your email address')}
             />
           </View>
         </View>
@@ -563,7 +651,22 @@ const SettingsScreen = ({ navigation }) => {
               hue={HUES.blue}
               title="Download My Data"
               subtitle="Export your health records"
-              onPress={() => Alert.alert('Download Data', 'Your data export will be emailed within 24 hours.')}
+              onPress={() => comingSoon('Exporting your data')}
+            />
+          </View>
+        </View>
+
+        {/* About */}
+        <View style={styles.section}>
+          <SectionHeader title="About" />
+          <View style={styles.card}>
+            <ArrowRow
+              icon="cloud-download-outline"
+              hue={HUES.blue}
+              title="Check for Updates"
+              subtitle={updateChecking ? 'Checking…' : `Current version v${APP_VERSION}`}
+              valueText={updateChecking ? '…' : undefined}
+              onPress={handleCheckForUpdate}
             />
           </View>
         </View>
@@ -589,146 +692,169 @@ const SettingsScreen = ({ navigation }) => {
           </View>
         </View>
 
-        <Text style={styles.version}>Purnazen v1.0.0</Text>
+        <Text style={styles.version}>Purnazen v{APP_VERSION}</Text>
       </ScrollView>
 
-      {/* Edit Profile dialog */}
-      <AppDialog
-        visible={showEditProfile}
-        onClose={() => setShowEditProfile(false)}
-        icon="account-edit-outline"
-        title="Edit Profile"
-        subtitle="Update the name shown across Purnazen"
-        confirmLabel="Save"
-        onConfirm={handleSaveProfile}
-        confirmLoading={isSubmitting}
-      >
-        <FormInput
-          label="Full Name"
-          icon="account-outline"
-          value={fullName}
-          onChangeText={text => { setFullName(text); setFormError(''); }}
-          placeholder="Your name"
-          autoCapitalize="words"
-          error={formError}
-        />
-      </AppDialog>
+      {/* Edit Profile modal */}
+      <Modal visible={showEditProfile} transparent animationType="fade"
+        onRequestClose={() => setShowEditProfile(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Edit Profile</Text>
+            <Text style={styles.modalLabel}>Full Name</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={fullName}
+              onChangeText={text => { setFullName(text); setFormError(''); }}
+              placeholder="Your name"
+              placeholderTextColor={colors.textMuted}
+              autoCapitalize="words"
+            />
+            {formError ? <Text style={styles.modalError}>{formError}</Text> : null}
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnCancel]} onPress={() => setShowEditProfile(false)}>
+                <Text style={styles.modalBtnCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnSave]} onPress={handleSaveProfile} disabled={isSubmitting}>
+                {isSubmitting ? <ActivityIndicator size="small" color={colors.white} /> : <Text style={styles.modalBtnSaveText}>Save</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
-      {/* Edit Phone dialog */}
-      <AppDialog
-        visible={showEditPhone}
-        onClose={() => setShowEditPhone(false)}
-        icon="phone-outline"
-        iconColor={HUES.blue}
-        iconBg={soft(HUES.blue)}
-        title="Phone Number"
-        subtitle="Used for appointment reminders & account recovery"
-        confirmLabel="Save"
-        onConfirm={handleSavePhone}
-        confirmLoading={isSubmitting}
-      >
-        <FormInput
-          label="Phone Number"
-          icon="phone-outline"
-          value={phone}
-          onChangeText={text => { setPhone(text); setFormError(''); }}
-          placeholder="+91 98765 43210"
-          keyboardType="phone-pad"
-          error={formError}
-        />
-      </AppDialog>
+      {/* Edit Phone modal */}
+      <Modal visible={showEditPhone} transparent animationType="fade"
+        onRequestClose={() => setShowEditPhone(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Phone Number</Text>
+            <Text style={styles.modalLabel}>Phone Number</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={phone}
+              onChangeText={text => { setPhone(text); setFormError(''); }}
+              placeholder="+91 98765 43210"
+              placeholderTextColor={colors.textMuted}
+              keyboardType="phone-pad"
+            />
+            {formError ? <Text style={styles.modalError}>{formError}</Text> : null}
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnCancel]} onPress={() => setShowEditPhone(false)}>
+                <Text style={styles.modalBtnCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnSave]} onPress={handleSavePhone} disabled={isSubmitting}>
+                {isSubmitting ? <ActivityIndicator size="small" color={colors.white} /> : <Text style={styles.modalBtnSaveText}>Save</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
-      {/* Change Password dialog */}
-      <AppDialog
-        visible={showChangePassword}
-        onClose={() => setShowChangePassword(false)}
-        icon="lock-outline"
-        iconColor={HUES.purple}
-        iconBg={soft(HUES.purple)}
-        title="Change Password"
-        subtitle="Choose a strong password you don't reuse elsewhere"
-        confirmLabel="Update"
-        onConfirm={handleChangePassword}
-        confirmLoading={isSubmitting}
-      >
-        <FormInput
-          label="Current Password"
-          icon="lock-outline"
-          value={currentPassword}
-          onChangeText={text => { setCurrentPassword(text); setFormError(''); }}
-          secureTextEntry
-          placeholder="Current password"
-        />
-        <FormInput
-          label="New Password"
-          icon="lock-plus-outline"
-          value={newPassword}
-          onChangeText={text => { setNewPassword(text); setFormError(''); }}
-          secureTextEntry
-          placeholder="At least 6 characters"
-        />
-        <FormInput
-          label="Confirm New Password"
-          icon="lock-check-outline"
-          value={confirmPassword}
-          onChangeText={text => { setConfirmPassword(text); setFormError(''); }}
-          secureTextEntry
-          placeholder="Repeat new password"
-          error={formError}
-        />
-      </AppDialog>
+      {/* Change Password modal */}
+      <Modal visible={showChangePassword} transparent animationType="fade"
+        onRequestClose={() => setShowChangePassword(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Change Password</Text>
+            <Text style={styles.modalLabel}>Current Password</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={currentPassword}
+              onChangeText={text => { setCurrentPassword(text); setFormError(''); }}
+              secureTextEntry
+              placeholder="Current password"
+              placeholderTextColor={colors.textMuted}
+            />
+            <Text style={styles.modalLabel}>New Password</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={newPassword}
+              onChangeText={text => { setNewPassword(text); setFormError(''); }}
+              secureTextEntry
+              placeholder="At least 6 characters"
+              placeholderTextColor={colors.textMuted}
+            />
+            <Text style={styles.modalLabel}>Confirm New Password</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={confirmPassword}
+              onChangeText={text => { setConfirmPassword(text); setFormError(''); }}
+              secureTextEntry
+              placeholder="Repeat new password"
+              placeholderTextColor={colors.textMuted}
+            />
+            {formError ? <Text style={styles.modalError}>{formError}</Text> : null}
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnCancel]} onPress={() => setShowChangePassword(false)}>
+                <Text style={styles.modalBtnCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnSave]} onPress={handleChangePassword} disabled={isSubmitting}>
+                {isSubmitting ? <ActivityIndicator size="small" color={colors.white} /> : <Text style={styles.modalBtnSaveText}>Update</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
-      {/* Language selector */}
-      <AppDialog
-        visible={showLanguage}
-        onClose={() => setShowLanguage(false)}
-        icon="translate"
-        iconColor={HUES.orange}
-        iconBg={soft(HUES.orange)}
-        title="App Language"
-        subtitle="Choose your preferred language"
-        cancelLabel="Close"
-      >
-        {LANGUAGES.map(l => {
-          const active = language === l.code;
-          return (
-            <TouchableOpacity
-              key={l.code}
-              style={[styles.langRow, active && styles.langRowActive]}
-              onPress={() => selectLanguage(l.code)}
-              activeOpacity={0.8}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={styles.langLabel}>{l.label}</Text>
-                <Text style={styles.langNative}>{l.native}</Text>
-              </View>
-              {active ? <MCIcon name="check-circle" size={20} color={colors.primary} /> : null}
-            </TouchableOpacity>
-          );
-        })}
-      </AppDialog>
+      {/* Language selector modal */}
+      <Modal visible={showLanguage} transparent animationType="fade"
+        onRequestClose={() => setShowLanguage(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>App Language</Text>
+            {LANGUAGES.map(l => {
+              const active = language === l.code;
+              return (
+                <TouchableOpacity
+                  key={l.code}
+                  style={[styles.langRow, active && styles.langRowActive]}
+                  onPress={() => selectLanguage(l.code)}
+                  activeOpacity={0.8}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.langLabel}>{l.label}</Text>
+                    <Text style={styles.langNative}>{l.native}</Text>
+                  </View>
+                  {active ? <MCIcon name="check-circle" size={20} color={colors.primary} /> : null}
+                </TouchableOpacity>
+              );
+            })}
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnCancel]} onPress={() => setShowLanguage(false)}>
+                <Text style={styles.modalBtnCancelText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
-      {/* Address editor */}
-      <AppDialog
-        visible={showAddress}
-        onClose={() => setShowAddress(false)}
-        icon="home-map-marker"
-        iconColor={HUES.amber}
-        iconBg={soft(HUES.amber)}
-        title="Your Address"
-        subtitle="Used for home visits & nearby doctor search"
-        confirmLabel="Save"
-        onConfirm={handleSaveAddress}
-      >
-        <FormInput
-          label="Address"
-          icon="map-marker-outline"
-          value={addressDraft}
-          onChangeText={setAddressDraft}
-          placeholder="House / street, area, city, pincode"
-          multiline
-        />
-      </AppDialog>
+      {/* Address editor modal */}
+      <Modal visible={showAddress} transparent animationType="fade"
+        onRequestClose={() => setShowAddress(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Your Address</Text>
+            <Text style={styles.modalLabel}>Address</Text>
+            <TextInput
+              style={[styles.modalInput, styles.modalInputMultiline]}
+              value={addressDraft}
+              onChangeText={setAddressDraft}
+              placeholder="House / street, area, city, pincode"
+              placeholderTextColor={colors.textMuted}
+              multiline
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnCancel]} onPress={() => setShowAddress(false)}>
+                <Text style={styles.modalBtnCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnSave]} onPress={handleSaveAddress}>
+                <Text style={styles.modalBtnSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };

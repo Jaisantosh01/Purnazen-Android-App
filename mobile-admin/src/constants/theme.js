@@ -1,21 +1,31 @@
 /**
- * Canonical design tokens. New code should use these instead of hex literals;
- * existing screens are being migrated incrementally (see docs/TASKS.md —
- * "Shared theme adoption").
+ * Canonical design tokens for the admin app.
  *
- * Counts from the 2026-06 audit: #1FA77A appears 120x, #1A1A1A 72x, etc.
+ * Mirrors the patient app's token structure (mobile-users) so shared screens and
+ * components port over cleanly, but keeps the admin app's distinct burnt-orange
+ * brand so the three apps are visually distinguishable at a glance.
+ *
+ * Dark mode: prefer the `useTheme()` hook (src/hooks/useTheme.js) which returns
+ * the active palette. The static `COLORS` export below is the LIGHT palette and
+ * stays the default for screens not yet migrated to the hook.
  */
-export const COLORS = {
-  // Brand
-  primary: '#EA580C',       // Main orange
-  primaryLight: '#FFF7ED',  // Light orange background
-  primaryFaint: '#FFFBF5',  // Very soft orange tint
 
-  accent: '#9A3412',        // Deep burnt orange
-  accentLight: '#FEE2E2',
-
-  warning: '#EAB308',       // Yellow (changed from orange)
+// Brand hues are shared across light/dark — only surfaces/text flip.
+const BRAND = {
+  primary: '#EA580C',   // burnt orange
+  accent: '#9A3412',    // deep burnt orange
+  warning: '#EAB308',
   danger: '#DC2626',
+  white: '#FFFFFF',
+  black: '#000000',
+};
+
+export const LIGHT_COLORS = {
+  ...BRAND,
+
+  primaryLight: '#FFF7ED',
+  primaryFaint: '#FFFBF5',
+  accentLight: '#FEE2E2',
 
   // Text
   textPrimary: '#1A1A1A',
@@ -23,13 +33,52 @@ export const COLORS = {
   textMuted: '#9CA3AF',
 
   // Surfaces
-  white: '#FFFFFF',
-  black: '#000000',
-  background: '#FFFDF9',    // Warm off-white
+  background: '#FFFDF9',     // warm off-white
+  card: '#FFFFFF',
+  surface: '#FFFFFF',
   surfaceMuted: '#F9FAFB',
-  border: '#FED7AA',        // Soft orange border
+  border: '#FED7AA',         // soft orange border
   borderStrong: '#FDBA74',
+
+  // Header card — keeps the brand-orange hero on both schemes
+  headerBg: '#EA580C',
+  headerText: '#FFFFFF',
+  statusBar: 'light-content',
 };
+
+export const DARK_COLORS = {
+  ...BRAND,
+
+  // A slightly warmer/brighter primary reads better on dark surfaces
+  primary: '#FB7A3C',
+  primaryLight: '#3A1E0E',
+  primaryFaint: '#27160C',
+  accent: '#C2622E',
+  accentLight: '#3A1E1A',
+
+  // Text
+  textPrimary: '#F3F4F6',
+  textSecondary: '#A1A7B0',
+  textMuted: '#6B7280',
+
+  // Surfaces — warm-tinted neutrals
+  background: '#14100C',
+  card: '#1F1813',
+  surface: '#1F1813',
+  surfaceMuted: '#2A211A',
+  border: '#352A20',
+  borderStrong: '#43352A',
+
+  headerBg: '#3A1E0E',
+  headerText: '#F3F4F6',
+  statusBar: 'light-content',
+};
+
+/** Resolve a palette from a 'light' | 'dark' scheme. */
+export const getColors = scheme => (scheme === 'dark' ? DARK_COLORS : LIGHT_COLORS);
+
+// Default static export — the light palette. Unmigrated screens import this.
+export const COLORS = LIGHT_COLORS;
 
 export const SPACING = {
   xs: 4,

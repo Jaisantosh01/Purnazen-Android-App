@@ -1,77 +1,166 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  StatusBar,
+} from 'react-native';
+import { showAlert } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
-import authService from '../services/authService';
 import { useAuthStore } from '../store/authStore';
-import { showError } from '../utils/toast';
-import ScreenHeader from '../components/ScreenHeader';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import authService from '../services/authService';
+import appointmentService from '../services/appointmentService';
+import useTheme from '../hooks/useTheme';
 
-const ROWS = [
-  { key: 'edit', label: 'Edit profile', icon: 'account-edit-outline' },
-  { key: 'password', label: 'Change password', icon: 'lock-reset' },
-  { key: 'clinic', label: 'Clinic & specialties', icon: 'hospital-building' },
-  { key: 'help', label: 'Help & support', icon: 'lifebuoy' },
-];
+// Icon backgrounds are a translucent wash of the icon hue so the tint reads
+// correctly over both light and dark cards.
+const soft = hex => `${hex}22`;
 
-const ProfileScreen = () => {
-  const doctor = useAuthStore(s => s.doctor);
-  const [loggingOut, setLoggingOut] = useState(false);
+const SUPPORT_EMAIL = 'support@purnazen.com';
 
-  const name = doctor?.full_name || doctor?.name || 'Doctor';
-  const email = doctor?.email || '';
+const isToday = value => {
+  if (!value) return false;
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return false;
+  return d.toDateString() === new Date().toDateString();
+};
 
-  const handleLogout = async () => {
-    setLoggingOut(true);
-    try {
-      await authService.logout();
-      // Navigation handled by App.tsx auth-state listener
-    } catch (err) {
-      showError(err.message || 'Could not log out.');
-    } finally {
-      setLoggingOut(false);
-    }
+const ProfileScreen = ({ navigation }) => {
+  const doctor = useAuthStore(state => state.doctor);
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const [stats, setStats] = useState(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+
+  // Trackers derive from the doctor's own appointment list — no separate stats
+  // endpoint needed. Counts: today, upcoming (scheduled), and completed.
+  useEffect(() => {
+    appointmentService
+      .getDoctorAppointments()
+      .then(data => {
+        const list = data?.appointments ?? [];
+        const today = list.filter(a => isToday(a.date)).length;
+        const upcoming = list.filter(a => a.status === 'booked' || a.status === 'pending').length;
+        const completed = list.filter(a => a.status === 'completed').length;
+        setStats({ today, upcoming, completed });
+      })
+      .catch(() => setStats(null))
+      .finally(() => setStatsLoading(false));
+  }, []);
+
+  const handleLogout = () => {
+    showAlert(
+      'Logout',
+      'Are you sure you want to log out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await authService.logout();
+              // Auth-state flip swaps the root navigator back to Login (App.tsx).
+            } catch {
+              // logout clears local state even if the server call fails
+            }
+          },
+        },
+      ],
+    );
   };
+
+  const openSupport = () =>
+    showAlert(
+      'Help & Support',
+      `Reach the Purnazen team at ${SUPPORT_EMAIL} for help with the doctor app.`,
+    );
+
+  const MENU_ITEMS = [
+    { icon: 'cog-outline',         iconColor: '#6B7280', title: 'Settings',       subtitle: 'App preferences', onPress: () => navigation.navigate('Settings') },
+    { icon: 'help-circle-outline', iconColor: '#0284c7', title: 'Help & Support', subtitle: 'Get assistance',  onPress: openSupport },
+  ];
+
+  const displayName = doctor?.full_name ?? doctor?.name ?? 'Doctor';
+  const displayEmail = doctor?.email ?? '';
+  const avatarLetter = displayName.charAt(0).toUpperCase();
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Profile" />
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.card}>
-          <View style={styles.avatar}>
-            <MCIcon name="doctor" size={34} color={COLORS.primary} />
+      <StatusBar barStyle="light-content" backgroundColor={colors.headerBg} />
+
+      <ScrollView
+        style={styles.container}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 24 }}
+      >
+        {/* ── Header ── */}
+        <View style={styles.header}>
+          <View style={styles.profileRow}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarLetter}>{avatarLetter}</Text>
+            </View>
+            <View style={styles.profileInfo}>
+              <Text style={styles.profileName} numberOfLines={1}>{displayName}</Text>
+              <Text style={styles.profileEmail} numberOfLines={1}>{displayEmail}</Text>
+              <View style={styles.planBadge}>
+                <MCIcon name="stethoscope" size={12} color={colors.white} style={{ marginRight: 4 }} />
+                <Text style={styles.planText}>Doctor</Text>
+              </View>
+            </View>
           </View>
-          <Text style={styles.name}>{name}</Text>
-          {email ? <Text style={styles.email}>{email}</Text> : null}
+
+          {/* ── Trackers ── */}
+          <View style={styles.statsRow}>
+            <View style={[styles.statBox, styles.statBorder]}>
+              <Text style={styles.statValue}>{statsLoading ? '·' : (stats?.today ?? '—')}</Text>
+              <Text style={styles.statLabel}>Today</Text>
+            </View>
+            <View style={[styles.statBox, styles.statBorder]}>
+              <Text style={styles.statValue}>{statsLoading ? '·' : (stats?.upcoming ?? '—')}</Text>
+              <Text style={styles.statLabel}>Upcoming</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>{statsLoading ? '·' : (stats?.completed ?? '—')}</Text>
+              <Text style={styles.statLabel}>Completed</Text>
+            </View>
+          </View>
         </View>
 
-        <View style={styles.list}>
-          {ROWS.map(r => (
-            <TouchableOpacity key={r.key} style={styles.row} activeOpacity={0.7}>
-              <MCIcon name={r.icon} size={22} color={COLORS.textSecondary} />
-              <Text style={styles.rowLabel}>{r.label}</Text>
-              <MCIcon name="chevron-right" size={22} color={COLORS.textMuted} />
+        {/* ── Menu ── */}
+        <View style={styles.menuSection}>
+          {MENU_ITEMS.map((item) => (
+            <TouchableOpacity
+              key={item.title}
+              style={styles.menuCard}
+              activeOpacity={0.7}
+              onPress={item.onPress}
+            >
+              <View style={[styles.menuIconCircle, { backgroundColor: soft(item.iconColor) }]}>
+                <MCIcon name={item.icon} size={20} color={item.iconColor} />
+              </View>
+              <View style={styles.menuInfo}>
+                <Text style={styles.menuTitle}>{item.title}</Text>
+                <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+              </View>
+              <MCIcon name="chevron-right" size={20} color={colors.borderStrong} />
             </TouchableOpacity>
           ))}
         </View>
 
+        {/* ── Logout ── */}
         <TouchableOpacity
           style={styles.logoutBtn}
-          activeOpacity={0.85}
+          activeOpacity={0.8}
           onPress={handleLogout}
-          disabled={loggingOut}>
-          {loggingOut ? (
-            <ActivityIndicator color={COLORS.danger} />
-          ) : (
-            <>
-              <MCIcon name="logout" size={20} color={COLORS.danger} />
-              <Text style={styles.logoutText}>Log out</Text>
-            </>
-          )}
+        >
+          <MCIcon name="logout" size={18} color={colors.danger} style={{ marginRight: 8 }} />
+          <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
 
-        <Text style={styles.note}>Profile editing rows are scaffolded placeholders.</Text>
       </ScrollView>
     </View>
   );
@@ -79,58 +168,144 @@ const ProfileScreen = () => {
 
 export default ProfileScreen;
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
-  scroll: { padding: SPACING.lg },
-  card: {
-    backgroundColor: COLORS.white,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    padding: SPACING.xl,
-    alignItems: 'center',
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1 },
+
+  header: {
+    backgroundColor: colors.headerBg,
+    paddingTop: 56,
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
-  avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: COLORS.primaryFaint,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: SPACING.md,
-  },
-  name: { fontSize: 19, fontWeight: '800', color: COLORS.textPrimary },
-  email: { fontSize: 13.5, color: COLORS.textSecondary, marginTop: 4 },
-  list: {
-    backgroundColor: COLORS.white,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    marginTop: SPACING.lg,
-    overflow: 'hidden',
-  },
-  row: {
+  profileRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.md,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: 15,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: COLORS.border,
+    marginBottom: 20,
   },
-  rowLabel: { flex: 1, fontSize: 15, color: COLORS.textPrimary },
+  avatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  avatarLetter: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.white,
+  },
+  profileInfo: { flex: 1 },
+  profileName: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.white,
+  },
+  profileEmail: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 2,
+  },
+  planBadge: {
+    marginTop: 6,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 20,
+  },
+  planText: {
+    fontSize: 11,
+    color: colors.white,
+    fontWeight: '600',
+  },
+
+  statsRow: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 16,
+    paddingVertical: 16,
+  },
+  statBox: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statBorder: {
+    borderRightWidth: 1,
+    borderRightColor: 'rgba(255,255,255,0.3)',
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.white,
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.8)',
+  },
+
+  menuSection: {
+    marginHorizontal: 16,
+    marginTop: 20,
+    gap: 10,
+  },
+  menuCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  menuIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  menuInfo: { flex: 1 },
+  menuTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  menuSubtitle: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 1,
+  },
+
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    backgroundColor: COLORS.white,
-    borderRadius: RADIUS.md,
+    marginHorizontal: 16,
+    marginTop: 16,
     borderWidth: 1,
-    borderColor: '#fecaca',
-    paddingVertical: 15,
-    marginTop: SPACING.lg,
+    borderColor: soft(colors.danger),
+    borderRadius: 16,
+    paddingVertical: 16,
+    backgroundColor: soft(colors.danger),
   },
-  logoutText: { fontSize: 15, fontWeight: '800', color: COLORS.danger },
-  note: { fontSize: 12, color: COLORS.textMuted, textAlign: 'center', marginTop: SPACING.lg },
+  logoutText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.danger,
+  },
 });

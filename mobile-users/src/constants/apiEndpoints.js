@@ -14,6 +14,11 @@ export const ENDPOINTS = {
   ME: `${API_VERSION}/auth/me`,
   CHANGE_PASSWORD: `${API_VERSION}/auth/change-password`,
 
+  // App releases (OTA) — backend-brokered update check + short-lived SAS download
+  APP_RELEASE_LATEST: slug => `${API_VERSION}/app-releases/latest?app=${slug}`,
+  APP_RELEASE_DOWNLOAD: (slug, version) =>
+    `${API_VERSION}/app-releases/${slug}/${encodeURIComponent(version)}/download`,
+
   // User preferences
   PREFERENCES: `${API_VERSION}/users/me/preferences`,
 
@@ -57,6 +62,9 @@ export const ENDPOINTS = {
 
   // Consent
   CONSENT: `${API_VERSION}/consent`,
+
+  // Help & Support (admin-configurable contacts + FAQs)
+  SUPPORT_HELP: `${API_VERSION}/support/help`,
 
   // Error reporting
   ERROR_REPORT: `${API_VERSION}/errors/report`,

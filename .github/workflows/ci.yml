@@ -17,7 +17,10 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          # 3.12, not 3.13: mediapipe/opencv/scikit-image only ship wheels for
+          # Python <=3.12 (see requirements.txt). On 3.13 the CV stack fails to
+          # install and the face-scan pipeline degrades to status='failed'.
+          python-version: '3.12'
           cache: pip
           cache-dependency-path: backend/requirements.txt
 

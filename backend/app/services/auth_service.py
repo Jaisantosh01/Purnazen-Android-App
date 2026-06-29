@@ -50,6 +50,14 @@ class AuthService:
                 "message": "Invalid email or password",
             }, 401
 
+        # RBAC gate: reject a valid credential trying to use the wrong app.
+        expected_role = data.get("expected_role")
+        if expected_role and (not user.role or user.role.name != expected_role):
+            return {
+                "success": False,
+                "message": "This account is not permitted to use this app",
+            }, 403
+
         return {
             "success": True,
             "message": "Login successful",

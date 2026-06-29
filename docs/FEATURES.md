@@ -6,6 +6,12 @@
 
 Single source of truth for what is built, what is stubbed, and what is missing — across frontend and backend.
 
+> **Three-app parity (2026-06-26):** the **admin** (`mobile-admin`) and **doctor**
+> (`mobile-doctors`) apps now match the patient app's Profile/Settings — dark mode,
+> biometric login, themed alerts, editable profile/phone/password, and role-scoped
+> profile trackers (admin: doctors/users/appointments-today; doctor: today/upcoming/
+> completed). Patient-only settings are intentionally excluded from the staff apps.
+
 | Symbol | Meaning |
 |--------|---------|
 | ✅ | Implemented and working end-to-end |
