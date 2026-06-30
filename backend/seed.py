@@ -78,9 +78,9 @@ try:
         )
     
     doctor_users = [
-        ("Dr Sarah Chen", "sarah@example.com"),
-        ("Dr Rajesh Kumar", "rajesh@example.com"),
-        ("Dr Priya Sharma", "priya@example.com"),
+        ("Sarah Chen", "sarah@example.com"),
+        ("Rajesh Kumar", "rajesh@example.com"),
+        ("Priya Sharma", "priya@example.com"),
     ]
 
     for full_name, email in doctor_users:
