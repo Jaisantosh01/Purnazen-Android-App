@@ -29,8 +29,15 @@ import ScheduleScreen from './src/screens/ScheduleScreen';
 // @ts-ignore
 import AddAvailabilityScreen from './src/screens/AddAvailabilityScreen';
 import PatientsScreen from './src/screens/PatientsScreen';
-import PatientDetailScreen from './src/screens/PatientDetailScreen';
-import PatientDetailsScreen from './src/screens/PatientDetailsScreen';
+import PatientProfileScreen from './src/screens/PatientProfileScreen';
+import ConsultationHistoryScreen from './src/screens/ConsultationHistoryScreen';
+import ConsultationDetailScreen from './src/screens/ConsultationDetailScreen';
+import FaceScanHistoryScreen from './src/screens/FaceScanHistoryScreen';
+import TongueScanHistoryScreen from './src/screens/TongueScanHistoryScreen';
+import PrescriptionHistoryScreen from './src/screens/PrescriptionHistoryScreen';
+import PrescriptionDetailScreen from './src/screens/PrescriptionDetailScreen';
+import FaceScanReportScreen from './src/screens/FaceScanReportScreen';
+import TongueScanReportScreen from './src/screens/TongueScanReportScreen';
 import ConsultationNotesScreen from './src/screens/ConsultationNotesScreen';
 import DoctorNotesEditorScreen from './src/screens/DoctorNotesEditorScreen';
 import DiagnosisEditorScreen from './src/screens/DiagnosisEditorScreen';
@@ -56,11 +63,19 @@ function AppointmentsStackNavigator() {
     <AppointmentsStack.Navigator screenOptions={{ headerShown: false }}>
       <AppointmentsStack.Screen name="AppointmentsMain" component={AppointmentsScreen} />
       <AppointmentsStack.Screen name="AppointmentDetail" component={AppointmentDetailScreen} />
-      <AppointmentsStack.Screen name="PatientDetails" component={PatientDetailsScreen} />
+      <AppointmentsStack.Screen name="PatientProfile" component={PatientProfileScreen} />
       <AppointmentsStack.Screen name="ConsultationNotes" component={ConsultationNotesScreen} />
       <AppointmentsStack.Screen name="DoctorNotesEditor" component={DoctorNotesEditorScreen} />
       <AppointmentsStack.Screen name="DiagnosisEditor" component={DiagnosisEditorScreen} />
       <AppointmentsStack.Screen name="PrescriptionEditor" component={PrescriptionEditorScreen} />
+      <AppointmentsStack.Screen name="ConsultationHistory" component={ConsultationHistoryScreen} />
+      <AppointmentsStack.Screen name="ConsultationDetail" component={ConsultationDetailScreen} />
+      <AppointmentsStack.Screen name="FaceScanHistory" component={FaceScanHistoryScreen} />
+      <AppointmentsStack.Screen name="TongueScanHistory" component={TongueScanHistoryScreen} />
+      <AppointmentsStack.Screen name="PrescriptionHistory" component={PrescriptionHistoryScreen} />
+      <AppointmentsStack.Screen name="PrescriptionDetail" component={PrescriptionDetailScreen} />
+      <AppointmentsStack.Screen name="FaceScanReport" component={FaceScanReportScreen} />
+      <AppointmentsStack.Screen name="TongueScanReport" component={TongueScanReportScreen} />
     </AppointmentsStack.Navigator>
   );
 }
@@ -69,7 +84,15 @@ function PatientsStackNavigator() {
   return (
     <PatientsStack.Navigator screenOptions={{ headerShown: false }}>
       <PatientsStack.Screen name="PatientsMain" component={PatientsScreen} />
-      <PatientsStack.Screen name="PatientDetail" component={PatientDetailScreen} />
+      <PatientsStack.Screen name="PatientProfile" component={PatientProfileScreen} />
+      <PatientsStack.Screen name="ConsultationHistory" component={ConsultationHistoryScreen} />
+      <PatientsStack.Screen name="ConsultationDetail" component={ConsultationDetailScreen} />
+      <PatientsStack.Screen name="FaceScanHistory" component={FaceScanHistoryScreen} />
+      <PatientsStack.Screen name="TongueScanHistory" component={TongueScanHistoryScreen} />
+      <PatientsStack.Screen name="PrescriptionHistory" component={PrescriptionHistoryScreen} />
+      <PatientsStack.Screen name="PrescriptionDetail" component={PrescriptionDetailScreen} />
+      <PatientsStack.Screen name="FaceScanReport" component={FaceScanReportScreen} />
+      <PatientsStack.Screen name="TongueScanReport" component={TongueScanReportScreen} />
     </PatientsStack.Navigator>
   );
 }
