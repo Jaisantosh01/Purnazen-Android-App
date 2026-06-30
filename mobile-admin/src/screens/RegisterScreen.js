@@ -35,7 +35,7 @@ const RegisterScreen = ({ navigation }) => {
     setIsLoading(true);
     try {
       await authService.register(fullName.trim(), email.trim(), password);
-      navigation.replace('Main');
+      // Auth-state flip in authStore swaps the root navigator to Main (App.tsx).
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.');
     } finally {

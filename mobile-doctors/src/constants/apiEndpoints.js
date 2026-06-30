@@ -18,6 +18,14 @@ export const ENDPOINTS = {
   ME: `${API_VERSION}/auth/me`,
   CHANGE_PASSWORD: `${API_VERSION}/auth/change-password`,
 
+  // App releases (OTA) — backend-brokered update check + short-lived SAS download
+  APP_RELEASE_LATEST: slug => `${API_VERSION}/app-releases/latest?app=${slug}`,
+  APP_RELEASE_DOWNLOAD: (slug, version) =>
+    `${API_VERSION}/app-releases/${slug}/${encodeURIComponent(version)}/download`,
+
+  // User preferences (user-scoped; the shared route serves any authenticated role)
+  PREFERENCES: `${API_VERSION}/users/me/preferences`,
+
   // Doctor directory / profile
   DOCTORS: `${API_VERSION}/doctors`,
   DOCTOR_DETAIL: id => `${API_VERSION}/doctors/${id}`,
@@ -33,6 +41,10 @@ export const ENDPOINTS = {
   APPOINTMENTS: `${API_VERSION}/appointments`,
   APPOINTMENTS_DOCTOR: `${API_VERSION}/appointments/doctor`,
   APPOINTMENT_DETAIL: id => `${API_VERSION}/appointments/${id}`,
+
+  // Clinical records (doctor notes / diagnosis / prescription) for an appointment
+  CONSULTATION_RECORDS: id => `${API_VERSION}/appointments/${id}/records`,
+  CONSULTATION_RECORD: (id, recordId) => `${API_VERSION}/appointments/${id}/records/${recordId}`,
 
   // Patients — a doctor's patients view (TODO: backend endpoint).
   PATIENTS: `${API_VERSION}/patients`,

@@ -37,3 +37,7 @@ from app.models.face_scan import FaceScan  # noqa: E402,F401
 from app.models.scan_result import ScanResult  # noqa: E402,F401
 from app.models.scan_recommendation import ScanRecommendation  # noqa: E402,F401
 from app.models.associations import DoctorConsultationType  # noqa: E402,F401
+from app.models.support_contact import SupportContact  # noqa: E402,F401
+from app.models.support_faq import SupportFaq  # noqa: E402,F401
+from app.models.consultation_record import ConsultationRecord  # noqa: E402,F401
+from app.models.app_release import AppRelease  # noqa: E402,F401

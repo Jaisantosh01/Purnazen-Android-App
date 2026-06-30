@@ -318,8 +318,10 @@ const AppointmentsScreen = ({ navigation }) => {
   // ── Card press ──────────────────────────────────────────────────────────────
   const handlePress = item => {
     navigation.navigate('AppointmentDetail', {
-    appointment: item,
-  });
+      appointment: item,
+    });
+  };
+
 
   // ── Derived display ─────────────────────────────────────────────────────────
   const todayLabel = (() => {

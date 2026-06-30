@@ -24,6 +24,9 @@ from app.api.v1.endpoints import doctor_leaves
 from app.api.v1.endpoints import languages
 from app.api.v1.endpoints import expertises
 from app.api.v1.endpoints import specialties
+from app.api.v1.endpoints import support
+from app.api.v1.endpoints import consultations
+from app.api.v1.endpoints import app_releases
 from app.api.v1.endpoints import patients
 
 api_router = APIRouter()
@@ -50,4 +53,8 @@ api_router.include_router(slot_timings.router)
 api_router.include_router(face_scan.router)
 api_router.include_router(consent.router)
 api_router.include_router(error_report.router)
+api_router.include_router(support.router)
+api_router.include_router(consultations.router)
+api_router.include_router(app_releases.router)
 api_router.include_router(patients.router)
+

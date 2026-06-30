@@ -193,6 +193,39 @@ QUICK_RELIEFS = [
     }
 ]
 
+# No support contacts are seeded — the placeholder email/phone/WhatsApp don't
+# exist yet. The Help & Support screen shows a "Coming soon" state while this is
+# empty; real channels can be added later via the admin API (POST /support/contacts).
+SUPPORT_CONTACTS = []
+
+SUPPORT_FAQS = [
+    {
+        "question": "How do I book a consultation?",
+        "answer": 'Go to the Consult tab, browse available doctors, tap on a doctor to view their profile, then tap "Book Appointment" to select a date, time, and visit type.',
+        "sort_order": 1,
+    },
+    {
+        "question": "How do I cancel or reschedule an appointment?",
+        "answer": 'Go to Profile → Therapy History, find the appointment, and tap "Cancel" or "Reschedule." Cancellations made 24 hours before the appointment are fully refunded.',
+        "sort_order": 2,
+    },
+    {
+        "question": "What payment methods are accepted?",
+        "answer": "We accept Credit/Debit Cards, UPI (Google Pay, PhonePe, Paytm), and major digital wallets. All transactions are secured with 256-bit encryption.",
+        "sort_order": 3,
+    },
+    {
+        "question": "Are the wellness sessions free?",
+        "answer": "Yes! Yoga, Meditation, Breathing Exercises, and all wellness programs are free for all users. Premium members get access to exclusive programs and personalized plans.",
+        "sort_order": 4,
+    },
+    {
+        "question": "Is my health data secure?",
+        "answer": "Absolutely. All your health data is encrypted and stored securely. We follow strict privacy guidelines and never share your personal data with third parties without your consent.",
+        "sort_order": 5,
+    },
+]
+
 AWARDS = [
     {
         "doctor_email": "sarah@example.com",

@@ -30,10 +30,12 @@ from app.db.base import (
     Award,
     DayOfWeek,
     SlotTimings,
-    DoctorConsultationType
+    DoctorConsultationType,
+    SupportContact,
+    SupportFaq,
 )
 from app.db.session import SessionLocal, engine
-from seed_data import RELIEF_SESSIONS, VIDEO_GROUPS, VIDEOS, CHAT_FLOW, QUICK_RELIEFS, AWARDS, CLINICS, DOCTOR_LEAVES, DAYS_OF_WEEK, SLOT_TIMINGS, WELLNESS_SESSIONS_DATA
+from seed_data import RELIEF_SESSIONS, VIDEO_GROUPS, VIDEOS, CHAT_FLOW, QUICK_RELIEFS, AWARDS, CLINICS, DOCTOR_LEAVES, DAYS_OF_WEEK, SLOT_TIMINGS, WELLNESS_SESSIONS_DATA, SUPPORT_CONTACTS, SUPPORT_FAQS
 
 Base.metadata.create_all(bind=engine)
 
@@ -601,6 +603,42 @@ try:
                             created_by=admin.id,
                         )
                     )
+
+    # ------------------------
+    # Support Contacts
+    # ------------------------
+    for contact_data in SUPPORT_CONTACTS:
+        existing = db.query(SupportContact).filter_by(title=contact_data["title"]).first()
+        if not existing:
+            db.add(
+                SupportContact(
+                    contact_type=contact_data["contact_type"],
+                    title=contact_data["title"],
+                    subtitle=contact_data.get("subtitle"),
+                    value=contact_data.get("value"),
+                    icon=contact_data.get("icon"),
+                    color=contact_data.get("color"),
+                    sort_order=contact_data.get("sort_order", 0),
+                    created_by=admin.id,
+                    updated_by=admin.id,
+                )
+            )
+
+    # ------------------------
+    # Support FAQs
+    # ------------------------
+    for faq_data in SUPPORT_FAQS:
+        existing = db.query(SupportFaq).filter_by(question=faq_data["question"]).first()
+        if not existing:
+            db.add(
+                SupportFaq(
+                    question=faq_data["question"],
+                    answer=faq_data["answer"],
+                    sort_order=faq_data.get("sort_order", 0),
+                    created_by=admin.id,
+                    updated_by=admin.id,
+                )
+            )
 
     db.commit()
     print("Seed data inserted successfully.")

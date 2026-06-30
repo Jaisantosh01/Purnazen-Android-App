@@ -1,8 +1,17 @@
 # Architecture
 
-**Last updated:** 2026-06-15 (Face Analysis Sprints 1–3: consent, upload, mobile camera, and the **real OpenCV/MediaPipe AI pipeline** — see [FACE_ANALYSIS_AI.md](FACE_ANALYSIS_AI.md))
+**Last updated:** 2026-06-26 (admin/doctor Profile-Settings parity) · 2026-06-15 (Face Analysis Sprints 1–3: consent, upload, mobile camera, and the **real OpenCV/MediaPipe AI pipeline** — see [FACE_ANALYSIS_AI.md](FACE_ANALYSIS_AI.md))
 
 ## System Overview
+
+The repo ships **three React Native apps against one FastAPI backend**, each gated
+to a single role (`expected_role` on login): **`mobile-users`** (patient,
+brand-green), **`mobile-admin`** (admin, burnt-orange), **`mobile-doctors`**
+(doctor, clinical-blue). They share the same conventions and a common
+client-side pattern — `constants/theme.js` (light/dark palettes) + `hooks/useTheme.js`
++ `store/themeStore.js` for theming, `services/biometricService.js` for biometric
+unlock, and `utils/alert.js` + `components/AppAlertHost.js` for themed alerts —
+ported per app rather than shared as a package.
 
 ```
 ┌─────────────────────────────┐         ┌──────────────────────────────┐

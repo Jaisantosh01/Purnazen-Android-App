@@ -6,8 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
-  Alert,
 } from 'react-native';
+import { showAlert } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAuthStore } from '../store/authStore';
@@ -46,7 +46,7 @@ const ProfileScreen = ({ navigation }) => {
   }, []);
 
   const handleLogout = () => {
-    Alert.alert(
+    showAlert(
       'Logout',
       'Are you sure you want to log out?',
       [

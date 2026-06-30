@@ -5,9 +5,12 @@ app's stack and infrastructure (`mobile-users`) and talks to the **same FastAPI
 backend**, but ships placeholder screens for the doctor workflows rather than
 finished features.
 
-> Status: skeleton only. Auth + navigation + service layer are real; feature
-> screens render a "scaffolded" placeholder that documents the intended
-> behaviour and the backend endpoint(s) each will use.
+> Status: partially built. Auth + navigation + service layer are real, and
+> **Profile & Settings are at full parity with the patient app** — dark mode,
+> biometric login, themed alerts, editable profile/phone/password, language,
+> check-for-updates, and profile trackers (today / upcoming / completed
+> appointments). Remaining clinical feature screens still render a "scaffolded"
+> placeholder documenting the intended behaviour and backend endpoint(s).
 
 ## Stack
 

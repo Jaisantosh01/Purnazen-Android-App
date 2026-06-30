@@ -1,8 +1,12 @@
 # SRS Audit — Purnazen
 
 **Audited against:** `SRS_MHeal.pdf` (Calypsion Innovations) — *AI Assisted Acupressure & Wellness App*
-**Date:** 2026-06-15
-**Scope of this repo:** User mobile app (React Native) + backend (FastAPI). Admin / Super-Admin web consoles are **not** part of this codebase.
+**Date:** 2026-06-15 (admin/doctor app note added 2026-06-26)
+**Scope of this repo:** Three React Native apps — **patient** (`mobile-users`),
+**admin** (`mobile-admin`), and **doctor** (`mobile-doctors`) — plus the shared
+FastAPI backend. The original SRS assumed *web* admin/super-admin consoles; those
+are not built, but the admin & doctor management apps below cover much of that
+scope natively. Rows referring to "no admin UI" predate these apps.
 
 | Symbol | Meaning |
 |--------|---------|
@@ -153,7 +157,9 @@
 
 ## Top Gaps vs SRS (recommended next)
 
-1. **Admin & Super-Admin consoles** — entirely unbuilt (largest gap).
+1. **Admin & Super-Admin consoles** — native **admin** (`mobile-admin`) and
+   **doctor** (`mobile-doctors`) apps now cover doctor/user/appointment/content
+   management and clinical workflows; a *web* super-admin console is still unbuilt.
 2. **Subscription billing + plan gating** (incl. Free 2-min limit).
 3. **Razorpay native checkout** with real test keys.
 4. **OTP authentication** (SRS lists OTP/password).

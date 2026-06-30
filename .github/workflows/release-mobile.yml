@@ -36,6 +36,7 @@ on:
 
 permissions:
   contents: write          # create releases + tags
+  id-token: write          # OIDC federated login to Azure (blob upload)
 
 concurrency:
   group: release-mobile-${{ inputs.app }}-${{ inputs.version }}
@@ -155,5 +156,56 @@ jobs:
             ${{ inputs.force_update && '<!-- purnazen:force-update -->' || '' }}
           prerelease: ${{ inputs.prerelease }}
           files: ${{ steps.artifacts.outputs.dir }}/*
+
+      # ── OTA distribution: upload the signed APK to the PRIVATE releases
+      # container and register the version with the backend, which serves the
+      # in-app updater (short-lived SAS). Skipped automatically until the
+      # AZURE_STORAGE_ACCOUNT repo variable is configured.
+      - name: Azure login (OIDC)
+        if: ${{ vars.AZURE_STORAGE_ACCOUNT != '' }}
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Upload APK to private releases container + register version
+        if: ${{ vars.AZURE_STORAGE_ACCOUNT != '' }}
+        env:
+          STORAGE_ACCOUNT: ${{ vars.AZURE_STORAGE_ACCOUNT }}
+          CONTAINER: ${{ vars.AZURE_RELEASES_CONTAINER }}
+          API_BASE_URL: ${{ inputs.api_base_url != '' && inputs.api_base_url || vars.API_BASE_URL }}
+          REGISTER_TOKEN: ${{ secrets.RELEASE_REGISTER_TOKEN }}
+          RELEASE_NOTES: ${{ inputs.release_notes }}
+          FORCE_UPDATE: ${{ inputs.force_update }}
+        run: |
+          set -euo pipefail
+          APP="${{ matrix.app }}"; VER="${{ inputs.version }}"
+          CONTAINER="${CONTAINER:-app-releases}"
+          BASE="purnazen-${APP}-v${VER}"
+          APK="${{ steps.artifacts.outputs.dir }}/${BASE}.apk"
+          BLOB="releases/${APP}/${VER}/${BASE}.apk"
+          SHA=$(sha256sum "$APK" | awk '{print $1}')
+
+          echo "Uploading $APK -> $CONTAINER/$BLOB"
+          az storage blob upload \
+            --account-name "$STORAGE_ACCOUNT" \
+            --container-name "$CONTAINER" \
+            --name "$BLOB" --file "$APK" \
+            --auth-mode login --overwrite true \
+            --content-type application/vnd.android.package-archive
+
+          echo "Registering v$VER with backend"
+          PAYLOAD=$(jq -n \
+            --arg slug "$APP" --arg ver "$VER" --arg path "$BLOB" \
+            --arg sha "$SHA" --arg notes "$RELEASE_NOTES" \
+            --argjson code ${{ github.run_number }} \
+            --argjson forced ${FORCE_UPDATE} \
+            '{appSlug:$slug, version:$ver, apkBlobPath:$path, versionCode:$code, sha256:$sha, notes:$notes, forced:$forced}')
+          curl -fsS -X POST "${API_BASE_URL%/}/api/v1/app-releases" \
+            -H "Content-Type: application/json" \
+            -H "X-Release-Token: ${REGISTER_TOKEN}" \
+            -d "$PAYLOAD"
+          echo "Registered."
 
 # registered on prod 2026-06-24

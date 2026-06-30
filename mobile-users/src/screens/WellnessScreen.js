@@ -7,8 +7,9 @@ import {
   TouchableOpacity,
   StatusBar,
   RefreshControl,
-  Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { showAlert } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import wellnessService from '../services/wellnessService';
@@ -16,23 +17,9 @@ import { ProgramSkeleton, StatsSkeleton } from '../components/SkeletonLoader';
 import { COLORS, SPACING, RADIUS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
 
-const LEVEL_COLORS = {
-  'Beginner':     { bg: '#e8f5e9', text: '#2e7d32' },
-  'All levels':   { bg: '#e3f2fd', text: '#1565c0' },
-  'Intermediate': { bg: '#fff3e0', text: '#e65100' },
-};
-
-const ICON_MAP = {
-  YogaSession:           { icon: 'yoga',           color: COLORS.accent,     bg: COLORS.accentLight },
-  MeditationSession:     { icon: 'meditation',      color: COLORS.primary,    bg: COLORS.primaryLight },
-  BreathingSession:      { icon: 'weather-windy',   color: '#0284c7',         bg: '#E0F2FE' },
-  MorningRoutineSession: { icon: 'weather-sunny',   color: COLORS.warning,    bg: '#FFFBEB' },
-  EveningWindDown:       { icon: 'weather-night',   color: COLORS.accent,     bg: COLORS.accentLight },
-  FullBodyStretch:       { icon: 'human-handsup',   color: '#ea580c',         bg: '#FFF3E0' },
-};
-
 const WellnessScreen = ({ navigation }) => {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [programs, setPrograms]     = useState([]);
   const [stats, setStats]           = useState(null);
@@ -51,12 +38,10 @@ const WellnessScreen = ({ navigation }) => {
         id: s.id,
         title: s.title,
         subtitle: s.subtitle || '',
-        icon: 'star-four-points-outline', 
+        icon: 'star-four-points-outline',
         iconColor: COLORS.primary,
         iconBg:    COLORS.primaryLight,
         duration:  s.duration,
-        level:     'All levels',
-        completed: 0,
         videoGroupId: s.videoGroupId,
       })));
       if (data?.stats) setStats(data.stats);
@@ -77,10 +62,9 @@ const WellnessScreen = ({ navigation }) => {
         groupTitle: program.title
       });
     } else {
-      Alert.alert(
-        "Navigation Debug Info",
-        "Program data:\n" + JSON.stringify(program, null, 2),
-        [{ text: "OK" }]
+      showAlert(
+        'Coming soon',
+        'Sessions for this program are being added. Please check back shortly.',
       );
     }
   };
@@ -102,7 +86,7 @@ const WellnessScreen = ({ navigation }) => {
         }
       >
         {/* ── Header ── */}
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 16 }]}>
           <Text style={styles.headerTitle}>Wellness</Text>
           <Text style={styles.headerSubtitle}>Daily routines for a healthier you</Text>
 
@@ -151,9 +135,7 @@ const WellnessScreen = ({ navigation }) => {
               <MCIcon name="yoga" size={48} color={colors.border} />
               <Text style={styles.errorTitle}>No programs yet</Text>
             </View>
-          ) : programs.map((program) => {
-            const level = LEVEL_COLORS[program.level] || { bg: colors.surfaceMuted, text: colors.textSecondary };
-            return (
+          ) : programs.map((program) => (
               <TouchableOpacity
                 key={program.id}
                 style={styles.programCard}
@@ -166,24 +148,23 @@ const WellnessScreen = ({ navigation }) => {
 
                 <View style={styles.programInfo}>
                   <Text style={styles.programTitle}>{program.title}</Text>
-                  <Text style={styles.programSubtitle}>{program.subtitle}</Text>
+                  {program.subtitle ? (
+                    <Text style={styles.programSubtitle}>{program.subtitle}</Text>
+                  ) : null}
 
-                  <View style={styles.metaRow}>
-                    <MCIcon name="clock-outline" size={12} color={colors.textMuted} />
-                    <Text style={styles.metaDuration}> {program.duration}</Text>
-                    <View style={[styles.levelBadge, { backgroundColor: level.bg }]}>
-                      <Text style={[styles.levelText, { color: level.text }]}>{program.level}</Text>
+                  {program.duration ? (
+                    <View style={styles.metaRow}>
+                      <MCIcon name="clock-outline" size={12} color={colors.textMuted} />
+                      <Text style={styles.metaDuration}> {program.duration}</Text>
                     </View>
-                    <Text style={styles.metaCompleted}>{program.completed} completed</Text>
-                  </View>
+                  ) : null}
                 </View>
 
                 <TouchableOpacity style={styles.playBtn} activeOpacity={0.8} onPress={() => handleProgram(program)}>
                   <MCIcon name="play" size={14} color={colors.primary} />
                 </TouchableOpacity>
               </TouchableOpacity>
-            );
-          })}
+          ))}
         </View>
       </ScrollView>
     </View>
@@ -198,7 +179,6 @@ const makeStyles = colors => StyleSheet.create({
   // Accent-purple hero kept as a fixed brand banner across light/dark.
   header: {
     backgroundColor: COLORS.accent,
-    paddingTop: 50,
     paddingHorizontal: SPACING.xl,
     paddingBottom: 28,
     borderBottomLeftRadius: RADIUS.lg,

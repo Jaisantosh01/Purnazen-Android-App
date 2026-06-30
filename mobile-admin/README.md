@@ -1,6 +1,13 @@
-# Wellness Mobile App
+# Purnazen Admin (`mobile-admin`)
 
-A high-performance React Native mobile application for enterprise wellness and acupressure therapy.
+The admin-facing React Native app for the Purnazen platform — doctor, user,
+appointment, slot/leave, and video/content management. Shares the patient app's
+stack and talks to the same FastAPI backend; gated to the `admin` role.
+
+Profile & Settings match the patient app: **dark mode**, **biometric login**,
+themed in-app alerts, editable profile/phone/password, language, check-for-updates,
+and live profile trackers (active doctors / users / today's appointments). Patient-
+only settings are excluded.
 
 ## Tech Stack
 - **Framework:** React Native (0.84+)

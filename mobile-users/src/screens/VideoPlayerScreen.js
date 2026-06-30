@@ -8,6 +8,7 @@ import {
   StatusBar,
   ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import useTheme from '../hooks/useTheme';
@@ -17,6 +18,7 @@ import VideoPlayer from '../components/VideoPlayer';
 
 const VideoPlayerScreen = ({ route, navigation }) => {
   const { colors, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { groupId } = route.params;
 
@@ -118,7 +120,14 @@ const VideoPlayerScreen = ({ route, navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor="#000" />
+      {/* Translucent bar lets the player run edge-to-edge under the status bar
+          for a larger, more immersive frame. */}
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+
+      {/* Black filler behind the status bar. Kept as a sibling (not a wrapper)
+          so the player stays a direct child of root and its JS fullscreen can
+          expand to cover the whole screen. */}
+      <View style={{ height: insets.top, backgroundColor: '#000' }} />
 
       {/* Player */}
       <VideoPlayer
@@ -133,7 +142,11 @@ const VideoPlayerScreen = ({ route, navigation }) => {
       />
 
       {/* Floating back button over the player */}
-      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.floatingBack} hitSlop={hit}>
+      <TouchableOpacity
+        onPress={() => navigation.goBack()}
+        style={[styles.floatingBack, { top: insets.top + 8 }]}
+        hitSlop={hit}
+      >
         <MCIcon name="arrow-left" size={22} color="#fff" />
       </TouchableOpacity>
 

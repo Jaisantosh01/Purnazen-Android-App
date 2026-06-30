@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, StatusBar, TextInput, Alert, ActivityIndicator,
+  TouchableOpacity, StatusBar, TextInput, ActivityIndicator,
 } from 'react-native';
+import { showAlert } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import consultService from '../services/consultService';
@@ -62,13 +63,13 @@ const PaymentScreen = ({ navigation, route }) => {
         throw new Error('Razorpay checkout is not available in this build yet.');
       }
 
-      Alert.alert(
+      showAlert(
         'Payment Successful!',
         `₹${total} paid successfully for your appointment with ${doctor.name}.`,
         [{ text: 'OK', onPress: () => navigation.navigate('ConsultMain') }]
       );
     } catch (err) {
-      Alert.alert('Payment Failed', err.message || 'Please try again.');
+      showAlert('Payment Failed', err.message || 'Please try again.');
     } finally {
       setIsProcessing(false);
     }
