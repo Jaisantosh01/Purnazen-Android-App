@@ -471,7 +471,7 @@ const makeStyles = colors => StyleSheet.create({
     borderWidth: 1.5, borderColor: ACCENT,
     borderRadius: 12, paddingVertical: 10, paddingHorizontal: 24,
     alignSelf: 'stretch', justifyContent: 'center',
-    backgroundColor: '#fff8f5',
+    backgroundColor: ACCENT + '14',
   },
   permBtnOutlineText: { color: ACCENT, fontSize: 14, fontWeight: '600' },
 });

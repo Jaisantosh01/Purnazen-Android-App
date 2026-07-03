@@ -171,7 +171,7 @@ export default TherapyHistoryScreen;
 const makeStyles = colors => StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#E8F5E9', // Light green
+    backgroundColor: colors.primaryLight,
   },
 
   // Header
@@ -335,7 +335,7 @@ const makeStyles = colors => StyleSheet.create({
     borderRadius: 12,
   },
   statusCompleted: {
-    backgroundColor: '#E8F5E9',
+    backgroundColor: colors.primaryLight,
   },
   statusCancelled: {
     backgroundColor: colors.surfaceMuted,
@@ -345,9 +345,9 @@ const makeStyles = colors => StyleSheet.create({
     fontWeight: '700',
   },
   statusTextCompleted: {
-    color: '#2E7D32',
+    color: colors.primary,
   },
   statusTextCancelled: {
-    color: '#616161',
+    color: colors.textSecondary,
   },
 });

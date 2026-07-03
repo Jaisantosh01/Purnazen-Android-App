@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,15 +7,16 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { SPACING, RADIUS } from '../constants/theme';
 import availabilityService from '../services/availabilityService';
 import { useAuthStore } from '../store/authStore';
 import { showSuccess, showError } from '../utils/toast';
+import useTheme from '../hooks/useTheme';
+import { showAlert } from '../utils/alert';
 
 const DAY_ORDER = [
   'monday',
@@ -46,6 +47,8 @@ const cleanName = (name) => {
 };
 
 const ScheduleScreen = ({ navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const currentUser = useAuthStore(s => s.doctor);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -138,7 +141,7 @@ const ScheduleScreen = ({ navigation }) => {
   };
 
   const handleDelete = (availabilityId, timeLabel, dayLabel) => {
-    Alert.alert(
+    showAlert(
       'Delete Availability',
       `Are you sure you want to remove the slot ${timeLabel} on ${dayLabel}?`,
       [
@@ -185,10 +188,10 @@ const ScheduleScreen = ({ navigation }) => {
         <ScrollView
           contentContainerStyle={styles.scrollEmpty}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
           }
         >
-          <MCIcon name="calendar-clock" size={64} color={COLORS.border} />
+          <MCIcon name="calendar-clock" size={64} color={colors.border} />
           <Text style={styles.emptyTitle}>Set Your Availability</Text>
           <Text style={styles.emptyText}>
             You haven't defined any bookable weekly slots yet. Tap the button below to add your slot availability.
@@ -201,7 +204,7 @@ const ScheduleScreen = ({ navigation }) => {
       <ScrollView
         contentContainerStyle={styles.scroll}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
         }
       >
         {sortedDays.map(dayName => {
@@ -215,7 +218,7 @@ const ScheduleScreen = ({ navigation }) => {
                   return (
                     <View key={item.id} style={styles.slotCard}>
                       <View style={styles.slotInfo}>
-                        <MCIcon name="clock-outline" size={18} color={COLORS.primary} />
+                        <MCIcon name="clock-outline" size={18} color={colors.primary} />
                         <Text style={styles.slotTimeText}>{timeLabel}</Text>
                       </View>
                       <View style={styles.actions}>
@@ -224,14 +227,14 @@ const ScheduleScreen = ({ navigation }) => {
                           activeOpacity={0.7}
                           onPress={() => handleEdit(item)}
                         >
-                          <MCIcon name="pencil-outline" size={18} color={COLORS.textSecondary} />
+                          <MCIcon name="pencil-outline" size={18} color={colors.textSecondary} />
                         </TouchableOpacity>
                         <TouchableOpacity
                           style={styles.actionBtn}
                           activeOpacity={0.7}
                           onPress={() => handleDelete(item.id, timeLabel, dayName)}
                         >
-                          <MCIcon name="delete-outline" size={18} color={COLORS.danger} />
+                          <MCIcon name="delete-outline" size={18} color={colors.danger} />
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -251,7 +254,7 @@ const ScheduleScreen = ({ navigation }) => {
 
       {loading && !refreshing ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
         <>
@@ -261,7 +264,7 @@ const ScheduleScreen = ({ navigation }) => {
             activeOpacity={0.85}
             onPress={() => navigation.navigate('AddAvailability', { mode: 'create' })}
           >
-            <MCIcon name="plus" size={20} color={COLORS.white} />
+            <MCIcon name="plus" size={20} color={colors.white} />
             <Text style={styles.fabText}>Add Availability</Text>
           </TouchableOpacity>
         </>
@@ -272,8 +275,8 @@ const ScheduleScreen = ({ navigation }) => {
 
 export default ScheduleScreen;
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   scroll: { padding: SPACING.lg, paddingBottom: 100 },
   scrollEmpty: {
     flexGrow: 1,
@@ -287,17 +290,17 @@ const styles = StyleSheet.create({
   dayHeader: {
     fontSize: 13,
     fontWeight: '800',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     letterSpacing: 0.8,
     marginBottom: SPACING.sm,
     paddingLeft: SPACING.xs,
   },
   cardsContainer: { gap: SPACING.sm },
   slotCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.lg,
     flexDirection: 'row',
@@ -305,13 +308,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   slotInfo: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  slotTimeText: { fontSize: 14.5, fontWeight: '700', color: COLORS.textPrimary },
+  slotTimeText: { fontSize: 14.5, fontWeight: '700', color: colors.textPrimary },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   actionBtn: { padding: 6 },
-  emptyTitle: { fontSize: 18, fontWeight: '800', color: COLORS.textPrimary, marginTop: SPACING.md },
+  emptyTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary, marginTop: SPACING.md },
   emptyText: {
     fontSize: 14,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
     paddingHorizontal: SPACING.md,
@@ -320,7 +323,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: SPACING.xl,
     right: SPACING.xl,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingVertical: 12,
     paddingHorizontal: 18,
     borderRadius: RADIUS.pill,
@@ -328,10 +331,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     elevation: 4,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 3,
   },
-  fabText: { color: COLORS.white, fontSize: 14.5, fontWeight: '800' },
+  fabText: { color: colors.white, fontSize: 14.5, fontWeight: '800' },
 });
