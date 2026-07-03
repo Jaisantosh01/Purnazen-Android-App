@@ -88,4 +88,16 @@ export const ENDPOINTS = {
   // Chat
   CHAT_FLOW: (startId) => `${API_VERSION}/chat/flow/${startId}`,
 
+  // Therapy Feedback
+  THERAPY_FEEDBACK: `${API_VERSION}/therapy-feedback`,
+  THERAPY_FEEDBACK_BY_GROUP: (videoGroupId) => `${API_VERSION}/therapy-feedback/by-group/${videoGroupId}`,
+  THERAPY_FEEDBACK_PAIN_AFTER: (feedbackId) => `${API_VERSION}/therapy-feedback/${feedbackId}/pain-after`,
+
+  // Therapy History — completed count
+  THERAPY_HISTORY_COMPLETED_COUNT: (groupId) => `${API_VERSION}/therapy-history/completed-count/${groupId}`,
+
+  // User Addresses
+  USER_ADDRESSES: `${API_VERSION}/user-addresses`,
+  USER_ADDRESS: (id) => `${API_VERSION}/user-addresses/${id}`,
+
 };

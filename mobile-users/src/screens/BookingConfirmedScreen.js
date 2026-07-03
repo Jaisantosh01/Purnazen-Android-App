@@ -34,7 +34,9 @@ const BookingConfirmedScreen = ({ navigation, route }) => {
             </View>
             <View>
               <Text style={styles.doctorName}>{doctor.name}</Text>
-              <Text style={styles.doctorSpecialty}>{doctor.specialty}</Text>
+              <Text style={styles.doctorSpecialty}>
+                {Array.isArray(doctor.specialties) ? doctor.specialties.join(', ') : doctor.specialty || ''}
+              </Text>
             </View>
           </View>
 

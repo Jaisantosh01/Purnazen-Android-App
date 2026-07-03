@@ -9,6 +9,7 @@ import {
   Platform,
   ActivityIndicator,
   Pressable,
+  ScrollView,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -46,6 +47,7 @@ export default function AppDialog({
   title,
   subtitle,
   children,
+  topSlot,
   confirmLabel = 'Save',
   cancelLabel = 'Cancel',
   onConfirm,
@@ -86,7 +88,17 @@ export default function AppDialog({
             {title ? <Text style={styles.title}>{title}</Text> : null}
             {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
 
-            {children ? <View style={styles.body}>{children}</View> : null}
+            {topSlot ? <View style={{ paddingHorizontal: 8 }}>{topSlot}</View> : null}
+
+            {children ? (
+              <ScrollView
+                style={styles.body}
+                showsVerticalScrollIndicator={false}
+                nestedScrollEnabled
+              >
+                {children}
+              </ScrollView>
+            ) : null}
 
             <View style={styles.actions}>
               {onClose ? (
@@ -144,7 +156,8 @@ const makeStyles = colors => StyleSheet.create({
     shadowOpacity: 0.18,
     shadowRadius: 24,
     elevation: 12,
-    maxHeight: '85%',
+    maxHeight: '92%',
+    overflow: 'hidden',
   },
   iconBadge: {
     alignSelf: 'center',

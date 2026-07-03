@@ -24,6 +24,7 @@ const soft = hex => `${hex}22`;
 const MENU_ITEMS = [
   { icon: 'calendar-clock',      iconColor: '#0891B2',           title: 'Appointments',    subtitle: 'View appointment history',  screen: 'AppointmentHistory' },
   { icon: 'history',             iconColor: COLORS.primary,      title: 'Therapy History', subtitle: 'View past sessions',        screen: 'TherapyHistory' },
+  { icon: 'map-marker-outline',  iconColor: '#16a34a',           title: 'My Addresses',    subtitle: 'Manage saved addresses',    screen: 'AddressManagement' },
   { icon: 'credit-card',         iconColor: COLORS.accent,       title: 'Subscriptions',   subtitle: 'Manage your plan',          screen: 'Subscriptions' },
   { icon: 'bell-outline',        iconColor: '#ea580c',           title: 'Notifications',   subtitle: 'Manage alerts',             screen: 'Notifications' },
   { icon: 'cog-outline',         iconColor: '#6B7280',           title: 'Settings',        subtitle: 'App preferences',           screen: 'Settings' },

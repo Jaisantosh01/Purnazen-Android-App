@@ -142,7 +142,7 @@ const ConsultScreen = ({ navigation }) => {
         <View style={styles.doctorInfo}>
           {/* Fix 6: numberOfLines prevents long names from breaking layout */}
           <Text style={styles.doctorName} numberOfLines={1}>{doctor.name}</Text>
-          <Text style={styles.doctorSpecialty} numberOfLines={1}>{doctor.specialty}</Text>
+          <Text style={styles.doctorSpecialty} numberOfLines={1}>{doctor.specialties || ''}</Text>
 
           <View style={styles.ratingRow}>
             <MCIcon name="star" size={14} color={colors.warning} />
@@ -152,10 +152,12 @@ const ConsultScreen = ({ navigation }) => {
             <Text style={styles.experience}>{doctor.experience} years</Text>
           </View>
 
-          <View style={styles.locationRow}>
-            <MCIcon name="map-marker-outline" size={13} color={colors.textMuted} />
-            <Text style={styles.location} numberOfLines={1}> {doctor.location}</Text>
-          </View>
+          {!!doctor.location && (
+            <View style={styles.locationRow}>
+              <MCIcon name="map-marker-outline" size={13} color={colors.textMuted} />
+              <Text style={styles.location} numberOfLines={1}> {doctor.location}</Text>
+            </View>
+          )}
         </View>
       </View>
 

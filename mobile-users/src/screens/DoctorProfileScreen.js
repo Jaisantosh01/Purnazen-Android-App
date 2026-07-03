@@ -5,8 +5,9 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  StatusBar,
   ActivityIndicator,
+  Linking,
+  Platform,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -16,14 +17,44 @@ import { useMemo } from 'react';
 import { doctorInitial } from '../utils/doctorAvatar';
 import ScreenHeader from '../components/ScreenHeader';
 
+// Visit type icon & label map
+const VISIT_TYPE_CONFIG = {
+  video:  { icon: 'video-outline',     label: 'Video Consult' },
+  home:   { icon: 'home-outline',       label: 'Home Visit' },
+  clinic: { icon: 'hospital-building',  label: 'Clinic Visit' },
+};
+
+// Open clinic location in Google Maps / Apple Maps
+const openClinicMap = (clinic) => {
+  if (clinic.latitude == null || clinic.longitude == null) return;
+  const lat = parseFloat(clinic.latitude);
+  const lng = parseFloat(clinic.longitude);
+  const label = encodeURIComponent(clinic.name || 'Clinic');
+  let url;
+  if (Platform.OS === 'ios') {
+    url = `maps://?q=${label}&ll=${lat},${lng}`;
+  } else {
+    url = `geo:${lat},${lng}?q=${lat},${lng}(${label})`;
+  }
+  Linking.openURL(url).catch(() => {
+    // fallback: open Google Maps in browser
+    const webUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+    Linking.openURL(webUrl).catch(() => {});
+  });
+};
+
 // ── Basic doctor card shown immediately using data from route.params ──────────
-const DoctorBasicCard = ({ doctor, styles, colors }) => (
+const DoctorBasicCard = ({ doctor, visitTypes, styles, colors }) => (
   <View style={styles.doctorCard}>
     <View style={styles.avatarCircle}>
       <Text style={styles.avatarIcon}>{doctorInitial(doctor.name)}</Text>
     </View>
     <Text style={styles.doctorName}>{doctor.name}</Text>
-    <Text style={styles.doctorSpecialty}>{doctor.specialty}</Text>
+    <Text style={styles.doctorSpecialty}>
+      {Array.isArray(doctor.specialties)
+        ? doctor.specialties.join(', ')
+        : doctor.specialty || doctor.speciality || doctor.specialties || ''}
+    </Text>
 
     <View style={styles.ratingRow}>
       <MCIcon name="star" size={15} color={colors.warning} style={styles.star} />
@@ -31,25 +62,30 @@ const DoctorBasicCard = ({ doctor, styles, colors }) => (
       <Text style={styles.reviews}>({doctor.reviews} reviews)</Text>
     </View>
 
-    <View style={styles.locationRow}>
-      <MCIcon name="map-marker" size={14} color={colors.textMuted} style={styles.locationIcon} />
-      <Text style={styles.location}>{doctor.location}</Text>
-    </View>
+    {!!doctor.location && (
+      <View style={styles.locationRow}>
+        <MCIcon name="map-marker" size={14} color={colors.textMuted} style={styles.locationIcon} />
+        <Text style={styles.location}>{doctor.location}</Text>
+      </View>
+    )}
 
     <View style={styles.tagsRow}>
-      {doctor.tags.map((tag, index) => (
-        <View key={index} style={styles.tag}>
-          <MCIcon
-            name={tag === 'Video' ? 'video-outline' : 'home-outline'}
-            size={14}
-            color={colors.primary}
-            style={styles.tagIcon}
-          />
-          <Text style={styles.tagText}>
-            {tag === 'Video' ? 'Video Consult' : 'Home Visit'}
-          </Text>
-        </View>
-      ))}
+      {/* Visit types fetched from /doctors/{id}/visit-types API */}
+      {(visitTypes.length > 0 ? visitTypes : doctor.tags || []).map((item, index) => {
+        const slug = typeof item === 'string' ? item.toLowerCase().replace(/\s+/g, '') : (item.id || '');
+        const config = VISIT_TYPE_CONFIG[slug] || { icon: item.icon || 'tag-outline', label: item.title || item };
+        return (
+          <View key={index} style={styles.tag}>
+            <MCIcon
+              name={config.icon}
+              size={14}
+              color={colors.primary}
+              style={styles.tagIcon}
+            />
+            <Text style={styles.tagText}>{config.label}</Text>
+          </View>
+        );
+      })}
     </View>
   </View>
 );
@@ -60,6 +96,7 @@ const DoctorProfileScreen = ({ navigation, route }) => {
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const [detailData, setDetailData] = useState(null);
+  const [visitTypes, setVisitTypes] = useState([]);
   const [isLoading, setIsLoading]   = useState(false);
   const [error, setError]           = useState(null);
 
@@ -68,8 +105,13 @@ const DoctorProfileScreen = ({ navigation, route }) => {
     setError(null);
 
     try {
-      const data = await consultService.getDoctorDetail(doctor.id);
+      // Fetch both detail and visit types in parallel
+      const [data, visitTypesData] = await Promise.all([
+        consultService.getDoctorDetail(doctor.id),
+        consultService.getVisitTypes(doctor.id).catch(() => []),
+      ]);
       setDetailData(data);
+      setVisitTypes(visitTypesData || []);
     } catch (err) {
       setError(err.message || 'Something went wrong. Please try again.');
     } finally {
@@ -107,7 +149,7 @@ const DoctorProfileScreen = ({ navigation, route }) => {
         contentContainerStyle={{ paddingBottom: 100 }}
       >
         {/* ── Basic doctor info — shown immediately from route.params ── */}
-        <DoctorBasicCard doctor={doctor} styles={styles} colors={colors} />
+        <DoctorBasicCard doctor={doctor} visitTypes={visitTypes} styles={styles} colors={colors} />
 
         {/* ── Detail sections — shown after API responds ── */}
         {isLoading ? (
@@ -189,6 +231,51 @@ const DoctorProfileScreen = ({ navigation, route }) => {
                 </View>
               </View>
             )}
+
+            {/* Clinics */}
+            {detailData.clinics?.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>
+                  {detailData.clinics.length === 1 ? 'Clinic Details' : 'Clinics'}
+                </Text>
+                {detailData.clinics.map((clinic, index) => {
+                  const hasCoords = clinic.latitude != null && clinic.longitude != null;
+                  const ClinicWrapper = hasCoords ? TouchableOpacity : View;
+                  return (
+                    <ClinicWrapper
+                      key={clinic.id || index}
+                      style={[styles.sectionCard, index > 0 && styles.clinicCardMargin]}
+                      activeOpacity={0.8}
+                      disabled={!hasCoords}
+                      onPress={() => openClinicMap(clinic)}
+                    >
+                      <View style={styles.clinicRow}>
+                        <MCIcon name="hospital-building" size={22} color={colors.primary} style={styles.clinicIcon} />
+                        <View style={styles.clinicInfo}>
+                          <View style={styles.clinicNameRow}>
+                            <Text style={styles.clinicName}>{clinic.name}</Text>
+                            {clinic.is_primary && (
+                              <View style={styles.primaryBadge}>
+                                <Text style={styles.primaryBadgeText}>Primary</Text>
+                              </View>
+                            )}
+                          </View>
+                          {clinic.address && (
+                            <Text style={styles.clinicAddress}>{clinic.address}</Text>
+                          )}
+                          {clinic.city && (
+                            <Text style={styles.clinicCity}>{clinic.city}</Text>
+                          )}
+                          {clinic.phone && (
+                            <Text style={styles.clinicPhone}>{clinic.phone}</Text>
+                          )}
+                        </View>
+                      </View>
+                    </ClinicWrapper>
+                  );
+                })}
+              </View>
+            )}
           </>
         ) : null}
       </ScrollView>
@@ -215,21 +302,6 @@ export default DoctorProfileScreen;
 
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-
-  // Header
-  header: {
-    paddingTop: 50,
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-    backgroundColor: colors.card,
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backIcon: { fontSize: 22, color: colors.textPrimary },
 
   // Doctor Card
   doctorCard: {
@@ -382,6 +454,64 @@ const makeStyles = colors => StyleSheet.create({
   awardIcon: { fontSize: 18 },
   awardText: { fontSize: 14, fontWeight: '500', color: colors.textPrimary },
   awardIssuer: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+
+  // Clinic
+  clinicRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  clinicIcon: { fontSize: 22, marginTop: 2 },
+  clinicInfo: { flex: 1 },
+  clinicNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 2,
+  },
+  clinicName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  primaryBadge: {
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  primaryBadgeText: {
+    fontSize: 10,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  clinicCardMargin: { marginTop: 10 },
+  clinicAddress: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 2,
+    lineHeight: 18,
+  },
+  clinicCity: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginBottom: 2,
+  },
+  clinicPhone: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '500',
+  },
+  mapHintRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.surfaceMuted,
+  },
+  mapHintText: {
+    fontSize: 11,
+    color: colors.primary,
+    fontWeight: '500',
+  },
 
   // Bottom Bar
   bottomBar: {
