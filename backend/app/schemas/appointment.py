@@ -14,6 +14,8 @@ class BookAppointmentRequest(BaseModel):
     slot_timing_id: UUID = Field(alias="slotTimingId")
     fee: Optional[float] = None
     user_description: Optional[str] = Field(alias="userDescription", default=None)
+    clinic_id: Optional[UUID] = Field(default=None, alias="clinicId")
+    user_address_id: Optional[UUID] = Field(default=None, alias="userAddressId")
 
 
 class UpdateAppointmentRequest(BaseModel):

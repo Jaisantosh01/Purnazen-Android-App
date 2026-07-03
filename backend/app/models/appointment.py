@@ -29,6 +29,8 @@ class Appointment(Base):
     visit_type = Column(String(20), nullable=False)
     date = Column(Date, nullable=False)
     slot_timing_id = Column(GUID(), ForeignKey("slot_timings.id"), nullable=False)
+    clinic_id = Column(GUID(), ForeignKey("clinics.id"), nullable=True)
+    user_address_id = Column(GUID(), ForeignKey("user_addresses.id"), nullable=True)
     user_description = Column(Text, nullable=True)
     doctor_description = Column(Text, nullable=True)
     fee = Column(Numeric(10, 2))
@@ -46,6 +48,8 @@ class Appointment(Base):
     doctor = relationship("Doctor", backref="appointments")
     consultation_type = relationship("ConsultationType")
     slot_timing = relationship("SlotTimings")
+    clinic = relationship("Clinic")
+    user_address = relationship("UserAddress")
 
     __table_args__ = (Index("ix_appointments_doctor_date", "doctor_id", "date"),)
 
@@ -71,6 +75,8 @@ class Appointment(Base):
             "time": self.slot_timing.start_time.strftime("%I:%M %p") if self.slot_timing else None,
             "endTime": self.slot_timing.end_time.strftime("%I:%M %p") if self.slot_timing else None,
             "slotTimingId": str(self.slot_timing_id),
+            "clinicId": str(self.clinic_id) if self.clinic_id else None,
+            "userAddressId": str(self.user_address_id) if self.user_address_id else None,
             "fee": float(self.fee) if self.fee is not None else None,
             "status": self.status,
             "paymentStatus": self.payment_status,

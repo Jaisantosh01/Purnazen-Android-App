@@ -17,6 +17,7 @@ from app.models.doctor_availability import DoctorAvailability  # noqa: E402,F401
 from app.models.doctor_leave import DoctorLeave  # noqa: E402,F401
 from app.models.quick_relief import QuickRelief  # noqa: E402,F401
 from app.models.appointment import Appointment  # noqa: E402,F401
+from app.models.therapy_feedback import TherapyFeedback  # noqa: E402,F401
 from app.models.therapy_session import TherapySession  # noqa: E402,F401
 from app.models.wellness_session import WellnessSession  # noqa: E402,F401
 from app.models.relief_session import ReliefSession  # noqa: E402,F401
@@ -41,3 +42,4 @@ from app.models.support_contact import SupportContact  # noqa: E402,F401
 from app.models.support_faq import SupportFaq  # noqa: E402,F401
 from app.models.consultation_record import ConsultationRecord  # noqa: E402,F401
 from app.models.app_release import AppRelease  # noqa: E402,F401
+from app.models.user_address import UserAddress  # noqa: E402,F401
