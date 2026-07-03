@@ -143,7 +143,8 @@ def test_book_appointment_invalid_slot_id(client, db_session):
     assert response.status_code == 400
 
 
-def test_booked_slot_excluded_from_time_slots(client, db_session):
+def test_booked_slot_marked_in_time_slots(client, db_session):
+    """A booked slot is still returned but with ``booked: true``."""
     doctor = seed_doctor(db_session)
     slots = add_availability(db_session, doctor, day="Monday", start=time(9, 0), end=time(11, 0))
     on_date = next_weekday("Monday")
@@ -159,9 +160,39 @@ def test_booked_slot_excluded_from_time_slots(client, db_session):
         f"/api/v1/doctors/{doctor.id}/time-slots",
         params={"date": on_date.isoformat()},
     )
-    times = [s["time"] for s in response.json()["data"]["slots"]]
-    assert "09:30 AM" not in times
-    assert "09:00 AM" in times
+    slots_resp = response.json()["data"]["slots"]
+    assert len(slots_resp) == 4  # all slots returned, none excluded
+
+    booked = {s["time"] for s in slots_resp if s["booked"]}
+    free = {s["time"] for s in slots_resp if not s["booked"]}
+
+    assert "09:30 AM" in booked
+    assert "09:00 AM" in free
+    assert "10:00 AM" in free
+    assert "10:30 AM" in free
+
+
+def test_time_slots_all_booked_shows_all_booked_flag(client, db_session):
+    """When every slot on a date is booked, all have ``booked: true``."""
+    doctor = seed_doctor(db_session)
+    slots = add_availability(db_session, doctor, day="Monday", start=time(9, 0), end=time(11, 0))
+    on_date = next_weekday("Monday")
+    headers = auth_headers(client)
+
+    for slot in slots:
+        client.post(
+            "/api/v1/appointments/book",
+            json=book_payload(doctor, on_date, slot),
+            headers=headers,
+        )
+
+    response = client.get(
+        f"/api/v1/doctors/{doctor.id}/time-slots",
+        params={"date": on_date.isoformat()},
+    )
+    slots_resp = response.json()["data"]["slots"]
+    assert len(slots_resp) == 4
+    assert all(s["booked"] for s in slots_resp)
 
 
 def test_get_appointments_lists_booking(client, db_session):

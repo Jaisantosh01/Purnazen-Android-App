@@ -59,6 +59,8 @@ class Appointment(Base):
         return f"APT-{str(self.id)[:8].upper()}"
 
     def to_dict(self):
+        clinic = self.clinic
+        user_addr = self.user_address
         return {
             "id": self.id,
             "reference": self.reference,
@@ -76,7 +78,10 @@ class Appointment(Base):
             "endTime": self.slot_timing.end_time.strftime("%I:%M %p") if self.slot_timing else None,
             "slotTimingId": str(self.slot_timing_id),
             "clinicId": str(self.clinic_id) if self.clinic_id else None,
+            "clinicName": clinic.name if clinic else None,
+            "clinicAddress": f"{clinic.address}, {clinic.city}" if clinic else None,
             "userAddressId": str(self.user_address_id) if self.user_address_id else None,
+            "userAddress": user_addr.to_dict() if user_addr else None,
             "fee": float(self.fee) if self.fee is not None else None,
             "status": self.status,
             "paymentStatus": self.payment_status,

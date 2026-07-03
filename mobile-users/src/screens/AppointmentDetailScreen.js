@@ -17,6 +17,12 @@ const STATUS_COLORS = APPOINTMENT_DETAIL_STATUS_COLORS;
 const STATUS_LABELS = APPOINTMENT_HISTORY_STATUS_LABELS;
 const PAYMENT_LABELS = APPOINTMENT_PAYMENT_LABELS;
 
+const formatAddress = (addr) => {
+  if (!addr) return '';
+  const parts = [addr.area, addr.city, addr.state, addr.pincode].filter(Boolean);
+  return addr.houseName ? `${addr.houseName}, ${parts.join(', ')}` : parts.join(', ');
+};
+
 const getInitials = (name) => {
   if (!name) return 'D';
   const parts = name.trim().split(/\s+/);
@@ -109,6 +115,29 @@ const AppointmentDetailScreen = ({ navigation, route }) => {
             <DetailRow label="Date" value={appointment.date} />
             <DetailRow label="Time" value={`${appointment.time} - ${appointment.endTime}`} />
             <DetailRow label="Consultation Type" value={appointment.consultationType} />
+
+            {appointment.consultationType?.toLowerCase().includes('clinic') && appointment.clinicName ? (
+              <View style={styles.addressSection}>
+                <MCIcon name="hospital-building" size={16} color={colors.primary} style={styles.addressIcon} />
+                <View style={styles.addressContent}>
+                  <Text style={styles.addressTitle}>{appointment.clinicName}</Text>
+                  <Text style={styles.addressText}>{appointment.clinicAddress}</Text>
+                </View>
+              </View>
+            ) : null}
+
+            {appointment.consultationType?.toLowerCase().includes('home') && appointment.userAddress ? (
+              <View style={styles.addressSection}>
+                <MCIcon name="home-outline" size={16} color={colors.primary} style={styles.addressIcon} />
+                <View style={styles.addressContent}>
+                  <Text style={styles.addressTitle}>
+                    {appointment.userAddress.houseName || 'Address'}
+                  </Text>
+                  <Text style={styles.addressText}>{formatAddress(appointment.userAddress)}</Text>
+                </View>
+              </View>
+            ) : null}
+
             <DetailRow label="Fee" value={`₹${appointment.fee}`} highlight />
           </View>
         </View>
@@ -218,6 +247,13 @@ const makeStyles = colors => StyleSheet.create({
   detailLabel: { fontSize: 13, color: colors.textMuted },
   detailValue: { fontSize: 13, fontWeight: '600', color: colors.textPrimary },
   detailValueHighlight: { color: colors.primary, fontSize: 15, fontWeight: '700' },
+  addressSection: {
+    flexDirection: 'row', gap: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.surfaceMuted,
+  },
+  addressIcon: { marginTop: 2 },
+  addressContent: { flex: 1 },
+  addressTitle: { fontSize: 13, fontWeight: '600', color: colors.textPrimary, marginBottom: 2 },
+  addressText: { fontSize: 12, color: colors.textSecondary, lineHeight: 17 },
 
   descriptionCard: {
     backgroundColor: colors.card, borderRadius: 14, padding: 16,

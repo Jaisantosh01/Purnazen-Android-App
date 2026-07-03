@@ -105,13 +105,13 @@ class DoctorService:
         )
 
         slots = []
+        booked_str = {str(b) for b in booked_ids}
         for av, st in rows:
-            if st.id in booked_ids:
-                continue
             slots.append({
                 "id": str(st.id),
                 "time": st.start_time.strftime("%I:%M %p"),
                 "end_time": st.end_time.strftime("%I:%M %p"),
+                "booked": str(st.id) in booked_str,
             })
 
         return slots
