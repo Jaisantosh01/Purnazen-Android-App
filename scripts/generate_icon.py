@@ -1,24 +1,42 @@
 #!/usr/bin/env python3
 """
-Generate the Purnazen app icon set (Android).
+Generate a Purnazen app icon set (Android).
 
-Brand mark: a white lotus on a brand-green field — "purna" (wholeness) + "zen".
+Brand mark: a white lotus on a brand-colored field — "purna" (wholeness) + "zen".
+Each app uses its brand primary: patient green #1FA77A (default), doctor blue
+#2563EB, admin orange #EA580C.
+
+Usage:
+  generate_icon.py <res_dir> [primary_hex] [top_hex]
+
+  primary_hex — field color (default #1FA77A)
+  top_hex     — lighter top of the gradient (default: primary lightened)
 
 Outputs (relative to the target res/ dir):
   mipmap-<dpi>/ic_launcher.png            legacy full icon (rounded square)
   mipmap-<dpi>/ic_launcher_round.png      legacy round icon
   mipmap-<dpi>/ic_launcher_foreground.png adaptive foreground (transparent)
 
-Adaptive XML + background color are written separately by the caller.
+Adaptive XML + background color are written separately by the caller — keep
+values/ic_launcher_background.xml in sync with primary_hex.
 """
 import math
 import os
 import sys
 from PIL import Image, ImageDraw
 
-GREEN      = (31, 167, 122, 255)   # #1FA77A brand primary
+GREEN      = (31, 167, 122, 255)   # #1FA77A brand primary (patient default)
 GREEN_TOP  = (39, 185, 138, 255)   # lighter top for a subtle gradient
 WHITE      = (255, 255, 255, 255)
+
+
+def hex_to_rgba(h):
+    h = h.lstrip('#')
+    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4)) + (255,)
+
+
+def lighten(c, f=0.12):
+    return tuple(min(255, int(v + (255 - v) * f)) for v in c[:3]) + (255,)
 
 # Per-density launcher icon edge length (px) and supersample factor.
 DENSITIES = {
@@ -94,7 +112,7 @@ def draw_lotus(canvas_px, scale=0.62):
     # outer petals drawn first so the upright centre petal sits on top
     layout = [(-72, 0.80), (72, 0.80), (-37, 0.92), (37, 0.92), (0, 1.0)]
     for ang, k in layout:
-        petal = vesica_petal(big, L * k, W * k, WHITE, GREEN, ow)
+        petal = vesica_petal(big, L * k, W * k, WHITE, PRIMARY, ow)
         rot = petal.rotate(ang, resample=Image.BICUBIC, center=(big / 2, big / 2))
         img.alpha_composite(rot, (0, 0))
     # small calyx accent at the base where petals meet
@@ -115,7 +133,7 @@ def rounded_bg(px, radius_frac=0.22, circle=False):
     grad = Image.new('RGBA', (1, big))
     for y in range(big):
         t = y / big
-        c = tuple(int(GREEN_TOP[i] * (1 - t) + GREEN[i] * t) for i in range(4))
+        c = tuple(int(PRIMARY_TOP[i] * (1 - t) + PRIMARY[i] * t) for i in range(4))
         grad.putpixel((0, y), c)
     grad = grad.resize((big, big))
     mask = Image.new('L', (big, big), 0)
@@ -150,8 +168,15 @@ def build(res_dir):
         print(f'  wrote {dpi} ({px}px)')
 
 
+PRIMARY = GREEN
+PRIMARY_TOP = GREEN_TOP
+
 if __name__ == '__main__':
     target = sys.argv[1]
-    print(f'Generating icons into {target}')
+    if len(sys.argv) > 2:
+        PRIMARY = hex_to_rgba(sys.argv[2])
+        PRIMARY_TOP = hex_to_rgba(sys.argv[3]) if len(sys.argv) > 3 else lighten(PRIMARY)
+    print(f'Generating icons into {target} (primary '
+          f'#{PRIMARY[0]:02X}{PRIMARY[1]:02X}{PRIMARY[2]:02X})')
     build(target)
     print('done')

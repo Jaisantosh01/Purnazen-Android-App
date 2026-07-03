@@ -2,6 +2,47 @@
 
 All notable changes to the Purnazen App are documented here.
 
+## [2026-07-03] — Staff-app dark mode everywhere, themed cards/chips, per-app icons
+
+### Changed — doctor & admin apps (full dark-mode coverage)
+- Every remaining screen and shared component in **mobile-doctors** (13 screens +
+  ScreenHeader/Toast/UpdatePrompt/Placeholder/AddRecordMenu) and **mobile-admin**
+  (16 screens + SkeletonLoader/TimePickerModal/Toast/UpdatePrompt) migrated from
+  the static light `COLORS` export to `useTheme()` + `makeStyles(colors)` —
+  the same pattern the patient app uses. Native `Alert.alert` calls swapped for
+  the themed `showAlert`.
+- Status chips are now scheme-aware: pastel bg + deep text in light, a
+  translucent wash of the status hue + light text in dark (new
+  `mobile-doctors/src/utils/statusChip.js`; admin already used washes).
+  Hardcoded light surfaces/borders (`#f0f0f0`, `#eee`, `#f9f9f9`, pink error
+  boxes, etc.) mapped to theme tokens across the admin app.
+
+### Fixed — patient app cards/chips in dark mode
+- `QuickCard` (home quick-relief) was fully hardcoded light and misused the
+  server `subtitle` as a text color; now themed (dark mode renders an
+  accent-hue wash) and the subtitle actually displays.
+- `ServiceUnavailable`, `ErrorBoundary` (via OS scheme — class component),
+  `Toast`, `UpdatePrompt`, `SkeletonLoader` themed; `TherapyHistoryScreen`
+  light-green root/chips, `BookAppointmentScreen` address notice and
+  `WellnessScreen` state-baked icon colors moved to palette tokens.
+
+### Added — per-app launcher icons
+- `scripts/generate_icon.py` now takes a brand color; regenerated icon sets:
+  **doctor = clinical blue #2563EB**, **admin = burnt orange #EA580C** (patient
+  stays green). Adaptive `ic_launcher_background.xml` updated to match.
+  Requires a native rebuild to see the new icons.
+
+### Fixed — validation debris (pre-existing)
+- Admin: missing `ActivityIndicator` import in `VideoGroupDetailScreen`
+  (runtime crash on the loading state); six stale test suites copied from the
+  patient app deleted; jest now transforms gesture-handler/swipe-list-view/expo
+  packages and mocks `expo-document-picker` — full admin suite passes.
+- Users: jest transforms + mocks for `react-native-webview` and
+  `@react-native-community/geolocation` (AddressManagementScreen imports);
+  auth tests updated for the role-gated login.
+- All three apps now pass eslint (0 errors), tsc, jest, and a release Metro
+  bundle.
+
 ## [2026-07-03] — Therapy feedback, user address book, booking fixes (PR #22)
 
 ### Added — therapy feedback (pain before/after)
