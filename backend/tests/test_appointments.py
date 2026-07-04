@@ -61,6 +61,25 @@ def test_book_appointment_success(client, db_session):
     # app's appointment list/detail), resolved from the "video" visit-type slug.
     assert data["consultationType"] == "Video Call"
     assert data["fee"] == 1200.0
+    assert data["meetingLink"] is None  # no Google credentials in test env
+
+
+def test_video_booking_gracefully_skips_meet_link(client, db_session):
+    """Video booking succeeds even when Google Meet is not configured."""
+    doctor = seed_doctor(db_session)
+    slots = add_availability(db_session, doctor, day="Monday", start=time(9, 0), end=time(11, 0))
+    on_date = next_weekday("Monday")
+    headers = auth_headers(client)
+
+    response = client.post(
+        "/api/v1/appointments/book",
+        json={**book_payload(doctor, on_date, slot_at(slots, time(9, 0)), visit_type="video"), "fee": 1000},
+        headers=headers,
+    )
+    assert response.status_code == 201
+    body = response.json()
+    assert body["success"] is True
+    assert body["data"]["meetingLink"] is None
 
 
 def test_book_appointment_conflict(client, db_session):

@@ -31,6 +31,7 @@ class Appointment(Base):
     slot_timing_id = Column(GUID(), ForeignKey("slot_timings.id"), nullable=False)
     clinic_id = Column(GUID(), ForeignKey("clinics.id"), nullable=True)
     user_address_id = Column(GUID(), ForeignKey("user_addresses.id"), nullable=True)
+    meeting_link = Column(Text, nullable=True)
     user_description = Column(Text, nullable=True)
     doctor_description = Column(Text, nullable=True)
     fee = Column(Numeric(10, 2))
@@ -82,6 +83,7 @@ class Appointment(Base):
             "clinicAddress": f"{clinic.address}, {clinic.city}" if clinic else None,
             "userAddressId": str(self.user_address_id) if self.user_address_id else None,
             "userAddress": user_addr.to_dict() if user_addr else None,
+            "meetingLink": self.meeting_link,
             "fee": float(self.fee) if self.fee is not None else None,
             "status": self.status,
             "paymentStatus": self.payment_status,

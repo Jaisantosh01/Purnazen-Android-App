@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,8 +6,11 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
+  Linking,
+  Share,
 } from 'react-native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { showAlert } from '../utils/alert';
 import { APPOINTMENT_DETAIL_STATUS_COLORS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
 import { APPOINTMENT_HISTORY_STATUS_LABELS, APPOINTMENT_PAYMENT_LABELS } from '../constants/strings';
@@ -36,6 +39,12 @@ const AppointmentDetailScreen = ({ navigation, route }) => {
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { appointment } = route.params;
+
+  const copyLink = useCallback(() => {
+    if (appointment.meetingLink) {
+      Share.share({ message: appointment.meetingLink, title: 'Meeting Link' });
+    }
+  }, [appointment.meetingLink]);
 
   const DetailRow = ({ label, value, highlight }) => (
     <View style={styles.detailRow}>
@@ -134,6 +143,34 @@ const AppointmentDetailScreen = ({ navigation, route }) => {
                     {appointment.userAddress.houseName || 'Address'}
                   </Text>
                   <Text style={styles.addressText}>{formatAddress(appointment.userAddress)}</Text>
+                </View>
+              </View>
+            ) : null}
+
+            {appointment.consultationType?.toLowerCase().includes('video') && appointment.meetingLink ? (
+              <View style={styles.meetingSection}>
+                <View style={styles.meetingHeader}>
+                  <MCIcon name="video-outline" size={16} color={colors.primary} style={styles.meetingIcon} />
+                  <Text style={styles.meetingLabel}>Meeting Link</Text>
+                </View>
+                <Text style={styles.meetingLinkText} numberOfLines={1}>{appointment.meetingLink}</Text>
+                <View style={styles.meetingActions}>
+                  <TouchableOpacity
+                    style={styles.meetingBtn}
+                    onPress={() => Linking.openURL(appointment.meetingLink)}
+                    activeOpacity={0.8}
+                  >
+                    <MCIcon name="video" size={15} color={colors.white} />
+                    <Text style={styles.meetingBtnText}>Join</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.meetingBtnOutline}
+                    onPress={copyLink}
+                    activeOpacity={0.8}
+                  >
+                    <MCIcon name="content-copy" size={15} color={colors.primary} />
+                    <Text style={styles.meetingBtnOutlineText}>Copy</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
             ) : null}
@@ -254,6 +291,25 @@ const makeStyles = colors => StyleSheet.create({
   addressContent: { flex: 1 },
   addressTitle: { fontSize: 13, fontWeight: '600', color: colors.textPrimary, marginBottom: 2 },
   addressText: { fontSize: 12, color: colors.textSecondary, lineHeight: 17 },
+
+  meetingSection: {
+    flexDirection: 'column', gap: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.surfaceMuted,
+  },
+  meetingHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  meetingIcon: { fontSize: 16 },
+  meetingLabel: { fontSize: 13, fontWeight: '600', color: colors.textPrimary },
+  meetingLinkText: { fontSize: 11, color: colors.textMuted, fontFamily: 'monospace' },
+  meetingActions: { flexDirection: 'row', gap: 10 },
+  meetingBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: colors.primary, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8,
+  },
+  meetingBtnText: { fontSize: 12, fontWeight: '700', color: colors.white },
+  meetingBtnOutline: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    borderWidth: 1, borderColor: colors.primary, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8,
+  },
+  meetingBtnOutlineText: { fontSize: 12, fontWeight: '600', color: colors.primary },
 
   descriptionCard: {
     backgroundColor: colors.card, borderRadius: 14, padding: 16,

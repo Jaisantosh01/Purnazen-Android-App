@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     # How many recent versions to keep active per app (older ones are deactivated).
     RELEASE_KEEP_VERSIONS: int = 4
 
+    # Google Calendar / Meet integration — base64-encoded service account JSON key.
+    # When empty, video-consultation bookings skip Meet link creation.
+    GOOGLE_SERVICE_ACCOUNT_JSON: str = ""
+
     # Social auth — Google client ID for ID token verification (Sprint 5)
     GOOGLE_CLIENT_ID: str = ""
     # Apple app bundle ID for Sign In with Apple identity token verification (Sprint 5)
