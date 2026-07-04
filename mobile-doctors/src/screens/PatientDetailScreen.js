@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,13 +11,15 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
 import userService from '../services/userService';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { SPACING, RADIUS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
+import { chipColors } from '../utils/statusChip';
 
 const STATUS_CONFIG = {
-  pending:   { label: 'Pending',   bg: '#FEF3C7', text: '#92400E' },
-  booked:    { label: 'Booked',    bg: '#EFF6FF', text: '#1D4ED8' },
-  completed: { label: 'Completed', bg: '#ECFDF5', text: '#065F46' },
-  cancelled: { label: 'Cancelled', bg: '#FEF2F2', text: '#991B1B' },
+  pending:   { label: 'Pending',   bg: '#FEF3C7', text: '#92400E', darkText: '#FCD34D', dot: '#F59E0B' },
+  booked:    { label: 'Booked',    bg: '#EFF6FF', text: '#1D4ED8', darkText: '#93C5FD', dot: '#2563EB' },
+  completed: { label: 'Completed', bg: '#ECFDF5', text: '#065F46', darkText: '#6EE7B7', dot: '#10B981' },
+  cancelled: { label: 'Cancelled', bg: '#FEF2F2', text: '#991B1B', darkText: '#FCA5A5', dot: '#EF4444' },
 };
 
 const formatDate = iso => {
@@ -28,27 +30,36 @@ const formatDate = iso => {
 };
 
 const StatusBadge = ({ status }) => {
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.booked;
+  const chip = chipColors(cfg, isDark);
   return (
-    <View style={[styles.badge, { backgroundColor: cfg.bg }]}>
-      <Text style={[styles.badgeText, { color: cfg.text }]}>{cfg.label}</Text>
+    <View style={[styles.badge, { backgroundColor: chip.bg }]}>
+      <Text style={[styles.badgeText, { color: chip.text }]}>{cfg.label}</Text>
     </View>
   );
 };
 
-const InfoRow = ({ icon, label, value }) => (
+const InfoRow = ({ icon, label, value }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
   <View style={styles.infoItem}>
     <View style={styles.infoIconWrap}>
-      <MCIcon name={icon} size={18} color={COLORS.primary} />
+      <MCIcon name={icon} size={18} color={colors.primary} />
     </View>
     <View style={{ flex: 1 }}>
       <Text style={styles.infoLabel}>{label}</Text>
       <Text style={styles.infoValue}>{value || '—'}</Text>
     </View>
   </View>
-);
+  );
+};
 
 const PatientDetailScreen = ({ route, navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { id, patient: passedPatient, appointments = [] } = route.params || {};
   const [patient, setPatient] = useState(passedPatient || null);
   // Only block on the network when we weren't handed a derived patient already.
@@ -91,7 +102,7 @@ const PatientDetailScreen = ({ route, navigation }) => {
     return (
       <View style={styles.root}>
         <ScreenHeader title="Patient" onBack={() => navigation.goBack()} />
-        <View style={styles.center}><ActivityIndicator size="large" color={COLORS.primary} /></View>
+        <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>
       </View>
     );
   }
@@ -101,7 +112,7 @@ const PatientDetailScreen = ({ route, navigation }) => {
       <View style={styles.root}>
         <ScreenHeader title="Patient" onBack={() => navigation.goBack()} />
         <View style={styles.center}>
-          <MCIcon name="alert-circle-outline" size={56} color={COLORS.danger} />
+          <MCIcon name="alert-circle-outline" size={56} color={colors.danger} />
           <Text style={styles.emptyTitle}>Couldn't load patient</Text>
           <Text style={styles.emptySubtitle}>{error}</Text>
           <TouchableOpacity style={styles.retryBtn} activeOpacity={0.85} onPress={() => fetchPatient()}>
@@ -119,24 +130,24 @@ const PatientDetailScreen = ({ route, navigation }) => {
         {/* Profile card */}
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
-            <MCIcon name="account" size={42} color={COLORS.primary} />
+            <MCIcon name="account" size={42} color={colors.primary} />
           </View>
           <Text style={styles.name}>{name}</Text>
           <View style={styles.metaRow}>
             {age != null && (
               <View style={styles.metaPill}>
-                <MCIcon name="calendar-account" size={12} color={COLORS.textSecondary} />
+                <MCIcon name="calendar-account" size={12} color={colors.textSecondary} />
                 <Text style={styles.metaPillText}>{age} yrs</Text>
               </View>
             )}
             {gender && (
               <View style={styles.metaPill}>
-                <MCIcon name="gender-male-female" size={12} color={COLORS.textSecondary} />
+                <MCIcon name="gender-male-female" size={12} color={colors.textSecondary} />
                 <Text style={styles.metaPillText}>{gender}</Text>
               </View>
             )}
             <View style={styles.metaPill}>
-              <MCIcon name="calendar-check" size={12} color={COLORS.textSecondary} />
+              <MCIcon name="calendar-check" size={12} color={colors.textSecondary} />
               <Text style={styles.metaPillText}>{appointments.length} visit{appointments.length === 1 ? '' : 's'}</Text>
             </View>
           </View>
@@ -145,7 +156,7 @@ const PatientDetailScreen = ({ route, navigation }) => {
         {/* Contact */}
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
-            <MCIcon name="card-account-details-outline" size={18} color={COLORS.primary} />
+            <MCIcon name="card-account-details-outline" size={18} color={colors.primary} />
             <Text style={styles.sectionTitle}>Contact</Text>
           </View>
           <InfoRow icon="email-outline" label="Email" value={email} />
@@ -155,7 +166,7 @@ const PatientDetailScreen = ({ route, navigation }) => {
         {/* Visit history */}
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
-            <MCIcon name="history" size={18} color={COLORS.primary} />
+            <MCIcon name="history" size={18} color={colors.primary} />
             <Text style={styles.sectionTitle}>Visit history</Text>
             <Text style={styles.sectionCount}>{completedCount} completed</Text>
           </View>
@@ -190,21 +201,21 @@ const PatientDetailScreen = ({ route, navigation }) => {
 
 export default PatientDetailScreen;
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SPACING.xl, gap: SPACING.sm },
   scroll: { padding: SPACING.lg, gap: SPACING.md },
 
-  emptyTitle: { fontSize: 17, fontWeight: '800', color: COLORS.textPrimary },
-  emptySubtitle: { fontSize: 13, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 19, marginBottom: SPACING.sm },
-  retryBtn: { paddingHorizontal: SPACING.xl, paddingVertical: 12, backgroundColor: COLORS.primary, borderRadius: RADIUS.pill },
-  retryBtnText: { color: COLORS.white, fontWeight: '700', fontSize: 14 },
+  emptyTitle: { fontSize: 17, fontWeight: '800', color: colors.textPrimary },
+  emptySubtitle: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', lineHeight: 19, marginBottom: SPACING.sm },
+  retryBtn: { paddingHorizontal: SPACING.xl, paddingVertical: 12, backgroundColor: colors.primary, borderRadius: RADIUS.pill },
+  retryBtnText: { color: colors.white, fontWeight: '700', fontSize: 14 },
 
   profileCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.lg,
     alignItems: 'center',
   },
@@ -212,29 +223,29 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: COLORS.primaryFaint,
+    backgroundColor: colors.primaryFaint,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: SPACING.sm,
   },
-  name: { fontSize: 19, fontWeight: '800', color: COLORS.textPrimary },
+  name: { fontSize: 19, fontWeight: '800', color: colors.textPrimary },
   metaRow: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.sm, flexWrap: 'wrap', justifyContent: 'center' },
   metaPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: COLORS.surfaceMuted,
+    backgroundColor: colors.surfaceMuted,
     borderRadius: RADIUS.pill,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  metaPillText: { fontSize: 11.5, color: COLORS.textSecondary, fontWeight: '600' },
+  metaPillText: { fontSize: 11.5, color: colors.textSecondary, fontWeight: '600' },
 
   sectionCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.lg,
   },
   sectionHeader: {
@@ -244,25 +255,25 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
     paddingBottom: SPACING.sm,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: colors.border,
   },
-  sectionTitle: { fontSize: 15, fontWeight: '800', color: COLORS.textPrimary },
-  sectionCount: { marginLeft: 'auto', fontSize: 12, fontWeight: '600', color: COLORS.textSecondary },
+  sectionTitle: { fontSize: 15, fontWeight: '800', color: colors.textPrimary },
+  sectionCount: { marginLeft: 'auto', fontSize: 12, fontWeight: '600', color: colors.textSecondary },
 
   infoItem: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.sm },
   infoIconWrap: {
     width: 32, height: 32, borderRadius: 16,
-    backgroundColor: COLORS.primaryFaint, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.primaryFaint, alignItems: 'center', justifyContent: 'center',
   },
-  infoLabel: { fontSize: 11, fontWeight: '600', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
-  infoValue: { fontSize: 14, fontWeight: '600', color: COLORS.textPrimary, marginTop: 2 },
+  infoLabel: { fontSize: 11, fontWeight: '600', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  infoValue: { fontSize: 14, fontWeight: '600', color: colors.textPrimary, marginTop: 2 },
 
-  noHistory: { fontSize: 13, color: COLORS.textSecondary, paddingVertical: SPACING.sm },
+  noHistory: { fontSize: 13, color: colors.textSecondary, paddingVertical: SPACING.sm },
   historyRow: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.md, paddingVertical: SPACING.md },
-  historyDivider: { borderTopWidth: 1, borderTopColor: COLORS.border },
-  historyType: { fontSize: 14, fontWeight: '700', color: COLORS.textPrimary },
-  historyDate: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
-  historyReason: { fontSize: 12.5, color: COLORS.textSecondary, marginTop: 4, fontStyle: 'italic' },
+  historyDivider: { borderTopWidth: 1, borderTopColor: colors.border },
+  historyType: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
+  historyDate: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  historyReason: { fontSize: 12.5, color: colors.textSecondary, marginTop: 4, fontStyle: 'italic' },
 
   badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: RADIUS.pill },
   badgeText: { fontSize: 11, fontWeight: '700' },

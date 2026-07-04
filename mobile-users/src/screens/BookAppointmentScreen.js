@@ -570,8 +570,8 @@ const makeStyles = colors => StyleSheet.create({
 
   /* Home Visit Address */
   homeAddressCard: {
-    flexDirection: 'row', backgroundColor: '#fff9f0', borderRadius: 14,
-    padding: 14, borderWidth: 1, borderColor: '#fed7aa', gap: 10,
+    flexDirection: 'row', backgroundColor: colors.warning + '14', borderRadius: 14,
+    padding: 14, borderWidth: 1, borderColor: colors.warning + '55', gap: 10,
   },
   addressIcon:    { fontSize: 20 },
   addressInfo:    { flex: 1 },

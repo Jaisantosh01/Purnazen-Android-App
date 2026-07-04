@@ -1,6 +1,12 @@
 /* eslint-env jest */
 /* Mocks for native modules that have no JS-only implementation under jest. */
 
+require('react-native-gesture-handler/jestSetup');
+
+jest.mock('expo-document-picker', () => ({
+  getDocumentAsync: jest.fn(async () => ({ canceled: true, assets: [] })),
+}));
+
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest'),
 );

@@ -2,7 +2,7 @@
 
 **Feature:** Face Glow Scan — AI-powered skin analysis, TCM tongue diagnosis, and personalised wellness recommendations
 **Status:** Sprints 1–4 of 8 complete + Cycle 5 enhancements (2026-06-16). Consent UI (Sprint 5 slice) shipped. Remaining: social auth (Sprint 5), security/polish (Sprint 6), Celery (Sprint 7), premium/analytics (Sprint 8).
-**Tracking:** See [TASKS.md](TASKS.md) § Face Analysis for sprint-by-sprint progress; per-cycle detail in [CHANGELOG.md](CHANGELOG.md); AI write-up in [FACE_ANALYSIS_AI.md](FACE_ANALYSIS_AI.md)
+**Tracking:** Open items are section D of [TASKS.md](TASKS.md); per-cycle detail in [CHANGELOG.md](CHANGELOG.md); AI write-up in [FACE_ANALYSIS_AI.md](FACE_ANALYSIS_AI.md)
 
 ---
 

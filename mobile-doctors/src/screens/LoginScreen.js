@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,9 +16,11 @@ import {
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import authService from '../services/authService';
-import { COLORS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 
 const LoginScreen = () => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -81,13 +83,13 @@ const LoginScreen = () => {
 
   return (
     <Animated.View style={[styles.root, { paddingBottom: pad }]}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
 
       {/* ── Hero (collapses under the keyboard) ─────────────────────────── */}
       <View style={styles.heroWrap}>
         <Animated.View style={[styles.hero, heroAnimStyle]}>
           <View style={styles.logoBadge}>
-            <MCIcon name="stethoscope" size={38} color={COLORS.white} />
+            <MCIcon name="stethoscope" size={38} color={colors.white} />
           </View>
           <Text style={styles.appName}>Purnazen for Doctors</Text>
           <Text style={styles.tagline}>Manage appointments, schedule & patients</Text>
@@ -108,19 +110,19 @@ const LoginScreen = () => {
 
           {error.length > 0 && (
             <View style={styles.errorBox}>
-              <MCIcon name="alert-circle-outline" size={16} color={COLORS.danger} />
+              <MCIcon name="alert-circle-outline" size={16} color={colors.danger} />
               <Text style={styles.errorText}>{error}</Text>
             </View>
           )}
 
           <Text style={styles.label}>Email</Text>
           <Pressable onPress={() => emailRef.current?.focus()} style={[styles.inputContainer, focused === 'email' && styles.inputFocused]}>
-            <MCIcon name="email-outline" size={20} color={focused === 'email' ? COLORS.primary : COLORS.textMuted} style={styles.inputIcon} />
+            <MCIcon name="email-outline" size={20} color={focused === 'email' ? colors.primary : colors.textMuted} style={styles.inputIcon} />
             <TextInput
               ref={emailRef}
               style={styles.input}
               placeholder="doctor@example.com"
-              placeholderTextColor={COLORS.textMuted}
+              placeholderTextColor={colors.textMuted}
               value={email}
               onChangeText={t => { setEmail(t); setError(''); }}
               keyboardType="email-address"
@@ -135,12 +137,12 @@ const LoginScreen = () => {
 
           <Text style={styles.label}>Password</Text>
           <Pressable onPress={() => passwordRef.current?.focus()} style={[styles.inputContainer, focused === 'password' && styles.inputFocused]}>
-            <MCIcon name="lock-outline" size={20} color={focused === 'password' ? COLORS.primary : COLORS.textMuted} style={styles.inputIcon} />
+            <MCIcon name="lock-outline" size={20} color={focused === 'password' ? colors.primary : colors.textMuted} style={styles.inputIcon} />
             <TextInput
               ref={passwordRef}
               style={styles.input}
               placeholder="Enter your password"
-              placeholderTextColor={COLORS.textMuted}
+              placeholderTextColor={colors.textMuted}
               value={password}
               onChangeText={t => { setPassword(t); setError(''); }}
               secureTextEntry={!showPassword}
@@ -156,7 +158,7 @@ const LoginScreen = () => {
               style={styles.eyeBtn}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <MCIcon name={showPassword ? 'eye-outline' : 'eye-off-outline'} size={20} color={COLORS.textMuted} />
+              <MCIcon name={showPassword ? 'eye-outline' : 'eye-off-outline'} size={20} color={colors.textMuted} />
             </TouchableOpacity>
           </Pressable>
 
@@ -167,11 +169,11 @@ const LoginScreen = () => {
             disabled={isLoading}
           >
             {isLoading ? (
-              <ActivityIndicator color={COLORS.white} />
+              <ActivityIndicator color={colors.white} />
             ) : (
               <>
                 <Text style={styles.primaryBtnText}>Sign In</Text>
-                <MCIcon name="arrow-right" size={20} color={COLORS.white} />
+                <MCIcon name="arrow-right" size={20} color={colors.white} />
               </>
             )}
           </TouchableOpacity>
@@ -188,8 +190,8 @@ const LoginScreen = () => {
 
 export default LoginScreen;
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.primary },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.primary },
 
   // flex:1 + minHeight:0 lets the hero shrink first when the keyboard opens,
   // pushing the card up instead of letting the keyboard cover it.
@@ -212,15 +214,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.25)',
   },
-  appName: { fontSize: 27, fontWeight: '800', color: COLORS.white, marginBottom: 6, textAlign: 'center' },
+  appName: { fontSize: 27, fontWeight: '800', color: colors.white, marginBottom: 6, textAlign: 'center' },
   tagline: { fontSize: 13.5, color: 'rgba(255,255,255,0.85)', textAlign: 'center' },
 
   card: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     flexShrink: 1,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.1,
     shadowRadius: 16,
@@ -236,43 +238,43 @@ const styles = StyleSheet.create({
     width: 44,
     height: 5,
     borderRadius: 3,
-    backgroundColor: COLORS.border,
+    backgroundColor: colors.border,
     marginBottom: 20,
   },
-  title: { fontSize: 24, fontWeight: '800', color: COLORS.textPrimary, marginBottom: 6 },
-  subtitle: { fontSize: 14, color: COLORS.textSecondary, marginBottom: 22 },
+  title: { fontSize: 24, fontWeight: '800', color: colors.textPrimary, marginBottom: 6 },
+  subtitle: { fontSize: 14, color: colors.textSecondary, marginBottom: 22 },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fef2f2',
+    backgroundColor: colors.danger + '14',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: colors.danger + '55',
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginBottom: 18,
     gap: 8,
   },
-  errorText: { fontSize: 13, color: COLORS.danger, flex: 1 },
-  label: { fontSize: 13, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 8 },
+  errorText: { fontSize: 13, color: colors.danger, flex: 1 },
+  label: { fontSize: 13, fontWeight: '700', color: colors.textPrimary, marginBottom: 8 },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surfaceMuted,
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     paddingHorizontal: 14,
     paddingVertical: Platform.OS === 'ios' ? 14 : 11,
     marginBottom: 18,
   },
-  inputFocused: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryFaint },
+  inputFocused: { borderColor: colors.primary, backgroundColor: colors.primaryFaint },
   inputIcon: { marginRight: 10 },
-  input: { flex: 1, fontSize: 15, color: COLORS.textPrimary, padding: 0, includeFontPadding: false },
+  input: { flex: 1, fontSize: 15, color: colors.textPrimary, padding: 0, includeFontPadding: false },
   eyeBtn: { padding: 4 },
   primaryBtn: {
     flexDirection: 'row',
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
@@ -280,17 +282,17 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 6,
     minHeight: 54,
-    shadowColor: COLORS.primary,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
     elevation: 6,
   },
   primaryBtnDisabled: { opacity: 0.7 },
-  primaryBtnText: { fontSize: 16, fontWeight: '800', color: COLORS.white },
+  primaryBtnText: { fontSize: 16, fontWeight: '800', color: colors.white },
   note: {
     fontSize: 12.5,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     textAlign: 'center',
     marginTop: 20,
     lineHeight: 18,
