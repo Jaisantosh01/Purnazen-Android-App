@@ -95,18 +95,7 @@ const DoctorManagementScreen = ({ navigation }) => {
     <View style={styles.root}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
       
-      {/* ── Header ── */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Doctor Management</Text>
-        {/*
-        <TouchableOpacity 
-          style={styles.addBtn}
-          onPress={() => navigation.navigate('EditDoctor', { doctorId: null })}
-        >
-          <MCIcon name="plus" size={24} color={COLORS.white} />
-        </TouchableOpacity>
-    */}
-      </View>
+      {/* Header removed as it is now in UnifiedUserDoctorScreen */}
 
       <ScrollView 
         contentContainerStyle={{ paddingBottom: 24 }}
@@ -195,7 +184,7 @@ export default DoctorManagementScreen;
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
   header: {
-    paddingTop: 56,
+    paddingTop: 16,
     paddingHorizontal: 20,
     paddingBottom: 16,
     backgroundColor: COLORS.white,

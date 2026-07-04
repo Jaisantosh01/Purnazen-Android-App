@@ -376,9 +376,6 @@ const DoctorLeaveManagementScreen = ({ navigation }) => {
     <View style={styles.root}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <MCIcon name="arrow-left" size={24} color={COLORS.textPrimary} />
-        </TouchableOpacity>
         <Text style={styles.headerTitle}>Doctor Leaves</Text>
         <TouchableOpacity onPress={openFilterModal} style={styles.filterBtn}>
           <MCIcon name="filter-variant" size={22} color={hasActiveFilters ? COLORS.primary : COLORS.textSecondary} />
@@ -708,7 +705,7 @@ const DoctorLeaveManagementScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
   header: {
-    paddingTop: 56, paddingHorizontal: 12, paddingBottom: 12, backgroundColor: COLORS.white,
+    paddingTop: 12, paddingHorizontal: 12, paddingBottom: 12, backgroundColor: COLORS.white,
     flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
   },
   backBtn: { padding: 4, marginRight: 8 },

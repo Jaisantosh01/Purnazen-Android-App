@@ -77,12 +77,7 @@ const UserManagementScreen = ({ navigation }) => {
   return (
     <View style={styles.root}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>User Management</Text>
-        <TouchableOpacity style={styles.manageBtn} onPress={() => navigation.navigate('ManageRoles', { title: 'Roles', endpoint: ENDPOINTS.ROLES })}>
-            <MCIcon name="account-cog" size={24} color={COLORS.primary} />
-        </TouchableOpacity>
-      </View>
+      {/* Header removed from here as it is now in UnifiedUserDoctorScreen */}
 
       {loading && filteredUsers.length === 0 ? (
         <View>
@@ -192,7 +187,7 @@ const UserManagementScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
   header: { 
-    paddingTop: 56, 
+    paddingTop: 12, 
     paddingHorizontal: 12, 
     paddingBottom: 16, 
     backgroundColor: COLORS.white, 
