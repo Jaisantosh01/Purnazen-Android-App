@@ -27,6 +27,8 @@ import { useThemeStore } from './src/store/themeStore';
 // @ts-ignore
 import Toast from './src/components/Toast';
 // @ts-ignore
+import AppAlertHost from './src/components/AppAlertHost';
+// @ts-ignore
 import ErrorBoundary from './src/components/ErrorBoundary';
 // @ts-ignore
 import UpdatePrompt from './src/components/UpdatePrompt';
@@ -71,6 +73,8 @@ import BookingConfirmedScreen from './src/screens/BookingConfirmedScreen';
 import AppointmentHistoryScreen from './src/screens/AppointmentHistoryScreen';
 import AppointmentDetailScreen from './src/screens/AppointmentDetailScreen';
 import PaymentScreen from './src/screens/PaymentScreen';
+// @ts-ignore
+import AddressManagementScreen from './src/screens/AddressManagementScreen';
 
 const RootStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -159,6 +163,7 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="Consent"        component={ConsentScreen}        />
       <ProfileStack.Screen name="Subscriptions"  component={SubscriptionsScreen}  />
       <ProfileStack.Screen name="Notifications"  component={NotificationsScreen}  />
+      <ProfileStack.Screen name="AddressManagement" component={AddressManagementScreen} />
     </ProfileStack.Navigator>
   );
 }
@@ -313,6 +318,7 @@ export default function App() {
         )}
       </RootStack.Navigator>
       <Toast message={message} type={type} visible={visible} onHide={hide} />
+      <AppAlertHost />
       <UpdatePrompt />
     </NavigationContainer>
     </ErrorBoundary>

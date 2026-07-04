@@ -6,7 +6,6 @@ import {
   FlatList,
   TouchableOpacity,
   StatusBar,
-  Alert,
   Modal,
   ScrollView,
   TextInput,
@@ -14,8 +13,9 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
-import { COLORS } from '../constants/theme';
 import { ListSkeleton } from '../components/SkeletonLoader';
+import useTheme from '../hooks/useTheme';
+import { showAlert } from '../utils/alert';
 
 const STATUS_OPTIONS = ['pending', 'booked', 'completed', 'cancelled'];
 const STATUS_COLORS = {
@@ -28,6 +28,8 @@ const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 const CalendarPicker = ({ value, onSelect, onClose }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const today = new Date();
   const initial = value ? new Date(value) : today;
   const [viewMonth, setViewMonth] = useState(new Date(initial.getFullYear(), initial.getMonth(), 1));
@@ -51,11 +53,11 @@ const CalendarPicker = ({ value, onSelect, onClose }) => {
     <View style={styles.calendarContainer}>
       <View style={styles.calendarHeader}>
         <TouchableOpacity onPress={prevMonth} style={styles.calNav}>
-          <MCIcon name="chevron-left" size={22} color={COLORS.textPrimary} />
+          <MCIcon name="chevron-left" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.calTitle}>{MONTH_NAMES[month]} {year}</Text>
         <TouchableOpacity onPress={nextMonth} style={styles.calNav}>
-          <MCIcon name="chevron-right" size={22} color={COLORS.textPrimary} />
+          <MCIcon name="chevron-right" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
       </View>
       <View style={styles.calDayNames}>
@@ -85,6 +87,8 @@ const CalendarPicker = ({ value, onSelect, onClose }) => {
 };
 
 const AppointmentManagementScreen = ({ navigation, route }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [consultationTypes, setConsultationTypes] = useState([]);
@@ -112,6 +116,7 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
   useEffect(() => {
     fetchAppointments();
     fetchConsultationTypes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -126,7 +131,7 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
     apiClient
       .get(ENDPOINTS.APPOINTMENTS_ADMIN)
       .then(res => setAppointments(res.data?.appointments || []))
-      .catch(() => Alert.alert('Error', 'Failed to fetch appointments'))
+      .catch(() => showAlert('Error', 'Failed to fetch appointments'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -249,19 +254,19 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
       </View>
       <View style={styles.cardBody}>
         <View style={styles.cardRow}>
-          <MCIcon name="doctor" size={16} color={COLORS.primary} style={styles.rowIcon} />
+          <MCIcon name="doctor" size={16} color={colors.primary} style={styles.rowIcon} />
           <Text style={styles.doctorName} numberOfLines={1}>{item.doctorName}</Text>
         </View>
         <View style={styles.cardRow}>
-          <MCIcon name="account" size={16} color={COLORS.accent} style={styles.rowIcon} />
+          <MCIcon name="account" size={16} color={colors.accent} style={styles.rowIcon} />
           <Text style={styles.patientName} numberOfLines={1}>{item.userName || 'Unknown'}</Text>
         </View>
       </View>
       <View style={styles.cardFooter}>
         <View style={styles.footerLeft}>
-          <MCIcon name="calendar" size={14} color={COLORS.textMuted} />
+          <MCIcon name="calendar" size={14} color={colors.textMuted} />
           <Text style={styles.footerText}>{item.date}</Text>
-          <MCIcon name="clock-outline" size={14} color={COLORS.textMuted} style={{ marginLeft: 8 }} />
+          <MCIcon name="clock-outline" size={14} color={colors.textMuted} style={{ marginLeft: 8 }} />
           <Text style={styles.footerText}>{item.time}</Text>
         </View>
         {item.fee != null && <Text style={styles.feeText}>₹{item.fee}</Text>}
@@ -271,7 +276,7 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
       <View style={styles.header}>
         <View style={styles.headerRow}>
           <Text style={styles.headerTitle}>Appointments</Text>
@@ -279,7 +284,7 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
             style={[styles.filterToggle, hasAppliedFilters && styles.filterToggleActive]}
             onPress={openFilterModal}
           >
-            <MCIcon name="filter-variant" size={20} color={hasAppliedFilters ? COLORS.white : COLORS.textSecondary} />
+            <MCIcon name="filter-variant" size={20} color={hasAppliedFilters ? colors.white : colors.textSecondary} />
             {hasAppliedFilters && (
               <View style={styles.filterBadge}>
                 <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
@@ -291,17 +296,17 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
 
       <View style={styles.searchSection}>
         <View style={styles.searchRow}>
-          <MCIcon name="magnify" size={20} color={COLORS.textMuted} />
+          <MCIcon name="magnify" size={20} color={colors.textMuted} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search by reference, doctor or patient name..."
-            placeholderTextColor={COLORS.textMuted}
+            placeholderTextColor={colors.textMuted}
             value={searchText}
             onChangeText={setSearchText}
           />
           {searchText ? (
             <TouchableOpacity onPress={() => setSearchText('')}>
-              <MCIcon name="close-circle" size={20} color={COLORS.textMuted} />
+              <MCIcon name="close-circle" size={20} color={colors.textMuted} />
             </TouchableOpacity>
           ) : null}
         </View>
@@ -351,7 +356,7 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
           onRefresh={fetchAppointments}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <MCIcon name="calendar-remove" size={48} color={COLORS.textMuted} />
+              <MCIcon name="calendar-remove" size={48} color={colors.textMuted} />
               <Text style={styles.emptyText}>No appointments found</Text>
             </View>
           }
@@ -365,7 +370,7 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
             <View style={styles.filterModalHeader}>
               <Text style={styles.filterModalTitle}>Filters</Text>
               <TouchableOpacity onPress={cancelFilters}>
-                <MCIcon name="close" size={24} color={COLORS.textPrimary} />
+                <MCIcon name="close" size={24} color={colors.textPrimary} />
               </TouchableOpacity>
             </View>
 
@@ -373,17 +378,17 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
               {/* Doctors */}
               <Text style={styles.filterSectionLabel}>Doctors</Text>
               <View style={styles.doctorSearchRow}>
-                <MCIcon name="magnify" size={18} color={COLORS.textMuted} />
+                <MCIcon name="magnify" size={18} color={colors.textMuted} />
                 <TextInput
                   style={styles.doctorSearchInput}
                   placeholder="Search doctors..."
-                  placeholderTextColor={COLORS.textMuted}
+                  placeholderTextColor={colors.textMuted}
                   value={doctorSearch}
                   onChangeText={setDoctorSearch}
                 />
                 {doctorSearch ? (
                   <TouchableOpacity onPress={() => setDoctorSearch('')}>
-                    <MCIcon name="close-circle" size={18} color={COLORS.textMuted} />
+                    <MCIcon name="close-circle" size={18} color={colors.textMuted} />
                   </TouchableOpacity>
                 ) : null}
               </View>
@@ -405,16 +410,16 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
                       onPress={() => toggleDraftDoctor(name)}
                     >
                       <View style={[styles.checkCircle, selected && styles.checkCircleSelected]}>
-                        {selected && <MCIcon name="check" size={14} color={COLORS.white} />}
+                        {selected && <MCIcon name="check" size={14} color={colors.white} />}
                       </View>
-                      <MCIcon name="doctor" size={18} color={selected ? COLORS.white : COLORS.primary} style={{ marginHorizontal: 8 }} />
+                      <MCIcon name="doctor" size={18} color={selected ? colors.white : colors.primary} style={{ marginHorizontal: 8 }} />
                       <Text style={[styles.doctorItemText, selected && styles.doctorItemTextSelected]}>{name}</Text>
                     </TouchableOpacity>
                   );
                 })}
                 {hasMoreDoctors && (
                   <TouchableOpacity style={styles.showMoreBtn} onPress={() => setDoctorSearch(' ')}>
-                    <MCIcon name="chevron-double-down" size={16} color={COLORS.primary} />
+                    <MCIcon name="chevron-double-down" size={16} color={colors.primary} />
                     <Text style={styles.showMoreText}>Show all {uniqueDoctors.length} doctors</Text>
                   </TouchableOpacity>
                 )}
@@ -426,16 +431,16 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
                 <View style={styles.rangeInputGroup}>
                   <Text style={styles.rangeLabel}>From</Text>
                   <TouchableOpacity style={styles.dateBtn} onPress={() => setCalendarMode('from')}>
-                    <MCIcon name="calendar-month" size={18} color={COLORS.primary} />
+                    <MCIcon name="calendar-month" size={18} color={colors.primary} />
                     <Text style={[styles.dateBtnText, !draftDateFrom && styles.dateBtnPlaceholder]}>
                       {draftDateFrom || 'Select date'}
                     </Text>
                     {draftDateFrom ? (
                       <TouchableOpacity onPress={() => setDraftDateFrom('')}>
-                        <MCIcon name="close-circle" size={16} color={COLORS.textMuted} />
+                        <MCIcon name="close-circle" size={16} color={colors.textMuted} />
                       </TouchableOpacity>
                     ) : (
-                      <MCIcon name="chevron-down" size={16} color={COLORS.textMuted} />
+                      <MCIcon name="chevron-down" size={16} color={colors.textMuted} />
                     )}
                   </TouchableOpacity>
                 </View>
@@ -443,16 +448,16 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
                 <View style={styles.rangeInputGroup}>
                   <Text style={styles.rangeLabel}>To</Text>
                   <TouchableOpacity style={styles.dateBtn} onPress={() => setCalendarMode('to')}>
-                    <MCIcon name="calendar-month" size={18} color={COLORS.primary} />
+                    <MCIcon name="calendar-month" size={18} color={colors.primary} />
                     <Text style={[styles.dateBtnText, !draftDateTo && styles.dateBtnPlaceholder]}>
                       {draftDateTo || 'Select date'}
                     </Text>
                     {draftDateTo ? (
                       <TouchableOpacity onPress={() => setDraftDateTo('')}>
-                        <MCIcon name="close-circle" size={16} color={COLORS.textMuted} />
+                        <MCIcon name="close-circle" size={16} color={colors.textMuted} />
                       </TouchableOpacity>
                     ) : (
-                      <MCIcon name="chevron-down" size={16} color={COLORS.textMuted} />
+                      <MCIcon name="chevron-down" size={16} color={colors.textMuted} />
                     )}
                   </TouchableOpacity>
                 </View>
@@ -466,7 +471,7 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
                   <TextInput
                     style={styles.rangeInput}
                     placeholder="HH:MM AM"
-                    placeholderTextColor={COLORS.textMuted}
+                    placeholderTextColor={colors.textMuted}
                     value={draftTimeFrom}
                     onChangeText={setDraftTimeFrom}
                   />
@@ -477,7 +482,7 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
                   <TextInput
                     style={styles.rangeInput}
                     placeholder="HH:MM AM"
-                    placeholderTextColor={COLORS.textMuted}
+                    placeholderTextColor={colors.textMuted}
                     value={draftTimeTo}
                     onChangeText={setDraftTimeTo}
                   />
@@ -515,12 +520,12 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
               </TouchableOpacity>
               {hasDraftFilters && (
                 <TouchableOpacity style={styles.clearActionBtn} onPress={clearFilters}>
-                  <MCIcon name="close-circle-outline" size={18} color={COLORS.danger} />
+                  <MCIcon name="close-circle-outline" size={18} color={colors.danger} />
                   <Text style={styles.clearActionText}>Clear</Text>
                 </TouchableOpacity>
               )}
               <TouchableOpacity style={styles.applyActionBtn} onPress={applyFilters}>
-                <MCIcon name="filter-check" size={18} color={COLORS.white} />
+                <MCIcon name="filter-check" size={18} color={colors.white} />
                 <Text style={styles.applyActionText}>Filter</Text>
               </TouchableOpacity>
             </View>
@@ -535,7 +540,7 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
             <View style={styles.calModalHeader}>
               <Text style={styles.calModalTitle}>Select {calendarMode === 'from' ? 'From' : 'To'} Date</Text>
               <TouchableOpacity onPress={() => setCalendarMode(null)}>
-                <MCIcon name="close" size={22} color={COLORS.textPrimary} />
+                <MCIcon name="close" size={22} color={colors.textPrimary} />
               </TouchableOpacity>
             </View>
             <CalendarPicker
@@ -558,7 +563,7 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Appointment Details</Text>
                 <TouchableOpacity onPress={() => setSelectedAppointment(null)}>
-                  <MCIcon name="close" size={24} color={COLORS.textPrimary} />
+                  <MCIcon name="close" size={24} color={colors.textPrimary} />
                 </TouchableOpacity>
               </View>
 
@@ -576,7 +581,7 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
                   <View style={styles.detailSection}>
                     <Text style={styles.detailSectionTitle}>Doctor</Text>
                     <View style={styles.detailRow}>
-                      <MCIcon name="doctor" size={18} color={COLORS.primary} style={styles.detailIcon} />
+                      <MCIcon name="doctor" size={18} color={colors.primary} style={styles.detailIcon} />
                       <View>
                         <Text style={styles.detailValue}>{selectedAppointment.doctorName}</Text>
                         <Text style={styles.detailSub}>{selectedAppointment.specialty}</Text>
@@ -590,7 +595,7 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
                   <View style={styles.detailSection}>
                     <Text style={styles.detailSectionTitle}>Patient</Text>
                     <View style={styles.detailRow}>
-                      <MCIcon name="account" size={18} color={COLORS.accent} style={styles.detailIcon} />
+                      <MCIcon name="account" size={18} color={colors.accent} style={styles.detailIcon} />
                       <Text style={styles.detailValue}>{selectedAppointment.userName || 'Unknown'}</Text>
                     </View>
                   </View>
@@ -654,119 +659,119 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
-  header: { paddingTop: 56, padding: 20, backgroundColor: COLORS.white, paddingBottom: 4 },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
+  header: { paddingTop: 56, padding: 20, backgroundColor: colors.card, paddingBottom: 4 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: COLORS.textPrimary },
-  filterToggle: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.surfaceMuted, justifyContent: 'center', alignItems: 'center' },
-  filterToggleActive: { backgroundColor: COLORS.primary },
-  filterBadge: { position: 'absolute', top: -4, right: -4, width: 18, height: 18, borderRadius: 9, backgroundColor: COLORS.danger, justifyContent: 'center', alignItems: 'center' },
-  filterBadgeText: { color: COLORS.white, fontSize: 10, fontWeight: '800' },
-  searchSection: { backgroundColor: COLORS.white, paddingTop: 4, paddingBottom: 12 },
+  headerTitle: { fontSize: 22, fontWeight: '800', color: colors.textPrimary },
+  filterToggle: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surfaceMuted, justifyContent: 'center', alignItems: 'center' },
+  filterToggleActive: { backgroundColor: colors.primary },
+  filterBadge: { position: 'absolute', top: -4, right: -4, width: 18, height: 18, borderRadius: 9, backgroundColor: colors.danger, justifyContent: 'center', alignItems: 'center' },
+  filterBadgeText: { color: colors.white, fontSize: 10, fontWeight: '800' },
+  searchSection: { backgroundColor: colors.card, paddingTop: 4, paddingBottom: 12 },
   activeFilterChips: { paddingHorizontal: 16 },
-  activeChip: { backgroundColor: COLORS.primaryLight, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginRight: 6 },
-  activeChipText: { fontSize: 11, fontWeight: '600', color: COLORS.primary },
-  searchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white, marginHorizontal: 16, marginBottom: 8, borderRadius: 25, paddingHorizontal: 16, height: 44, borderWidth: 1, borderColor: COLORS.border, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
-  searchInput: { flex: 1, fontSize: 14, color: COLORS.textPrimary, padding: 0, marginLeft: 8 },
+  activeChip: { backgroundColor: colors.primaryLight, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginRight: 6 },
+  activeChipText: { fontSize: 11, fontWeight: '600', color: colors.primary },
+  searchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, marginHorizontal: 16, marginBottom: 8, borderRadius: 25, paddingHorizontal: 16, height: 44, borderWidth: 1, borderColor: colors.border, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  searchInput: { flex: 1, fontSize: 14, color: colors.textPrimary, padding: 0, marginLeft: 8 },
   filterRow: { paddingBottom: 10, paddingHorizontal: 16 },
-  filterTab: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: COLORS.surfaceMuted, marginRight: 8 },
-  activeFilterTab: { backgroundColor: COLORS.primary },
-  filterTabText: { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary },
-  activeFilterTabText: { color: COLORS.white },
+  filterTab: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: colors.surfaceMuted, marginRight: 8 },
+  activeFilterTab: { backgroundColor: colors.primary },
+  filterTabText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
+  activeFilterTabText: { color: colors.white },
   listContainer: { padding: 16, flexGrow: 1 },
-  card: { backgroundColor: COLORS.white, borderRadius: 12, marginBottom: 12, padding: 14, elevation: 1 },
+  card: { backgroundColor: colors.card, borderRadius: 12, marginBottom: 12, padding: 14, elevation: 1 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  reference: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted, letterSpacing: 0.5 },
+  reference: { fontSize: 12, fontWeight: '700', color: colors.textMuted, letterSpacing: 0.5 },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12 },
   statusText: { fontSize: 11, fontWeight: '700' },
   cardBody: { gap: 6, marginBottom: 10 },
   cardRow: { flexDirection: 'row', alignItems: 'center' },
   rowIcon: { marginRight: 8 },
-  doctorName: { fontSize: 15, fontWeight: '600', color: COLORS.textPrimary, flex: 1 },
-  patientName: { fontSize: 14, color: COLORS.textSecondary, flex: 1 },
-  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#F0F0F0', paddingTop: 8 },
+  doctorName: { fontSize: 15, fontWeight: '600', color: colors.textPrimary, flex: 1 },
+  patientName: { fontSize: 14, color: colors.textSecondary, flex: 1 },
+  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 8 },
   footerLeft: { flexDirection: 'row', alignItems: 'center' },
-  footerText: { fontSize: 12, color: COLORS.textMuted, marginLeft: 4 },
-  feeText: { fontSize: 14, fontWeight: '700', color: COLORS.primary },
+  footerText: { fontSize: 12, color: colors.textMuted, marginLeft: 4 },
+  feeText: { fontSize: 14, fontWeight: '700', color: colors.primary },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 60 },
-  emptyText: { marginTop: 12, fontSize: 15, color: COLORS.textMuted },
+  emptyText: { marginTop: 12, fontSize: 15, color: colors.textMuted },
   filterModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  filterModalContainer: { backgroundColor: COLORS.white, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%' },
-  filterModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
-  filterModalTitle: { fontSize: 18, fontWeight: '800', color: COLORS.textPrimary },
+  filterModalContainer: { backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%' },
+  filterModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
+  filterModalTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
   filterModalBody: { padding: 20 },
-  filterSectionLabel: { fontSize: 14, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 10 },
-  doctorSearchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surfaceMuted, borderRadius: 10, paddingHorizontal: 12, height: 40 },
-  doctorSearchInput: { flex: 1, fontSize: 14, color: COLORS.textPrimary, padding: 0, marginLeft: 8 },
+  filterSectionLabel: { fontSize: 14, fontWeight: '700', color: colors.textPrimary, marginBottom: 10 },
+  doctorSearchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceMuted, borderRadius: 10, paddingHorizontal: 12, height: 40 },
+  doctorSearchInput: { flex: 1, fontSize: 14, color: colors.textPrimary, padding: 0, marginLeft: 8 },
   selectedCountRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, marginBottom: 4 },
-  selectedCountText: { fontSize: 12, fontWeight: '600', color: COLORS.primary },
-  clearSmallText: { fontSize: 12, fontWeight: '600', color: COLORS.danger },
+  selectedCountText: { fontSize: 12, fontWeight: '600', color: colors.primary },
+  clearSmallText: { fontSize: 12, fontWeight: '600', color: colors.danger },
   doctorList: { maxHeight: 160 },
   doctorItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 8, borderRadius: 8, marginBottom: 4 },
-  doctorItemSelected: { backgroundColor: COLORS.primary },
-  checkCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: COLORS.borderStrong, justifyContent: 'center', alignItems: 'center' },
-  checkCircleSelected: { borderColor: COLORS.white, backgroundColor: 'transparent' },
-  doctorItemText: { fontSize: 14, fontWeight: '500', color: COLORS.textPrimary, flex: 1 },
-  doctorItemTextSelected: { color: COLORS.white },
+  doctorItemSelected: { backgroundColor: colors.primary },
+  checkCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.borderStrong, justifyContent: 'center', alignItems: 'center' },
+  checkCircleSelected: { borderColor: colors.white, backgroundColor: 'transparent' },
+  doctorItemText: { fontSize: 14, fontWeight: '500', color: colors.textPrimary, flex: 1 },
+  doctorItemTextSelected: { color: colors.white },
   showMoreBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, gap: 6 },
-  showMoreText: { fontSize: 13, fontWeight: '600', color: COLORS.primary },
+  showMoreText: { fontSize: 13, fontWeight: '600', color: colors.primary },
   rangeRow: { flexDirection: 'row', alignItems: 'flex-end' },
   rangeInputGroup: { flex: 1 },
-  rangeLabel: { fontSize: 12, color: COLORS.textMuted, marginBottom: 4 },
-  rangeInput: { backgroundColor: COLORS.surfaceMuted, borderRadius: 8, paddingHorizontal: 12, height: 40, fontSize: 14, color: COLORS.textPrimary },
-  rangeSep: { marginHorizontal: 10, fontSize: 16, fontWeight: '700', color: COLORS.textMuted, paddingBottom: 10 },
-  dateBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surfaceMuted, borderRadius: 8, paddingHorizontal: 10, height: 40, gap: 6 },
-  dateBtnText: { flex: 1, fontSize: 13, fontWeight: '500', color: COLORS.textPrimary },
-  dateBtnPlaceholder: { color: COLORS.textMuted, fontWeight: '400' },
+  rangeLabel: { fontSize: 12, color: colors.textMuted, marginBottom: 4 },
+  rangeInput: { backgroundColor: colors.surfaceMuted, borderRadius: 8, paddingHorizontal: 12, height: 40, fontSize: 14, color: colors.textPrimary },
+  rangeSep: { marginHorizontal: 10, fontSize: 16, fontWeight: '700', color: colors.textMuted, paddingBottom: 10 },
+  dateBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceMuted, borderRadius: 8, paddingHorizontal: 10, height: 40, gap: 6 },
+  dateBtnText: { flex: 1, fontSize: 13, fontWeight: '500', color: colors.textPrimary },
+  dateBtnPlaceholder: { color: colors.textMuted, fontWeight: '400' },
   statusGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  statusCard: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: COLORS.border, width: '47%' },
-  radioOuter: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: COLORS.borderStrong, justifyContent: 'center', alignItems: 'center', marginRight: 8 },
+  statusCard: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: colors.border, width: '47%' },
+  radioOuter: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: colors.borderStrong, justifyContent: 'center', alignItems: 'center', marginRight: 8 },
   radioInner: { width: 10, height: 10, borderRadius: 5 },
   statusColorDot: { width: 10, height: 10, borderRadius: 5, marginRight: 6 },
-  statusCardText: { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary },
-  filterModalActions: { flexDirection: 'row', alignItems: 'center', padding: 16, paddingBottom: 24, borderTopWidth: 1, borderTopColor: '#F0F0F0', gap: 10 },
-  cancelActionBtn: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 10, backgroundColor: COLORS.surfaceMuted },
-  cancelActionText: { fontSize: 14, fontWeight: '600', color: COLORS.textSecondary },
-  clearActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: '#FECACA' },
-  clearActionText: { fontSize: 14, fontWeight: '600', color: COLORS.danger },
-  applyActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, justifyContent: 'center', paddingVertical: 12, borderRadius: 10, backgroundColor: COLORS.primary },
-  applyActionText: { fontSize: 14, fontWeight: '700', color: COLORS.white },
+  statusCardText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
+  filterModalActions: { flexDirection: 'row', alignItems: 'center', padding: 16, paddingBottom: 24, borderTopWidth: 1, borderTopColor: colors.border, gap: 10 },
+  cancelActionBtn: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 10, backgroundColor: colors.surfaceMuted },
+  cancelActionText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
+  clearActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: colors.danger + '55' },
+  clearActionText: { fontSize: 14, fontWeight: '600', color: colors.danger },
+  applyActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, justifyContent: 'center', paddingVertical: 12, borderRadius: 10, backgroundColor: colors.primary },
+  applyActionText: { fontSize: 14, fontWeight: '700', color: colors.white },
   calOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 30 },
-  calModal: { backgroundColor: COLORS.white, borderRadius: 16, padding: 20 },
+  calModal: { backgroundColor: colors.card, borderRadius: 16, padding: 20 },
   calModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  calModalTitle: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
+  calModalTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
   calendarContainer: {},
   calendarHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  calNav: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.surfaceMuted, justifyContent: 'center', alignItems: 'center' },
-  calTitle: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
+  calNav: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surfaceMuted, justifyContent: 'center', alignItems: 'center' },
+  calTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
   calDayNames: { flexDirection: 'row', marginBottom: 8 },
-  calDayName: { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600', color: COLORS.textMuted },
+  calDayName: { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600', color: colors.textMuted },
   calGrid: { flexDirection: 'row', flexWrap: 'wrap' },
   calDayCell: { width: '14.28%', aspectRatio: 1, justifyContent: 'center', alignItems: 'center' },
-  calDaySelected: { backgroundColor: COLORS.primary, borderRadius: 20 },
-  calDayNum: { fontSize: 14, fontWeight: '500', color: COLORS.textPrimary },
-  calDayNumSelected: { color: COLORS.white, fontWeight: '700' },
-  calDayToday: { color: COLORS.primary, fontWeight: '700' },
+  calDaySelected: { backgroundColor: colors.primary, borderRadius: 20 },
+  calDayNum: { fontSize: 14, fontWeight: '500', color: colors.textPrimary },
+  calDayNumSelected: { color: colors.white, fontWeight: '700' },
+  calDayToday: { color: colors.primary, fontWeight: '700' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center' },
   modalScrollContent: { padding: 20, flexGrow: 1, justifyContent: 'center' },
-  modalCard: { backgroundColor: COLORS.white, borderRadius: 16, padding: 20 },
+  modalCard: { backgroundColor: colors.card, borderRadius: 16, padding: 20 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  modalTitle: { fontSize: 18, fontWeight: '800', color: COLORS.textPrimary },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
   detailRefRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  detailRef: { fontSize: 14, fontWeight: '700', color: COLORS.textMuted, letterSpacing: 0.5 },
+  detailRef: { fontSize: 14, fontWeight: '700', color: colors.textMuted, letterSpacing: 0.5 },
   detailSection: { marginBottom: 16 },
-  detailSectionTitle: { fontSize: 13, fontWeight: '700', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
+  detailSectionTitle: { fontSize: 13, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
   detailRow: { flexDirection: 'row', alignItems: 'center' },
   detailIcon: { marginRight: 10, width: 24 },
-  detailValue: { fontSize: 15, fontWeight: '600', color: COLORS.textPrimary },
-  detailSub: { fontSize: 13, color: COLORS.textSecondary, marginTop: 1 },
+  detailValue: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
+  detailSub: { fontSize: 13, color: colors.textSecondary, marginTop: 1 },
   detailGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   detailGridItem: { width: '46%' },
-  detailLabel: { fontSize: 12, color: COLORS.textMuted, marginBottom: 2 },
-  detailDesc: { fontSize: 14, color: COLORS.textSecondary, lineHeight: 20, marginTop: 4, backgroundColor: '#F9F9F9', padding: 10, borderRadius: 8 },
-  closeBtn: { backgroundColor: COLORS.primary, padding: 14, borderRadius: 10, alignItems: 'center', marginTop: 8 },
-  closeBtnText: { color: COLORS.white, fontWeight: '700', fontSize: 15 },
+  detailLabel: { fontSize: 12, color: colors.textMuted, marginBottom: 2 },
+  detailDesc: { fontSize: 14, color: colors.textSecondary, lineHeight: 20, marginTop: 4, backgroundColor: colors.surfaceMuted, padding: 10, borderRadius: 8 },
+  closeBtn: { backgroundColor: colors.primary, padding: 14, borderRadius: 10, alignItems: 'center', marginTop: 8 },
+  closeBtnText: { color: colors.white, fontWeight: '700', fontSize: 15 },
 });
 
 export default AppointmentManagementScreen;

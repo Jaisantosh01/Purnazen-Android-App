@@ -49,6 +49,8 @@ class AppointmentService:
             visit_type=data.visit_type,
             date=data.date,
             slot_timing_id=data.slot_timing_id,
+            clinic_id=data.clinic_id,
+            user_address_id=data.user_address_id,
             fee=data.fee if data.fee is not None else float(doctor.consultation_fee),
             status="pending",
             payment_status="pending",

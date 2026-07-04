@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,11 +13,13 @@ import {
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import authService from '../services/authService';
-import { COLORS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 
 const EMAIL_RE = /^\S+@\S+\.\S+$/;
 
 const RegisterScreen = ({ navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [fullName, setFullName]         = useState('');
   const [email, setEmail]               = useState('');
   const [password, setPassword]         = useState('');
@@ -35,7 +37,7 @@ const RegisterScreen = ({ navigation }) => {
     setIsLoading(true);
     try {
       await authService.register(fullName.trim(), email.trim(), password);
-      navigation.replace('Main');
+      // Auth-state flip in authStore swaps the root navigator to Main (App.tsx).
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.');
     } finally {
@@ -48,14 +50,14 @@ const RegisterScreen = ({ navigation }) => {
       style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
 
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
         {/* Top green section */}
         <View style={styles.topSection}>
           <View style={styles.logoCircle}>
-            <MCIcon name="leaf" size={40} color={COLORS.white} />
+            <MCIcon name="leaf" size={40} color={colors.white} />
           </View>
           <Text style={styles.appName}>Wellness</Text>
           <Text style={styles.tagline}>Your health, our priority</Text>
@@ -68,18 +70,18 @@ const RegisterScreen = ({ navigation }) => {
 
           {error.length > 0 && (
             <View style={styles.errorBox}>
-              <MCIcon name="alert-circle-outline" size={16} color={COLORS.danger} />
+              <MCIcon name="alert-circle-outline" size={16} color={colors.danger} />
               <Text style={styles.errorText}>{error}</Text>
             </View>
           )}
 
           <Text style={styles.label}>Full Name</Text>
           <View style={styles.inputContainer}>
-            <MCIcon name="account-outline" size={20} color={COLORS.textMuted} style={styles.inputIcon} />
+            <MCIcon name="account-outline" size={20} color={colors.textMuted} style={styles.inputIcon} />
             <TextInput
               style={styles.input}
               placeholder="Enter your full name"
-              placeholderTextColor={COLORS.textMuted}
+              placeholderTextColor={colors.textMuted}
               value={fullName}
               onChangeText={text => { setFullName(text); setError(''); }}
             />
@@ -87,11 +89,11 @@ const RegisterScreen = ({ navigation }) => {
 
           <Text style={styles.label}>Email</Text>
           <View style={styles.inputContainer}>
-            <MCIcon name="email-outline" size={20} color={COLORS.textMuted} style={styles.inputIcon} />
+            <MCIcon name="email-outline" size={20} color={colors.textMuted} style={styles.inputIcon} />
             <TextInput
               style={styles.input}
               placeholder="Enter your email"
-              placeholderTextColor={COLORS.textMuted}
+              placeholderTextColor={colors.textMuted}
               value={email}
               onChangeText={text => { setEmail(text); setError(''); }}
               keyboardType="email-address"
@@ -101,11 +103,11 @@ const RegisterScreen = ({ navigation }) => {
 
           <Text style={styles.label}>Password</Text>
           <View style={styles.inputContainer}>
-            <MCIcon name="lock-outline" size={20} color={COLORS.textMuted} style={styles.inputIcon} />
+            <MCIcon name="lock-outline" size={20} color={colors.textMuted} style={styles.inputIcon} />
             <TextInput
               style={styles.input}
               placeholder="At least 6 characters"
-              placeholderTextColor={COLORS.textMuted}
+              placeholderTextColor={colors.textMuted}
               value={password}
               onChangeText={text => { setPassword(text); setError(''); }}
               secureTextEntry={!showPassword}
@@ -118,18 +120,18 @@ const RegisterScreen = ({ navigation }) => {
               <MCIcon
                 name={showPassword ? 'eye-outline' : 'eye-off-outline'}
                 size={20}
-                color={COLORS.textMuted}
+                color={colors.textMuted}
               />
             </TouchableOpacity>
           </View>
 
           <Text style={styles.label}>Confirm Password</Text>
           <View style={styles.inputContainer}>
-            <MCIcon name="lock-check-outline" size={20} color={COLORS.textMuted} style={styles.inputIcon} />
+            <MCIcon name="lock-check-outline" size={20} color={colors.textMuted} style={styles.inputIcon} />
             <TextInput
               style={styles.input}
               placeholder="Repeat your password"
-              placeholderTextColor={COLORS.textMuted}
+              placeholderTextColor={colors.textMuted}
               value={confirm}
               onChangeText={text => { setConfirm(text); setError(''); }}
               secureTextEntry={!showPassword}
@@ -163,8 +165,8 @@ const RegisterScreen = ({ navigation }) => {
 
 export default RegisterScreen;
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.primary },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.primary },
 
   scroll: { flexGrow: 1 },
 
@@ -185,7 +187,7 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 28,
     fontWeight: '700',
-    color: COLORS.white,
+    color: colors.white,
     marginBottom: 6,
   },
   tagline: {
@@ -195,7 +197,7 @@ const styles = StyleSheet.create({
 
   card: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     paddingHorizontal: 24,
@@ -205,19 +207,19 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 6,
   },
   subtitle: {
     fontSize: 14,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginBottom: 24,
   },
 
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fef2f2',
+    backgroundColor: colors.danger + '14',
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -226,20 +228,20 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 13,
-    color: COLORS.danger,
+    color: colors.danger,
     flex: 1,
   },
 
   label: {
     fontSize: 13,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 14,
@@ -249,13 +251,13 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 14,
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     padding: 0,
   },
   eyeBtn: { padding: 4 },
 
   registerBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
@@ -267,7 +269,7 @@ const styles = StyleSheet.create({
   registerBtnText: {
     fontSize: 16,
     fontWeight: '700',
-    color: COLORS.white,
+    color: colors.white,
   },
 
   loginRow: {
@@ -277,11 +279,11 @@ const styles = StyleSheet.create({
   },
   loginHint: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   loginLink: {
     fontSize: 13,
     fontWeight: '700',
-    color: COLORS.primary,
+    color: colors.primary,
   },
 });

@@ -1,20 +1,23 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useMemo } from 'react';
 import { Animated, Text, StyleSheet, View } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { SPACING, RADIUS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 
 const DURATION = 3000;
 const SLIDE_OFFSET = -80;
 
-const PRESETS = {
-  success: { bg: COLORS.success, icon: 'check' },
-  error: { bg: COLORS.danger, icon: 'close' },
-  info: { bg: COLORS.textSecondary, icon: 'information' },
-  warning: { bg: COLORS.warning, icon: 'alert' },
-};
+const makePresets = colors => ({
+  success: { bg: colors.success, icon: 'check' },
+  error: { bg: colors.danger, icon: 'close' },
+  info: { bg: colors.textSecondary, icon: 'information' },
+  warning: { bg: colors.warning, icon: 'alert' },
+});
 
 const Toast = ({ message, type = 'success', visible, onHide }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const translateY = useRef(new Animated.Value(SLIDE_OFFSET)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
@@ -37,14 +40,15 @@ const Toast = ({ message, type = 'success', visible, onHide }) => {
 
   if (!visible && !message) return null;
 
-  const preset = PRESETS[type] || PRESETS.info;
+  const presets = makePresets(colors);
+  const preset = presets[type] || presets.info;
 
   return (
     <Animated.View
       style={[styles.container, { backgroundColor: preset.bg, transform: [{ translateY }], opacity }]}
       pointerEvents="none">
       <View style={styles.iconCircle}>
-        <MCIcon name={preset.icon} size={14} color={COLORS.white} />
+        <MCIcon name={preset.icon} size={14} color={colors.white} />
       </View>
       <Text style={styles.message} numberOfLines={2}>
         {message}
@@ -55,7 +59,7 @@ const Toast = ({ message, type = 'success', visible, onHide }) => {
 
 export default Toast;
 
-const styles = StyleSheet.create({
+const makeStyles = colors => StyleSheet.create({
   container: {
     position: 'absolute',
     bottom: 90,
@@ -82,6 +86,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  icon: { fontSize: 12, fontWeight: '700', color: COLORS.white },
-  message: { flex: 1, fontSize: 14, fontWeight: '500', color: COLORS.white, lineHeight: 20 },
+  icon: { fontSize: 12, fontWeight: '700', color: colors.white },
+  message: { flex: 1, fontSize: 14, fontWeight: '500', color: colors.white, lineHeight: 20 },
 });

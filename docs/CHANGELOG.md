@@ -2,6 +2,192 @@
 
 All notable changes to the Purnazen App are documented here.
 
+## [2026-07-03] — Staff-app dark mode everywhere, themed cards/chips, per-app icons
+
+### Changed — doctor & admin apps (full dark-mode coverage)
+- Every remaining screen and shared component in **mobile-doctors** (13 screens +
+  ScreenHeader/Toast/UpdatePrompt/Placeholder/AddRecordMenu) and **mobile-admin**
+  (16 screens + SkeletonLoader/TimePickerModal/Toast/UpdatePrompt) migrated from
+  the static light `COLORS` export to `useTheme()` + `makeStyles(colors)` —
+  the same pattern the patient app uses. Native `Alert.alert` calls swapped for
+  the themed `showAlert`.
+- Status chips are now scheme-aware: pastel bg + deep text in light, a
+  translucent wash of the status hue + light text in dark (new
+  `mobile-doctors/src/utils/statusChip.js`; admin already used washes).
+  Hardcoded light surfaces/borders (`#f0f0f0`, `#eee`, `#f9f9f9`, pink error
+  boxes, etc.) mapped to theme tokens across the admin app.
+
+### Fixed — patient app cards/chips in dark mode
+- `QuickCard` (home quick-relief) was fully hardcoded light and misused the
+  server `subtitle` as a text color; now themed (dark mode renders an
+  accent-hue wash) and the subtitle actually displays.
+- `ServiceUnavailable`, `ErrorBoundary` (via OS scheme — class component),
+  `Toast`, `UpdatePrompt`, `SkeletonLoader` themed; `TherapyHistoryScreen`
+  light-green root/chips, `BookAppointmentScreen` address notice and
+  `WellnessScreen` state-baked icon colors moved to palette tokens.
+
+### Added — per-app launcher icons
+- `scripts/generate_icon.py` now takes a brand color; regenerated icon sets:
+  **doctor = clinical blue #2563EB**, **admin = burnt orange #EA580C** (patient
+  stays green). Adaptive `ic_launcher_background.xml` updated to match.
+  Requires a native rebuild to see the new icons.
+
+### Fixed — validation debris (pre-existing)
+- Admin: missing `ActivityIndicator` import in `VideoGroupDetailScreen`
+  (runtime crash on the loading state); six stale test suites copied from the
+  patient app deleted; jest now transforms gesture-handler/swipe-list-view/expo
+  packages and mocks `expo-document-picker` — full admin suite passes.
+- Users: jest transforms + mocks for `react-native-webview` and
+  `@react-native-community/geolocation` (AddressManagementScreen imports);
+  auth tests updated for the role-gated login.
+- All three apps now pass eslint (0 errors), tsc, jest, and a release Metro
+  bundle.
+
+## [2026-07-03] — Therapy feedback, user address book, booking fixes (PR #22)
+
+### Added — therapy feedback (pain before/after)
+- **Backend:** `therapy_feedback` table + model/repository/service and endpoints
+  under `/therapy-feedback`: `GET /by-group/{video_group_id}`, `POST` (create
+  with pain-before), `PUT /{id}/pain-after` (post-session pain level + user
+  feedback), and doctor/admin feedback slots (`PUT /{id}/doctor-feedback`,
+  `/{id}/admin-feedback`). Feedback columns added to `therapy_sessions`;
+  `GET /therapy-history/completed-count/{group_id}` counts completed videos in
+  a group. Three new Alembic migrations.
+- **User app:** `ChatAssistantScreen` collects a 1-10 pain-before rating and
+  creates the feedback record before handing off to the video player;
+  `VideoPlayerScreen` prompts for pain-after + free-text feedback on completion.
+
+### Added — user address book
+- **Backend:** `user_addresses` table + CRUD endpoints under `/user-addresses`
+  (soft delete). Appointment schema carries the selected address.
+- **User app:** new `AddressManagementScreen` (Profile stack) with full
+  add/edit/delete; `BookAppointmentScreen` requires a saved address for
+  home-visit bookings.
+
+### Fixed
+- Home and clinic appointment booking flow (visit-type handling in
+  `BookAppointmentScreen` / `consultService`).
+- Seed data no longer prefixes doctors with "Dr".
+
+### Changed
+- `DoctorProfileScreen` shows richer metadata; `VideoPlayerScreen` player
+  behaviour improved; `ChatAssistantScreen` flow polish.
+
+## [2026-06-26] — Pre-prod validation pass (API URL, OTA source, UUID migration, DB Help & Support)
+
+- **fix(mobile):** the configured `EXPO_PUBLIC_API_URL` is now used **verbatim**
+  — the localhost → 10.0.2.2 rewrite was dropped (use
+  `adb reverse tcp:5000 tcp:5000` for local dev).
+- **fix(mobile):** OTA update check pointed at the Calypsion prod releases
+  source (superseded the same day by the private-blob flow below).
+- **fix(backend):** face-scan UUID migration corrected.
+- **Added:** DB-backed **Help & Support** — `support_contacts` + `support_faqs`
+  tables, `GET /support/help` for the app plus admin CRUD endpoints
+  (`/support/contacts`, `/support/faqs`); user-app `supportService` +
+  `HelpSupportScreen` render server content.
+- Assorted mobile UI polish (Settings, Wellness, themed alerts helper).
+
+## [2026-06-26] — OTA updates from private Azure Blob (no more public GitHub releases)
+
+The in-app "Check for Updates" polled the **private** prod repo's GitHub Releases
+API, which 401s unauthenticated — so updates never surfaced in prod. Replaced with
+a backend-brokered flow against a **private** blob container. Full setup +
+runbook: [OTA_RELEASES.md](OTA_RELEASES.md).
+
+### Added — backend
+- `app_releases` table + model/schema/repository/service and endpoints under
+  `/app-releases`: JWT-gated `GET /latest?app=<slug>` and
+  `GET /<slug>/<version>/download` (mints a ~15-min read-only SAS via the existing
+  `azure_storage` helper), plus a CI-only `POST /app-releases` guarded by an
+  `X-Release-Token` header. Keeps the newest `RELEASE_KEEP_VERSIONS` (4) per app.
+  Migration `a4b5c6d7e8f9`. New config: `AZURE_RELEASES_CONTAINER_NAME`,
+  `AZURE_RELEASE_SAS_EXPIRY_MINUTES`, `RELEASE_REGISTER_TOKEN`, `RELEASE_KEEP_VERSIONS`.
+
+### Changed — apps & CI
+- All three `updateService.js` now poll the backend (api client, JWT attached)
+  instead of the GitHub API; force-update still supported via a `forced` flag.
+- `release-mobile.yml`: after the signed build, logs in to Azure via **OIDC** and
+  uploads the APK to the private `app-releases` container, then registers the
+  version with the backend. Steps are skipped until `AZURE_STORAGE_ACCOUNT` is set,
+  so they're non-breaking before infra is configured.
+
+### Security
+- Container stays private; per-request short-lived read-only SAS; storage key
+  never leaves the server; CI uses OIDC (no long-lived cloud secret). Codebase
+  stays private throughout.
+
+## [2026-06-26] — Doctor app features (Dashboard, Patients, clinical records) + sign-up polish
+
+### Added — clinical records (notes / diagnosis / prescription) persistence
+- **Backend:** new `consultation_records` table + model, schema, repository,
+  service and doctor-scoped endpoints under
+  `/appointments/{id}/records` (GET/POST and `/{record_id}` PUT/DELETE). Records
+  are owner-checked (a doctor can only touch their own appointments') and
+  soft-deleted. Migration `f3a4b5c6d7e8` (**run migrations + redeploy** to apply).
+- **Doctor app:** the Consultation Notes flow now persists — `consultationStore`
+  is API-backed via a new `consultationService`; records load on open and
+  add/edit/delete save to the server (were previously in-memory only).
+
+### Added — doctor app screens
+- **Dashboard:** real data from `GET /appointments/doctor` — today's count,
+  pending requests, active patients, a today's-schedule list (tap → patient
+  detail) and pull-to-refresh (replaces the hardcoded scaffold).
+- **Patients tab + patient profile:** real screens. The roster is derived from
+  the doctor's appointment feed (no separate patients table); profile shows full
+  details (`GET /users/:id`) + visit history. Replaces the placeholders.
+
+### Changed — user app sign-up
+- `RegisterScreen` rebuilt on `LoginScreen`'s keyboard-aware pattern: fixes the
+  empty band below the form and keyboard overlap; adds an inline password-match
+  indicator. The root navigators (admin/doctor) drive Login↔Main from auth state.
+
+## [2026-06-26] — Admin & Doctor app Profile/Settings parity (theme, biometric, alerts, trackers)
+
+Brought the **admin** (`mobile-admin`) and **doctor** (`mobile-doctors`) apps up to
+the patient app's Profile/Settings standard, keeping each app's brand color
+(admin burnt-orange, doctor clinical-blue) while sharing the same UX system.
+
+### Added — shared infrastructure (ported from `mobile-users`)
+- **Dark mode**: each app's `constants/theme.js` refactored into
+  `LIGHT_COLORS`/`DARK_COLORS` + `getColors(scheme)` (static `COLORS` still exports
+  the light palette for unmigrated screens). New `store/themeStore.js` (persisted
+  `light`/`dark`/`system`) + `hooks/useTheme.js`. `App.tsx` hydrates the theme,
+  feeds the palette into `NavigationContainer` + the bottom tab bar, and the
+  Settings "Dark Mode" toggle is now real.
+- **Biometric login**: `services/biometricService.js` (react-native-keychain
+  ACCESS_CONTROL; per-app keychain service id). Bootstrap requires fingerprint /
+  Face ID before unlocking a restored session (fail-closed → Login); Settings
+  toggle enrols/disenrols with a real OS prompt.
+- **Themed alerts**: `utils/alert.js` (`showAlert`/`showConfirm`) + globally
+  mounted `components/AppAlertHost.js`, replacing dated native `Alert.alert`.
+- **Preferences**: `services/preferencesService.js` persists push/appointment/
+  language prefs to `PUT /users/me/preferences` (added `PREFERENCES` to the doctor
+  endpoints).
+
+### Added — profile trackers
+- **Admin** profile shows live **Doctors / Users / Appointments-today** from
+  `GET /admin/stats` (fixes the previous permanently-stuck loading skeleton).
+- **Doctor** profile shows **Today / Upcoming / Completed** derived from the
+  doctor's own appointment list.
+
+### Changed
+- **Settings** reworked on both apps to the themed `ToggleRow`/`ArrowRow` card UI
+  with real Edit Profile, **editable Phone** (`updateProfile({ phone })`), Change
+  Password, Dark Mode, Biometric, Language, Check-for-Updates, and Help & Support.
+  Patient-only rows dropped (session reminders, promotional emails, location/
+  address, privacy/data consent, download-my-data).
+- **Doctor** app gained a `ProfileStack` (Profile → Settings); admin/doctor root
+  navigators are now session-aware (auth-state flip drives Login↔Main, so
+  `LoginScreen`/`RegisterScreen` no longer imperatively `replace('Main')`).
+- **Delete Account** intentionally omitted from both staff apps (accounts are
+  provisioned server-side; the doctor app has no delete API).
+
+### Docs
+- Removed stale `docs/SCREENS.md` (user-app "all 20 screens" inventory, superseded
+  by FEATURES.md; the app now has 30+ screens).
+- Updated `SRS_AUDIT.md`, `FEATURES.md`, `ARCHITECTURE.md` and the per-app READMEs
+  to reflect the native admin/doctor apps.
+
 ## [2026-06-19] — Rebrand to com.purnazen, app icon, dark mode, biometric login, header polish
 
 ### Changed — package rename `wellness` → `purnazen`

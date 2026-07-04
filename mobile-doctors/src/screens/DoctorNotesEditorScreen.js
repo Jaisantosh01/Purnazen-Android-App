@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,9 +12,13 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
 import useConsultationStore from '../store/consultationStore';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { showError } from '../utils/toast';
+import { SPACING, RADIUS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 
 const DoctorNotesEditorScreen = ({ route, navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { mode = 'create', recordId } = route.params || {};
 
   const records = useConsultationStore(s => s.doctorNotes);
@@ -23,16 +27,23 @@ const DoctorNotesEditorScreen = ({ route, navigation }) => {
 
   const existing = mode === 'edit' ? records.find(r => r.id === recordId) : null;
   const [text, setText] = useState(existing?.content || '');
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const trimmed = text.trim();
-    if (!trimmed) return;
-    if (mode === 'edit' && recordId) {
-      updateRecord(recordId, trimmed);
-    } else {
-      addRecord(trimmed);
+    if (!trimmed || saving) return;
+    setSaving(true);
+    try {
+      if (mode === 'edit' && recordId) {
+        await updateRecord(recordId, trimmed);
+      } else {
+        await addRecord(trimmed);
+      }
+      navigation.goBack();
+    } catch (err) {
+      showError(err?.message || 'Could not save. Please try again.');
+      setSaving(false);
     }
-    navigation.goBack();
   };
 
   return (
@@ -47,13 +58,13 @@ const DoctorNotesEditorScreen = ({ route, navigation }) => {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.editorWrap}>
           <View style={styles.labelRow}>
-            <MCIcon name="note-text-outline" size={18} color={COLORS.primary} />
+            <MCIcon name="note-text-outline" size={18} color={colors.primary} />
             <Text style={styles.labelText}>Doctor Notes</Text>
           </View>
           <TextInput
             style={styles.textInput}
             placeholder="Enter your clinical notes about the consultation…"
-            placeholderTextColor={COLORS.textMuted}
+            placeholderTextColor={colors.textMuted}
             multiline
             textAlignVertical="top"
             autoFocus
@@ -64,12 +75,12 @@ const DoctorNotesEditorScreen = ({ route, navigation }) => {
 
         <View style={styles.footer}>
           <TouchableOpacity
-            style={[styles.saveBtn, !text.trim() && styles.btnDisabled]}
+            style={[styles.saveBtn, (!text.trim() || saving) && styles.btnDisabled]}
             activeOpacity={0.85}
-            disabled={!text.trim()}
+            disabled={!text.trim() || saving}
             onPress={handleSave}>
-            <MCIcon name="content-save-outline" size={20} color={COLORS.white} />
-            <Text style={styles.saveBtnText}>Save</Text>
+            <MCIcon name="content-save-outline" size={20} color={colors.white} />
+            <Text style={styles.saveBtnText}>{saving ? 'Saving…' : 'Save'}</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -79,21 +90,21 @@ const DoctorNotesEditorScreen = ({ route, navigation }) => {
 
 export default DoctorNotesEditorScreen;
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   flex1: { flex: 1 },
   editorWrap: { flex: 1, padding: SPACING.lg, paddingBottom: 0 },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.md },
-  labelText: { fontSize: 16, fontWeight: '800', color: COLORS.textPrimary },
+  labelText: { fontSize: 16, fontWeight: '800', color: colors.textPrimary },
   textInput: {
     flex: 1,
     fontSize: 15,
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     lineHeight: 24,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.lg,
     textAlignVertical: 'top',
   },
@@ -105,8 +116,8 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 15,
     borderRadius: RADIUS.md,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
   },
-  saveBtnText: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
+  saveBtnText: { color: colors.white, fontSize: 16, fontWeight: '700' },
   btnDisabled: { opacity: 0.45 },
 });

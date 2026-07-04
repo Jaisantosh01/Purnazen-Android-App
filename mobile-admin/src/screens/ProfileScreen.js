@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -6,40 +6,42 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
-  Alert,
 } from 'react-native';
+import { showAlert } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAuthStore } from '../store/authStore';
 import authService from '../services/authService';
-// import therapyService from '../services/therapyService';
-import { resetToLogin } from '../navigation/navigationRef';
+import apiClient from '../api/client';
+import { ENDPOINTS } from '../constants/apiEndpoints';
 import { StatsSkeleton } from '../components/SkeletonLoader';
-import { COLORS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 
-const MENU_ITEMS = [
-  { icon: 'history',          iconColor: COLORS.primary,        iconBg: COLORS.primaryLight,  title: 'Therapy History',  subtitle: 'View past sessions',  screen: 'TherapyHistory' },
-  { icon: 'credit-card',      iconColor: COLORS.accent,         iconBg: COLORS.accentLight,   title: 'Subscriptions',    subtitle: 'Manage your plan',    screen: 'Subscriptions' },
-  { icon: 'bell-outline',     iconColor: '#ea580c',             iconBg: '#FFF3E0',            title: 'Notifications',    subtitle: 'Manage alerts',       screen: 'Notifications' },
-  { icon: 'cog-outline',      iconColor: COLORS.textSecondary,  iconBg: COLORS.surfaceMuted,  title: 'Settings',         subtitle: 'App preferences',     screen: 'Settings' },
-  { icon: 'help-circle-outline', iconColor: '#0284c7',          iconBg: '#E0F2FE',            title: 'Help & Support',   subtitle: 'Get assistance',      screen: 'HelpSupport' },
-];
+// Icon backgrounds are a translucent wash of the icon hue so the tint reads
+// correctly over both light and dark cards (matches the users app).
+const soft = hex => `${hex}22`;
+
+const SUPPORT_EMAIL = 'support@purnazen.com';
 
 const ProfileScreen = ({ navigation }) => {
   const user = useAuthStore(state => state.user);
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [stats, setStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(true);
 
-  // useEffect(() => {
-  //   therapyService
-  //     .getTherapyHistory()
-  //     .then(data => setStats(data?.stats ?? null))
-  //     .catch(() => setStats(null))
-  //     .finally(() => setStatsLoading(false));
-  // }, []);
+  // Profile trackers reuse the admin platform-stats endpoint that powers the
+  // Home dashboard, so they stay consistent without a second source of truth.
+  useEffect(() => {
+    apiClient
+      .get(ENDPOINTS.ADMIN_STATS)
+      .then(res => setStats(res?.data ?? null))
+      .catch(() => setStats(null))
+      .finally(() => setStatsLoading(false));
+  }, []);
 
   const handleLogout = () => {
-    Alert.alert(
+    showAlert(
       'Logout',
       'Are you sure you want to log out?',
       [
@@ -48,22 +50,36 @@ const ProfileScreen = ({ navigation }) => {
           text: 'Logout',
           style: 'destructive',
           onPress: async () => {
-            await authService.logout();
-            resetToLogin();
+            try {
+              await authService.logout();
+              // Auth-state flip swaps the root navigator back to Login (App.tsx).
+            } catch {
+              // logout clears local state even if the server call fails
+            }
           },
         },
       ],
     );
   };
 
-  const displayName = user?.full_name ?? 'Guest';
+  const openSupport = () =>
+    showAlert(
+      'Help & Support',
+      `Reach the Purnazen team at ${SUPPORT_EMAIL} for help with the admin console.`,
+    );
+
+  const MENU_ITEMS = [
+    { icon: 'cog-outline',         iconColor: '#6B7280', title: 'Settings',       subtitle: 'App preferences', onPress: () => navigation.navigate('Settings') },
+    { icon: 'help-circle-outline', iconColor: '#0284c7', title: 'Help & Support', subtitle: 'Get assistance',  onPress: openSupport },
+  ];
+
+  const displayName = user?.full_name ?? 'Admin';
   const displayEmail = user?.email ?? '';
   const avatarLetter = displayName.charAt(0).toUpperCase();
-  const plan = user?.plan ?? 'Free';
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      <StatusBar barStyle="light-content" backgroundColor={colors.headerBg} />
 
       <ScrollView
         style={styles.container}
@@ -80,28 +96,28 @@ const ProfileScreen = ({ navigation }) => {
               <Text style={styles.profileName} numberOfLines={1}>{displayName}</Text>
               <Text style={styles.profileEmail} numberOfLines={1}>{displayEmail}</Text>
               <View style={styles.planBadge}>
-                <MCIcon name="shield-check" size={12} color={COLORS.white} style={{ marginRight: 4 }} />
-                <Text style={styles.planText}>{plan} Member</Text>
+                <MCIcon name="shield-crown" size={12} color={colors.white} style={{ marginRight: 4 }} />
+                <Text style={styles.planText}>Administrator</Text>
               </View>
             </View>
           </View>
 
-          {/* ── Stats ── */}
+          {/* ── Trackers ── */}
           {statsLoading ? (
             <StatsSkeleton />
           ) : (
             <View style={styles.statsRow}>
               <View style={[styles.statBox, styles.statBorder]}>
-                <Text style={styles.statValue}>{stats?.sessions ?? '—'}</Text>
-                <Text style={styles.statLabel}>Sessions</Text>
+                <Text style={styles.statValue}>{stats?.total_active_doctors ?? '—'}</Text>
+                <Text style={styles.statLabel}>Doctors</Text>
               </View>
               <View style={[styles.statBox, styles.statBorder]}>
-                <Text style={styles.statValue}>{stats?.minutes ?? '—'}</Text>
-                <Text style={styles.statLabel}>Minutes</Text>
+                <Text style={styles.statValue}>{stats?.total_active_users ?? '—'}</Text>
+                <Text style={styles.statLabel}>Users</Text>
               </View>
               <View style={styles.statBox}>
-                <Text style={styles.statValue}>{stats?.avgRelief != null ? `${stats.avgRelief}%` : '—'}</Text>
-                <Text style={styles.statLabel}>Avg Relief</Text>
+                <Text style={styles.statValue}>{stats?.today_appointments ?? '—'}</Text>
+                <Text style={styles.statLabel}>Appts Today</Text>
               </View>
             </View>
           )}
@@ -111,19 +127,19 @@ const ProfileScreen = ({ navigation }) => {
         <View style={styles.menuSection}>
           {MENU_ITEMS.map((item) => (
             <TouchableOpacity
-              key={item.screen}
+              key={item.title}
               style={styles.menuCard}
               activeOpacity={0.7}
-              onPress={() => navigation.navigate(item.screen)}
+              onPress={item.onPress}
             >
-              <View style={[styles.menuIconCircle, { backgroundColor: item.iconBg }]}>
+              <View style={[styles.menuIconCircle, { backgroundColor: soft(item.iconColor) }]}>
                 <MCIcon name={item.icon} size={20} color={item.iconColor} />
               </View>
               <View style={styles.menuInfo}>
                 <Text style={styles.menuTitle}>{item.title}</Text>
                 <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
               </View>
-              <MCIcon name="chevron-right" size={20} color={COLORS.borderStrong} />
+              <MCIcon name="chevron-right" size={20} color={colors.borderStrong} />
             </TouchableOpacity>
           ))}
         </View>
@@ -134,7 +150,7 @@ const ProfileScreen = ({ navigation }) => {
           activeOpacity={0.8}
           onPress={handleLogout}
         >
-          <MCIcon name="logout" size={18} color={COLORS.danger} style={{ marginRight: 8 }} />
+          <MCIcon name="logout" size={18} color={colors.danger} style={{ marginRight: 8 }} />
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
 
@@ -145,12 +161,12 @@ const ProfileScreen = ({ navigation }) => {
 
 export default ProfileScreen;
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1 },
 
   header: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.headerBg,
     paddingTop: 56,
     paddingHorizontal: 20,
     paddingBottom: 24,
@@ -174,13 +190,13 @@ const styles = StyleSheet.create({
   avatarLetter: {
     fontSize: 28,
     fontWeight: '700',
-    color: COLORS.white,
+    color: colors.white,
   },
   profileInfo: { flex: 1 },
   profileName: {
     fontSize: 20,
     fontWeight: '700',
-    color: COLORS.white,
+    color: colors.white,
   },
   profileEmail: {
     fontSize: 13,
@@ -199,7 +215,7 @@ const styles = StyleSheet.create({
   },
   planText: {
     fontSize: 11,
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '600',
   },
 
@@ -220,7 +236,7 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 20,
     fontWeight: '700',
-    color: COLORS.white,
+    color: colors.white,
     marginBottom: 4,
   },
   statLabel: {
@@ -236,11 +252,13 @@ const styles = StyleSheet.create({
   menuCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: 16,
     paddingVertical: 14,
     paddingHorizontal: 16,
-    shadowColor: COLORS.black,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -258,11 +276,11 @@ const styles = StyleSheet.create({
   menuTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   menuSubtitle: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginTop: 1,
   },
 
@@ -273,14 +291,14 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 16,
     borderWidth: 1,
-    borderColor: '#fca5a5',
+    borderColor: soft(colors.danger),
     borderRadius: 16,
     paddingVertical: 16,
-    backgroundColor: '#fff5f5',
+    backgroundColor: soft(colors.danger),
   },
   logoutText: {
     fontSize: 15,
     fontWeight: '600',
-    color: COLORS.danger,
+    color: colors.danger,
   },
 });

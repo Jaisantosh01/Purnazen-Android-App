@@ -1,138 +1,203 @@
 # Features Tracker
 
-**Last updated:** 2026-06-16 (Face Analysis **Sprints 1–4 live** + Cycle 5 — upload + camera + **real OpenCV/MediaPipe AI pipeline**, real tongue analysis, dashboard/trends/compare, consent UI, separate tongue scan + live quality hints; how it works: [FACE_ANALYSIS_AI.md](FACE_ANALYSIS_AI.md). App renamed **Purnazen**; SRS audit: [SRS_AUDIT.md](SRS_AUDIT.md))
+**Last updated:** 2026-07-03 (post PR #22 — therapy feedback, user addresses, home/clinic booking fixes; tracker expanded to cover all three apps + backend platform)
 
-> Detailed, prioritized task breakdown of every gap below: **[TASKS.md](TASKS.md)** (T1–T49, incl. the 8-sprint Face Analysis plan). Face Analysis spec: **[FACE_ANALYSIS_SPEC.md](FACE_ANALYSIS_SPEC.md)**.
+Single source of truth for what is built, what is stubbed, and what is missing —
+across the three mobile apps and the shared FastAPI backend.
 
-Single source of truth for what is built, what is stubbed, and what is missing — across frontend and backend.
+> Open work is tracked in **[TASKS.md](TASKS.md)**. Face-analysis design:
+> **[FACE_ANALYSIS_SPEC.md](FACE_ANALYSIS_SPEC.md)** / implementation:
+> **[FACE_ANALYSIS_AI.md](FACE_ANALYSIS_AI.md)**. SRS compliance map:
+> **[SRS_AUDIT.md](SRS_AUDIT.md)**.
 
-| Symbol | Meaning |
+| Status | Meaning |
 |--------|---------|
-| ✅ | Implemented and working end-to-end |
-| 🎨 | Frontend UI done, backend endpoint missing (mock-data fallback) |
-| ⚠️ | Partial / needs attention |
-| ❌ | Not started |
+| Done | Implemented and working end-to-end |
+| Partial | Usable, but a sub-feature is stubbed or pending |
+| UI only | Frontend exists, no backing service (or vice versa) |
+| Planned | Not started |
+
+## Apps at a glance
+
+| App | Folder | Package | Role gate | State |
+|-----|--------|---------|-----------|-------|
+| Patient | `mobile-users` | `com.purnazen` | `user` | Full feature set (35 screens) |
+| Doctor | `mobile-doctors` | `com.purnazen.doctor` | `doctor` | Functional (15 screens): dashboard, appointments, schedule, patients, clinical records |
+| Admin | `mobile-admin` | `com.purnazen.admin` | `admin` | Functional (18 screens): doctors, users, appointments, slots/leaves, metadata, videos, roles |
+
+All three share the same stack (RN 0.85 / Expo SDK 56) and client patterns:
+dark mode (`useTheme` + persisted `themeStore`), biometric login, themed alerts,
+JWT keychain storage with silent 401 refresh, and backend-brokered OTA updates.
 
 ---
 
-## Authentication
+# Patient app (`mobile-users`)
+
+## Authentication & account
 
 | Feature | Frontend | Backend | Status | Notes |
 |---------|----------|---------|--------|-------|
-| Register | `RegisterScreen` | `POST /api/v1/auth/register` | ✅ | Validated form → register → auto-login → Main; linked from LoginScreen; jest-tested |
-| Login | `LoginScreen` | `POST /api/v1/auth/login` | ✅ | Tokens + user persisted; Zustand synced |
-| Logout | Settings menu | `POST /api/v1/auth/logout` | ✅ | Revokes refresh token server-side; resets nav to Login |
-| Token refresh | axios interceptor | `POST /api/v1/auth/refresh` | ✅ | Silent refresh on 401, single-flight queue, logout+reset on refresh failure; jest-tested |
-| Current user | authService | `GET /api/v1/auth/me` | ✅ | Now returns the full user profile |
-| Admin dashboard | — | `GET /api/v1/auth/admin/dashboard` | ✅ | Role-gated, tested |
-| Edit profile | SettingsScreen modal | `PUT /api/v1/auth/me` | ✅ | Updates name/avatar; store + cache synced |
-| Change password | SettingsScreen modal | `POST /api/v1/auth/change-password` | ✅ | Wrong current → 401; revokes all old tokens (`token_version`); fresh pair stored |
-| Delete account | SettingsScreen | `DELETE /api/v1/auth/me` | ✅ | Hard delete + cascade (appointments, therapy, payments); tokens die immediately |
+| Register | `RegisterScreen` | `POST /auth/register` | Done | Keyboard-aware form, inline password-match indicator, auto-login |
+| Profile completion | `ProfileCompletionScreen` | `PUT /auth/me` | Done | Post-signup phone/gender/DOB step; skippable |
+| Login | `LoginScreen` | `POST /auth/login` | Done | Tokens + user persisted; Zustand synced |
+| Biometric login | `biometricService` | — (device keychain) | Done | Fingerprint/Face ID unlock of restored session; fail-closed to Login |
+| Logout | Settings | `POST /auth/logout` | Done | Revokes refresh token server-side |
+| Token refresh | axios interceptor | `POST /auth/refresh` | Done | Silent refresh on 401, single-flight queue; jest-tested |
+| Edit profile | Settings modals | `PUT /auth/me` | Done | Name/avatar/phone/gender/DOB |
+| Change password | Settings modal | `POST /auth/change-password` | Done | Revokes all old tokens (`token_version`) |
+| Delete account | Settings | `DELETE /auth/me` | Done | Hard delete + cascade; tokens die immediately |
+| Address book | `AddressManagementScreen` (Profile) | `GET/POST/PUT/DELETE /user-addresses` | Done | CRUD + soft delete; used by home-visit booking |
+| Social auth (Google/Apple) | — | — | Planned | Deferred — needs OAuth client IDs (TASKS T40/T41) |
+| OTP auth | — | — | Planned | Listed in SRS; password + JWT only today |
 
-## Home
-
-| Feature | Frontend | Backend | Status | Notes |
-|---------|----------|---------|--------|-------|
-| Quick relief cards | `HomeScreen` | `GET /api/v1/home/quick-relief` | ✅ | End-to-end; tested |
-| Wellness rows | `HomeScreen` | `GET /api/v1/sessions` (reused) | ✅ | First 3 catalog rows, key→MCI icon map; fallback kept offline (T12) |
-
-## Consultation
+## Home & chat assistant
 
 | Feature | Frontend | Backend | Status | Notes |
 |---------|----------|---------|--------|-------|
-| Doctor list + search + pagination | `ConsultScreen` | `GET /api/v1/doctors` | ✅ | Tested (card shape, search, pagination) |
-| Filter tabs (Today/Video/Home/Top) | `ConsultScreen` | `GET /doctors/available-today`, `/video-call`, `/home-visit`, `/top-rated` | ✅ | Server-filtered, same card shape + search/pagination; seed now links consultation types; tested |
-| Doctor detail | `DoctorProfileScreen` | `GET /api/v1/doctors/:id` | ✅ | Card shape shared with list endpoint; 404 envelope; tested |
-| Visit types | `BookAppointmentScreen` | `GET /api/v1/doctors/:id/visit-types` | ✅ | Derived from `consultation_types` m2m; fee from `consultation_fee`; tested |
-| Time slots | `BookAppointmentScreen` | `GET /api/v1/doctors/:id/time-slots?date=` | ✅ | Generated from `doctor_availability`, minus booked appointments; seeded Mon–Sat; tested |
-| Book appointment | `BookAppointmentScreen` | `POST /api/v1/appointments/book`, `GET /api/v1/appointments` | ✅ | `Appointment` model + migration; 409 on slot conflict; booking ref shown on confirmation screen; tested |
-| Payment | `PaymentScreen` | `POST /api/v1/payments/process`, `/payments/verify` | ⚠️ | Full order→verify flow works (HMAC-verified; appointment marked paid); runs in local sandbox without keys. Razorpay checkout SDK for real test keys still open (native module) |
+| Quick relief cards | `HomeScreen` | `GET /home/quick-relief` | Done | Admin can CRUD cards via `/quick-relief` endpoints |
+| Wellness rows | `HomeScreen` | `GET /sessions` | Done | First 3 catalog rows; offline fallback kept |
+| Chat assistant | `ChatAssistantScreen` | `GET /chat/flow/start`, `/chat/flow/{id}` | Done | DB-driven decision tree (chat questions/options) that ends in a recommended video group; records pain-before via therapy feedback, then hands off to the video player |
 
-## Wellness & Relief Sessions
+## Consultation & appointments
 
 | Feature | Frontend | Backend | Status | Notes |
 |---------|----------|---------|--------|-------|
-| Session player (yoga/meditation/breathing) | `YogaSessionScreen` | `GET /api/v1/sessions/:key` | ✅ | API content wins once fetched; local data kept as instant-render/offline fallback |
-| Relief session player (acupressure) | `ReliefSessionScreen` | `GET /api/v1/relief-sessions/:key` | ✅ | Same pattern; keys with spaces ("Neck Pain") supported |
-| Session catalog API | services ready | `GET /api/v1/sessions`, `/relief-sessions` | ✅ | `WellnessSession`/`ReliefSession` models, seeded from ported mock content; tested |
-| Save completed session | called on completion | `POST /api/v1/therapy-history/save` | ✅ | `TherapySession` model + migration; auth-required; tested |
-| Therapy history | `TherapyHistoryScreen` | `GET /api/v1/therapy-history` | ✅ | Live list + stats (sessions/minutes/avgRelief), paginated, newest first; mock removed |
+| Doctor list + search + pagination | `ConsultScreen` | `GET /doctors` | Done | |
+| Filter tabs (Today/Video/Home/Top) | `ConsultScreen` | `GET /doctors/available-today` etc. | Done | Server-filtered |
+| Doctor detail | `DoctorProfileScreen` | `GET /doctors/:id` | Done | Now includes specialties/expertise/languages metadata |
+| Visit types | `BookAppointmentScreen` | `GET /doctors/:id/visit-types` | Done | video / home / clinic |
+| Time slots | `BookAppointmentScreen` | `GET /doctors/:id/time-slots?date=` | Done | Availability minus booked; respects doctor leaves |
+| Book appointment | `BookAppointmentScreen` | `POST /appointments/book` | Done | Home-visit requires a saved address (PR #22 fixed home/clinic booking); conflict returns 409-style envelope |
+| Appointment history + detail | `AppointmentHistoryScreen`, `AppointmentDetailScreen` | `GET /appointments`, `PUT /appointments/:id` | Done | Upcoming/past; cancel/update via PUT |
+| Payment | `PaymentScreen` | `POST /payments/process`, `/verify` | Partial | HMAC-verified order-verify flow in local sandbox mode; Razorpay native checkout with real keys still open |
 
-## Other
+## Therapy: sessions, video groups & feedback
 
 | Feature | Frontend | Backend | Status | Notes |
 |---------|----------|---------|--------|-------|
-| Face Glow routines | `FaceGlowScreen` | `GET /api/v1/face-glow/routines` | ✅ | DB-backed routines (Redis cache-aside) |
-| Face scan (9 metrics + glow) | `FaceScanScreen`, `ScanProcessingScreen`, `ScanResultsScreen`, `ScanErrorScreen` | `POST /face-glow/scan/upload`, `GET /scan/:id/status`, `/history`, `DELETE /scan/:id` | ✅ | Real classical-CV pipeline — MediaPipe FaceLandmarker + 9 OpenCV/skimage analyzers → glow/toxin/skin-age + TCM recommendations; live progress stages; mesh overlay; consent-gated; graceful-degradation ladder so scans don't hard-fail ([FACE_ANALYSIS_AI.md](FACE_ANALYSIS_AI.md)) |
-| Tongue scan | `TongueScanScreen` (separate, Cycle 5) | same endpoints (`scan_type=tongue`) | ✅ | Real GrabCut segmentation + Lab/HSV TCM classification (body/coat colour, moisture, shape) → wellness score + TCM tips; quality gate rejects no-tongue frames |
-| Live capture quality | `FaceScanScreen`/`TongueScanScreen` viewfinder | `POST /face-glow/quality-preview` | ✅ | In-viewfinder colour + text hints (no scan created); MediaPipe-primary gate rejects empty-wall photos |
-| Scan dashboard / trends / compare | `ScanDashboardScreen`, `ScanComparisonScreen`, `TrendChart` | `GET /face-glow/dashboard`, `/trends`, `POST /scan/:id/compare` | ✅ | Latest scores, 7-day glow trend, before/after delta (SVG charts, no chart-kit dep) |
-| Scan history | `ScanHistoryScreen` | `GET /face-glow/history` | ✅ | Paginated, filter by face/tongue/all |
-| Privacy & data consent | `ConsentScreen` (Settings) | `GET/POST /api/v1/consent/`, `DELETE /consent/:type` | ✅ | GDPR toggles (scan_storage / ai_training / gdpr_data); scan upload 403s without scan_storage consent |
-| Error reporting | `ErrorBoundary`, `ServiceUnavailable`, `errorReportingService` | `POST /api/v1/errors/report` | ✅ | App-wide boundary + client crash/error reports posted for triage |
-| Subscriptions | `SubscriptionsScreen` | — | 🎨 | Static plans; no billing (→ T14) |
-| Notification preferences | `NotificationsScreen`, `SettingsScreen` | `GET/PUT /api/v1/users/me/preferences` | ✅ | Master + granular toggles persisted (T15); push *delivery* (FCM) still open |
-| Help & Support | `HelpSupportScreen` | — | ✅ | External links only — no backend needed |
-| Settings toggles | `SettingsScreen` | `PUT /api/v1/users/me/preferences` | ⚠️ | Account + notification toggles live (T8/T15); appearance/privacy toggles still local-only |
-| Health check | — | `GET /health` | ✅ | |
+| Session player (yoga/meditation/breathing) | `YogaSessionScreen` | `GET /sessions` | Done | API content wins; local fallback for offline |
+| Relief session player (acupressure) | `ReliefSessionScreen` | `GET /relief-sessions/:key` | Done | |
+| Video group player | `VideoPlayerScreen` | `GET /videos/groups/:id/catalog` | Done | Modern player (scrubber, fullscreen); plays admin-uploaded video groups |
+| Save completed session | on completion | `POST /therapy-history/save` | Done | |
+| Therapy history + stats | `TherapyHistoryScreen` | `GET /therapy-history`, `/completed-count/:groupId` | Done | Sessions/minutes/avgRelief; per-group completion count |
+| Therapy feedback (pain before/after) | `ChatAssistantScreen`, `VideoPlayerScreen` | `POST /therapy-feedback`, `PUT .../pain-after` | Done | 1-10 pain scale before (chat) and after (player) + free-text feedback; doctor/admin feedback fields exist server-side |
+
+## Face & tongue analysis
+
+Real classical-CV pipeline: MediaPipe FaceLandmarker + 9 OpenCV/skimage
+analyzers producing glow/toxin/skin-age scores + TCM recommendations, with a
+graceful-degradation ladder. Details: [FACE_ANALYSIS_AI.md](FACE_ANALYSIS_AI.md).
+
+| Feature | Frontend | Backend | Status | Notes |
+|---------|----------|---------|--------|-------|
+| Face Glow routines | `FaceGlowScreen` | `GET /face-glow/routines` | Partial | DB-backed catalog (Redis cache-aside); the routine "play" button is still a stub alert — no routine player |
+| Face scan (9 metrics + glow) | `FaceScanScreen` + processing/results/error screens | `POST /face-glow/scan/upload` + status/history/delete | Done | Consent-gated; live progress stages; mesh overlay; UUID migration fixed 2026-06-26 |
+| Tongue scan | `TongueScanScreen` | same endpoints (`scan_type=tongue`) | Done | GrabCut segmentation + Lab/HSV TCM classification |
+| Live capture quality | viewfinder hints | `POST /face-glow/quality-preview` | Done | MediaPipe-primary gate rejects empty-wall photos |
+| Dashboard / trends / compare | `ScanDashboardScreen`, `ScanComparisonScreen` | `GET /face-glow/dashboard`, `/trends`, `POST .../compare` | Done | SVG charts |
+| Scan history | `ScanHistoryScreen` | `GET /face-glow/history` | Done | Paginated, face/tongue filter |
+| Privacy & data consent | `ConsentScreen` | `GET/POST/DELETE /consent` | Done | scan_storage / ai_training / gdpr_data; upload 403s without consent |
+
+## Settings & platform
+
+| Feature | Frontend | Backend | Status | Notes |
+|---------|----------|---------|--------|-------|
+| Dark mode | all 33+ screens via `useTheme` | — | Done | light/dark/system, persisted |
+| Notification preferences | `NotificationsScreen`, Settings | `GET/PUT /users/me/preferences` | Done | Push *delivery* (FCM) still open |
+| Help & Support | `HelpSupportScreen` | `GET /support/help` | Done | DB-backed contacts + FAQs (2026-06-26); some rows still "coming soon" |
+| Subscriptions | `SubscriptionsScreen` | — | UI only | Hardcoded plans; no billing, no plan gating (TASKS T14) |
+| In-app updates (OTA) | `updateService` | `GET /app-releases/latest`, `/download` | Done | Backend-brokered private-blob flow; see [OTA_RELEASES.md](OTA_RELEASES.md) |
+| Error reporting | `ErrorBoundary` + service | `POST /errors/report` | Done | |
+| Download my data | Settings row | — | UI only | Alert stub; no export pipeline |
+| Push notifications (FCM) | — | — | Planned | Preferences persist but nothing is delivered |
 
 ---
 
-## Endpoint Scoreboard
+# Doctor app (`mobile-doctors`)
 
-| Category | Needed | Implemented | Gap |
-|----------|--------|-------------|-----|
-| Auth | 9 | 9 | — |
-| Home | 2 | 2 | — (wellness rows reuse `GET /sessions`) |
-| Consult | 11 | 11 | — (incl. payments process + verify) |
-| Sessions/Relief | 4 | 4 | — |
-| Therapy | 2 | 2 | — |
-| Users/Preferences | 2 | 2 | — |
-| Face Glow | 10 | 10 | routines (×2) + scan upload/status/history/delete + quality-preview + dashboard/trends/compare |
-| Consent | 3 | 3 | GET / POST / DELETE `/consent/` (GDPR) |
-| Error reporting | 1 | 1 | `POST /errors/report` |
-| **Total** | **44** | **44** | **— (social auth `/auth/social/*` + GDPR `DELETE /face-glow/data` still pending, Sprint 5)** |
-
-(Plus `GET /api/v1/appointments` — implemented as part of booking, not counted in "needed".)
+| Feature | Frontend | Backend | Status | Notes |
+|---------|----------|---------|--------|-------|
+| Login (role-gated) | `LoginScreen` | `POST /auth/login` (`expected_role=doctor`) | Done | Biometric unlock supported |
+| Dashboard | `DashboardScreen` | `GET /appointments/doctor` | Done | Today's count, pending requests, active patients, today's schedule, pull-to-refresh |
+| Appointments + detail | `AppointmentsScreen`, `AppointmentDetailScreen` | `GET /appointments/doctor`, `PUT /appointments/:id` | Done | Status updates |
+| Schedule / availability | `ScheduleScreen`, `AddAvailabilityScreen` | `GET/POST/PUT/DELETE /doctor-availability` | Done | Weekly availability CRUD |
+| Patients roster + profile | `PatientsScreen`, `PatientDetail(s)Screen` | derived from appointment feed + `GET /users/:id` | Done | No separate patients table; visit history shown |
+| Clinical records (notes/diagnosis/prescription) | `ConsultationNotesScreen` + 3 editors | `GET/POST/PUT/DELETE /appointments/:id/records` | Done | Owner-checked, soft-deleted; persisted since 2026-06-26 |
+| Therapy feedback review | — | `PUT /therapy-feedback/:id/doctor-feedback` | UI only | Endpoint exists; no doctor-app screen wired yet |
+| Profile & Settings | `ProfileScreen`, `SettingsScreen` | shared endpoints | Done | Parity with patient app: dark mode, biometric, editable profile/phone/password, trackers (today/upcoming/completed) |
 
 ---
 
-## Priority Queue (backend work)
+# Admin app (`mobile-admin`)
 
-### P0 — Blocks core UX — ✅ all done 2026-06-12 (T1–T5)
-1. ~~`GET /api/v1/doctors/:id` — doctor detail screen~~
-2. ~~`GET /api/v1/doctors/:id/time-slots` + slot generation from `doctor_availability`~~
-3. ~~`POST /api/v1/appointments/book` (+ `Appointment` model + migration)~~
-4. ~~`POST /api/v1/therapy-history/save` + `GET /api/v1/therapy-history` (+ model)~~
-
-### P1 — Feature completeness — ✅ all done 2026-06-12 (T6–T11)
-5. ~~Doctor filter endpoints (available-today / video-call / home-visit / top-rated)~~
-6. ~~`GET /api/v1/sessions` + `GET /api/v1/relief-sessions` catalogs (+ models, seed from `src/data/`)~~
-7. ~~`PUT /api/v1/auth/me`, change-password, delete-account endpoints~~
-8. ~~Payment processing (Razorpay sandbox; local sandbox mode without keys)~~
-9. ~~Registration screen (frontend)~~
-10. ~~Axios auto-refresh on 401~~
-
-### P2 (→ T12–T19) — T12, T15, T18, T19 ✅ done 2026-06-12
-11. ~~Wellness rows on Home from API~~ · ~~notification preferences~~ · ~~STRINGS wiring~~ · ~~CI~~
-12. Remaining: Face Glow backend (T13), subscriptions (T14 — billing provider decision pending), theme adoption (T16), frontend test coverage (T17), react-native-razorpay checkout for real test keys (needs Android SDK machine).
+| Feature | Frontend | Backend | Status | Notes |
+|---------|----------|---------|--------|-------|
+| Login (role-gated) | `LoginScreen` | `POST /auth/login` (`expected_role=admin`) | Done | |
+| Home dashboard | `HomeScreen` | `GET /admin/stats`, `/admin/doctors/stats` | Done | Doctors/users/appointments-today KPIs |
+| Doctor management | `DoctorManagementScreen`, `DoctorDetailScreen`, `EditDoctorScreen` | `GET/POST/PUT /doctors` | Done | Create/edit with specialties, expertise, languages |
+| Doctor leave management | `DoctorLeaveManagementScreen` | `GET/POST/PUT/PATCH /doctor-leaves` (+ `/stats`) | Done | Admin-gated; leave KPIs |
+| Slot management | `SlotManagementScreen` | `GET/POST/PUT/DELETE /slot-timings` | Done | Grouped by day; soft delete |
+| User management | `UserManagementScreen`, `EditUserScreen` | `GET /users`, `GET/PUT /users/:id` | Done | Admin-gated |
+| Appointment management | `AppointmentManagementScreen` | `GET /appointments/admin`, `PUT /appointments/:id` | Done | All appointments |
+| Metadata management | `MetadataManagementScreen` | specialties / expertises / languages CRUD | Done | Three lookup tables, full CRUD |
+| Role management | `ManageRolesScreen` | `GET/POST/PUT/DELETE /roles` | Done | Admin-gated |
+| Video management | `VideoManagementScreen`, `UploadVideoScreen`, `VideoGroupDetailScreen` | `/videos` + `/videos/groups` + blob storage endpoints | Done | Upload to Azure Blob, video CRUD, group CRUD + sync videos in group |
+| Content management (quick relief / sessions) | — | `POST/PUT/DELETE /quick-relief`, `/sessions` | UI only | Endpoints exist; no admin screens wired yet |
+| Support CMS (contacts/FAQs) | — | `POST/PUT/DELETE /support/contacts`, `/support/faqs` | UI only | Endpoints exist; no admin screens wired yet |
+| Therapy feedback review | — | `PUT /therapy-feedback/:id/admin-feedback` | UI only | Endpoint exists; no screen |
+| Profile & Settings | `ProfileScreen`, `SettingsScreen` | shared | Done | Parity with patient app; live profile trackers |
 
 ---
 
-## Tech Debt Register
+# Backend platform
 
-| Item | Severity | Notes |
-|------|----------|-------|
-| ~~Tokens in AsyncStorage~~ | ✅ Resolved 2026-06-12 | Now in device keystore via `react-native-keychain` (`src/utils/secureStorage.js`); legacy tokens auto-migrated on app start |
-| ~~No rate limiting on auth~~ | ✅ Resolved 2026-06-12 | slowapi on login/register/refresh, per-IP, `RATE_LIMIT_*` env-configurable; Redis-backed when `REDIS_URL` set |
-| ~~CORS `allow_origins=["*"]`~~ | ✅ Configurable 2026-06-12 | `CORS_ORIGINS` env var; default still `*` for dev — **set explicit origins in production .env** |
-| ~~No auto-refresh on 401~~ | ✅ Resolved 2026-06-12 | Silent refresh + replay + single-flight queue in `src/api/client.js` (T10) |
-| Frontend tests thin | Medium | 4 suites / 15 tests (App render, secureStorage, RegisterScreen, apiClient) — most screens/services still untested (→ T17) |
-| Monolithic screens | Low | `src/constants/theme.js` tokens now exist; screen-by-screen migration pending (→ T16) |
-| ~~`BottomNav.js` unused~~ | ✅ Deleted 2026-06-12 | Also deleted 7 unused `src/data/*.json` duplicates |
-| ~~Hardcoded API IP/port~~ | ✅ Resolved 2026-06-12 | `EXPO_PUBLIC_API_URL` via `.env` → `src/config/index.js`; fallback `10.0.2.2:5000` |
-| ~~`react-hooks/exhaustive-deps` errors~~ | ✅ Fixed 2026-06-12 | Were in `BookAppointmentScreen` (missing `doctor.id`); `eslint --quiet` now clean |
-| Backend test coverage | Info | 84 tests cover all existing endpoints + rate limiting; extend with each new feature |
-| ~~No CI~~ | ✅ Resolved 2026-06-12 | GitHub Actions: backend pytest + frontend jest/tsc/eslint on PRs and main pushes (T19) |
-| Auth deps hit the DB per request | Info | `token_version` check fetches the user on every authed call (replaces unbounded-blocklist risk); cache in Redis if it ever shows up in profiles |
-| ~~HomeScreen renders empty text labels~~ | ✅ Fixed 2026-06-12 | All 10 labels wired to `STRINGS` constants (T18) |
+FastAPI (Python 3.13), SQLAlchemy 2 + Alembic, PostgreSQL (SQLite for local dev),
+Redis-backed caching/rate limiting when configured. Approximately **131 routes
+across 27 endpoint modules** (counted from `app/api/v1/endpoints/`, 2026-07-03).
+
+| Module | Routes | Consumers | Notes |
+|--------|--------|-----------|-------|
+| auth | 9 | all apps | JWT access/refresh, `token_version` revocation, role gates |
+| doctors | 11 | users, admin | List/filters/detail/visit-types/availability/time-slots + admin create/update |
+| doctor-availability | 4 | doctor | Weekly availability CRUD |
+| doctor-leaves | 5 | admin | CRUD + KPI stats |
+| specialties / expertises / languages | 12 | admin | Lookup-table CRUD |
+| appointments | 6 | all apps | Book, update, my-list, doctor feed, admin list, consultation types |
+| consultations (clinical records) | 4 | doctor | Owner-checked notes/diagnosis/prescription |
+| payments | 2 | users | Sandbox order + HMAC verify |
+| sessions / relief / quick-relief | 9 | users, (admin CRUD) | Catalogs + content CRUD |
+| therapy-history | 3 | users | Save, list, per-group completed count |
+| therapy-feedback | 5 | users, doctor, admin | Pain before/after + tri-party feedback |
+| chat | 2 | users | DB-driven decision-tree flow |
+| videos | 15 | users, admin | Video/group CRUD, group catalog, Azure Blob upload + directory management |
+| face-glow + face-scan | 10 | users | Routines + full scan pipeline (upload/status/history/delete/dashboard/trends/compare/quality-preview) |
+| consent | 3 | users | GDPR consent lifecycle |
+| users | 5 | all apps | Admin user CRUD + `me/preferences` |
+| user-addresses | 4 | users | Address book (soft delete) |
+| home | 1 | users | Quick relief cards |
+| dashboard (admin) | 2 | admin | Aggregate stats |
+| roles | 4 | admin | Role CRUD |
+| slot-timings | 4 | admin | Slot template CRUD |
+| support | 7 | users, (admin CRUD) | Help content + contacts/FAQs CMS |
+| app-releases | 3 | all apps + CI | OTA registry: latest, SAS download, CI register |
+| errors | 1 | all apps | Client crash/error reports |
+
+Infrastructure: Azure Container Apps deploy via OIDC GitHub Actions
+([DEPLOYMENT.md](DEPLOYMENT.md), [AZURE_RUNBOOK.md](AZURE_RUNBOOK.md)); signed
+APKs distributed OTA from a private blob container ([OTA_RELEASES.md](OTA_RELEASES.md));
+local Docker APK builds (`scripts/build-apks.sh`).
+
+---
+
+# Known gaps (summary)
+
+Full backlog with owners/priorities: **[TASKS.md](TASKS.md)**.
+
+1. **Payments** — sandbox only; Razorpay native checkout with real keys open.
+2. **Subscriptions** — static UI; no billing, no plan gating (incl. SRS free 2-min limit).
+3. **Push delivery** — preferences persist, but no FCM; scan notifications deferred with it.
+4. **Social auth + OTP** — deferred (needs OAuth credentials / OTP provider).
+5. **FaceGlow routine player** — routines listed but "play" is a stub.
+6. **Admin screens for existing endpoints** — quick-relief/session content CRUD, support CMS, therapy-feedback review have APIs but no UI.
+7. **Face-analysis sprints 6-8** — security hardening (signed URLs, GDPR bulk delete), analyzer test matrix, Celery queue, monitoring, analytics events, premium gating.
+8. **SRS leftovers** — 4 missing MVP symptoms in seed, in-app medical disclaimer, load testing.

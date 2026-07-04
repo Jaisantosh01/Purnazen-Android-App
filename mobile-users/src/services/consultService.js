@@ -21,6 +21,14 @@ class ConsultService {
     return apiClient.post(endpoint, body);
   }
 
+  put(endpoint, body) {
+    return apiClient.put(endpoint, body);
+  }
+
+  delete(endpoint) {
+    return apiClient.delete(endpoint);
+  }
+
   async getFilterTabs() {
     try {
       const json = await this.get(ENDPOINTS.FILTER_TABS);
@@ -64,6 +72,15 @@ class ConsultService {
     }
   }
 
+  async getDoctorClinics(doctorId) {
+    try {
+      const json = await this.get(ENDPOINTS.DOCTOR_DETAIL(doctorId));
+      return json?.data?.clinics;
+    } catch (err) {
+      throw new Error(err?.message ?? 'Failed to fetch clinics');
+    }
+  }
+
   async getTimeSlots(doctorId, date) {
     try {
       const params = new URLSearchParams({ date });
@@ -89,6 +106,42 @@ class ConsultService {
       return json?.data?.appointments;
     } catch (err) {
       throw new Error(err?.message ?? 'Failed to fetch appointments');
+    }
+  }
+
+  async getUserAddresses() {
+    try {
+      const json = await this.get(ENDPOINTS.USER_ADDRESSES);
+      return json?.data?.addresses;
+    } catch (err) {
+      throw new Error(err?.message ?? 'Failed to fetch addresses');
+    }
+  }
+
+  async createUserAddress(data) {
+    try {
+      const json = await this.post(ENDPOINTS.USER_ADDRESSES, data);
+      return json?.data;
+    } catch (err) {
+      throw new Error(err?.message ?? 'Failed to create address');
+    }
+  }
+
+  async updateUserAddress(id, data) {
+    try {
+      const json = await this.put(ENDPOINTS.USER_ADDRESS(id), data);
+      return json?.data;
+    } catch (err) {
+      throw new Error(err?.message ?? 'Failed to update address');
+    }
+  }
+
+  async deleteUserAddress(id) {
+    try {
+      const json = await this.delete(ENDPOINTS.USER_ADDRESS(id));
+      return json?.data;
+    } catch (err) {
+      throw new Error(err?.message ?? 'Failed to delete address');
     }
   }
 

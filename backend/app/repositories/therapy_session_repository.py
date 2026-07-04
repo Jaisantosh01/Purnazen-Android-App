@@ -70,8 +70,19 @@ class TherapySessionRepository:
         return results, total
 
     @staticmethod
+    def count_completed_by_group(db: Session, user_id: uuid.UUID, group_id: uuid.UUID) -> int:
+        return (
+            db.query(func.count(TherapySession.id))
+            .filter(
+                TherapySession.user_id == user_id,
+                TherapySession.group_id == group_id,
+                TherapySession.status == "Completed",
+            )
+            .scalar()
+        ) or 0
+
+    @staticmethod
     def get_user_stats(db: Session, user_id: uuid.UUID) -> dict:
-        # Note: This might need adjustment based on the new model structure if stats are still needed
         completed = (
             TherapySession.user_id == user_id,
             TherapySession.status == "Completed",
@@ -86,18 +97,7 @@ class TherapySessionRepository:
             .first()
         )
 
-        avg_relief = (
-            db.query(func.avg(TherapySession.pain_after - TherapySession.pain_before))
-            .filter(
-                *completed,
-                TherapySession.pain_before.isnot(None),
-                TherapySession.pain_after.isnot(None),
-            )
-            .scalar()
-        )
-
         return {
             "sessions": count,
             "minutes": int(minutes),
-            "avgRelief": round(avg_relief) if avg_relief is not None else 0,
         }

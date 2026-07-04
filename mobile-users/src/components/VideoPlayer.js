@@ -8,8 +8,10 @@ import {
   Pressable,
   PanResponder,
   Animated,
+  useWindowDimensions,
 } from 'react-native';
 import Video from 'react-native-video';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import useTheme from '../hooks/useTheme';
@@ -51,8 +53,19 @@ export default function VideoPlayer({
   hasNext = false,
 }) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const { width: screenW, height: screenH } = useWindowDimensions();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const videoRef = useRef(null);
+
+  // Aspect ratio of the loaded video. Defaults to 16:9 until the real natural
+  // size arrives in onLoad, then adapts so portrait clips get a tall frame
+  // instead of being squashed into a short letterboxed strip.
+  const [aspect, setAspect] = useState(16 / 9);
+  // Measured player height — drives the control overlay height so the bottom bar
+  // (scrubber + fullscreen toggle) always lands at the real bottom edge, in both
+  // the inline and fullscreen layouts.
+  const [wrapH, setWrapH] = useState(0);
 
   const [paused, setPaused] = useState(!autoPlay);
   const [duration, setDuration] = useState(0);
@@ -146,6 +159,14 @@ export default function VideoPlayer({
   const onVideoLoad = data => {
     setDuration(data.duration);
     setBuffering(false);
+    const ns = data?.naturalSize;
+    if (ns && ns.width > 0 && ns.height > 0) {
+      // Some decoders report rotated portrait media with width/height swapped.
+      let w = ns.width;
+      let h = ns.height;
+      if (ns.orientation === 'portrait' && w > h) [w, h] = [h, w];
+      setAspect(w / h);
+    }
   };
 
   const onVideoEnd = () => {
@@ -185,8 +206,18 @@ export default function VideoPlayer({
     [trackW, duration, reveal],
   );
 
+  // Frame height from the video's aspect ratio: never shorter than a 16:9 strip
+  // (so landscape clips look right) and never taller than ~62% of the screen
+  // (so the playlist below stays reachable). Portrait clips fill that height.
+  const minH = (screenW * 9) / 16;
+  const maxH = screenH * 0.62;
+  const playerH = Math.min(Math.max(screenW / aspect, minH), maxH);
+
   return (
-    <View style={[styles.wrap, fullscreen && styles.wrapFullscreen]}>
+    <View
+      style={[styles.wrap, fullscreen ? styles.wrapFullscreen : { height: playerH }]}
+      onLayout={e => setWrapH(e.nativeEvent.layout.height)}
+    >
       {source?.uri ? (
         <Video
           key={retryKey}
@@ -197,7 +228,6 @@ export default function VideoPlayer({
           muted={muted}
           resizeMode="contain"
           repeat={false}
-          fullscreen={fullscreen}
           onProgress={onVideoProgress}
           onLoad={onVideoLoad}
           onLoadStart={() => setBuffering(true)}
@@ -205,7 +235,6 @@ export default function VideoPlayer({
           onBuffer={({ isBuffering }) => setBuffering(isBuffering)}
           onEnd={onVideoEnd}
           onError={() => { setErrored(true); setBuffering(false); }}
-          onFullscreenPlayerWillDismiss={() => setFullscreen(false)}
           progressUpdateInterval={500}
         />
       ) : (
@@ -237,43 +266,52 @@ export default function VideoPlayer({
         </View>
       )}
 
-      {/* Control overlay */}
+      {/* Control overlay — explicit height (not absoluteFill) so the flex column
+          reliably fills the player; absolute top/bottom wasn't resolving to the
+          player height on this setup, collapsing the controls to the top. */}
       <Animated.View
-        style={[styles.controls, { opacity }]}
+        style={[styles.controls, { height: wrapH || playerH, opacity }]}
         pointerEvents={visible && !errored ? 'box-none' : 'none'}
       >
         {/* Scrim for legibility */}
         <View style={styles.scrim} pointerEvents="none" />
 
-        {/* Center transport */}
-        {!buffering && (
-          <View style={styles.centerRow} pointerEvents="box-none">
-            <TouchableOpacity onPress={() => skip(-10)} hitSlop={hit} style={styles.sideCtrl}>
-              <MCIcon name="rewind-10" size={32} color={colors.white} />
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={togglePlay} style={styles.playCtrl} activeOpacity={0.85}>
-              <MCIcon
-                name={ended ? 'replay' : paused ? 'play' : 'pause'}
-                size={34}
-                color={colors.white}
-              />
-            </TouchableOpacity>
-
-            {hasNext && ended ? (
-              <TouchableOpacity onPress={onNext} hitSlop={hit} style={styles.sideCtrl}>
-                <MCIcon name="skip-next" size={32} color={colors.white} />
+        {/* Center transport — the flex:1 area fills the player so the play
+            controls stay vertically centered and the bottom bar sits at the
+            bottom, regardless of the (portrait/landscape) player height. */}
+        <View style={styles.centerArea} pointerEvents="box-none">
+          {!buffering && (
+            <View style={styles.centerRow} pointerEvents="box-none">
+              <TouchableOpacity onPress={() => skip(-10)} hitSlop={hit} style={styles.sideCtrl}>
+                <MCIcon name="rewind-10" size={32} color={colors.white} />
               </TouchableOpacity>
-            ) : (
-              <TouchableOpacity onPress={() => skip(10)} hitSlop={hit} style={styles.sideCtrl}>
-                <MCIcon name="fast-forward-10" size={32} color={colors.white} />
+
+              <TouchableOpacity onPress={togglePlay} style={styles.playCtrl} activeOpacity={0.85}>
+                <MCIcon
+                  name={ended ? 'replay' : paused ? 'play' : 'pause'}
+                  size={34}
+                  color={colors.white}
+                />
               </TouchableOpacity>
-            )}
-          </View>
-        )}
+
+              {hasNext && ended ? (
+                <TouchableOpacity onPress={onNext} hitSlop={hit} style={styles.sideCtrl}>
+                  <MCIcon name="skip-next" size={32} color={colors.white} />
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity onPress={() => skip(10)} hitSlop={hit} style={styles.sideCtrl}>
+                  <MCIcon name="fast-forward-10" size={32} color={colors.white} />
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+        </View>
 
         {/* Bottom bar: time · scrubber · mute · fullscreen */}
-        <View style={styles.bottomBar} pointerEvents="box-none">
+        <View
+          style={[styles.bottomBar, fullscreen && { paddingBottom: Math.max(insets.bottom, 10) + 4 }]}
+          pointerEvents="box-none"
+        >
           <Text style={styles.time}>{fmtTime(displayTime)}</Text>
 
           <View style={styles.trackTouch} {...seekResponder.panHandlers}>
@@ -306,12 +344,23 @@ const hit = { top: 10, bottom: 10, left: 10, right: 10 };
 const makeStyles = colors => StyleSheet.create({
   wrap: {
     width: '100%',
-    aspectRatio: 16 / 9,
     backgroundColor: '#000',
     position: 'relative',
     overflow: 'hidden',
   },
-  wrapFullscreen: { aspectRatio: undefined, flex: 1 },
+  // Pure-JS fullscreen: the same Video instance expands to cover the screen
+  // (no native fullscreen player, so controls never desync / jump). Highest
+  // zIndex so it sits over the rest of the screen.
+  wrapFullscreen: {
+    aspectRatio: undefined,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1000,
+    elevation: 1000,
+  },
   posterWrap: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
 
   centerOverlay: {
@@ -333,9 +382,10 @@ const makeStyles = colors => StyleSheet.create({
   },
   retryText: { color: colors.white, fontWeight: '700', fontSize: 13 },
 
-  controls: { ...StyleSheet.absoluteFillObject, justifyContent: 'center' },
+  controls: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'column' },
   scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.35)' },
 
+  centerArea: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   centerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -355,10 +405,6 @@ const makeStyles = colors => StyleSheet.create({
   },
 
   bottomBar: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,

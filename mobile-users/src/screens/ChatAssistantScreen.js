@@ -1,21 +1,24 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useCallback, useEffect, useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
+  StatusBar,
   ActivityIndicator,
-  Animated,
+  TextInput,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import useTheme from '../hooks/useTheme';
+import AppDialog from '../components/AppDialog';
 
 const ChatAssistantScreen = ({ route, navigation }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { startQuestionId, reliefTitle } = route.params;
 
@@ -24,7 +27,73 @@ const ChatAssistantScreen = ({ route, navigation }) => {
   const [currentQuestionId, setCurrentQuestionId] = useState(startQuestionId);
   const [loading, setLoading] = useState(true);
 
+  const [showPainModal, setShowPainModal] = useState(false);
+  const [painLevel, setPainLevel] = useState('5');
+  const [painDescription, setPainDescription] = useState('');
+  const [savingFeedback, setSavingFeedback] = useState(false);
+  const [pendingGroupId, setPendingGroupId] = useState(null);
+  const [checkingFeedback, setCheckingFeedback] = useState(false);
+
   const scrollViewRef = useRef();
+
+  const navigateToVideos = useCallback((groupId) => {
+    if (groupId) {
+      navigation.navigate('VideoPlayer', { groupId, groupTitle: reliefTitle });
+    } else {
+      navigation.navigate('Relief');
+    }
+  }, [navigation, reliefTitle]);
+
+  const handleBrowseSession = useCallback(async (finalMsg) => {
+    const groupId = finalMsg?.videoGroupId;
+    if (!groupId) {
+      navigateToVideos(null);
+      return;
+    }
+
+    setCheckingFeedback(true);
+    try {
+      await apiClient.get(ENDPOINTS.THERAPY_FEEDBACK_BY_GROUP(groupId));
+      // Feedback exists — navigate directly
+      navigateToVideos(groupId);
+    } catch (err) {
+      // 404 means no feedback yet — show popup
+      setPendingGroupId(groupId);
+      setPainLevel('5');
+      setPainDescription('');
+      setShowPainModal(true);
+    } finally {
+      setCheckingFeedback(false);
+    }
+  }, [navigateToVideos]);
+
+  const handleSkipPain = useCallback(() => {
+    setShowPainModal(false);
+    navigateToVideos(pendingGroupId);
+    setPendingGroupId(null);
+  }, [navigateToVideos, pendingGroupId]);
+
+  const handleSavePain = useCallback(async () => {
+    const groupId = pendingGroupId;
+    if (!groupId) return;
+
+    setSavingFeedback(true);
+    try {
+      await apiClient.post(ENDPOINTS.THERAPY_FEEDBACK, {
+        videoGroupId: groupId,
+        sessionType: 'wellness',
+        painBefore: Math.min(10, Math.max(0, parseInt(painLevel, 10) || 0)),
+        userPainDescription: painDescription.trim() || null,
+      });
+    } catch (err) {
+      // Continue navigation even if save fails
+    } finally {
+      setSavingFeedback(false);
+      setShowPainModal(false);
+      navigateToVideos(groupId);
+      setPendingGroupId(null);
+    }
+  }, [pendingGroupId, painLevel, painDescription, navigateToVideos]);
 
   useEffect(() => {
     apiClient
@@ -98,8 +167,10 @@ const ChatAssistantScreen = ({ route, navigation }) => {
                 key={idx}
                 style={styles.optionBtn}
                 onPress={() => handleOptionSelect(opt)}
+                activeOpacity={0.85}
               >
                 <Text style={styles.optionText}>{opt.optionText}</Text>
+                <MCIcon name="arrow-right" size={16} color={colors.primary} />
               </TouchableOpacity>
             ))}
           </View>
@@ -109,10 +180,16 @@ const ChatAssistantScreen = ({ route, navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.root}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <MCIcon name="arrow-left" size={24} color={colors.textPrimary} />
+    <View style={styles.root}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.card} />
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 8 }]}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backBtn}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          activeOpacity={0.7}
+        >
+          <MCIcon name="arrow-left" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <View style={styles.headerIcon}>
@@ -134,27 +211,74 @@ const ChatAssistantScreen = ({ route, navigation }) => {
       </ScrollView>
 
       {history[history.length - 1]?.isFinal && (
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) + 4 }]}>
            <TouchableOpacity 
             style={styles.startSessionBtn}
             onPress={() => {
               const finalMsg = history[history.length - 1];
-              if (finalMsg.videoGroupId) {
-                navigation.navigate('VideoPlayer', {
-                  groupId: finalMsg.videoGroupId,
-                  groupTitle: reliefTitle
-                });
-              } else {
-                navigation.navigate('Relief');
-              }
+              handleBrowseSession(finalMsg);
             }}
+            disabled={checkingFeedback}
            >
-             <Text style={styles.startSessionText}>Browse Sessions</Text>
-             <MCIcon name="arrow-right" size={20} color={colors.white} />
+             {checkingFeedback ? (
+               <ActivityIndicator size="small" color={colors.white} />
+             ) : (
+               <>
+                 <Text style={styles.startSessionText}>Browse Sessions</Text>
+                 <MCIcon name="arrow-right" size={20} color={colors.white} />
+               </>
+             )}
            </TouchableOpacity>
         </View>
       )}
-    </SafeAreaView>
+
+      <AppDialog
+        visible={showPainModal}
+        onClose={handleSkipPain}
+        onConfirm={handleSavePain}
+        confirmLabel="Save"
+        cancelLabel="Skip"
+        confirmLoading={savingFeedback}
+        icon="heart-plus-outline"
+        title="How is your pain?"
+        subtitle="Let us know your current pain level before starting the session."
+      >
+        <View style={styles.painRow}>
+          <Text style={styles.painLabel}>Pain Level: {painLevel}/10</Text>
+          <View style={styles.painBtns}>
+            {[0,1,2,3,4,5,6,7,8,9,10].map(n => (
+              <TouchableOpacity
+                key={n}
+                style={[
+                  styles.painBtn,
+                  parseInt(painLevel, 10) === n && styles.painBtnActive,
+                ]}
+                onPress={() => setPainLevel(String(n))}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.painBtnText,
+                    parseInt(painLevel, 10) === n && styles.painBtnTextActive,
+                  ]}
+                >
+                  {n}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+        <TextInput
+          style={styles.painInput}
+          placeholder="Describe your pain (optional)"
+          placeholderTextColor={colors.textMuted}
+          value={painDescription}
+          onChangeText={setPainDescription}
+          multiline
+          maxLength={500}
+        />
+      </AppDialog>
+    </View>
   );
 };
 
@@ -260,18 +384,22 @@ const makeStyles = colors => StyleSheet.create({
     gap: 8,
   },
   optionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
     backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 20,
-    paddingVertical: 10,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderRadius: 14,
+    paddingVertical: 13,
     paddingHorizontal: 16,
-    alignItems: 'flex-start',
   },
   optionText: {
+    flex: 1,
     fontSize: 14,
     color: colors.textPrimary,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   startSessionBtn: {
     backgroundColor: colors.primary,
@@ -282,6 +410,51 @@ const makeStyles = colors => StyleSheet.create({
     justifyContent: 'center',
     marginTop: 10,
     gap: 10,
+  },
+  painRow: {
+    marginBottom: 16,
+  },
+  painLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  painBtns: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  painBtn: {
+    flex: 1,
+    height: 38,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceMuted,
+  },
+  painBtnActive: {
+    backgroundColor: colors.primary,
+  },
+  painBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  painBtnTextActive: {
+    color: colors.white,
+    fontWeight: '800',
+  },
+  painInput: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 14,
+    color: colors.textPrimary,
+    backgroundColor: colors.surfaceMuted,
+    minHeight: 80,
+    textAlignVertical: 'top',
   },
   startSessionText: {
     color: colors.white,

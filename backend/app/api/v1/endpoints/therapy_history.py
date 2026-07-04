@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
@@ -40,3 +42,18 @@ def get_history(
         "Therapy history fetched successfully",
         TherapyService.get_history(db, user.id, page, limit),
     )
+
+
+@router.get(
+    "/completed-count/{group_id}",
+    summary="Count completed videos in a group",
+    description="Returns the number of therapy sessions with status 'Completed' "
+    "for the authenticated user within the specified video group.",
+)
+def get_completed_count(
+    group_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    count = TherapyService.count_completed_by_group(db, user.id, group_id)
+    return success_response("Completed count fetched successfully", {"completedCount": count})

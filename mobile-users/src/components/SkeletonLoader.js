@@ -1,8 +1,10 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
-import { COLORS, RADIUS, SPACING } from '../constants/theme';
+import { RADIUS, SPACING } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 
 const SkeletonBox = ({ width, height, style, borderRadius = RADIUS.sm }) => {
+  const { colors } = useTheme();
   const opacity = useRef(new Animated.Value(0.4)).current;
 
   useEffect(() => {
@@ -16,12 +18,15 @@ const SkeletonBox = ({ width, height, style, borderRadius = RADIUS.sm }) => {
 
   return (
     <Animated.View
-      style={[{ width, height, borderRadius, backgroundColor: COLORS.surfaceMuted, opacity }, style]}
+      style={[{ width, height, borderRadius, backgroundColor: colors.surfaceMuted, opacity }, style]}
     />
   );
 };
 
-export const CardSkeleton = () => (
+export const CardSkeleton = () => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
   <View style={styles.card}>
     <View style={styles.cardRow}>
       <SkeletonBox width={52} height={52} borderRadius={RADIUS.sm} />
@@ -37,7 +42,8 @@ export const CardSkeleton = () => (
       <SkeletonBox width={100} height={28} borderRadius={RADIUS.pill} />
     </View>
   </View>
-);
+  );
+};
 
 export const ListSkeleton = ({ count = 4 }) => (
   <View style={{ paddingHorizontal: SPACING.lg, paddingTop: SPACING.md }}>
@@ -47,7 +53,10 @@ export const ListSkeleton = ({ count = 4 }) => (
   </View>
 );
 
-export const ProgramSkeleton = () => (
+export const ProgramSkeleton = () => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
   <View style={styles.card}>
     <View style={styles.cardRow}>
       <SkeletonBox width={52} height={52} borderRadius={RADIUS.sm} />
@@ -59,9 +68,13 @@ export const ProgramSkeleton = () => (
       <SkeletonBox width={34} height={34} borderRadius={17} />
     </View>
   </View>
-);
+  );
+};
 
-export const StatsSkeleton = () => (
+export const StatsSkeleton = () => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
   <View style={styles.statsRow}>
     {[1, 2, 3].map(i => (
       <View key={i} style={styles.statBox}>
@@ -70,7 +83,8 @@ export const StatsSkeleton = () => (
       </View>
     ))}
   </View>
-);
+  );
+};
 
 export const SessionPlayerSkeleton = () => (
   <View>
@@ -87,7 +101,10 @@ export const SessionPlayerSkeleton = () => (
 );
 
 // Home screen — wellness row (icon + title + duration + chevron)
-export const WellnessRowSkeleton = () => (
+export const WellnessRowSkeleton = () => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
   <View style={[styles.card, { flexDirection: 'row', alignItems: 'center', gap: SPACING.md }]}>
     <SkeletonBox width={44} height={44} borderRadius={RADIUS.sm} />
     <View style={{ flex: 1, gap: SPACING.xs }}>
@@ -96,19 +113,27 @@ export const WellnessRowSkeleton = () => (
     </View>
     <SkeletonBox width={36} height={36} borderRadius={RADIUS.sm} />
   </View>
-);
+  );
+};
 
 // Home screen — quick relief square card
-export const QuickCardSkeleton = () => (
+export const QuickCardSkeleton = () => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
   <View style={styles.quickCard}>
     <SkeletonBox width={40} height={40} borderRadius={RADIUS.sm} style={{ marginBottom: SPACING.sm }} />
     <SkeletonBox width="75%" height={13} />
     <SkeletonBox width="55%" height={11} style={{ marginTop: SPACING.xs }} />
   </View>
-);
+  );
+};
 
 // Face Glow screen — routine card
-export const RoutineCardSkeleton = () => (
+export const RoutineCardSkeleton = () => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
   <View style={[styles.card, { marginBottom: SPACING.md }]}>
     <View style={[styles.cardRow, { alignItems: 'flex-start' }]}>
       <SkeletonBox width={44} height={44} borderRadius={RADIUS.sm} style={{ marginRight: SPACING.md }} />
@@ -121,10 +146,14 @@ export const RoutineCardSkeleton = () => (
       <SkeletonBox width={36} height={36} borderRadius={18} style={{ marginLeft: SPACING.sm }} />
     </View>
   </View>
-);
+  );
+};
 
 // Select Symptom screen — symptom list row
-export const SymptomRowSkeleton = () => (
+export const SymptomRowSkeleton = () => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
   <View style={[styles.cardRow, { paddingVertical: SPACING.md, paddingHorizontal: SPACING.lg, gap: SPACING.md }]}>
     <SkeletonBox width={48} height={48} borderRadius={RADIUS.sm} />
     <View style={{ flex: 1, gap: SPACING.xs }}>
@@ -133,13 +162,14 @@ export const SymptomRowSkeleton = () => (
     </View>
     <SkeletonBox width={20} height={20} borderRadius={RADIUS.sm} />
   </View>
-);
+  );
+};
 
 export default SkeletonBox;
 
-const styles = StyleSheet.create({
+const makeStyles = colors => StyleSheet.create({
   card: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     padding: SPACING.lg,
     marginBottom: SPACING.md,
@@ -166,7 +196,7 @@ const styles = StyleSheet.create({
   },
   quickCard: {
     width: '47%',
-    backgroundColor: COLORS.surfaceMuted,
+    backgroundColor: colors.surfaceMuted,
     borderRadius: RADIUS.lg,
     padding: SPACING.lg,
     marginBottom: SPACING.md,

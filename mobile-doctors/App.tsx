@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StatusBar } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,13 +9,21 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 // @ts-ignore
 import authService from './src/services/authService';
 // @ts-ignore
+import biometricService from './src/services/biometricService';
+// @ts-ignore
 import { useAuthStore } from './src/store/authStore';
 // @ts-ignore
 import { navigationRef } from './src/navigation/navigationRef';
 // @ts-ignore
 import { COLORS } from './src/constants/theme';
 // @ts-ignore
+import useTheme from './src/hooks/useTheme';
+// @ts-ignore
+import { useThemeStore } from './src/store/themeStore';
+// @ts-ignore
 import Toast from './src/components/Toast';
+// @ts-ignore
+import AppAlertHost from './src/components/AppAlertHost';
 // @ts-ignore
 import UpdatePrompt from './src/components/UpdatePrompt';
 // @ts-ignore
@@ -26,6 +34,8 @@ import DashboardScreen from './src/screens/DashboardScreen';
 import AppointmentsScreen from './src/screens/AppointmentsScreen';
 import AppointmentDetailScreen from './src/screens/AppointmentDetailScreen';
 import ScheduleScreen from './src/screens/ScheduleScreen';
+// @ts-ignore
+import AddAvailabilityScreen from './src/screens/AddAvailabilityScreen';
 import PatientsScreen from './src/screens/PatientsScreen';
 import PatientDetailScreen from './src/screens/PatientDetailScreen';
 import PatientDetailsScreen from './src/screens/PatientDetailsScreen';
@@ -34,11 +44,14 @@ import DoctorNotesEditorScreen from './src/screens/DoctorNotesEditorScreen';
 import DiagnosisEditorScreen from './src/screens/DiagnosisEditorScreen';
 import PrescriptionEditorScreen from './src/screens/PrescriptionEditorScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
 
 const RootStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 const AppointmentsStack = createNativeStackNavigator();
 const PatientsStack = createNativeStackNavigator();
+const ProfileStack = createNativeStackNavigator();
+const ScheduleStack = createNativeStackNavigator();
 
 const TAB_ICONS: Record<string, { active: string; inactive: string }> = {
   Dashboard: { active: 'view-dashboard', inactive: 'view-dashboard-outline' },
@@ -71,9 +84,29 @@ function PatientsStackNavigator() {
   );
 }
 
+function ProfileStackNavigator() {
+  return (
+    <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
+      <ProfileStack.Screen name="ProfileMain" component={ProfileScreen} />
+      <ProfileStack.Screen name="Settings" component={SettingsScreen} />
+    </ProfileStack.Navigator>
+  );
+}
+
+// Schedule feature (owned by a colleague) — kept wired alongside the Profile stack.
+function ScheduleStackNavigator() {
+  return (
+    <ScheduleStack.Navigator screenOptions={{ headerShown: false }}>
+      <ScheduleStack.Screen name="ScheduleMain" component={ScheduleScreen} />
+      <ScheduleStack.Screen name="AddAvailability" component={AddAvailabilityScreen} />
+    </ScheduleStack.Navigator>
+  );
+}
+
 function MainTabs() {
   const insets = useSafeAreaInsets();
   const bottomPad = Math.max(insets.bottom, 10);
+  const { colors } = useTheme();
 
   return (
     <Tab.Navigator
@@ -83,12 +116,12 @@ function MainTabs() {
           const icons = TAB_ICONS[route.name];
           return <Icon name={focused ? icons.active : icons.inactive} size={22} color={color} />;
         },
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.textMuted,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
-          backgroundColor: COLORS.white,
+          backgroundColor: colors.card,
           borderTopWidth: 1,
-          borderTopColor: '#f0f0f0',
+          borderTopColor: colors.border,
           height: 60 + bottomPad,
           paddingBottom: bottomPad,
           paddingTop: 6,
@@ -98,9 +131,9 @@ function MainTabs() {
       })}>
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
       <Tab.Screen name="Appointments" component={AppointmentsStackNavigator} />
-      <Tab.Screen name="Schedule" component={ScheduleScreen} />
+      <Tab.Screen name="Schedule" component={ScheduleStackNavigator} />
       <Tab.Screen name="Patients" component={PatientsStackNavigator} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="Profile" component={ProfileStackNavigator} />
     </Tab.Navigator>
   );
 }
@@ -119,17 +152,51 @@ export default function App() {
   const [bootstrapped, setBootstrapped] = useState(false);
   const isLoggedIn = useAuthStore((s: any) => s.isLoggedIn);
   const { message, type, visible, hide } = useToastStore();
+  const { colors, isDark } = useTheme();
 
   useEffect(() => {
-    authService.bootstrap().finally(() => setBootstrapped(true));
+    // Load the saved theme preference alongside the auth session.
+    useThemeStore.getState().hydrate();
+    (async () => {
+      await authService.bootstrap();
+      // If biometric login is enabled and a session was restored, require the
+      // fingerprint / Face ID prompt before unlocking. Fail closed: any
+      // cancellation or failure drops back to the password login screen.
+      try {
+        const loggedIn = useAuthStore.getState().isLoggedIn;
+        if (loggedIn && (await biometricService.isEnabled())) {
+          const ok = await biometricService.authenticate('Unlock Purnazen Doctor');
+          if (!ok) {
+            await authService.logout();
+          }
+        }
+      } catch {
+        // never block app start on a biometric error
+      }
+      setBootstrapped(true);
+    })();
   }, []);
+
+  // Feed the active palette into React Navigation so inter-screen backgrounds
+  // follow dark mode instead of flashing white.
+  const navTheme = {
+    ...(isDark ? DarkTheme : DefaultTheme),
+    colors: {
+      ...(isDark ? DarkTheme : DefaultTheme).colors,
+      background: colors.background,
+      card: colors.card,
+      text: colors.textPrimary,
+      border: colors.border,
+      primary: colors.primary,
+    },
+  };
 
   if (!bootstrapped) {
     return <SplashScreen />;
   }
 
   return (
-    <NavigationContainer ref={navigationRef}>
+    <NavigationContainer ref={navigationRef} theme={navTheme}>
       <RootStack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
         {isLoggedIn ? (
           <RootStack.Screen name="Main" component={MainTabs} />
@@ -138,6 +205,7 @@ export default function App() {
         )}
       </RootStack.Navigator>
       <Toast message={message} type={type} visible={visible} onHide={hide} />
+      <AppAlertHost />
       <UpdatePrompt />
     </NavigationContainer>
   );

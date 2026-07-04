@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Text, TouchableOpacity, StyleSheet } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
+import useTheme from '../hooks/useTheme';
 
 const QuickCard = ({ title, iconName, onPress, bg = '#fff', color = '#1a1a1a', sub = '#9ca3af' }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <TouchableOpacity
       style={[styles.box, { backgroundColor: bg }]}
@@ -19,7 +22,7 @@ const QuickCard = ({ title, iconName, onPress, bg = '#fff', color = '#1a1a1a', s
 
 export default QuickCard;
 
-const styles = StyleSheet.create({
+const makeStyles = colors => StyleSheet.create({
   box: {
     borderRadius: 16,
     padding: 16,

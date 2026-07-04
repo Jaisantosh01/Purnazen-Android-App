@@ -7,16 +7,20 @@ import {
   TouchableOpacity,
   StatusBar,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import useTheme from '../hooks/useTheme';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { syncVideoProgress } from '../utils/videoTracker';
 import VideoPlayer from '../components/VideoPlayer';
+import AppDialog from '../components/AppDialog';
 
 const VideoPlayerScreen = ({ route, navigation }) => {
   const { colors, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { groupId } = route.params;
 
@@ -25,7 +29,82 @@ const VideoPlayerScreen = ({ route, navigation }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [hasPainBefore, setHasPainBefore] = useState(false);
+  const [painAfter, setPainAfter] = useState('5');
+  const [userFeedback, setUserFeedback] = useState('');
+  const [savingFeedback, setSavingFeedback] = useState(false);
+  const [feedbackId, setFeedbackId] = useState(null);
+
   const watchedRef = useRef(0); // seconds watched of the current video
+  const feedbackCheckDoneRef = useRef(false); // prevent duplicate checks
+
+  const checkAndShowFeedback = useCallback(async () => {
+    if (feedbackCheckDoneRef.current) return;
+    const totalVideos = catalog?.videos?.length;
+    if (!totalVideos) return;
+
+    try {
+      const countRes = await apiClient.get(ENDPOINTS.THERAPY_HISTORY_COMPLETED_COUNT(groupId));
+      const completedCount = countRes?.data?.completedCount ?? 0;
+      if (completedCount < totalVideos) return;
+
+      feedbackCheckDoneRef.current = true;
+
+      try {
+        const feedbackRes = await apiClient.get(ENDPOINTS.THERAPY_FEEDBACK_BY_GROUP(groupId));
+        const fb = feedbackRes?.data;
+        if (fb?.id) {
+          setFeedbackId(fb.id);
+          setHasPainBefore(fb.painBefore != null);
+        } else {
+          setFeedbackId(null);
+          setHasPainBefore(false);
+        }
+      } catch {
+        setFeedbackId(null);
+        setHasPainBefore(false);
+      }
+
+      setPainAfter('5');
+      setUserFeedback('');
+      setShowFeedbackModal(true);
+    } catch {
+      // ignore errors
+    }
+  }, [catalog, groupId]);
+
+  const handleSkipFeedback = useCallback(() => {
+    setShowFeedbackModal(false);
+  }, []);
+
+  const handleSaveFeedback = useCallback(async () => {
+    setSavingFeedback(true);
+    try {
+      const payload = {
+        painAfter: hasPainBefore ? Math.min(10, Math.max(0, parseInt(painAfter, 10) || 0)) : null,
+        userFeedback: userFeedback.trim() || null,
+      };
+
+      if (feedbackId) {
+        await apiClient.put(ENDPOINTS.THERAPY_FEEDBACK_PAIN_AFTER(feedbackId), payload);
+      } else {
+        const created = await apiClient.post(ENDPOINTS.THERAPY_FEEDBACK, {
+          videoGroupId: groupId,
+          sessionType: 'wellness',
+        });
+        const newId = created?.data?.id;
+        if (newId) {
+          await apiClient.put(ENDPOINTS.THERAPY_FEEDBACK_PAIN_AFTER(newId), payload);
+        }
+      }
+    } catch {
+      // continue even if save fails
+    } finally {
+      setSavingFeedback(false);
+      setShowFeedbackModal(false);
+    }
+  }, [feedbackId, hasPainBefore, painAfter, userFeedback, groupId]);
 
   useEffect(() => {
     apiClient
@@ -51,9 +130,11 @@ const VideoPlayerScreen = ({ route, navigation }) => {
       // Fire "Completed" once when crossing 90%.
       if (dur > 0 && watched / dur > 0.9 && watchedRef.current / dur <= 0.9) {
         syncVideoProgress(groupId, video.id, 'Completed', dur / 60, 'wellness');
+        checkAndShowFeedback();
       }
       watchedRef.current = watched;
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [catalog, currentVideoIndex, groupId],
   );
 
@@ -81,8 +162,11 @@ const VideoPlayerScreen = ({ route, navigation }) => {
 
   const handleEnd = useCallback(() => {
     const video = catalog?.videos?.[currentVideoIndex];
-    if (video) syncVideoProgress(groupId, video.id, 'Completed', video.duration / 60, 'wellness');
-  }, [catalog, currentVideoIndex, groupId]);
+    if (video) {
+      syncVideoProgress(groupId, video.id, 'Completed', video.duration / 60, 'wellness');
+      checkAndShowFeedback();
+    }
+  }, [catalog, currentVideoIndex, groupId, checkAndShowFeedback]);
 
   const hasNext = !!catalog && currentVideoIndex < catalog.videos.length - 1;
   const goNext = useCallback(() => {
@@ -118,7 +202,14 @@ const VideoPlayerScreen = ({ route, navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor="#000" />
+      {/* Translucent bar lets the player run edge-to-edge under the status bar
+          for a larger, more immersive frame. */}
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+
+      {/* Black filler behind the status bar. Kept as a sibling (not a wrapper)
+          so the player stays a direct child of root and its JS fullscreen can
+          expand to cover the whole screen. */}
+      <View style={{ height: insets.top, backgroundColor: '#000' }} />
 
       {/* Player */}
       <VideoPlayer
@@ -133,7 +224,11 @@ const VideoPlayerScreen = ({ route, navigation }) => {
       />
 
       {/* Floating back button over the player */}
-      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.floatingBack} hitSlop={hit}>
+      <TouchableOpacity
+        onPress={() => navigation.goBack()}
+        style={[styles.floatingBack, { top: insets.top + 8 }]}
+        hitSlop={hit}
+      >
         <MCIcon name="arrow-left" size={22} color="#fff" />
       </TouchableOpacity>
 
@@ -190,6 +285,54 @@ const VideoPlayerScreen = ({ route, navigation }) => {
           })}
         </View>
       </ScrollView>
+      <AppDialog
+        visible={showFeedbackModal}
+        onClose={handleSkipFeedback}
+        onConfirm={handleSaveFeedback}
+        confirmLabel="Save"
+        cancelLabel="Skip"
+        confirmLoading={savingFeedback}
+        icon="clipboard-text-outline"
+        title="Session Feedback"
+        subtitle={hasPainBefore ? "How is your pain now? Any feedback?" : "Share your feedback about this session."}
+      >
+        {hasPainBefore && (
+          <View style={styles.feedbackPainRow}>
+            <Text style={styles.feedbackPainLabel}>Pain After: {painAfter}/10</Text>
+            <View style={styles.feedbackPainBtns}>
+              {[0,1,2,3,4,5,6,7,8,9,10].map(n => (
+                <TouchableOpacity
+                  key={n}
+                  style={[
+                    styles.feedbackPainBtn,
+                    parseInt(painAfter, 10) === n && styles.feedbackPainBtnActive,
+                  ]}
+                  onPress={() => setPainAfter(String(n))}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.feedbackPainBtnText,
+                      parseInt(painAfter, 10) === n && styles.feedbackPainBtnTextActive,
+                    ]}
+                  >
+                    {n}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+        <TextInput
+          style={styles.feedbackInput}
+          placeholder="Write your feedback here…"
+          placeholderTextColor={colors.textMuted}
+          value={userFeedback}
+          onChangeText={setUserFeedback}
+          multiline
+          maxLength={1000}
+        />
+      </AppDialog>
     </View>
   );
 };
@@ -290,6 +433,51 @@ const makeStyles = colors => StyleSheet.create({
   rowTitleActive: { color: colors.primary },
   rowDuration: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
 
+  feedbackPainRow: {
+    marginBottom: 16,
+  },
+  feedbackPainLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  feedbackPainBtns: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  feedbackPainBtn: {
+    flex: 1,
+    height: 38,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceMuted,
+  },
+  feedbackPainBtnActive: {
+    backgroundColor: colors.primary,
+  },
+  feedbackPainBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  feedbackPainBtnTextActive: {
+    color: colors.white,
+    fontWeight: '800',
+  },
+  feedbackInput: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 14,
+    color: colors.textPrimary,
+    backgroundColor: colors.surfaceMuted,
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
   errorText: { fontSize: 16, color: colors.textSecondary, marginTop: 16, marginBottom: 24, textAlign: 'center' },
   backBtn: {
     backgroundColor: colors.primary,

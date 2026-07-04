@@ -42,6 +42,18 @@ class Settings(BaseSettings):
     # SAS token lifetime for video streaming (needs to outlive the longest video session)
     AZURE_VIDEO_SAS_EXPIRY_MINUTES: int = 240
 
+    # App release distribution (OTA). A PRIVATE container holds the signed APKs;
+    # the backend mints a short-lived read-only SAS so the in-app updater can
+    # download without the container ever being public. CI uploads here.
+    AZURE_RELEASES_CONTAINER_NAME: str = "app-releases"
+    AZURE_RELEASE_SAS_EXPIRY_MINUTES: int = 15
+    # Shared secret the release CI presents (X-Release-Token) to register a new
+    # version. Separate from user auth so CI needs no user login. Empty => the
+    # register endpoint is disabled.
+    RELEASE_REGISTER_TOKEN: str = ""
+    # How many recent versions to keep active per app (older ones are deactivated).
+    RELEASE_KEEP_VERSIONS: int = 4
+
     # Social auth — Google client ID for ID token verification (Sprint 5)
     GOOGLE_CLIENT_ID: str = ""
     # Apple app bundle ID for Sign In with Apple identity token verification (Sprint 5)
