@@ -13,14 +13,8 @@ import {
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
-<<<<<<< HEAD
 import { COLORS, SPACING, RADIUS } from '../constants/theme';
 import patientService from '../services/patientService';
-=======
-import appointmentService from '../services/appointmentService';
-import { SPACING, RADIUS } from '../constants/theme';
-import useTheme from '../hooks/useTheme';
->>>>>>> 2475491f2ce0dfc5c254128f44bb58829c60db6f
 
 const FILTER_CHIPS = ['All', 'Male', 'Female', 'Recent'];
 
@@ -72,13 +66,7 @@ const PatientSeparator = () => <View style={styles.separator} />;
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 const PatientsScreen = ({ navigation }) => {
-<<<<<<< HEAD
   const [patients, setPatients] = useState([]);
-=======
-  const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
-  const [appointments, setAppointments] = useState([]);
->>>>>>> 2475491f2ce0dfc5c254128f44bb58829c60db6f
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -99,7 +87,6 @@ const PatientsScreen = ({ navigation }) => {
     }
   };
 
-<<<<<<< HEAD
   useEffect(() => {
     fetchPatients();
   }, []);
@@ -159,61 +146,6 @@ const PatientsScreen = ({ navigation }) => {
             </TouchableOpacity>
           )}
         </View>
-=======
-  const renderItem = ({ item }) => (
-    <TouchableOpacity style={styles.card} activeOpacity={0.85} onPress={() => openPatient(item)}>
-      <View style={styles.avatar}>
-        <MCIcon name="account" size={28} color={colors.primary} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
-        <Text style={styles.meta} numberOfLines={1}>
-          {item.email || item.phone || 'No contact'}
-        </Text>
-        <View style={styles.pillRow}>
-          <View style={styles.pill}>
-            <MCIcon name="calendar-check" size={11} color={colors.textSecondary} />
-            <Text style={styles.pillText}>{item.visits} visit{item.visits === 1 ? '' : 's'}</Text>
-          </View>
-          <View style={styles.pill}>
-            <MCIcon name="history" size={11} color={colors.textSecondary} />
-            <Text style={styles.pillText}>Last {formatDate(item.lastDate)}</Text>
-          </View>
-        </View>
-      </View>
-      <MCIcon name="chevron-right" size={22} color={colors.borderStrong} />
-    </TouchableOpacity>
-  );
-
-  return (
-    <View style={styles.root}>
-      <ScreenHeader
-        title="Patients"
-        right={
-          <TouchableOpacity onPress={onRefresh}>
-            <MCIcon name="refresh" size={22} color={colors.white} />
-          </TouchableOpacity>
-        }
-      />
-
-      {/* Search */}
-      <View style={styles.searchWrap}>
-        <MCIcon name="magnify" size={20} color={colors.textMuted} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search by name or email"
-          placeholderTextColor={colors.textMuted}
-          value={query}
-          onChangeText={setQuery}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-        {query.length > 0 && (
-          <TouchableOpacity onPress={() => setQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <MCIcon name="close-circle" size={18} color={colors.textMuted} />
-          </TouchableOpacity>
-        )}
->>>>>>> 2475491f2ce0dfc5c254128f44bb58829c60db6f
       </View>
 
       {/* Filter Chips */}
@@ -243,25 +175,15 @@ const PatientsScreen = ({ navigation }) => {
       {/* List content states */}
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
       ) : error ? (
         <View style={styles.center}>
-<<<<<<< HEAD
           <MCIcon name="alert-circle-outline" size={48} color={COLORS.danger} style={{ marginBottom: 12 }} />
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={() => fetchPatients()}>
             <Text style={styles.retryText}>Retry</Text>
           </TouchableOpacity>
-=======
-          <MCIcon name="account-search-outline" size={60} color={colors.border} />
-          <Text style={styles.emptyTitle}>{query ? 'No matches' : 'No patients yet'}</Text>
-          <Text style={styles.emptySubtitle}>
-            {query
-              ? 'No patients match your search.'
-              : 'Patients appear here once you have appointments with them.'}
-          </Text>
->>>>>>> 2475491f2ce0dfc5c254128f44bb58829c60db6f
         </View>
       ) : (
         <FlatList
@@ -272,7 +194,6 @@ const PatientsScreen = ({ navigation }) => {
           )}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
-<<<<<<< HEAD
           ItemSeparatorComponent={PatientSeparator}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
@@ -286,10 +207,6 @@ const PatientsScreen = ({ navigation }) => {
               </Text>
             </View>
           }
-=======
-          ItemSeparatorComponent={() => <View style={{ height: SPACING.sm }} />}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
->>>>>>> 2475491f2ce0dfc5c254128f44bb58829c60db6f
         />
       )}
     </View>
@@ -298,17 +215,9 @@ const PatientsScreen = ({ navigation }) => {
 
 export default PatientsScreen;
 
-<<<<<<< HEAD
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
-=======
-const makeStyles = colors => StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SPACING.xl, gap: SPACING.sm },
-  emptyTitle: { fontSize: 17, fontWeight: '800', color: colors.textPrimary },
-  emptySubtitle: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', lineHeight: 19 },
->>>>>>> 2475491f2ce0dfc5c254128f44bb58829c60db6f
 
   // Search Bar
   searchBarContainer: {
@@ -321,7 +230,6 @@ const makeStyles = colors => StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-<<<<<<< HEAD
     backgroundColor: COLORS.surfaceMuted,
     borderRadius: RADIUS.md,
     paddingHorizontal: SPACING.md,
@@ -336,18 +244,6 @@ const makeStyles = colors => StyleSheet.create({
     fontWeight: '500',
   },
   clearBtn: { padding: 4 },
-=======
-    gap: SPACING.sm,
-    backgroundColor: colors.card,
-    marginHorizontal: SPACING.lg,
-    marginTop: SPACING.md,
-    paddingHorizontal: SPACING.md,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  searchInput: { flex: 1, paddingVertical: 11, fontSize: 14, color: colors.textPrimary },
->>>>>>> 2475491f2ce0dfc5c254128f44bb58829c60db6f
 
   // Filter Chips
   filterStrip: {
@@ -385,16 +281,10 @@ const makeStyles = colors => StyleSheet.create({
   list: { padding: SPACING.lg, paddingBottom: 40 },
   card: {
     flexDirection: 'row',
-<<<<<<< HEAD
     backgroundColor: COLORS.white,
-=======
-    alignItems: 'center',
-    gap: SPACING.md,
-    backgroundColor: colors.card,
->>>>>>> 2475491f2ce0dfc5c254128f44bb58829c60db6f
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: COLORS.border,
     padding: SPACING.md,
     alignItems: 'center',
     elevation: 2,
@@ -407,7 +297,6 @@ const makeStyles = colors => StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-<<<<<<< HEAD
     backgroundColor: COLORS.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
@@ -501,23 +390,4 @@ const makeStyles = colors => StyleSheet.create({
     fontWeight: '700',
     fontSize: 13.5,
   },
-=======
-    backgroundColor: colors.primaryFaint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  name: { fontSize: 15, fontWeight: '800', color: colors.textPrimary },
-  meta: { fontSize: 12.5, color: colors.textSecondary, marginTop: 1 },
-  pillRow: { flexDirection: 'row', gap: SPACING.sm, marginTop: 6, flexWrap: 'wrap' },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: RADIUS.pill,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  pillText: { fontSize: 11, color: colors.textSecondary, fontWeight: '600' },
->>>>>>> 2475491f2ce0dfc5c254128f44bb58829c60db6f
 });

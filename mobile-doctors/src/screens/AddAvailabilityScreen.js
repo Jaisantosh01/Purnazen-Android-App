@@ -54,98 +54,59 @@ const AddAvailabilityScreen = ({ route, navigation }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [allSlotsByDay, setAllSlotsByDay] = useState([]);
-  const [selectedSlots, setSelectedSlots] = useState([]); // Array of slot_timing_id
-  const [existingAvailabilities, setExistingAvailabilities] = useState([]); // All doctor availabilities
+  const [selectedSlots, setSelectedSlots] = useState([]);
+  const [existingAvailabilities, setExistingAvailabilities] = useState([]);
 
-  // 1. Resolve Doctor ID and Fetch Data
   useEffect(() => {
     const init = async () => {
-  setLoading(true);
+      setLoading(true);
+      try {
+        const doctors = await availabilityService.getDoctors();
+        const matchedDoctor = doctors.find(d => {
+          const cleanD = cleanName(d.name);
+          const cleanUser = cleanName(currentUser?.full_name || currentUser?.name);
+          return cleanD === cleanUser || d.name.toLowerCase().includes(cleanUser);
+        });
 
-  try {
+        if (!matchedDoctor) {
+          showError("Doctor profile not found.");
+          return;
+        }
 
-    console.log("========== INIT START ==========");
+        setDoctorId(matchedDoctor.id);
 
-    console.log("STEP 1 - Loading Doctors");
+        const slotData = await availabilityService.getSlots();
+        setAllSlotsByDay(slotData);
 
-    const doctors = await availabilityService.getDoctors();
+        const availList = await availabilityService.list();
+        const docAvails = availList.filter(
+          a =>
+            a.doctor_id === matchedDoctor.id &&
+            a.is_active !== false
+        );
+        setExistingAvailabilities(docAvails);
 
-    console.log("Doctors Loaded:", doctors);
-
-    console.log("STEP 2 - Finding Logged-in Doctor");
-
-    const matchedDoctor = doctors.find(d => {
-      const cleanD = cleanName(d.name);
-      const cleanUser = cleanName(currentUser?.full_name || currentUser?.name);
-      return cleanD === cleanUser || d.name.toLowerCase().includes(cleanUser);
-    });
-
-    console.log("Matched Doctor:", matchedDoctor);
-
-    if (!matchedDoctor) {
-      showError("Doctor profile not found.");
-      return;
-    }
-
-    setDoctorId(matchedDoctor.id);
-
-    console.log("STEP 3 - Loading Slot Timings");
-
-    const slotData = await availabilityService.getSlots();
-
-    console.log("Slot Timings:", slotData);
-
-    setAllSlotsByDay(slotData);
-
-    console.log("STEP 4 - Loading Doctor Availability");
-
-    const availList = await availabilityService.list();
-
-    console.log("Availability:", availList);
-
-    const docAvails = availList.filter(
-      a =>
-        a.doctor_id === matchedDoctor.id &&
-        a.is_active !== false
-    );
-
-    console.log("Doctor Availability:", docAvails);
-
-    setExistingAvailabilities(docAvails);
-
-    if (mode === "edit" && currentSlotTimingId) {
-      setSelectedSlots([currentSlotTimingId]);
-    }
-
-    console.log("========== INIT FINISHED ==========");
-
-  } catch (err) {
-
-    console.log("========== ERROR ==========");
-    console.log(err);
-
-    showError("Failed to load availability options.");
-
-  } finally {
-
-    setLoading(false);
-
-  }
-};
+        if (mode === "edit" && currentSlotTimingId) {
+          setSelectedSlots([currentSlotTimingId]);
+        }
+      } catch (err) {
+        console.warn('[AddAvailability] init error:', err);
+        showError("Failed to load availability options.");
+      } finally {
+        setLoading(false);
+      }
+    };
 
     init();
   }, [currentUser, currentSlotTimingId, mode, navigation]);
 
-  // Find slot timings for selected day
   const daySlotsData = allSlotsByDay.find(
     item => item.day.toLowerCase() === selectedDay.toLowerCase()
   );
   const availableSlots = daySlotsData ? [...daySlotsData.slots].sort((a, b) => a.start_time.localeCompare(b.start_time)) : [];
 
-  // Identify slot IDs that are already active for this doctor on the selected day (excluding currentSlotTimingId if editing)
   const activeSlotIdsOnDay = existingAvailabilities
     .filter(a => {
-      // Find the slot timing to see if it's on the selectedDay
       const stId = a.slot_timing_id;
       const isSameDay = allSlotsByDay.some(
         dGroup => dGroup.day.toLowerCase() === selectedDay.toLowerCase() &&
@@ -158,18 +119,14 @@ const AddAvailabilityScreen = ({ route, navigation }) => {
     })
     .map(a => a.slot_timing_id);
 
-  // Toggle slot selection
   const handleToggleSlot = (slotId) => {
     if (activeSlotIdsOnDay.includes(slotId)) {
-      // Already active, prevent duplicate add
       return;
     }
 
     if (mode === 'edit') {
-      // In edit mode, only one slot can be selected
       setSelectedSlots([slotId]);
     } else {
-      // In create mode, toggle multi-select
       if (selectedSlots.includes(slotId)) {
         setSelectedSlots(selectedSlots.filter(id => id !== slotId));
       } else {
@@ -192,12 +149,10 @@ const AddAvailabilityScreen = ({ route, navigation }) => {
     setSaving(true);
     try {
       if (mode === 'edit') {
-        // Edit mode: update existing DoctorAvailability record
         const slotTimingId = selectedSlots[0];
         await availabilityService.update(availabilityId, { slot_timing_id: slotTimingId });
         showSuccess('Availability updated successfully.');
       } else {
-        // Create mode: batch create availability records
         const promises = selectedSlots.map(slotTimingId =>
           availabilityService.create({
             doctor_id: doctorId,
@@ -215,8 +170,6 @@ const AddAvailabilityScreen = ({ route, navigation }) => {
       setSaving(false);
     }
   };
-
-
 
   return (
     <View style={styles.root}>
@@ -371,51 +324,22 @@ const makeStyles = colors => StyleSheet.create({
   dayPillTextActive: {
     color: colors.white,
   },
-<<<<<<< HEAD
   staticDayContainer: {
     backgroundColor: '#EEF4FF',
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.lg,
-=======
-  readOnlyDayWrap: {
-    backgroundColor: colors.card,
->>>>>>> 2475491f2ce0dfc5c254128f44bb58829c60db6f
     borderRadius: RADIUS.md,
     marginBottom: SPACING.lg,
     borderWidth: 1,
-<<<<<<< HEAD
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
   staticDayText: {
     fontSize: 18,
     fontWeight: '800',
-    color: COLORS.primary,
+    color: colors.primary,
     textAlign: 'center',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-=======
-    borderColor: colors.border,
-    marginBottom: SPACING.lg,
-  },
-  readOnlyDayLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    marginBottom: SPACING.xs,
-  },
-  readOnlyDayPill: {
-    backgroundColor: colors.primaryFaint,
-    alignSelf: 'flex-start',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 6,
-    borderRadius: RADIUS.sm,
-  },
-  readOnlyDayText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: colors.primary,
->>>>>>> 2475491f2ce0dfc5c254128f44bb58829c60db6f
   },
   slotsScroll: { flexGrow: 1, paddingBottom: SPACING.xl },
   slotsGrid: { gap: SPACING.md },
