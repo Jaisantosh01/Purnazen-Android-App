@@ -172,6 +172,16 @@ const HomeScreen = ({ navigation }) => {
               </View>
               <MCIcon name="chevron-right" size={22} color={COLORS.textMuted} />
             </TouchableOpacity>
+            <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('FaqManagement')} activeOpacity={0.7}>
+              <View style={[styles.mgmtIconCircle, { backgroundColor: COLORS.primaryLight }]}>
+                <MCIcon name="help-circle-outline" size={24} color={COLORS.primary} />
+              </View>
+              <View style={styles.mgmtTextCol}>
+                <Text style={styles.mgmtTitle}>FAQ Management</Text>
+                <Text style={styles.mgmtSub}>Configure FAQ content</Text>
+              </View>
+              <MCIcon name="chevron-right" size={22} color={COLORS.textMuted} />
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
