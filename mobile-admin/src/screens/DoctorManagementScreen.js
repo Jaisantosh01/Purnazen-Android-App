@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
@@ -15,10 +15,12 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
-import { COLORS } from '../constants/theme';
 import { ListSkeleton } from '../components/SkeletonLoader';
+import useTheme from '../hooks/useTheme';
 
 const DoctorManagementScreen = ({ navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [doctors, setDoctors] = useState([]);
   const [stats, setStats] = useState({ active_doctors: 0, inactive_doctors: 0 });
   const [loading, setLoading] = useState(true);
@@ -164,7 +166,7 @@ const DoctorManagementScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
       
       {/* Header removed as it is now in UnifiedUserDoctorScreen */}
 
@@ -176,12 +178,12 @@ const DoctorManagementScreen = ({ navigation }) => {
       >
         {/* ── Stats ── */}
         <View style={styles.statsRow}>
-          <View style={[styles.statCard, { borderColor: COLORS.primary }]}>
-            <Text style={[styles.statValue, { color: COLORS.primary }]}>{stats.active_doctors}</Text>
+          <View style={[styles.statCard, { borderColor: colors.primary }]}>
+            <Text style={[styles.statValue, { color: colors.primary }]}>{stats.active_doctors}</Text>
             <Text style={styles.statLabel}>Active</Text>
           </View>
-          <View style={[styles.statCard, { borderColor: COLORS.danger }]}>
-            <Text style={[styles.statValue, { color: COLORS.danger }]}>{stats.inactive_doctors}</Text>
+          <View style={[styles.statCard, { borderColor: colors.danger }]}>
+            <Text style={[styles.statValue, { color: colors.danger }]}>{stats.inactive_doctors}</Text>
             <Text style={styles.statLabel}>Inactive</Text>
           </View>
         </View>
@@ -215,7 +217,7 @@ const DoctorManagementScreen = ({ navigation }) => {
 
         {/* ── Search ── */}
         <View style={styles.searchContainer}>
-          <MCIcon name="magnify" size={20} color={COLORS.textMuted} style={styles.searchIcon} />
+          <MCIcon name="magnify" size={20} color={colors.textMuted} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search by name or specialty..."
@@ -236,7 +238,7 @@ const DoctorManagementScreen = ({ navigation }) => {
             ))
           ) : (
             <View style={styles.emptyContainer}>
-              <MCIcon name="doctor" size={64} color={COLORS.textMuted} />
+              <MCIcon name="doctor" size={64} color={colors.textMuted} />
               <Text style={styles.emptyText}>No doctors found</Text>
             </View>
           )}
@@ -248,39 +250,39 @@ const DoctorManagementScreen = ({ navigation }) => {
 
 export default DoctorManagementScreen;
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   header: {
     paddingTop: 16,
     paddingHorizontal: 20,
     paddingBottom: 16,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: colors.border,
   },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: COLORS.textPrimary },
-  addBtn: { backgroundColor: COLORS.primary, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontSize: 22, fontWeight: '800', color: colors.textPrimary },
+  addBtn: { backgroundColor: colors.primary, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   statsRow: { flexDirection: 'row', padding: 16, gap: 12 },
-  statCard: { flex: 1, backgroundColor: COLORS.white, borderRadius: 12, padding: 12, alignItems: 'center', borderWidth: 1 },
+  statCard: { flex: 1, backgroundColor: colors.card, borderRadius: 12, padding: 12, alignItems: 'center', borderWidth: 1 },
   statValue: { fontSize: 18, fontWeight: '800' },
-  statLabel: { fontSize: 12, color: COLORS.textMuted, marginTop: 2, fontWeight: '600' },
-  searchContainer: { marginHorizontal: 16, marginBottom: 16, flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white, borderRadius: 12, paddingHorizontal: 12, height: 44, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  statLabel: { fontSize: 12, color: colors.textMuted, marginTop: 2, fontWeight: '600' },
+  searchContainer: { marginHorizontal: 16, marginBottom: 16, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: 12, paddingHorizontal: 12, height: 44, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
   searchIcon: { marginRight: 8 },
-  searchInput: { flex: 1, fontSize: 14, color: COLORS.textPrimary },
+  searchInput: { flex: 1, fontSize: 14, color: colors.textPrimary },
   manageOptions: { marginBottom: 16 },
   manageOptionsContent: { paddingHorizontal: 16, gap: 8 },
-  optionBtn: { backgroundColor: COLORS.white, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: COLORS.primary },
-  optionText: { color: COLORS.primary, fontWeight: '600' },
+  optionBtn: { backgroundColor: colors.card, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: colors.primary },
+  optionText: { color: colors.primary, fontWeight: '600' },
   listContainer: { paddingHorizontal: 16 },
   doctorCard: { backgroundColor: COLORS.white, borderRadius: 16, padding: 16, marginBottom: 12, overflow: 'visible', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
   doctorInfo: { flex: 1, flexDirection: 'row', alignItems: 'center' },
   avatarPlaceholder: { width: 56, height: 56, borderRadius: 28, backgroundColor: COLORS.primaryLight, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
   details: { flex: 1 },
-  doctorName: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
-  specialty: { fontSize: 13, color: COLORS.primary, fontWeight: '600', marginTop: 2 },
+  doctorName: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
+  specialty: { fontSize: 13, color: colors.primary, fontWeight: '600', marginTop: 2 },
   expertiseContainer: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8, gap: 6 },
   expertiseTag: { backgroundColor: '#f0f0f0', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   expertiseText: { fontSize: 11, color: COLORS.textSecondary, fontWeight: '500' },

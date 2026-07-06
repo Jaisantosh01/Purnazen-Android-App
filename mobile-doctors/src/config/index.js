@@ -20,7 +20,17 @@
  * to the host and works for BOTH. (Emulator without adb reverse: set 10.0.2.2 in
  * .env; physical device over Wi-Fi: set your machine's LAN IP.)
  */
-export const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
+import { Platform } from 'react-native';
+
+const DEFAULT_PORT = '5000';
+const getDevBaseUrl = () => {
+  if (Platform.OS === 'android') {
+    return `http://10.0.2.2:${DEFAULT_PORT}`;
+  }
+  return `http://localhost:${DEFAULT_PORT}`;
+};
+
+export const BASE_URL = process.env.EXPO_PUBLIC_API_URL || getDevBaseUrl();
 
 export const API_VERSION = '/api/v1';
 

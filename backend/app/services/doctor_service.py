@@ -85,7 +85,7 @@ class DoctorService:
 
         Reads the doctor's ``availabilities`` (doctor_availability table), joins
         through ``SlotTimings`` → ``DayOfWeek`` to match the weekday,
-        and excludes slot_timing_ids that are already booked.
+        and excludes slot_timing_ids that are already booked or blocked by approved leave.
         """
         day_name = on_date.strftime("%A")
         booked_ids = AppointmentRepository.get_booked_slot_ids(db, doctor.id, on_date)
@@ -93,6 +93,8 @@ class DoctorService:
         from app.models.doctor_availability import DoctorAvailability
         from app.models.slot_timings import SlotTimings
         from app.models.day_of_week import DayOfWeek
+        from app.models.doctor_leave import DoctorLeave
+        from app.models.doctor_leave_slot import DoctorLeaveSlot
 
         rows = (
             db.query(DoctorAvailability, SlotTimings)
@@ -107,9 +109,61 @@ class DoctorService:
             .all()
         )
 
+        # Get all approved active leaves for this doctor
+        leaves = (
+            db.query(DoctorLeave)
+            .filter(
+                DoctorLeave.doctor_id == doctor.id,
+                DoctorLeave.status == "approved",
+                DoctorLeave.is_active == True,
+            )
+            .all()
+        )
+
+        blocked_slots_by_leave = set()
+        for leave in leaves:
+            # Check date overlap
+            date_matches = False
+            if leave.start_date and leave.end_date:
+                if leave.start_date <= on_date <= leave.end_date:
+                    date_matches = True
+            elif leave.leave_date:
+                if leave.leave_date == on_date:
+                    date_matches = True
+
+            if not date_matches:
+                continue
+
+            # Determine blocked slots based on leave type
+            if leave.leave_type == "multiple":
+                for av, st in rows:
+                    blocked_slots_by_leave.add(st.id)
+            elif leave.leave_type == "single":
+                if leave.start_time and leave.end_time:
+                    for av, st in rows:
+                        if st.start_time < leave.end_time and st.end_time > leave.start_time:
+                            blocked_slots_by_leave.add(st.id)
+                elif leave.slot_timing_id:
+                    blocked_slots_by_leave.add(leave.slot_timing_id)
+                else:
+                    for av, st in rows:
+                        blocked_slots_by_leave.add(st.id)
+            elif leave.leave_type == "custom":
+                custom_slots = (
+                    db.query(DoctorLeaveSlot.slot_timing_id)
+                    .filter(DoctorLeaveSlot.leave_id == leave.id)
+                    .all()
+                )
+                for (stid,) in custom_slots:
+                    blocked_slots_by_leave.add(stid)
+
         slots = []
         booked_str = {str(b) for b in booked_ids}
         for av, st in rows:
+            if st.id in booked_ids:
+                continue
+            if st.id in blocked_slots_by_leave:
+                continue
             slots.append({
                 "id": str(st.id),
                 "time": st.start_time.strftime("%I:%M %p"),

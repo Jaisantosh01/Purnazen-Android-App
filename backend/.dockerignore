@@ -4,6 +4,7 @@
 venv/
 venv*/
 .venv/
+.purnazen/
 .env
 .env.*
 *.db

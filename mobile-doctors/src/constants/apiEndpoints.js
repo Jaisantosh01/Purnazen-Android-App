@@ -35,6 +35,12 @@ export const ENDPOINTS = {
   AVAILABILITY_ITEM: id => `${API_VERSION}/doctor-availability/${id}`,
   SLOT_TIMINGS: `${API_VERSION}/slot-timings`,
 
+  // Self-service leave requests
+  LEAVE_REQUEST: `${API_VERSION}/doctor-leaves`,
+  LEAVE_HISTORY: `${API_VERSION}/doctor-leaves`,
+  LEAVE_ITEM: id => `${API_VERSION}/doctor-leaves/${id}`,
+  LEAVE_CANCEL: id => `${API_VERSION}/doctor-leaves/${id}`,
+
   // Appointments (backend: appointments.py)
   // NOTE: backend currently exposes booking from the patient side; a
   // doctor-scoped list endpoint is a likely follow-up (TODO).
