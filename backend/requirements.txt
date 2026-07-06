@@ -30,8 +30,11 @@ numpy>=2.0  # 2.x required for Python 3.14+
 # app/ai/models/skin_model.onnx; pipeline falls back to CV when absent.
 onnxruntime>=1.18.0
 
+# Google Calendar / Meet integration
+google-api-python-client>=2.150.0
+google-auth>=2.28.0
+
 # Social auth (Sprint 5+)
-# google-auth>=2.28.0
 # cryptography>=42.0.0
 
 # Async task queue (Sprint 7+)

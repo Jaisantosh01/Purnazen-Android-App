@@ -53,6 +53,16 @@ def _leave_to_dict_admin(leave: DoctorLeave) -> dict:
             )
         slot_dicts.append(entry)
 
+    if leave.leave_type == "multiple" and leave.start_date and leave.end_date:
+        if leave.start_date == leave.end_date:
+            date_str = leave.start_date.isoformat()
+        else:
+            date_str = f"{leave.start_date.isoformat()} to {leave.end_date.isoformat()}"
+    elif leave.start_date:
+        date_str = leave.start_date.isoformat()
+    else:
+        date_str = None
+
     return {
         "id": str(leave.id),
         "doctorId": str(leave.doctor_id),
@@ -75,6 +85,7 @@ def _leave_to_dict_admin(leave: DoctorLeave) -> dict:
         "createdAt": leave.created_at.isoformat() if leave.created_at else None,
         "updatedAt": leave.updated_at.isoformat() if leave.updated_at else None,
         "slots": slot_dicts,
+        "leaveDate": date_str,
     }
 
 
@@ -318,6 +329,7 @@ def get_all_leaves_admin(
     from_date: Optional[date_type] = Query(None, description="Filter start_date >= this date"),
     to_date: Optional[date_type] = Query(None, description="Filter end_date <= this date"),
     leave_type: Optional[str] = Query(None, description="single | multiple | custom"),
+    search: Optional[str] = Query(None, description="Search by doctor name"),
     user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
@@ -340,6 +352,14 @@ def get_all_leaves_admin(
         query = query.filter(DoctorLeave.end_date <= to_date)
     if leave_type:
         query = query.filter(DoctorLeave.leave_type == leave_type)
+    if search:
+        doctor_ids = (
+            db.query(Doctor.id)
+            .join(User, Doctor.user_id == User.id)
+            .filter(User.full_name.ilike(f"%{search}%"))
+            .subquery()
+        )
+        query = query.filter(DoctorLeave.doctor_id.in_(doctor_ids))
 
     leaves = query.order_by(DoctorLeave.applied_at.desc()).all()
     serialized = [_leave_to_dict_admin(l) for l in leaves]

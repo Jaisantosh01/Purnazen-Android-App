@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, time as time_type
 from typing import Optional
 
 
@@ -9,12 +9,19 @@ from sqlalchemy.orm import Session
 from app.models.appointment import Appointment
 from app.models.consultation_type import ConsultationType
 from app.models.user import User
+from app.models.slot_timings import SlotTimings
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.doctor_repository import DoctorRepository
 from app.schemas.appointment import BookAppointmentRequest, UpdateAppointmentRequest
 from app.services.doctor_service import (
     VISIT_SLUG_TO_CONSULTATION_TYPE,
 )
+
+# Google Meet integration — gracefully skipped when the service is unavailable
+try:
+    from app.services.google_meet_service import create_meet_link as _create_meet_link
+except ImportError:
+    _create_meet_link = None
 
 
 class AppointmentService:
@@ -67,6 +74,34 @@ class AppointmentService:
             user_description=data.user_description,
             created_by=user.id,
         )
+
+        # Generate Google Meet link for video consultations
+        if data.visit_type == "video" and _create_meet_link is not None:
+            slot_timing = db.get(SlotTimings, data.slot_timing_id)
+            if slot_timing and slot_timing.start_time:
+                start_dt = datetime.combine(data.date, slot_timing.start_time)
+                end_dt = datetime.combine(
+                    data.date,
+                    slot_timing.end_time or time_type(
+                        slot_timing.start_time.hour + 1,
+                        slot_timing.start_time.minute,
+                    ),
+                )
+                doctor_name = f"Dr. {doctor.user.full_name}" if doctor.user else "Doctor"
+                patient_name = user.full_name or "Patient"
+                link = _create_meet_link(
+                    summary=f"Consultation — {doctor_name} & {patient_name}",
+                    description=(
+                        f"Video consultation with {doctor_name}.\n"
+                        f"Patient: {patient_name}\n"
+                        f"Appointment reference: {appointment.reference}"
+                    ),
+                    start_dt=start_dt,
+                    end_dt=end_dt,
+                )
+                if link:
+                    appointment.meeting_link = link
+                    db.commit()
 
         return {
             "success": True,

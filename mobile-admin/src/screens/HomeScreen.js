@@ -134,13 +134,13 @@ const HomeScreen = ({ navigation }) => {
                   title="Today Leaves"
                   value={stats?.today_doctor_leaves}
                   icon="beach"
-                  onPress={() => navigation.navigate('DoctorLeaveManagement')}
+                  onPress={() => navigation.navigate('LeaveCenter')}
                 />
                 <KpiCard
                   title="Total Leaves"
                   value={stats?.total_doctor_leaves}
                   icon="calendar-remove"
-                  onPress={() => navigation.navigate('DoctorLeaveManagement')}
+                  onPress={() => navigation.navigate('LeaveCenter')}
                 />
               </>
             )}
@@ -154,16 +154,6 @@ const HomeScreen = ({ navigation }) => {
             <Text style={styles.sectionTitle}>Management</Text>
           </View>
           <View style={{ gap: 10 }}>
-            <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('DoctorLeaveManagement')} activeOpacity={0.7}>
-              <View style={[styles.mgmtIconCircle, { backgroundColor: colors.primaryLight }]}>
-                <MCIcon name="beach" size={24} color={colors.primary} />
-              </View>
-              <View style={styles.mgmtTextCol}>
-                <Text style={styles.mgmtTitle}>Doctor Leaves</Text>
-                <Text style={styles.mgmtSub}>Manage doctor leave requests</Text>
-              </View>
-              <MCIcon name="chevron-right" size={22} color={colors.textMuted} />
-            </TouchableOpacity>
             <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('SlotManagement')} activeOpacity={0.7}>
               <View style={[styles.mgmtIconCircle, { backgroundColor: colors.primaryLight }]}>
                 <MCIcon name="clock-outline" size={24} color={colors.primary} />
@@ -181,6 +171,16 @@ const HomeScreen = ({ navigation }) => {
               <View style={styles.mgmtTextCol}>
                 <Text style={styles.mgmtTitle}>Wellness Videos</Text>
                 <Text style={styles.mgmtSub}>Manage wellness video content</Text>
+              </View>
+              <MCIcon name="chevron-right" size={22} color={colors.textMuted} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('FaqManagement')} activeOpacity={0.7}>
+              <View style={[styles.mgmtIconCircle, { backgroundColor: colors.primaryLight }]}>
+                <MCIcon name="help-circle-outline" size={24} color={colors.primary} />
+              </View>
+              <View style={styles.mgmtTextCol}>
+                <Text style={styles.mgmtTitle}>FAQ Management</Text>
+                <Text style={styles.mgmtSub}>Configure FAQ content</Text>
               </View>
               <MCIcon name="chevron-right" size={22} color={colors.textMuted} />
             </TouchableOpacity>

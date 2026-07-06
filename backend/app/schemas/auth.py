@@ -9,6 +9,14 @@ class RegisterRequest(BaseModel):
     password: str
 
 
+class AdminCreateUserRequest(BaseModel):
+    full_name: str
+    email: EmailStr
+    password: str
+    phone: str | None = None
+    role_name: str = "patient"
+
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str

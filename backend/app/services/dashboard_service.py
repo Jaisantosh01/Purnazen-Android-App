@@ -15,7 +15,8 @@ class DashboardService:
         total_active_users = db.query(User).filter(User.is_active == True).count()
 
         today_doctor_leaves = db.query(DoctorLeave).filter(
-            DoctorLeave.leave_date == date.today(),
+            DoctorLeave.start_date <= date.today(),
+            DoctorLeave.end_date >= date.today(),
             DoctorLeave.is_active == True,
         ).count()
         total_doctor_leaves = db.query(DoctorLeave).filter(

@@ -661,7 +661,7 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
 
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  header: { paddingTop: 56, padding: 20, backgroundColor: colors.card, paddingBottom: 4 },
+  header: { paddingTop: 12, padding: 20, backgroundColor: colors.white, paddingBottom: 4 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerTitle: { fontSize: 22, fontWeight: '800', color: colors.textPrimary },
   filterToggle: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surfaceMuted, justifyContent: 'center', alignItems: 'center' },
