@@ -34,6 +34,16 @@ class AppointmentService:
                 "message": "This time slot is already booked. Please pick another one.",
             }, 409
 
+        # Verify that slot is not blocked by approved leave or not in doctor's configured availability
+        from app.services.doctor_service import DoctorService
+        available_slots = DoctorService.get_time_slots(db, doctor, data.date)
+        available_slot_ids = {s["id"] for s in available_slots}
+        if str(data.slot_timing_id) not in available_slot_ids:
+            return {
+                "success": False,
+                "message": "Doctor is not available or on leave during this slot.",
+            }, 409
+
         consultation_type_name = VISIT_SLUG_TO_CONSULTATION_TYPE.get(data.visit_type)
         consultation_type = (
             db.query(ConsultationType).filter_by(name=consultation_type_name).first()

@@ -36,6 +36,7 @@ import AppointmentDetailScreen from './src/screens/AppointmentDetailScreen';
 import ScheduleScreen from './src/screens/ScheduleScreen';
 // @ts-ignore
 import AddAvailabilityScreen from './src/screens/AddAvailabilityScreen';
+import DayAvailabilityScreen from './src/screens/DayAvailabilityScreen';
 import PatientsScreen from './src/screens/PatientsScreen';
 import PatientProfileScreen from './src/screens/PatientProfileScreen';
 import ConsultationHistoryScreen from './src/screens/ConsultationHistoryScreen';
@@ -52,6 +53,14 @@ import DiagnosisEditorScreen from './src/screens/DiagnosisEditorScreen';
 import PrescriptionEditorScreen from './src/screens/PrescriptionEditorScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+// @ts-ignore
+import ApplyLeaveScreen from './src/screens/ApplyLeaveScreen';
+// @ts-ignore
+import LeaveHistoryScreen from './src/screens/LeaveHistoryScreen';
+// @ts-ignore
+import LeaveDetailScreen from './src/screens/LeaveDetailScreen';
+
+
 
 const RootStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -121,7 +130,11 @@ function ScheduleStackNavigator() {
   return (
     <ScheduleStack.Navigator screenOptions={{ headerShown: false }}>
       <ScheduleStack.Screen name="ScheduleMain" component={ScheduleScreen} />
+      <ScheduleStack.Screen name="DayAvailability" component={DayAvailabilityScreen} />
       <ScheduleStack.Screen name="AddAvailability" component={AddAvailabilityScreen} />
+      <ScheduleStack.Screen name="ApplyLeave" component={ApplyLeaveScreen} />
+      <ScheduleStack.Screen name="LeaveHistory" component={LeaveHistoryScreen} />
+      <ScheduleStack.Screen name="LeaveDetail" component={LeaveDetailScreen} />
     </ScheduleStack.Navigator>
   );
 }

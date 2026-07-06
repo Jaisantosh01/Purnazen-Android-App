@@ -8,7 +8,17 @@ import { ENDPOINTS } from '../constants/apiEndpoints';
 const availabilityService = {
   async list() {
     const res = await apiClient.get(ENDPOINTS.AVAILABILITY);
-    return res?.data ?? [];
+    const data = res?.data ?? [];
+    return data.map(item => ({
+      id: item.availability_id,
+      doctor_id: item.doctor_id,
+      slot_timing_id: item.slot_timing_id,
+      is_active: item.is_active,
+      day: item.day,
+      day_of_week_id: item.day_of_week_id,
+      start_time: item.start_time,
+      end_time: item.end_time,
+    }));
   },
 
   async create(slot) {

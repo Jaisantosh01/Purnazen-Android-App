@@ -57,43 +57,78 @@ const AddAvailabilityScreen = ({ route, navigation }) => {
   // 1. Resolve Doctor ID and Fetch Data
   useEffect(() => {
     const init = async () => {
-      setLoading(true);
-      try {
-        // Fetch all doctors and match currentUser
-        const doctors = await availabilityService.getDoctors();
-        const matchedDoctor = doctors.find(d => {
-          const cleanD = cleanName(d.name);
-          const cleanUser = cleanName(currentUser?.full_name || currentUser?.name);
-          return cleanD === cleanUser || d.name.toLowerCase().includes(cleanUser);
-        });
+  setLoading(true);
 
-        if (!matchedDoctor) {
-          showError('Doctor profile not found.');
-          navigation.goBack();
-          return;
-        }
-        setDoctorId(matchedDoctor.id);
+  try {
 
-        // Fetch all slot timings grouped by day
-        const slotData = await availabilityService.getSlots();
-        setAllSlotsByDay(slotData);
+    console.log("========== INIT START ==========");
 
-        // Fetch current availabilities to prevent duplicates / identify active
-        const availList = await availabilityService.list();
-        const docAvails = availList.filter(a => a.doctor_id === matchedDoctor.id && a.is_active !== false);
-        setExistingAvailabilities(docAvails);
+    console.log("STEP 1 - Loading Doctors");
 
-        // If editing a single slot, pre-select the timing
-        if (mode === 'edit' && currentSlotTimingId) {
-          setSelectedSlots([currentSlotTimingId]);
-        }
-      } catch (err) {
-        console.warn('[AddAvailability] Initialization error:', err);
-        showError('Failed to load availability options.');
-      } finally {
-        setLoading(false);
-      }
-    };
+    const doctors = await availabilityService.getDoctors();
+
+    console.log("Doctors Loaded:", doctors);
+
+    console.log("STEP 2 - Finding Logged-in Doctor");
+
+    const matchedDoctor = doctors.find(d => {
+      const cleanD = cleanName(d.name);
+      const cleanUser = cleanName(currentUser?.full_name || currentUser?.name);
+      return cleanD === cleanUser || d.name.toLowerCase().includes(cleanUser);
+    });
+
+    console.log("Matched Doctor:", matchedDoctor);
+
+    if (!matchedDoctor) {
+      showError("Doctor profile not found.");
+      return;
+    }
+
+    setDoctorId(matchedDoctor.id);
+
+    console.log("STEP 3 - Loading Slot Timings");
+
+    const slotData = await availabilityService.getSlots();
+
+    console.log("Slot Timings:", slotData);
+
+    setAllSlotsByDay(slotData);
+
+    console.log("STEP 4 - Loading Doctor Availability");
+
+    const availList = await availabilityService.list();
+
+    console.log("Availability:", availList);
+
+    const docAvails = availList.filter(
+      a =>
+        a.doctor_id === matchedDoctor.id &&
+        a.is_active !== false
+    );
+
+    console.log("Doctor Availability:", docAvails);
+
+    setExistingAvailabilities(docAvails);
+
+    if (mode === "edit" && currentSlotTimingId) {
+      setSelectedSlots([currentSlotTimingId]);
+    }
+
+    console.log("========== INIT FINISHED ==========");
+
+  } catch (err) {
+
+    console.log("========== ERROR ==========");
+    console.log(err);
+
+    showError("Failed to load availability options.");
+
+  } finally {
+
+    setLoading(false);
+
+  }
+};
 
     init();
   }, [currentUser, currentSlotTimingId, mode, navigation]);
@@ -178,48 +213,7 @@ const AddAvailabilityScreen = ({ route, navigation }) => {
     }
   };
 
-  const renderDaySelector = () => {
-    if (mode === 'edit') {
-      return (
-        <View style={styles.readOnlyDayWrap}>
-          <Text style={styles.readOnlyDayLabel}>Day of Week</Text>
-          <View style={styles.readOnlyDayPill}>
-            <Text style={styles.readOnlyDayText}>{selectedDay.toUpperCase()}</Text>
-          </View>
-        </View>
-      );
-    }
 
-    return (
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Select Day</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.dayScroll}
-        >
-          {DAYS.map(day => {
-            const isSelected = selectedDay.toLowerCase() === day.label.toLowerCase();
-            return (
-              <TouchableOpacity
-                key={day.label}
-                style={[styles.dayPill, isSelected && styles.dayPillActive]}
-                activeOpacity={0.8}
-                onPress={() => {
-                  setSelectedDay(day.label);
-                  setSelectedSlots([]); // Reset selected slots when changing day
-                }}
-              >
-                <Text style={[styles.dayPillText, isSelected && styles.dayPillTextActive]}>
-                  {day.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
-    );
-  };
 
   return (
     <View style={styles.root}>
@@ -234,11 +228,11 @@ const AddAvailabilityScreen = ({ route, navigation }) => {
         </View>
       ) : (
         <View style={styles.content}>
-          {renderDaySelector()}
+          <View style={styles.staticDayContainer}>
+            <Text style={styles.staticDayText}>{selectedDay}</Text>
+          </View>
 
-          <Text style={styles.sectionTitle}>
-            {mode === 'edit' ? 'Choose Slot Timing' : 'Select Slots'}
-          </Text>
+          <Text style={styles.sectionTitle}>Available Slot Timings</Text>
 
           {availableSlots.length === 0 ? (
             <View style={styles.emptyWrap}>
@@ -374,32 +368,22 @@ const styles = StyleSheet.create({
   dayPillTextActive: {
     color: COLORS.white,
   },
-  readOnlyDayWrap: {
-    backgroundColor: COLORS.white,
+  staticDayContainer: {
+    backgroundColor: '#EEF4FF',
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
     borderRadius: RADIUS.md,
-    padding: SPACING.md,
+    marginBottom: SPACING.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
-    marginBottom: SPACING.lg,
   },
-  readOnlyDayLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: COLORS.textMuted,
-    textTransform: 'uppercase',
-    marginBottom: SPACING.xs,
-  },
-  readOnlyDayPill: {
-    backgroundColor: COLORS.primaryFaint,
-    alignSelf: 'flex-start',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 6,
-    borderRadius: RADIUS.sm,
-  },
-  readOnlyDayText: {
-    fontSize: 14,
+  staticDayText: {
+    fontSize: 18,
     fontWeight: '800',
     color: COLORS.primary,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   slotsScroll: { flexGrow: 1, paddingBottom: SPACING.xl },
   slotsGrid: { gap: SPACING.md },

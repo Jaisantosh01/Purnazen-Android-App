@@ -244,6 +244,67 @@ const AppointmentsScreen = ({ navigation }) => {
   const [selectedTime, setSelectedTime] = useState('all');
   const [showStatusFilter, setShowStatusFilter] = useState(false);
 
+  // Calendar states
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const today = useRef(new Date()).current;
+  const [currentMonth, setCurrentMonth] = useState(today.getMonth());
+  const [currentYear, setCurrentYear] = useState(today.getFullYear());
+  const [allAppointmentDates, setAllAppointmentDates] = useState(new Set());
+
+  const fetchAllAppointmentDates = useCallback(async () => {
+    try {
+      const data = await appointmentService.getDoctorAppointments({});
+      const appointmentsList = data?.appointments ?? [];
+      const dates = new Set(
+        appointmentsList
+          .filter(a => a.date)
+          .map(a => typeof a.date === 'string' ? a.date.split('T')[0] : toApiDate(new Date(a.date)))
+      );
+      setAllAppointmentDates(dates);
+    } catch (err) {
+      console.warn('[AppointmentsScreen] fetchAllAppointmentDates error:', err?.message);
+    }
+  }, []);
+
+  const maxDate = useRef((() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 1);
+    return d;
+  })()).current;
+
+  const isDateSelectable = (dateStr) => {
+    const todayZero = new Date();
+    todayZero.setHours(0, 0, 0, 0);
+    const maxDateZero = new Date();
+    maxDateZero.setMonth(maxDateZero.getMonth() + 1);
+    maxDateZero.setHours(23, 59, 59, 999);
+    
+    const target = new Date(dateStr + 'T00:00:00');
+    return target >= todayZero && target <= maxDateZero;
+  };
+
+  const handlePrevMonth = () => {
+    if (currentYear > today.getFullYear() || (currentYear === today.getFullYear() && currentMonth > today.getMonth())) {
+      if (currentMonth === 0) {
+        setCurrentMonth(11);
+        setCurrentYear(y => y - 1);
+      } else {
+        setCurrentMonth(m => m - 1);
+      }
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (currentYear < maxDate.getFullYear() || (currentYear === maxDate.getFullYear() && currentMonth < maxDate.getMonth())) {
+      if (currentMonth === 11) {
+        setCurrentMonth(0);
+        setCurrentYear(y => y + 1);
+      } else {
+        setCurrentMonth(m => m + 1);
+      }
+    }
+  };
+
   const dateRange = useRef(buildDateRange()).current;
 
   // ── Fetch ───────────────────────────────────────────────────────────────────
@@ -265,11 +326,15 @@ const AppointmentsScreen = ({ navigation }) => {
     }
   }, [selectedDate, selectedStatus]);
 
-  useEffect(() => { fetchAppointments(); }, [fetchAppointments]);
+  useEffect(() => {
+    fetchAppointments();
+    fetchAllAppointmentDates();
+  }, [fetchAppointments, fetchAllAppointmentDates]);
 
   const onRefresh = () => {
     setRefreshing(true);
     fetchAppointments(false);
+    fetchAllAppointmentDates();
   };
 
   // ── Status Action Helpers ───────────────────────────────────────────────────
@@ -277,6 +342,7 @@ const AppointmentsScreen = ({ navigation }) => {
     try {
       await appointmentService.updateStatus(id, status);
       await fetchAppointments(false);
+      await fetchAllAppointmentDates();
     } catch (e) {
       Alert.alert('Error', e?.message || 'Could not update appointment status.');
     }
@@ -353,6 +419,95 @@ const AppointmentsScreen = ({ navigation }) => {
     return true;
   });
 
+  // ─── Calendar Renderer ──────────────────────────────────────────────────────
+  const getDaysInMonth = (month, year) => new Date(year, month + 1, 0).getDate();
+  const getFirstDayOfMonth = (month, year) => new Date(year, month, 1).getDay();
+
+  const handleDateSelect = (dateStr) => {
+    setSelectedDate(dateStr);
+    setShowCalendarModal(false);
+  };
+
+  const renderCalendar = () => {
+    const daysInMonth = getDaysInMonth(currentMonth, currentYear);
+    const firstDayIndex = getFirstDayOfMonth(currentMonth, currentYear);
+    const blanks = Array(firstDayIndex).fill(null);
+    const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+    const gridItems = [...blanks, ...days];
+
+    const MONTHS = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December',
+    ];
+    const WEEK_DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+    return (
+      <View style={styles.calendarContainer}>
+        <View style={styles.calendarHeader}>
+          <TouchableOpacity onPress={handlePrevMonth} style={styles.calNavBtn}>
+            <MCIcon name="chevron-left" size={24} color={COLORS.primary} />
+          </TouchableOpacity>
+          <Text style={styles.calendarMonthText}>{MONTHS[currentMonth]} {currentYear}</Text>
+          <TouchableOpacity onPress={handleNextMonth} style={styles.calNavBtn}>
+            <MCIcon name="chevron-right" size={24} color={COLORS.primary} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.weekDaysRow}>
+          {WEEK_DAYS.map((wd) => (
+            <Text key={wd} style={styles.weekDayText}>{wd}</Text>
+          ))}
+        </View>
+        <View style={styles.daysGrid}>
+          {gridItems.map((day, idx) => {
+            if (day === null) return <View key={`blank-${idx}`} style={styles.dayCell} />;
+
+            const itemDateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const isDisabled = !isDateSelectable(itemDateStr);
+            const isSelected = selectedDate === itemDateStr;
+            const isToday = itemDateStr === todayApiDate();
+            const hasAppt = allAppointmentDates.has(itemDateStr);
+
+            return (
+              <TouchableOpacity
+                key={`day-${day}`}
+                style={[
+                  styles.dayCell,
+                  isDisabled && styles.dayCellDisabled,
+                  isToday && styles.dayCellToday,
+                  isSelected && styles.dayCellActive,
+                ]}
+                onPress={isDisabled ? undefined : () => handleDateSelect(itemDateStr)}
+                disabled={isDisabled}
+                activeOpacity={isDisabled ? 1 : 0.7}
+              >
+                <View style={styles.dayCellContent}>
+                  <Text
+                    style={[
+                      styles.dayText,
+                      isDisabled && styles.dayTextDisabled,
+                      isSelected && styles.dayTextActive,
+                      isToday && !isSelected && styles.dayTextTodayText,
+                    ]}
+                  >
+                    {day}
+                  </Text>
+                  {hasAppt ? (
+                    <View style={[
+                      styles.apptDot,
+                      isSelected && styles.apptDotActive
+                    ]} />
+                  ) : (
+                    <View style={styles.apptDotPlaceholder} />
+                  )}
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+    );
+  };
+
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <View style={styles.root}>
@@ -390,10 +545,18 @@ const AppointmentsScreen = ({ navigation }) => {
 
       {/* Filter row */}
       <View style={styles.filterRow}>
-        <View style={styles.filterLeft}>
+        <TouchableOpacity
+          style={styles.filterLeft}
+          activeOpacity={0.7}
+          onPress={() => {
+            const baseDate = selectedDate ? new Date(selectedDate + 'T00:00:00') : new Date();
+            setCurrentMonth(baseDate.getMonth());
+            setCurrentYear(baseDate.getFullYear());
+            setShowCalendarModal(true);
+          }}>
           <MCIcon name="calendar-range" size={14} color={COLORS.primary} />
           <Text style={styles.filterLabel}>{todayLabel}</Text>
-        </View>
+        </TouchableOpacity>
 
         {/* Status filter chip */}
         <TouchableOpacity
@@ -493,6 +656,55 @@ const AppointmentsScreen = ({ navigation }) => {
               );
             })}
           </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Calendar date picker modal */}
+      <Modal
+        visible={showCalendarModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCalendarModal(false)}>
+        <TouchableOpacity
+          style={styles.calModalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowCalendarModal(false)}>
+          <TouchableOpacity
+            activeOpacity={1}
+            style={styles.calModalContent}>
+            <View style={styles.calModalHeader}>
+              <Text style={styles.calModalTitle}>Select Date</Text>
+              <TouchableOpacity onPress={() => setShowCalendarModal(false)}>
+                <MCIcon name="close" size={24} color={COLORS.textPrimary} />
+              </TouchableOpacity>
+            </View>
+            
+            {renderCalendar()}
+
+            {/* Reset Buttons */}
+            <View style={styles.modalActionRow}>
+              <TouchableOpacity
+                style={[styles.modalActionBtn, styles.todayBtn]}
+                onPress={() => {
+                  const todayStr = todayApiDate();
+                  setSelectedDate(todayStr);
+                  setShowCalendarModal(false);
+                }}>
+                <MCIcon name="calendar-today" size={16} color={COLORS.primary} />
+                <Text style={styles.todayBtnText}>Today</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalActionBtn, styles.clearBtn]}
+                onPress={() => {
+                  setSelectedDate(null);
+                  setShowCalendarModal(false);
+                }}>
+                <MCIcon name="calendar-remove" size={16} color={COLORS.danger} />
+                <Text style={styles.clearBtnText}>Clear</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
     </View>
@@ -668,4 +880,162 @@ const styles = StyleSheet.create({
   modalOptionActive: { backgroundColor: COLORS.primary },
   modalOptionText: { fontSize: 14, fontWeight: '700', color: COLORS.textPrimary },
   statusDot: { width: 10, height: 10, borderRadius: 5 },
+
+  // Calendar Styles
+  calModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'flex-end',
+  },
+  calModalContent: {
+    width: '100%',
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: SPACING.lg,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    elevation: 10,
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  calModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    paddingBottom: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  calModalTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+  },
+  calendarContainer: { paddingVertical: SPACING.xs },
+  calendarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.md,
+  },
+  calendarMonthText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+  },
+  calNavBtn: { padding: 4 },
+  weekDaysRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 8,
+  },
+  weekDayText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: COLORS.textMuted,
+    width: 32,
+    textAlign: 'center',
+  },
+  daysGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-around',
+  },
+  dayCell: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 2,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  dayCellActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  dayCellToday: {
+    borderColor: COLORS.primary,
+  },
+  dayCellDisabled: {
+    opacity: 0.3,
+  },
+  dayCellContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  dayText: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+    lineHeight: 16,
+  },
+  dayTextActive: {
+    color: COLORS.white,
+    fontWeight: '800',
+  },
+  dayTextTodayText: {
+    color: COLORS.primary,
+    fontWeight: '800',
+  },
+  dayTextDisabled: {
+    color: COLORS.textMuted,
+  },
+  apptDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.primary,
+    marginTop: 1,
+  },
+  apptDotActive: {
+    backgroundColor: COLORS.white,
+  },
+  apptDotPlaceholder: {
+    width: 4,
+    height: 4,
+    backgroundColor: 'transparent',
+    marginTop: 1,
+  },
+
+  // Reset Actions Row
+  modalActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: SPACING.md,
+    gap: SPACING.md,
+  },
+  modalActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: RADIUS.md,
+    borderWidth: 1.5,
+    gap: 6,
+  },
+  todayBtn: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primaryFaint,
+  },
+  todayBtnText: {
+    color: COLORS.primary,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  clearBtn: {
+    borderColor: COLORS.danger,
+    backgroundColor: '#FEF2F2',
+  },
+  clearBtnText: {
+    color: COLORS.danger,
+    fontWeight: '700',
+    fontSize: 14,
+  },
 });
