@@ -109,7 +109,7 @@ const DoctorManagementScreen = ({ navigation }) => {
           <View style={styles.cardHeader}>
             <View style={styles.doctorInfo}>
               <View style={[styles.avatarPlaceholder, isInactive && styles.avatarInactive]}>
-                <MCIcon name="account" size={32} color={isInactive ? COLORS.textMuted : COLORS.primary} />
+                <MCIcon name="account" size={32} color={isInactive ? colors.textMuted : colors.primary} />
               </View>
               <View style={styles.details}>
                 <View style={styles.nameRow}>
@@ -142,18 +142,18 @@ const DoctorManagementScreen = ({ navigation }) => {
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 onPress={() => setMenuTarget(menuTarget?.id === item.id ? null : item)}
               >
-                <MCIcon name="dots-vertical" size={20} color={isInactive ? COLORS.textMuted : COLORS.textPrimary} />
+                <MCIcon name="dots-vertical" size={20} color={isInactive ? colors.textMuted : colors.textPrimary} />
               </TouchableOpacity>
               {menuTarget?.id === item.id && (
                 <View style={styles.cardDropdown}>
                   <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuTarget(null); handleEdit(item); }}>
-                    <MCIcon name="pencil-outline" size={16} color={COLORS.textPrimary} />
+                    <MCIcon name="pencil-outline" size={16} color={colors.textPrimary} />
                     <Text style={styles.menuItemText}>Edit</Text>
                   </TouchableOpacity>
                   <View style={styles.menuDivider} />
                   <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuTarget(null); handleDelete(item); }}>
-                    <MCIcon name="delete-outline" size={16} color={COLORS.danger} />
-                    <Text style={[styles.menuItemText, { color: COLORS.danger }]}>Delete</Text>
+                    <MCIcon name="delete-outline" size={16} color={colors.danger} />
+                    <Text style={[styles.menuItemText, { color: colors.danger }]}>Delete</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -277,38 +277,38 @@ const makeStyles = colors => StyleSheet.create({
   optionBtn: { backgroundColor: colors.card, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: colors.primary },
   optionText: { color: colors.primary, fontWeight: '600' },
   listContainer: { paddingHorizontal: 16 },
-  doctorCard: { backgroundColor: COLORS.white, borderRadius: 16, padding: 16, marginBottom: 12, overflow: 'visible', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+  doctorCard: { backgroundColor: colors.card, borderRadius: 16, padding: 16, marginBottom: 12, overflow: 'visible', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
   doctorInfo: { flex: 1, flexDirection: 'row', alignItems: 'center' },
-  avatarPlaceholder: { width: 56, height: 56, borderRadius: 28, backgroundColor: COLORS.primaryLight, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
+  avatarPlaceholder: { width: 56, height: 56, borderRadius: 28, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
   details: { flex: 1 },
   doctorName: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
   specialty: { fontSize: 13, color: colors.primary, fontWeight: '600', marginTop: 2 },
   expertiseContainer: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8, gap: 6 },
   expertiseTag: { backgroundColor: '#f0f0f0', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  expertiseText: { fontSize: 11, color: COLORS.textSecondary, fontWeight: '500' },
+  expertiseText: { fontSize: 11, color: colors.textSecondary, fontWeight: '500' },
 
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start' },
   doctorCardInactive: { opacity: 0.6, backgroundColor: '#f5f5f5' },
   avatarInactive: { backgroundColor: '#e0e0e0' },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  textInactive: { color: COLORS.textMuted },
+  textInactive: { color: colors.textMuted },
   tagInactive: { backgroundColor: '#e0e0e0' },
   inactiveBadge: {
-    backgroundColor: COLORS.danger,
+    backgroundColor: colors.danger,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
   },
-  inactiveBadgeText: { color: COLORS.white, fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
+  inactiveBadgeText: { color: colors.white, fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
   actionBtns: { position: 'relative', marginLeft: 8, paddingTop: 4 },
   emptyContainer: { alignItems: 'center', justifyContent: 'center', marginTop: 60 },
-  emptyText: { marginTop: 16, fontSize: 16, color: COLORS.textMuted },
+  emptyText: { marginTop: 16, fontSize: 16, color: colors.textMuted },
 
   cardDropdown: {
     position: 'absolute',
     top: 22,
     right: 0,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: 12,
     paddingVertical: 4,
     minWidth: 140,
@@ -327,5 +327,5 @@ const makeStyles = colors => StyleSheet.create({
     gap: 10,
   },
   menuDivider: { height: 1, backgroundColor: '#f0f0f0', marginHorizontal: 8 },
-  menuItemText: { fontSize: 14, fontWeight: '500', color: COLORS.textPrimary },
+  menuItemText: { fontSize: 14, fontWeight: '500', color: colors.textPrimary },
 });

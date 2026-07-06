@@ -78,7 +78,7 @@ const UserManagementScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
       {/* Header removed from here as it is now in UnifiedUserDoctorScreen */}
 
       {loading && filteredUsers.length === 0 ? (
