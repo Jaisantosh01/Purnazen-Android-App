@@ -1,9 +1,12 @@
-# Wellness Mobile App
+# Purnazen — Patient App (`mobile-users`)
 
-A high-performance React Native mobile application for enterprise wellness and acupressure therapy.
+The patient-facing React Native app for the Purnazen wellness and acupressure
+platform: therapy sessions, chat-assisted relief, doctor consultations and
+booking, face/tongue analysis, and account management. Feature status:
+[../docs/FEATURES.md](../docs/FEATURES.md).
 
 ## Tech Stack
-- **Framework:** React Native (0.84+)
+- **Framework:** React Native 0.85 (bare + Expo modules, SDK 56)
 - **Language:** JavaScript / TypeScript
 - **Navigation:** React Navigation (Stack & Bottom Tabs)
 - **Icons:** Material Community Icons
@@ -12,7 +15,7 @@ A high-performance React Native mobile application for enterprise wellness and a
 
 ## Folder Structure
 ```text
-mobile/
+mobile-users/
 ├── src/
 │   ├── api/             # axios client (token injection, 401 auto-refresh)
 │   ├── components/      # Reusable UI components (Toast, SkeletonLoader, cards)

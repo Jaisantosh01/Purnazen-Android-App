@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,10 +9,11 @@ import {
 } from 'react-native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { SPACING, RADIUS } from '../constants/theme';
 import availabilityService from '../services/availabilityService';
 import { useAuthStore } from '../store/authStore';
 import { showSuccess, showError } from '../utils/toast';
+import useTheme from '../hooks/useTheme';
 
 const DAYS = [
   { label: 'Monday', number: 1 },
@@ -43,6 +44,8 @@ const cleanName = (name) => {
 };
 
 const AddAvailabilityScreen = ({ route, navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { mode = 'create', availabilityId, currentSlotTimingId, day: editDay } = route.params || {};
 
   const currentUser = useAuthStore(s => s.doctor);
@@ -224,7 +227,7 @@ const AddAvailabilityScreen = ({ route, navigation }) => {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
         <View style={styles.content}>
@@ -236,7 +239,7 @@ const AddAvailabilityScreen = ({ route, navigation }) => {
 
           {availableSlots.length === 0 ? (
             <View style={styles.emptyWrap}>
-              <MCIcon name="clock-outline" size={48} color={COLORS.textMuted} />
+              <MCIcon name="clock-outline" size={48} color={colors.textMuted} />
               <Text style={styles.emptyText}>No slot timings configured for {selectedDay}.</Text>
             </View>
           ) : (
@@ -274,10 +277,10 @@ const AddAvailabilityScreen = ({ route, navigation }) => {
                           size={20}
                           color={
                             isActiveForMe
-                              ? COLORS.success
+                              ? colors.success
                               : isChecked
-                              ? COLORS.primary
-                              : COLORS.textMuted
+                              ? colors.primary
+                              : colors.textMuted
                           }
                         />
                         <Text
@@ -313,10 +316,10 @@ const AddAvailabilityScreen = ({ route, navigation }) => {
               onPress={handleSave}
             >
               {saving ? (
-                <ActivityIndicator color={COLORS.white} />
+                <ActivityIndicator color={colors.white} />
               ) : (
                 <>
-                  <MCIcon name="content-save-outline" size={20} color={COLORS.white} />
+                  <MCIcon name="content-save-outline" size={20} color={colors.white} />
                   <Text style={styles.saveBtnText}>
                     {mode === 'edit' ? 'Update Availability' : 'Save Availability'}
                   </Text>
@@ -332,8 +335,8 @@ const AddAvailabilityScreen = ({ route, navigation }) => {
 
 export default AddAvailabilityScreen;
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   flex1: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   content: { flex: 1, padding: SPACING.lg },
@@ -341,7 +344,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: '800',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: SPACING.md,
@@ -352,29 +355,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: 10,
     borderRadius: RADIUS.pill,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
   dayPillActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   dayPillText: {
     fontSize: 14,
     fontWeight: '700',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   dayPillTextActive: {
-    color: COLORS.white,
+    color: colors.white,
   },
+<<<<<<< HEAD
   staticDayContainer: {
     backgroundColor: '#EEF4FF',
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.lg,
+=======
+  readOnlyDayWrap: {
+    backgroundColor: colors.card,
+>>>>>>> 2475491f2ce0dfc5c254128f44bb58829c60db6f
     borderRadius: RADIUS.md,
     marginBottom: SPACING.lg,
     borderWidth: 1,
+<<<<<<< HEAD
     borderColor: COLORS.border,
   },
   staticDayText: {
@@ -384,39 +393,62 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+=======
+    borderColor: colors.border,
+    marginBottom: SPACING.lg,
+  },
+  readOnlyDayLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    marginBottom: SPACING.xs,
+  },
+  readOnlyDayPill: {
+    backgroundColor: colors.primaryFaint,
+    alignSelf: 'flex-start',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 6,
+    borderRadius: RADIUS.sm,
+  },
+  readOnlyDayText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.primary,
+>>>>>>> 2475491f2ce0dfc5c254128f44bb58829c60db6f
   },
   slotsScroll: { flexGrow: 1, paddingBottom: SPACING.xl },
   slotsGrid: { gap: SPACING.md },
   slotCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.lg,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   slotCardChecked: {
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.primaryFaint,
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryFaint,
   },
   slotCardDisabled: {
-    backgroundColor: COLORS.surfaceMuted,
-    borderColor: COLORS.border,
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.border,
     opacity: 0.75,
   },
   slotRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
-  slotTimeText: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
-  slotTimeTextChecked: { color: COLORS.primary },
-  slotTimeTextDisabled: { color: COLORS.textSecondary },
+  slotTimeText: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
+  slotTimeTextChecked: { color: colors.primary },
+  slotTimeTextDisabled: { color: colors.textSecondary },
   activeBadge: {
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: colors.primaryLight,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: RADIUS.sm,
   },
-  activeBadgeText: { fontSize: 10, fontWeight: '800', color: COLORS.success },
+  activeBadgeText: { fontSize: 10, fontWeight: '800', color: colors.success },
   emptyWrap: {
     flex: 1,
     justifyContent: 'center',
@@ -426,12 +458,12 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 14,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   footer: { marginTop: 'auto', paddingTop: SPACING.md },
   saveBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: RADIUS.md,
     paddingVertical: 15,
     flexDirection: 'row',
@@ -440,5 +472,5 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   saveBtnDisabled: { opacity: 0.5 },
-  saveBtnText: { color: COLORS.white, fontSize: 16, fontWeight: '800' },
+  saveBtnText: { color: colors.white, fontSize: 16, fontWeight: '800' },
 });

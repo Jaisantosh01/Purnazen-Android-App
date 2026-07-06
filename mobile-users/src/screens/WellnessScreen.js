@@ -39,8 +39,6 @@ const WellnessScreen = ({ navigation }) => {
         title: s.title,
         subtitle: s.subtitle || '',
         icon: 'star-four-points-outline',
-        iconColor: COLORS.primary,
-        iconBg:    COLORS.primaryLight,
         duration:  s.duration,
         videoGroupId: s.videoGroupId,
       })));
@@ -142,8 +140,8 @@ const WellnessScreen = ({ navigation }) => {
                 activeOpacity={0.85}
                 onPress={() => handleProgram(program)}
               >
-                <View style={[styles.iconCircle, { backgroundColor: program.iconBg }]}>
-                  <MCIcon name={program.icon} size={28} color={program.iconColor} />
+                <View style={[styles.iconCircle, { backgroundColor: colors.primaryLight }]}>
+                  <MCIcon name={program.icon} size={28} color={colors.primary} />
                 </View>
 
                 <View style={styles.programInfo}>

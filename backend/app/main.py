@@ -55,6 +55,10 @@ OPENAPI_TAGS = [
         "description": "Save completed wellness/relief sessions and list them with stats.",
     },
     {
+        "name": "Therapy Feedback",
+        "description": "Create and update therapy feedback records (pain levels, user/doctor/admin feedback) in a dedicated table.",
+    },
+    {
         "name": "Sessions",
         "description": "Wellness and relief player content catalogs (steps, cycles, media).",
     },

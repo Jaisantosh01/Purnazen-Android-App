@@ -73,6 +73,8 @@ import BookingConfirmedScreen from './src/screens/BookingConfirmedScreen';
 import AppointmentHistoryScreen from './src/screens/AppointmentHistoryScreen';
 import AppointmentDetailScreen from './src/screens/AppointmentDetailScreen';
 import PaymentScreen from './src/screens/PaymentScreen';
+// @ts-ignore
+import AddressManagementScreen from './src/screens/AddressManagementScreen';
 
 const RootStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -161,6 +163,7 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="Consent"        component={ConsentScreen}        />
       <ProfileStack.Screen name="Subscriptions"  component={SubscriptionsScreen}  />
       <ProfileStack.Screen name="Notifications"  component={NotificationsScreen}  />
+      <ProfileStack.Screen name="AddressManagement" component={AddressManagementScreen} />
     </ProfileStack.Navigator>
   );
 }

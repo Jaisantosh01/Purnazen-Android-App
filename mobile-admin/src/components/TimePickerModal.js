@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,12 +8,14 @@ import {
   Modal,
 } from 'react-native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { COLORS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 
 const HOURS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
 const TimePickerModal = ({ visible, onClose, onSelect, initialTime }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const parsed = initialTime
     ? {
         h: parseInt(initialTime.split(':')[0]) || 9,
@@ -44,7 +46,7 @@ const TimePickerModal = ({ visible, onClose, onSelect, initialTime }) => {
       <View style={styles.overlay}>
         <View style={styles.container}>
           <View style={styles.header}>
-            <MCIcon name="clock-outline" size={22} color={COLORS.primary} />
+            <MCIcon name="clock-outline" size={22} color={colors.primary} />
             <Text style={styles.title}>Select Time</Text>
           </View>
           <View style={styles.cols}>
@@ -117,33 +119,33 @@ const TimePickerModal = ({ visible, onClose, onSelect, initialTime }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = colors => StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 24 },
-  container: { backgroundColor: COLORS.white, borderRadius: 16, padding: 20 },
+  container: { backgroundColor: colors.card, borderRadius: 16, padding: 20 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 16 },
-  title: { fontSize: 18, fontWeight: '800', color: COLORS.textPrimary },
+  title: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
   cols: { flexDirection: 'row', gap: 10 },
   col: { flex: 1, alignItems: 'center' },
-  colLabel: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted, marginBottom: 8, textTransform: 'uppercase' },
+  colLabel: { fontSize: 12, fontWeight: '700', color: colors.textMuted, marginBottom: 8, textTransform: 'uppercase' },
   list: { maxHeight: 200 },
   item: {
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 8,
     marginBottom: 4,
-    backgroundColor: COLORS.surfaceMuted,
+    backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     minWidth: 60,
   },
-  itemActive: { backgroundColor: COLORS.primary },
-  itemText: { fontSize: 16, fontWeight: '600', color: COLORS.textPrimary },
-  itemTextActive: { color: COLORS.white },
+  itemActive: { backgroundColor: colors.primary },
+  itemText: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
+  itemTextActive: { color: colors.white },
   ampmCol: { gap: 4 },
   actions: { flexDirection: 'row', gap: 10, marginTop: 20 },
-  cancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 10, alignItems: 'center', backgroundColor: COLORS.surfaceMuted },
-  cancelText: { fontSize: 14, fontWeight: '600', color: COLORS.textSecondary },
-  doneBtn: { flex: 1, paddingVertical: 14, borderRadius: 10, alignItems: 'center', backgroundColor: COLORS.primary },
-  doneText: { fontSize: 14, fontWeight: '700', color: COLORS.white },
+  cancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 10, alignItems: 'center', backgroundColor: colors.surfaceMuted },
+  cancelText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
+  doneBtn: { flex: 1, paddingVertical: 14, borderRadius: 10, alignItems: 'center', backgroundColor: colors.primary },
+  doneText: { fontSize: 14, fontWeight: '700', color: colors.white },
 });
 
 export default TimePickerModal;

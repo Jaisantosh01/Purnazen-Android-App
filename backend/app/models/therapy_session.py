@@ -16,8 +16,6 @@ class TherapySession(Base):
     session_type = Column(String(30), nullable=False)  # wellness | relief | yoga | ...
     duration_minutes = Column(Integer, nullable=False, default=0)
     status = Column(String(20), nullable=False, default="Completed")
-    pain_before = Column(Integer)
-    pain_after = Column(Integer)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
     created_by = Column(GUID(), ForeignKey("users.id"), nullable=False)
@@ -45,8 +43,6 @@ class TherapySession(Base):
             "type": self.session_type,
             "duration": f"{self.duration_minutes} min",
             "status": self.status,
-            "painBefore": self.pain_before,
-            "painAfter": self.pain_after,
             "isActive": self.is_active,
             "createdAt": self.created_at.isoformat() if self.created_at else None,
             "updatedAt": self.updated_at.isoformat() if self.updated_at else None,

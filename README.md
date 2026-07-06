@@ -7,7 +7,7 @@ A wellness and mental health app built with React Native (Expo bare workflow) an
 ```
 .
 ├── mobile-users/    # React Native patient app (Expo SDK 56, RN 0.85)
-├── mobile-doctors/  # React Native doctor app — skeleton (same stack)
+├── mobile-doctors/  # React Native doctor app (same stack)
 ├── mobile-admin/    # React Native admin app (same stack)
 ├── backend/         # FastAPI backend (Python 3.13, SQLite → Postgres)
 ├── docs/            # Architecture, features, changelog
@@ -17,9 +17,10 @@ A wellness and mental health app built with React Native (Expo bare workflow) an
 ```
 
 > Three front-end apps share one backend: **mobile-users** (patients — full
-> feature set), **mobile-doctors** (doctors — scaffolded skeleton, see
-> [mobile-doctors/README.md](mobile-doctors/README.md)) and **mobile-admin**
-> (admin console).
+> feature set), **mobile-doctors** (doctors — dashboard, appointments, schedule,
+> patients, clinical records) and **mobile-admin** (admin console — doctors,
+> users, appointments, slots/leaves, metadata, roles, videos). Feature status
+> for all three: [docs/FEATURES.md](docs/FEATURES.md).
 
 ### Running the apps side by side (Metro ports)
 
@@ -107,8 +108,9 @@ python -m pytest -q
 
 ## Mobile Setup (patient app — `mobile-users`)
 
-> The doctor app (`mobile-doctors`) is a runnable skeleton with its own setup
-> notes — see [mobile-doctors/README.md](mobile-doctors/README.md).
+> The doctor and admin apps follow the same steps in their own folders (Metro
+> ports 8082/8083) — see [mobile-doctors/README.md](mobile-doctors/README.md)
+> and [mobile-admin/README.md](mobile-admin/README.md).
 
 ```bash
 cd mobile-users

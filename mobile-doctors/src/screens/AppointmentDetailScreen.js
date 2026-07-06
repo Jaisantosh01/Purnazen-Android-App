@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -294,6 +295,18 @@ const [loading, setLoading] = useState(!initialAppointment);
     );
   };
 
+=======
+import React, { useMemo } from 'react';
+import { View, StyleSheet } from 'react-native';
+import ScreenHeader from '../components/ScreenHeader';
+import Placeholder from '../components/Placeholder';
+import useTheme from '../hooks/useTheme';
+
+const AppointmentDetailScreen = ({ navigation, route }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const id = route?.params?.id ?? 'unknown';
+>>>>>>> 2475491f2ce0dfc5c254128f44bb58829c60db6f
   return (
     <View style={styles.root}>
       <ScreenHeader
@@ -308,6 +321,7 @@ const [loading, setLoading] = useState(!initialAppointment);
 
 export default AppointmentDetailScreen;
 
+<<<<<<< HEAD
 // ─── Styles ─────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
@@ -475,4 +489,8 @@ const styles = StyleSheet.create({
   emptySubtitle: { fontSize: 13.5, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: SPACING.sm },
   backBtn: { paddingHorizontal: SPACING.xl, paddingVertical: 12, backgroundColor: COLORS.primary, borderRadius: RADIUS.pill },
   backBtnText: { color: COLORS.white, fontWeight: '700', fontSize: 14 },
+=======
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
+>>>>>>> 2475491f2ce0dfc5c254128f44bb58829c60db6f
 });

@@ -1,7 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
+import useTheme from '../hooks/useTheme';
+
+// Fixed brand hue for the retry action (matches the app-wide magenta accent).
+const RETRY_ACCENT = '#C850C0';
 
 /**
  * Full-screen "service unavailable" placeholder.
@@ -20,10 +24,13 @@ const ServiceUnavailable = ({
   onRetry,
   loading = false,
   icon    = 'server-off',
-}) => (
+}) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
   <View style={styles.root}>
     <View style={styles.iconBox}>
-      <MCIcon name={icon} size={56} color="#9ca3af" />
+      <MCIcon name={icon} size={56} color={colors.textMuted} />
     </View>
     <Text style={styles.title}>{title}</Text>
     <Text style={styles.message}>{message}</Text>
@@ -34,34 +41,35 @@ const ServiceUnavailable = ({
         activeOpacity={0.8}
       >
         {loading ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={colors.white} />
         ) : (
           <>
-            <MCIcon name="refresh" size={16} color="#fff" />
+            <MCIcon name="refresh" size={16} color={colors.white} />
             <Text style={styles.retryText}>Retry</Text>
           </>
         )}
       </TouchableOpacity>
     )}
   </View>
-);
+  );
+};
 
 export default ServiceUnavailable;
 
-const styles = StyleSheet.create({
+const makeStyles = colors => StyleSheet.create({
   root: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 36,
     gap: 16,
-    backgroundColor: '#f9fafb',
+    backgroundColor: colors.background,
   },
   iconBox: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
@@ -69,12 +77,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#111827',
+    color: colors.textPrimary,
     textAlign: 'center',
   },
   message: {
     fontSize: 14,
-    color: '#6b7280',
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 21,
   },
@@ -82,7 +90,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#C850C0',
+    backgroundColor: RETRY_ACCENT,
     borderRadius: 14,
     paddingVertical: 13,
     paddingHorizontal: 28,
@@ -92,7 +100,7 @@ const styles = StyleSheet.create({
   },
   retryBtnDisabled: { opacity: 0.7 },
   retryText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 15,
     fontWeight: '700',
   },

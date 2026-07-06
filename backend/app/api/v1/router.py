@@ -19,6 +19,7 @@ from app.api.v1.endpoints import (
     roles,
     slot_timings,
 )
+from app.api.v1.endpoints import therapy_feedback
 from app.api.v1.endpoints import doctor_availability
 from app.api.v1.endpoints import doctor_leaves
 from app.api.v1.endpoints import languages
@@ -27,7 +28,11 @@ from app.api.v1.endpoints import specialties
 from app.api.v1.endpoints import support
 from app.api.v1.endpoints import consultations
 from app.api.v1.endpoints import app_releases
+<<<<<<< HEAD
 from app.api.v1.endpoints import patients
+=======
+from app.api.v1.endpoints import user_addresses
+>>>>>>> 2475491f2ce0dfc5c254128f44bb58829c60db6f
 
 api_router = APIRouter()
 
@@ -41,6 +46,7 @@ api_router.include_router(languages.router)
 api_router.include_router(home.router)
 api_router.include_router(appointments.router)
 api_router.include_router(therapy_history.router)
+api_router.include_router(therapy_feedback.router)
 api_router.include_router(sessions.router)
 api_router.include_router(payments.router)
 api_router.include_router(users.router)
@@ -56,5 +62,9 @@ api_router.include_router(error_report.router)
 api_router.include_router(support.router)
 api_router.include_router(consultations.router)
 api_router.include_router(app_releases.router)
+<<<<<<< HEAD
 api_router.include_router(patients.router)
 
+=======
+api_router.include_router(user_addresses.router)
+>>>>>>> 2475491f2ce0dfc5c254128f44bb58829c60db6f
