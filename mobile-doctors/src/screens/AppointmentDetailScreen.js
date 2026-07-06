@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -70,7 +69,7 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
   const { appointment: initialAppointment } = route.params || {};
   const id = initialAppointment?.id;
   const [appointment, setAppointment] = useState(initialAppointment || null);
-const [loading, setLoading] = useState(!initialAppointment);
+  const [loading, setLoading] = useState(!initialAppointment);
   const [error, setError] = useState(null);
 
   const fetchAppointmentDetails = useCallback(async () => {
@@ -195,7 +194,7 @@ const [loading, setLoading] = useState(!initialAppointment);
 
     return (
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* ── Patient Profile Summary Card (Tapping it goes to Patient Profile) ── */}
+        {/* ── Patient Profile Summary Card ── */}
         <TouchableOpacity
           style={styles.profileCard}
           activeOpacity={0.85}
@@ -232,7 +231,7 @@ const [loading, setLoading] = useState(!initialAppointment);
           </View>
         </TouchableOpacity>
 
-        {/* ── Appointment Information ──────────────────────────────────────── */}
+        {/* ── Appointment Information ── */}
         <SectionCard title="Appointment Details" icon="calendar-text">
           <InfoRow
             icon="text-box-outline"
@@ -256,7 +255,7 @@ const [loading, setLoading] = useState(!initialAppointment);
           />
         </SectionCard>
 
-        {/* ── Status Actions ───────────────────────────────────────────────── */}
+        {/* ── Status Actions ── */}
         {(isPending || isBooked) && (
           <View style={styles.actionBlock}>
             {isPending && (
@@ -289,24 +288,11 @@ const [loading, setLoading] = useState(!initialAppointment);
           </View>
         )}
 
-        {/* Bottom spacer */}
         <View style={styles.bottomSpacer} />
       </ScrollView>
     );
   };
 
-=======
-import React, { useMemo } from 'react';
-import { View, StyleSheet } from 'react-native';
-import ScreenHeader from '../components/ScreenHeader';
-import Placeholder from '../components/Placeholder';
-import useTheme from '../hooks/useTheme';
-
-const AppointmentDetailScreen = ({ navigation, route }) => {
-  const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
-  const id = route?.params?.id ?? 'unknown';
->>>>>>> 2475491f2ce0dfc5c254128f44bb58829c60db6f
   return (
     <View style={styles.root}>
       <ScreenHeader
@@ -321,7 +307,6 @@ const AppointmentDetailScreen = ({ navigation, route }) => {
 
 export default AppointmentDetailScreen;
 
-<<<<<<< HEAD
 // ─── Styles ─────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
@@ -330,7 +315,7 @@ const styles = StyleSheet.create({
   stateText: { fontSize: 14, color: COLORS.textSecondary, fontWeight: '500' },
   bottomSpacer: { height: 40 },
 
-  // ── Profile Card ────────────────────────────────────────────────────────────
+  // ── Profile Card ──
   profileCard: {
     backgroundColor: COLORS.white,
     borderRadius: RADIUS.lg,
@@ -384,7 +369,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // ── Status Badge ────────────────────────────────────────────────────────────
+  // ── Status Badge ──
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -396,7 +381,7 @@ const styles = StyleSheet.create({
   badgeDot: { width: 6, height: 6, borderRadius: 3 },
   badgeText: { fontSize: 11, fontWeight: '700' },
 
-  // ── Section Card ────────────────────────────────────────────────────────────
+  // ── Section Card ──
   sectionCard: {
     backgroundColor: COLORS.white,
     borderRadius: RADIUS.lg,
@@ -420,7 +405,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { fontSize: 15, fontWeight: '800', color: COLORS.textPrimary },
 
-  // ── Info Items ──────────────────────────────────────────────────────────────
+  // ── Info Items ──
   infoItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -439,7 +424,7 @@ const styles = StyleSheet.create({
   infoLabel: { fontSize: 11, fontWeight: '600', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
   infoValue: { fontSize: 14, fontWeight: '600', color: COLORS.textPrimary, marginTop: 2 },
 
-  // ── Action Buttons Block ────────────────────────────────────────────────────
+  // ── Action Buttons Block ──
   actionBlock: {
     gap: SPACING.md,
     marginTop: SPACING.sm,
@@ -480,7 +465,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
 
-  // ── Error/Empty States ──────────────────────────────────────────────────────
+  // ── Error/Empty States ──
   errorTitle: { fontSize: 18, fontWeight: '800', color: COLORS.textPrimary },
   errorSubtitle: { fontSize: 13.5, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: SPACING.sm },
   retryBtn: { paddingHorizontal: SPACING.xl, paddingVertical: 12, backgroundColor: COLORS.primary, borderRadius: RADIUS.pill },
@@ -489,8 +474,4 @@ const styles = StyleSheet.create({
   emptySubtitle: { fontSize: 13.5, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: SPACING.sm },
   backBtn: { paddingHorizontal: SPACING.xl, paddingVertical: 12, backgroundColor: COLORS.primary, borderRadius: RADIUS.pill },
   backBtnText: { color: COLORS.white, fontWeight: '700', fontSize: 14 },
-=======
-const makeStyles = colors => StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
->>>>>>> 2475491f2ce0dfc5c254128f44bb58829c60db6f
 });

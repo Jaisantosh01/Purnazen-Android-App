@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 import React, { useState, useCallback, useMemo, useRef } from 'react';
-=======
-import React, { useState, useCallback, useMemo } from 'react';
->>>>>>> 2475491f2ce0dfc5c254128f44bb58829c60db6f
 import {
   View,
   Text,
@@ -11,11 +7,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-<<<<<<< HEAD
   Alert,
   Animated,
-=======
->>>>>>> 2475491f2ce0dfc5c254128f44bb58829c60db6f
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -24,8 +17,9 @@ import { SPACING, RADIUS } from '../constants/theme';
 import availabilityService from '../services/availabilityService';
 import { useAuthStore } from '../store/authStore';
 import { showSuccess, showError } from '../utils/toast';
-<<<<<<< HEAD
 import { useLeaveStore } from '../store/useLeaveStore';
+import useTheme from '../hooks/useTheme';
+import { showAlert } from '../utils/alert';
 
 const LEAVE_STATUS_CHIPS = {
   'Pending': { bg: '#FEF3C7', text: '#92400E' },
@@ -36,11 +30,11 @@ const LEAVE_STATUS_CHIPS = {
 };
 
 const STATUS_COLORS = {
-  pending: { primary: '#2563EB', bgLight: '#FEF3C7', textDark: '#92400E' }, // primary blue, badge yellow/orange
-  approved: { primary: '#10B981', bgLight: '#ECFDF5', textDark: '#065F46' }, // green
-  rejected: { primary: '#EF4444', bgLight: '#FEF2F2', textDark: '#991B1B' }, // red
-  cancelled: { primary: '#6B7280', bgLight: '#F3F4F6', textDark: '#4B5563' }, // grey
-  all: { primary: '#7C3AED', bgLight: '#F3E8FF', textDark: '#6D28D9' }, // purple
+  pending: { primary: '#2563EB', bgLight: '#FEF3C7', textDark: '#92400E' },
+  approved: { primary: '#10B981', bgLight: '#ECFDF5', textDark: '#065F46' },
+  rejected: { primary: '#EF4444', bgLight: '#FEF2F2', textDark: '#991B1B' },
+  cancelled: { primary: '#6B7280', bgLight: '#F3F4F6', textDark: '#4B5563' },
+  all: { primary: '#7C3AED', bgLight: '#F3E8FF', textDark: '#6D28D9' },
 };
 
 const getStatusTitle = (status) => {
@@ -129,10 +123,6 @@ const getFormattedDates = (item) => {
   }
   return `${start} - ${end}`;
 };
-=======
-import useTheme from '../hooks/useTheme';
-import { showAlert } from '../utils/alert';
->>>>>>> 2475491f2ce0dfc5c254128f44bb58829c60db6f
 
 const DAY_ORDER = [
   'monday',
@@ -272,7 +262,6 @@ const ScheduleScreen = ({ navigation }) => {
 
     if (upcoming.length === 0) return null;
 
-    // Sort by start date ascending
     upcoming.sort((a, b) => parseDateSafe(a.startDate || a.start_date) - parseDateSafe(b.startDate || b.start_date));
     return upcoming[0];
   }, [leaves]);
@@ -303,7 +292,6 @@ const ScheduleScreen = ({ navigation }) => {
     fetchData(false);
   };
 
-<<<<<<< HEAD
   const renderSegmentedControl = () => (
     <View style={styles.segmentedContainer}>
       <TouchableOpacity
@@ -338,7 +326,7 @@ const ScheduleScreen = ({ navigation }) => {
       </TouchableOpacity>
     </View>
   );
-=======
+
   const handleDelete = (availabilityId, timeLabel, dayLabel) => {
     showAlert(
       'Delete Availability',
@@ -366,7 +354,6 @@ const ScheduleScreen = ({ navigation }) => {
       ]
     );
   };
->>>>>>> 2475491f2ce0dfc5c254128f44bb58829c60db6f
 
   const renderAvailabilityContent = () => {
     return (
@@ -383,7 +370,6 @@ const ScheduleScreen = ({ navigation }) => {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
           }
         >
-<<<<<<< HEAD
           <Text style={styles.sectionTitle}>Weekly Availability</Text>
           
           <View style={styles.daysListCard}>
@@ -399,7 +385,7 @@ const ScheduleScreen = ({ navigation }) => {
                     <MCIcon 
                       name="chevron-right" 
                       size={20} 
-                      color={COLORS.textSecondary} 
+                      color={colors.textSecondary} 
                     />
                   </TouchableOpacity>
                   {index < WEEKDAYS.length - 1 && <View style={styles.dayRowDivider} />}
@@ -407,13 +393,6 @@ const ScheduleScreen = ({ navigation }) => {
               );
             })}
           </View>
-=======
-          <MCIcon name="calendar-clock" size={64} color={colors.border} />
-          <Text style={styles.emptyTitle}>Set Your Availability</Text>
-          <Text style={styles.emptyText}>
-            You haven't defined any bookable weekly slots yet. Tap the button below to add your slot availability.
-          </Text>
->>>>>>> 2475491f2ce0dfc5c254128f44bb58829c60db6f
         </ScrollView>
       </Animated.View>
     );
@@ -437,12 +416,11 @@ const ScheduleScreen = ({ navigation }) => {
     }
 
     if (isSelected) {
-      iconColor = COLORS.white;
+      iconColor = colors.white;
       bgCircleColor = 'rgba(255, 255, 255, 0.2)';
     }
 
     return (
-<<<<<<< HEAD
       <View style={[styles.statusIconContainer, { backgroundColor: bgCircleColor }]}>
         <MCIcon name={iconName} size={18} color={iconColor} />
       </View>
@@ -461,7 +439,7 @@ const ScheduleScreen = ({ navigation }) => {
         <ScrollView
           contentContainerStyle={styles.scroll}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
           }
         >
           {/* Row of Action Cards */}
@@ -473,48 +451,7 @@ const ScheduleScreen = ({ navigation }) => {
               onPress={() => navigation.navigate('ApplyLeave')}
             >
               <View style={styles.applyLeaveIconContainer}>
-                <MCIcon name="calendar-plus" size={20} color={COLORS.primary} />
-=======
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
-        }
-      >
-        {sortedDays.map(dayName => {
-          const daySlots = groupedAvailability[dayName];
-          return (
-            <View key={dayName} style={styles.dayGroup}>
-              <Text style={styles.dayHeader}>{dayName.toUpperCase()}</Text>
-              <View style={styles.cardsContainer}>
-                {daySlots.map(item => {
-                  const timeLabel = `${formatTime(item.start_time)} - ${formatTime(item.end_time)}`;
-                  return (
-                    <View key={item.id} style={styles.slotCard}>
-                      <View style={styles.slotInfo}>
-                        <MCIcon name="clock-outline" size={18} color={colors.primary} />
-                        <Text style={styles.slotTimeText}>{timeLabel}</Text>
-                      </View>
-                      <View style={styles.actions}>
-                        <TouchableOpacity
-                          style={styles.actionBtn}
-                          activeOpacity={0.7}
-                          onPress={() => handleEdit(item)}
-                        >
-                          <MCIcon name="pencil-outline" size={18} color={colors.textSecondary} />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.actionBtn}
-                          activeOpacity={0.7}
-                          onPress={() => handleDelete(item.id, timeLabel, dayName)}
-                        >
-                          <MCIcon name="delete-outline" size={18} color={colors.danger} />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  );
-                })}
->>>>>>> 2475491f2ce0dfc5c254128f44bb58829c60db6f
+                <MCIcon name="calendar-plus" size={20} color={colors.primary} />
               </View>
               <Text style={styles.applyLeaveRowCardTitle} numberOfLines={1} ellipsizeMode="tail">
                 Apply Leave
@@ -550,12 +487,12 @@ const ScheduleScreen = ({ navigation }) => {
                     <Text style={styles.historyCardReason}>{item.reason || 'Leave'}</Text>
                     
                     <View style={styles.historyCardMetaRow}>
-                      <MCIcon name="calendar-outline" size={14} color={COLORS.textSecondary} style={styles.metaIcon} />
+                      <MCIcon name="calendar-outline" size={14} color={colors.textSecondary} style={styles.metaIcon} />
                       <Text style={styles.historyCardMetaText}>{getLeaveCardDate(item)}</Text>
                     </View>
                     
                     <View style={styles.historyCardMetaRow}>
-                      <MCIcon name="clock-outline" size={14} color={COLORS.textSecondary} style={styles.metaIcon} />
+                      <MCIcon name="clock-outline" size={14} color={colors.textSecondary} style={styles.metaIcon} />
                       <Text style={styles.historyCardMetaText}>{getLeaveDurationText(item)}</Text>
                     </View>
                   </View>
@@ -566,14 +503,14 @@ const ScheduleScreen = ({ navigation }) => {
                         {getStatusLabelText(item.status)}
                       </Text>
                     </View>
-                    <MCIcon name="chevron-right" size={20} color={COLORS.textSecondary} style={styles.chevronIcon} />
+                    <MCIcon name="chevron-right" size={20} color={colors.textSecondary} style={styles.chevronIcon} />
                   </View>
                 </TouchableOpacity>
               ))
             ) : (
               /* Empty State */
               <View style={styles.emptyStateContainer}>
-                <MCIcon name="calendar-blank-outline" size={48} color={COLORS.textMuted} style={styles.emptyStateIcon} />
+                <MCIcon name="calendar-blank-outline" size={48} color={colors.textMuted} style={styles.emptyStateIcon} />
                 <Text style={styles.emptyStateTitle}>No {getStatusTitle(selectedStatus)} Leave Requests</Text>
                 <Text style={styles.emptyStateSubtitle}>Tap "Apply Leave" to create a new request.</Text>
               </View>
@@ -608,24 +545,10 @@ const ScheduleScreen = ({ navigation }) => {
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
-<<<<<<< HEAD
         <View style={styles.mainContent}>
           {renderAvailabilityContent()}
           {renderLeaveContent()}
         </View>
-=======
-        <>
-          {renderContent()}
-          <TouchableOpacity
-            style={styles.fab}
-            activeOpacity={0.85}
-            onPress={() => navigation.navigate('AddAvailability', { mode: 'create' })}
-          >
-            <MCIcon name="plus" size={20} color={colors.white} />
-            <Text style={styles.fabText}>Add Availability</Text>
-          </TouchableOpacity>
-        </>
->>>>>>> 2475491f2ce0dfc5c254128f44bb58829c60db6f
       )}
     </View>
   );
@@ -678,36 +601,10 @@ const makeStyles = colors => StyleSheet.create({
     justifyContent: 'space-between',
   },
   slotInfo: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-<<<<<<< HEAD
-  slotTimeText: { fontSize: 14.5, fontWeight: '700', color: COLORS.textPrimary },
-  actions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  actionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: RADIUS.sm,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.surfaceMuted,
-  },
-  actionText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: COLORS.textSecondary,
-  },
-  emptyTitle: { fontSize: 18, fontWeight: '800', color: COLORS.textPrimary, marginTop: SPACING.md },
-=======
   slotTimeText: { fontSize: 14.5, fontWeight: '700', color: colors.textPrimary },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   actionBtn: { padding: 6 },
   emptyTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary, marginTop: SPACING.md },
->>>>>>> 2475491f2ce0dfc5c254128f44bb58829c60db6f
   emptyText: {
     fontSize: 14,
     color: colors.textSecondary,
@@ -715,21 +612,20 @@ const makeStyles = colors => StyleSheet.create({
     lineHeight: 20,
     paddingHorizontal: SPACING.md,
   },
-<<<<<<< HEAD
   sectionTitle: {
     fontSize: 12,
     fontWeight: '800',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
     marginBottom: SPACING.md,
     paddingLeft: SPACING.xs,
   },
   emptyAvailabilityCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.lg,
     alignItems: 'center',
     justifyContent: 'center',
@@ -739,25 +635,16 @@ const makeStyles = colors => StyleSheet.create({
   emptyAvailabilityTitle: {
     fontSize: 15,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   emptyAvailabilityText: {
     fontSize: 13.5,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   statusBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-=======
-  fab: {
-    position: 'absolute',
-    bottom: SPACING.xl,
-    right: SPACING.xl,
-    backgroundColor: colors.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 18,
->>>>>>> 2475491f2ce0dfc5c254128f44bb58829c60db6f
     borderRadius: RADIUS.pill,
   },
   statusBadgeText: {
@@ -770,7 +657,7 @@ const makeStyles = colors => StyleSheet.create({
   segmentedWrapper: {
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.md,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   segmentedContainer: {
     flexDirection: 'row',
@@ -778,7 +665,7 @@ const makeStyles = colors => StyleSheet.create({
     borderRadius: RADIUS.md,
     padding: 4,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
   segmentButton: {
     flex: 1,
@@ -788,15 +675,15 @@ const makeStyles = colors => StyleSheet.create({
     borderRadius: RADIUS.md - 2,
   },
   segmentButtonActive: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
   },
   segmentText: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   segmentTextActive: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '800',
   },
 
@@ -810,10 +697,10 @@ const makeStyles = colors => StyleSheet.create({
 
   // Weekdays List Card Styles
   daysListCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.xs,
     marginBottom: SPACING.lg,
@@ -827,7 +714,7 @@ const makeStyles = colors => StyleSheet.create({
   dayRowText: {
     fontSize: 14.5,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   dayRowExpanded: {
     borderBottomWidth: 0,
@@ -842,7 +729,7 @@ const makeStyles = colors => StyleSheet.create({
   },
   emptyDaySlotsText: {
     fontSize: 13,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontStyle: 'italic',
   },
   slotCardInner: {
@@ -851,50 +738,44 @@ const makeStyles = colors => StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.sm,
-    backgroundColor: COLORS.surfaceMuted,
+    backgroundColor: colors.surfaceMuted,
     borderRadius: RADIUS.sm,
     marginBottom: 8,
   },
   dayRowDivider: {
     height: 1,
-    backgroundColor: COLORS.border,
+    backgroundColor: colors.border,
   },
 
   // Add Availability Button Styles
   addBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: RADIUS.md,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
     gap: 8,
-<<<<<<< HEAD
     marginTop: SPACING.md,
     marginBottom: SPACING.xl,
     elevation: 2,
-    shadowColor: COLORS.black,
-=======
-    elevation: 4,
     shadowColor: colors.black,
->>>>>>> 2475491f2ce0dfc5c254128f44bb58829c60db6f
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
   },
-<<<<<<< HEAD
   addBtnText: {
-    color: COLORS.white,
+    color: colors.white,
     fontSize: 15,
     fontWeight: '800',
   },
 
   // Leave Styles
   upcomingLeaveCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.lg,
     marginBottom: SPACING.lg,
   },
@@ -907,18 +788,18 @@ const makeStyles = colors => StyleSheet.create({
   upcomingLeaveType: {
     fontSize: 15.5,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   upcomingLeaveDates: {
     fontSize: 14,
     fontWeight: '700',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   emptyLeaveCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     paddingVertical: SPACING.xxl,
     paddingHorizontal: SPACING.lg,
     alignItems: 'center',
@@ -929,14 +810,14 @@ const makeStyles = colors => StyleSheet.create({
   emptyLeaveText: {
     fontSize: 14.5,
     fontWeight: '700',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   leaveActionsCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.xs,
     marginBottom: SPACING.xl,
@@ -959,7 +840,7 @@ const makeStyles = colors => StyleSheet.create({
   leaveRowText: {
     fontSize: 14.5,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
 
   // New Redesigned Leave Tab Styles
@@ -969,10 +850,10 @@ const makeStyles = colors => StyleSheet.create({
     marginBottom: SPACING.lg,
   },
   applyLeaveRowCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.md,
     flexDirection: 'row',
@@ -980,16 +861,16 @@ const makeStyles = colors => StyleSheet.create({
     gap: SPACING.sm,
     width: '67%',
     elevation: 2,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
   },
   leaveHistoryRowCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.md,
     flexDirection: 'row',
@@ -997,7 +878,7 @@ const makeStyles = colors => StyleSheet.create({
     justifyContent: 'center',
     width: '30%',
     elevation: 2,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -1005,14 +886,14 @@ const makeStyles = colors => StyleSheet.create({
   applyLeaveRowCardTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     flex: 1,
   },
   applyLeaveCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.lg,
     flexDirection: 'row',
@@ -1020,7 +901,7 @@ const makeStyles = colors => StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: SPACING.lg,
     elevation: 2,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -1041,12 +922,12 @@ const makeStyles = colors => StyleSheet.create({
   applyLeaveCardTitle: {
     fontSize: 15.5,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   leaveHistoryTitleText: {
     fontSize: 16,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: SPACING.md,
   },
   statusCardsRow: {
@@ -1057,17 +938,17 @@ const makeStyles = colors => StyleSheet.create({
   },
   statusCard: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'space-between',
     marginHorizontal: 2,
     minHeight: 96,
     elevation: 2,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -1104,16 +985,16 @@ const makeStyles = colors => StyleSheet.create({
   upcomingLeavesTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   viewAllText: {
     fontSize: 13.5,
     fontWeight: '800',
-    color: COLORS.primary,
+    color: colors.primary,
   },
   seeMoreBtn: {
     borderWidth: 1.5,
-    borderColor: COLORS.primary,
+    borderColor: colors.primary,
     borderRadius: RADIUS.md,
     paddingVertical: 12,
     alignItems: 'center',
@@ -1122,7 +1003,7 @@ const makeStyles = colors => StyleSheet.create({
     marginBottom: SPACING.xl,
   },
   seeMoreBtnText: {
-    color: COLORS.primary,
+    color: colors.primary,
     fontSize: 14.5,
     fontWeight: '800',
   },
@@ -1130,17 +1011,17 @@ const makeStyles = colors => StyleSheet.create({
     gap: SPACING.md,
   },
   historyCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: SPACING.sm,
     elevation: 2,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -1152,7 +1033,7 @@ const makeStyles = colors => StyleSheet.create({
   historyCardReason: {
     fontSize: 15,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 2,
   },
   historyCardMetaRow: {
@@ -1167,7 +1048,7 @@ const makeStyles = colors => StyleSheet.create({
   historyCardMetaText: {
     fontSize: 13,
     fontWeight: '600',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   historyCardRight: {
     flexDirection: 'row',
@@ -1203,16 +1084,14 @@ const makeStyles = colors => StyleSheet.create({
   emptyStateTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     textAlign: 'center',
   },
   emptyStateSubtitle: {
     fontSize: 13.5,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
     paddingHorizontal: SPACING.md,
   },
-=======
   fabText: { color: colors.white, fontSize: 14.5, fontWeight: '800' },
->>>>>>> 2475491f2ce0dfc5c254128f44bb58829c60db6f
 });

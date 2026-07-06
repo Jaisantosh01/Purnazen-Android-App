@@ -57,32 +57,32 @@ const LANGUAGES = [
 ];
 const languageLabel = code => (LANGUAGES.find(l => l.code === code) || LANGUAGES[0]).label;
 
-const makeStyles = COLORS => StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
 
   section: { paddingHorizontal: 16, marginTop: 22 },
   sectionHeader: {
     fontSize: 13,
     fontWeight: '600',
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
     marginBottom: 10,
     marginLeft: 4,
   },
   card: {
-    backgroundColor: COLORS.card,
+    backgroundColor: colors.card,
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.border,
-    shadowColor: COLORS.black,
+    borderColor: colors.border,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
   },
-  rowDivider: { height: 1, backgroundColor: COLORS.surfaceMuted, marginLeft: 64 },
+  rowDivider: { height: 1, backgroundColor: colors.surfaceMuted, marginLeft: 64 },
 
   settingRow: {
     flexDirection: 'row',
@@ -99,10 +99,10 @@ const makeStyles = COLORS => StyleSheet.create({
     marginRight: 14,
   },
   settingInfo: { flex: 1 },
-  settingTitle: { fontSize: 14, fontWeight: '600', color: COLORS.textPrimary },
-  settingTitleDanger: { fontSize: 14, fontWeight: '600', color: COLORS.danger },
-  settingSubtitle: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
-  valueText: { fontSize: 13, color: COLORS.textMuted, fontWeight: '500' },
+  settingTitle: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
+  settingTitleDanger: { fontSize: 14, fontWeight: '600', color: colors.danger },
+  settingSubtitle: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+  valueText: { fontSize: 13, color: colors.textMuted, fontWeight: '500' },
 
   // Language selector rows (inside AppDialog)
   langRow: {
@@ -112,18 +112,18 @@ const makeStyles = COLORS => StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.surfaceMuted,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceMuted,
     marginBottom: 8,
   },
-  langRowActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryFaint },
-  langLabel: { fontSize: 15, fontWeight: '600', color: COLORS.textPrimary },
-  langNative: { fontSize: 12.5, color: COLORS.textMuted, marginTop: 1 },
+  langRowActive: { borderColor: colors.primary, backgroundColor: colors.primaryFaint },
+  langLabel: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
+  langNative: { fontSize: 12.5, color: colors.textMuted, marginTop: 1 },
 
   version: {
     textAlign: 'center',
     fontSize: 12,
-    color: COLORS.borderStrong,
+    color: colors.borderStrong,
     marginTop: 28,
   },
 
@@ -136,32 +136,32 @@ const makeStyles = COLORS => StyleSheet.create({
     paddingHorizontal: 24,
   },
   modalCard: {
-    backgroundColor: COLORS.card,
+    backgroundColor: colors.card,
     borderRadius: 18,
     padding: 20,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
-  modalTitle: { fontSize: 17, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 16 },
-  modalLabel: { fontSize: 12, fontWeight: '600', color: COLORS.textSecondary, marginBottom: 6, marginTop: 8 },
+  modalTitle: { fontSize: 17, fontWeight: '700', color: colors.textPrimary, marginBottom: 16 },
+  modalLabel: { fontSize: 12, fontWeight: '600', color: colors.textSecondary, marginBottom: 6, marginTop: 8 },
   modalInput: {
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 11,
     fontSize: 14,
-    color: COLORS.textPrimary,
-    backgroundColor: COLORS.surfaceMuted,
+    color: colors.textPrimary,
+    backgroundColor: colors.surfaceMuted,
   },
   modalInputMultiline: { minHeight: 80, textAlignVertical: 'top' },
-  modalError: { fontSize: 12, color: COLORS.danger, marginTop: 10 },
+  modalError: { fontSize: 12, color: colors.danger, marginTop: 10 },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 20 },
   modalBtn: { paddingHorizontal: 18, paddingVertical: 11, borderRadius: 10 },
-  modalBtnCancel: { backgroundColor: COLORS.surfaceMuted },
-  modalBtnSave: { backgroundColor: COLORS.primary, minWidth: 80, alignItems: 'center' },
-  modalBtnCancelText: { fontSize: 14, fontWeight: '600', color: COLORS.textSecondary },
-  modalBtnSaveText: { fontSize: 14, fontWeight: '600', color: COLORS.white },
+  modalBtnCancel: { backgroundColor: colors.surfaceMuted },
+  modalBtnSave: { backgroundColor: colors.primary, minWidth: 80, alignItems: 'center' },
+  modalBtnCancelText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
+  modalBtnSaveText: { fontSize: 14, fontWeight: '600', color: colors.white },
 });
 
 const SettingsScreen = ({ navigation }) => {

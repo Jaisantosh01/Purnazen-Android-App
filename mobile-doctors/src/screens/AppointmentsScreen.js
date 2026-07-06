@@ -9,6 +9,7 @@ import {
   RefreshControl,
   Modal,
   ScrollView,
+  Platform,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -461,11 +462,11 @@ const AppointmentsScreen = ({ navigation }) => {
       <View style={styles.calendarContainer}>
         <View style={styles.calendarHeader}>
           <TouchableOpacity onPress={handlePrevMonth} style={styles.calNavBtn}>
-            <MCIcon name="chevron-left" size={24} color={COLORS.primary} />
+            <MCIcon name="chevron-left" size={24} color={colors.primary} />
           </TouchableOpacity>
           <Text style={styles.calendarMonthText}>{MONTHS[currentMonth]} {currentYear}</Text>
           <TouchableOpacity onPress={handleNextMonth} style={styles.calNavBtn}>
-            <MCIcon name="chevron-right" size={24} color={COLORS.primary} />
+            <MCIcon name="chevron-right" size={24} color={colors.primary} />
           </TouchableOpacity>
         </View>
         <View style={styles.weekDaysRow}>
@@ -561,7 +562,6 @@ const AppointmentsScreen = ({ navigation }) => {
 
       {/* Filter row */}
       <View style={styles.filterRow}>
-<<<<<<< HEAD
         <TouchableOpacity
           style={styles.filterLeft}
           activeOpacity={0.7}
@@ -571,11 +571,7 @@ const AppointmentsScreen = ({ navigation }) => {
             setCurrentYear(baseDate.getFullYear());
             setShowCalendarModal(true);
           }}>
-          <MCIcon name="calendar-range" size={14} color={COLORS.primary} />
-=======
-        <View style={styles.filterLeft}>
           <MCIcon name="calendar-range" size={14} color={colors.primary} />
->>>>>>> 2475491f2ce0dfc5c254128f44bb58829c60db6f
           <Text style={styles.filterLabel}>{todayLabel}</Text>
         </TouchableOpacity>
 
@@ -696,7 +692,7 @@ const AppointmentsScreen = ({ navigation }) => {
             <View style={styles.calModalHeader}>
               <Text style={styles.calModalTitle}>Select Date</Text>
               <TouchableOpacity onPress={() => setShowCalendarModal(false)}>
-                <MCIcon name="close" size={24} color={COLORS.textPrimary} />
+                <MCIcon name="close" size={24} color={colors.textPrimary} />
               </TouchableOpacity>
             </View>
             
@@ -711,7 +707,7 @@ const AppointmentsScreen = ({ navigation }) => {
                   setSelectedDate(todayStr);
                   setShowCalendarModal(false);
                 }}>
-                <MCIcon name="calendar-today" size={16} color={COLORS.primary} />
+                <MCIcon name="calendar-today" size={16} color={colors.primary} />
                 <Text style={styles.todayBtnText}>Today</Text>
               </TouchableOpacity>
 
@@ -721,7 +717,7 @@ const AppointmentsScreen = ({ navigation }) => {
                   setSelectedDate(null);
                   setShowCalendarModal(false);
                 }}>
-                <MCIcon name="calendar-remove" size={16} color={COLORS.danger} />
+                <MCIcon name="calendar-remove" size={16} color={colors.danger} />
                 <Text style={styles.clearBtnText}>Clear</Text>
               </TouchableOpacity>
             </View>
@@ -910,13 +906,13 @@ const makeStyles = colors => StyleSheet.create({
   },
   calModalContent: {
     width: '100%',
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: SPACING.lg,
     paddingBottom: Platform.OS === 'ios' ? 40 : 24,
     elevation: 10,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -926,14 +922,14 @@ const makeStyles = colors => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: colors.border,
     paddingBottom: SPACING.md,
     marginBottom: SPACING.sm,
   },
   calModalTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   calendarContainer: { paddingVertical: SPACING.xs },
   calendarHeader: {
@@ -945,7 +941,7 @@ const makeStyles = colors => StyleSheet.create({
   calendarMonthText: {
     fontSize: 15,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   calNavBtn: { padding: 4 },
   weekDaysRow: {
@@ -956,7 +952,7 @@ const makeStyles = colors => StyleSheet.create({
   weekDayText: {
     fontSize: 12,
     fontWeight: '800',
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     width: 32,
     textAlign: 'center',
   },
@@ -976,11 +972,11 @@ const makeStyles = colors => StyleSheet.create({
     borderColor: 'transparent',
   },
   dayCellActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   dayCellToday: {
-    borderColor: COLORS.primary,
+    borderColor: colors.primary,
   },
   dayCellDisabled: {
     opacity: 0.3,
@@ -993,29 +989,29 @@ const makeStyles = colors => StyleSheet.create({
   dayText: {
     fontSize: 13.5,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     lineHeight: 16,
   },
   dayTextActive: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '800',
   },
   dayTextTodayText: {
-    color: COLORS.primary,
+    color: colors.primary,
     fontWeight: '800',
   },
   dayTextDisabled: {
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   apptDot: {
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     marginTop: 1,
   },
   apptDotActive: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
   },
   apptDotPlaceholder: {
     width: 4,
@@ -1042,20 +1038,20 @@ const makeStyles = colors => StyleSheet.create({
     gap: 6,
   },
   todayBtn: {
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.primaryFaint,
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryFaint,
   },
   todayBtnText: {
-    color: COLORS.primary,
+    color: colors.primary,
     fontWeight: '700',
     fontSize: 14,
   },
   clearBtn: {
-    borderColor: COLORS.danger,
+    borderColor: colors.danger,
     backgroundColor: '#FEF2F2',
   },
   clearBtnText: {
-    color: COLORS.danger,
+    color: colors.danger,
     fontWeight: '700',
     fontSize: 14,
   },
