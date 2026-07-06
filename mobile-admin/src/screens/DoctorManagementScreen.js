@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -8,6 +9,7 @@ import {
   StatusBar,
   TextInput,
   ScrollView,
+  Alert,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -21,10 +23,13 @@ const DoctorManagementScreen = ({ navigation }) => {
   const [stats, setStats] = useState({ active_doctors: 0, inactive_doctors: 0 });
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [menuTarget, setMenuTarget] = useState(null);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+    }, [])
+  );
 
   const fetchData = () => {
     setLoading(true);
@@ -52,42 +57,108 @@ const DoctorManagementScreen = ({ navigation }) => {
     (doc.specialty || '').toLowerCase().includes(search.toLowerCase())
   );
 
+  const handleEdit = (item) => {
+    navigation.navigate('EditDoctor', { doctorId: item.id });
+  };
+
+  const handleDelete = (item) => {
+    Alert.alert(
+      'Deactivate Doctor',
+      `Are you sure you want to deactivate ${item.name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Deactivate',
+          style: 'destructive',
+          onPress: () => {
+            apiClient.delete(ENDPOINTS.DOCTOR_DETAIL(item.id))
+              .then(() => {
+                Alert.alert('Success', `${item.name} has been deactivated`);
+                fetchData();
+              })
+              .catch((err) => {
+                Alert.alert('Error', err.message || 'Failed to deactivate doctor');
+              });
+          },
+        },
+      ]
+    );
+  };
+
   const renderDoctorItem = ({ item }) => {
     const specialties = item.specialties || [];
     const expertise = item.expertise || [];
+    const isInactive = item.is_active === false;
     
-    // Display all specialties joined by comma
     const displaySpecialties = specialties.join(', ');
-        
-    // Display at most 2 expertise tags
     const displayExpertise = expertise.slice(0, 2);
     const hasMoreExpertise = expertise.length > 2;
 
     return (
-        <View style={styles.doctorCard}>
-        <View style={styles.doctorInfo}>
-            <View style={styles.avatarPlaceholder}>
-            <MCIcon name="account" size={32} color={COLORS.primary} />
-            </View>
-            <View style={styles.details}>
-            <Text style={styles.doctorName}>{item.name}</Text>
-            <Text style={styles.specialty} numberOfLines={1} ellipsizeMode="tail">{displaySpecialties || 'N/A'}</Text>
-            <View style={styles.expertiseContainer}>
-                {displayExpertise.map((expName, idx) => (
-                <View key={idx} style={styles.expertiseTag}>
-                    <Text style={styles.expertiseText}>{expName}</Text>
-                </View>
-                ))}
-                {hasMoreExpertise && (
-                    <View style={styles.expertiseTag}>
-                        <Text style={styles.expertiseText}>...</Text>
+      <TouchableOpacity
+        activeOpacity={isInactive ? 1 : 0.7}
+        onPress={() => {
+          if (!isInactive) {
+            navigation.navigate('DoctorDetail', { doctorId: item.id });
+          }
+        }}
+      >
+        <View style={[styles.doctorCard, isInactive && styles.doctorCardInactive, menuTarget?.id === item.id && { zIndex: 100 }]}>
+          <View style={styles.cardHeader}>
+            <View style={styles.doctorInfo}>
+              <View style={[styles.avatarPlaceholder, isInactive && styles.avatarInactive]}>
+                <MCIcon name="account" size={32} color={isInactive ? COLORS.textMuted : COLORS.primary} />
+              </View>
+              <View style={styles.details}>
+                <View style={styles.nameRow}>
+                  <Text style={[styles.doctorName, isInactive && styles.textInactive]}>{item.name}</Text>
+                  {isInactive && (
+                    <View style={styles.inactiveBadge}>
+                      <Text style={styles.inactiveBadgeText}>INACTIVE</Text>
                     </View>
-                )}
+                  )}
+                </View>
+                <Text style={[styles.specialty, isInactive && styles.textInactive]} numberOfLines={1} ellipsizeMode="tail">
+                  {displaySpecialties || 'N/A'}
+                </Text>
+                <View style={styles.expertiseContainer}>
+                  {displayExpertise.map((expName, idx) => (
+                    <View key={idx} style={[styles.expertiseTag, isInactive && styles.tagInactive]}>
+                      <Text style={[styles.expertiseText, isInactive && styles.textInactive]}>{expName}</Text>
+                    </View>
+                  ))}
+                  {hasMoreExpertise && (
+                    <View style={[styles.expertiseTag, isInactive && styles.tagInactive]}>
+                      <Text style={[styles.expertiseText, isInactive && styles.textInactive]}>...</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
             </View>
+            <View style={styles.actionBtns}>
+              <TouchableOpacity
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                onPress={() => setMenuTarget(menuTarget?.id === item.id ? null : item)}
+              >
+                <MCIcon name="dots-vertical" size={20} color={isInactive ? COLORS.textMuted : COLORS.textPrimary} />
+              </TouchableOpacity>
+              {menuTarget?.id === item.id && (
+                <View style={styles.cardDropdown}>
+                  <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuTarget(null); handleEdit(item); }}>
+                    <MCIcon name="pencil-outline" size={16} color={COLORS.textPrimary} />
+                    <Text style={styles.menuItemText}>Edit</Text>
+                  </TouchableOpacity>
+                  <View style={styles.menuDivider} />
+                  <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuTarget(null); handleDelete(item); }}>
+                    <MCIcon name="delete-outline" size={16} color={COLORS.danger} />
+                    <Text style={[styles.menuItemText, { color: COLORS.danger }]}>Delete</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
-            <MCIcon name="chevron-right" size={24} color={COLORS.textMuted} />
+          </View>
         </View>
-        </View>
+      </TouchableOpacity>
     );
   };
 
@@ -100,6 +171,8 @@ const DoctorManagementScreen = ({ navigation }) => {
       <ScrollView 
         contentContainerStyle={{ paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
+        onScroll={() => menuTarget && setMenuTarget(null)}
+        scrollEventThrottle={16}
       >
         {/* ── Stats ── */}
         <View style={styles.statsRow}>
@@ -157,15 +230,9 @@ const DoctorManagementScreen = ({ navigation }) => {
             <ListSkeleton count={5} />
           ) : filteredDoctors.length > 0 ? (
             filteredDoctors.map(item => (
-              <TouchableOpacity 
-                key={item.id} 
-                onPress={() => {
-                  console.log('Doctor clicked:', item);
-                  navigation.navigate('DoctorDetail', { doctorId: item.id });
-                }}
-              >
+              <View key={item.id}>
                 {renderDoctorItem({ item })}
-              </TouchableOpacity>
+              </View>
             ))
           ) : (
             <View style={styles.emptyContainer}>
@@ -208,8 +275,8 @@ const styles = StyleSheet.create({
   optionBtn: { backgroundColor: COLORS.white, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: COLORS.primary },
   optionText: { color: COLORS.primary, fontWeight: '600' },
   listContainer: { paddingHorizontal: 16 },
-  doctorCard: { backgroundColor: COLORS.white, borderRadius: 16, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
-  doctorInfo: { flexDirection: 'row', alignItems: 'center' },
+  doctorCard: { backgroundColor: COLORS.white, borderRadius: 16, padding: 16, marginBottom: 12, overflow: 'visible', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+  doctorInfo: { flex: 1, flexDirection: 'row', alignItems: 'center' },
   avatarPlaceholder: { width: 56, height: 56, borderRadius: 28, backgroundColor: COLORS.primaryLight, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
   details: { flex: 1 },
   doctorName: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
@@ -218,6 +285,45 @@ const styles = StyleSheet.create({
   expertiseTag: { backgroundColor: '#f0f0f0', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   expertiseText: { fontSize: 11, color: COLORS.textSecondary, fontWeight: '500' },
 
+  cardHeader: { flexDirection: 'row', alignItems: 'flex-start' },
+  doctorCardInactive: { opacity: 0.6, backgroundColor: '#f5f5f5' },
+  avatarInactive: { backgroundColor: '#e0e0e0' },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  textInactive: { color: COLORS.textMuted },
+  tagInactive: { backgroundColor: '#e0e0e0' },
+  inactiveBadge: {
+    backgroundColor: COLORS.danger,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  inactiveBadgeText: { color: COLORS.white, fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
+  actionBtns: { position: 'relative', marginLeft: 8, paddingTop: 4 },
   emptyContainer: { alignItems: 'center', justifyContent: 'center', marginTop: 60 },
   emptyText: { marginTop: 16, fontSize: 16, color: COLORS.textMuted },
+
+  cardDropdown: {
+    position: 'absolute',
+    top: 22,
+    right: 0,
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    paddingVertical: 4,
+    minWidth: 140,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+    zIndex: 10,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    gap: 10,
+  },
+  menuDivider: { height: 1, backgroundColor: '#f0f0f0', marginHorizontal: 8 },
+  menuItemText: { fontSize: 14, fontWeight: '500', color: COLORS.textPrimary },
 });

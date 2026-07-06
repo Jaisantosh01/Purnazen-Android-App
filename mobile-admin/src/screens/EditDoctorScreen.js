@@ -57,7 +57,10 @@ const EditDoctorScreen = ({ route, navigation }) => {
   useEffect(() => {
     if (!doctorId) {
       setEditedDoctor({
-        name: 'New Doctor',
+        name: '',
+        email: '',
+        password: '',
+        phone: '',
         about: '',
         education: '',
         experience: 0,
@@ -112,26 +115,33 @@ const EditDoctorScreen = ({ route, navigation }) => {
 
   const handleSave = () => {
     setLoading(true);
+
+    if (!doctorId && (!editedDoctor.email || !editedDoctor.password || !editedDoctor.name)) {
+        Alert.alert('Validation Error', 'Full Name, Email, and Password are required');
+        setLoading(false);
+        return;
+    }
+
     const payload = {
         ...editedDoctor,
         specialty_ids: editedDoctor.specialty_ids || [],
         slot_timing_ids: selectedSlotIds
     };
-    
-    const request = doctorId 
+
+    const request = doctorId
         ? apiClient.put(ENDPOINTS.DOCTOR_DETAIL(doctorId), payload)
-        : apiClient.post(ENDPOINTS.DOCTORS, payload); // Assumes creation endpoint exists
-    
+        : apiClient.post(ENDPOINTS.DOCTORS, payload);
+
     request
-      .then((res) => {
-        Alert.alert('Success', `Doctor ${doctorId ? 'updated' : 'created'} successfully`);
-        navigation.goBack();
-      })
-      .catch((error) => {
-        console.error("Save error:", error);
-        Alert.alert('Error', error.message || 'Failed to save doctor details. Please try again.');
-      })
-      .finally(() => setLoading(false));
+        .then(() => {
+            Alert.alert('Success', `Doctor ${doctorId ? 'updated' : 'created'} successfully`);
+            navigation.goBack();
+        })
+        .catch((error) => {
+            console.error("Save error:", error);
+            Alert.alert('Error', error.message || 'Failed to save doctor details. Please try again.');
+        })
+        .finally(() => setLoading(false));
   };
 
   const toggleSelection = (key, itemId) => {
@@ -217,13 +227,31 @@ const EditDoctorScreen = ({ route, navigation }) => {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.label}>Full Name</Text>
-        <TextInput style={[styles.input, styles.disabled]} value={editedDoctor.name} editable={false} />
-        
-        {!doctorId && (
+        {doctorId ? (
             <>
-                <Text style={styles.label}>User ID (To link doctor profile)</Text>
-                <TextInput style={styles.input} value={String(editedDoctor.user_id || '')} onChangeText={(val) => setEditedDoctor({...editedDoctor, user_id: parseInt(val) || 0})} placeholder="User ID" keyboardType="numeric" />
+                <Text style={styles.sectionLabel}>Account Details</Text>
+                <Text style={styles.label}>Full Name</Text>
+                <TextInput style={styles.input} value={editedDoctor.full_name} onChangeText={(val) => setEditedDoctor({...editedDoctor, full_name: val})} placeholder="Enter full name" />
+
+                <Text style={styles.label}>Email</Text>
+                <TextInput style={styles.input} value={editedDoctor.email} onChangeText={(val) => setEditedDoctor({...editedDoctor, email: val})} placeholder="email@example.com" keyboardType="email-address" autoCapitalize="none" />
+
+                <Text style={styles.label}>Phone</Text>
+                <TextInput style={styles.input} value={editedDoctor.phone} onChangeText={(val) => setEditedDoctor({...editedDoctor, phone: val})} placeholder="+91-9876543210" keyboardType="phone-pad" />
+            </>
+        ) : (
+            <>
+                <Text style={styles.label}>Full Name</Text>
+                <TextInput style={styles.input} value={editedDoctor.name} onChangeText={(val) => setEditedDoctor({...editedDoctor, name: val})} placeholder="Enter full name" />
+
+                <Text style={styles.label}>Email</Text>
+                <TextInput style={styles.input} value={editedDoctor.email} onChangeText={(val) => setEditedDoctor({...editedDoctor, email: val})} placeholder="email@example.com" keyboardType="email-address" autoCapitalize="none" />
+
+                <Text style={styles.label}>Password</Text>
+                <TextInput style={styles.input} value={editedDoctor.password} onChangeText={(val) => setEditedDoctor({...editedDoctor, password: val})} placeholder="Enter password" secureTextEntry />
+
+                <Text style={styles.label}>Phone (optional)</Text>
+                <TextInput style={styles.input} value={editedDoctor.phone} onChangeText={(val) => setEditedDoctor({...editedDoctor, phone: val})} placeholder="+91-9876543210" keyboardType="phone-pad" />
             </>
         )}
 
