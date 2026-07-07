@@ -12,10 +12,12 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import useTheme from '../hooks/useTheme';
+import { useHeaderTopPadding } from '../components/ScreenHeader';
 import { showAlert } from '../utils/alert';
 
 const EditUserScreen = ({ route, navigation }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
+  const headerTop = useHeaderTopPadding();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { user } = route.params;
   const [loading, setLoading] = useState(false);
@@ -46,8 +48,8 @@ const EditUserScreen = ({ route, navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
-      <View style={styles.header}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.card} />
+      <View style={[styles.header, { paddingTop: headerTop }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
             <MCIcon name="arrow-left" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
@@ -88,7 +90,7 @@ const EditUserScreen = ({ route, navigation }) => {
 
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  header: { paddingTop: 56, padding: 20, backgroundColor: colors.card, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: colors.border },
+  header: { padding: 20, backgroundColor: colors.card, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: colors.border },
   headerTitle: { fontSize: 20, fontWeight: '800', color: colors.textPrimary },
   content: { padding: 20 },
   label: { fontSize: 14, fontWeight: '600', color: colors.textSecondary, marginTop: 15 },

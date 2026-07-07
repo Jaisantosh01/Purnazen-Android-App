@@ -22,6 +22,13 @@ export const ENDPOINTS = {
   // User preferences
   PREFERENCES: `${API_VERSION}/users/me/preferences`,
 
+  // Notifications
+  NOTIFICATIONS: `${API_VERSION}/notifications`,
+  NOTIFICATIONS_READ_ALL: `${API_VERSION}/notifications/read-all`,
+  NOTIFICATION_READ: id => `${API_VERSION}/notifications/${id}/read`,
+  DEVICE_TOKENS: `${API_VERSION}/notifications/device-tokens`,
+  DEVICE_TOKENS_REMOVE: `${API_VERSION}/notifications/device-tokens/remove`,
+
   // Home
   HOME_QUICK_RELIEF: `${API_VERSION}/home/quick-relief`,
 

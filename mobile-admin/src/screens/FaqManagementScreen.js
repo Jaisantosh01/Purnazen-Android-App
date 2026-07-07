@@ -1,23 +1,27 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  StatusBar,
   TextInput,
   Alert,
   Modal,
   Switch,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
-import { COLORS } from '../constants/theme';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { ListSkeleton } from '../components/SkeletonLoader';
+import useTheme from '../hooks/useTheme';
+import ScreenHeader from '../components/ScreenHeader';
 
 const FaqManagementScreen = ({ navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [question, setQuestion] = useState('');
@@ -36,7 +40,7 @@ const FaqManagementScreen = ({ navigation }) => {
     apiClient
       .get(ENDPOINTS.SUPPORT_FAQS)
       .then(res => {
-        const sorted = (Array.isArray(res) ? res : []).sort((a, b) => (a.sort_order ?? 0) - (b.sortOrder ?? 0));
+        const sorted = (Array.isArray(res) ? res : []).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
         setItems(sorted);
       })
       .catch((err) => {
@@ -119,8 +123,8 @@ const FaqManagementScreen = ({ navigation }) => {
   const renderItem = useCallback(({ item, drag, isActive: isDragging }) => {
     const isExpanded = expandedIds[item.id];
     const isInactive = item.is_active === false;
-    const headerTextColor = isInactive ? COLORS.textMuted : COLORS.white;
-    const headerIconColor = isInactive ? COLORS.textMuted : COLORS.white;
+    const headerTextColor = isInactive ? colors.textMuted : colors.headerText;
+    const headerIconColor = isInactive ? colors.textMuted : colors.headerText;
 
     return (
       <ScaleDecorator>
@@ -154,20 +158,20 @@ const FaqManagementScreen = ({ navigation }) => {
         </View>
       </ScaleDecorator>
     );
-  }, [expandedIds]);
+  }, [expandedIds, colors, styles]);
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 4 }}>
-          <MCIcon name="arrow-left" size={24} color={COLORS.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>FAQ Management</Text>
-        <TouchableOpacity onPress={openAddModal} style={{ padding: 4 }}>
-          <MCIcon name="plus" size={24} color={COLORS.primary} />
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title="FAQ Management"
+        subtitle="Help & support questions shown to users"
+        onBack={() => navigation.goBack()}
+        right={
+          <TouchableOpacity onPress={openAddModal} style={{ padding: 4 }}>
+            <MCIcon name="plus" size={24} color={colors.primary} />
+          </TouchableOpacity>
+        }
+      />
 
       {loading && items.length === 0 ? (
         <ListSkeleton count={5} />
@@ -185,12 +189,16 @@ const FaqManagementScreen = ({ navigation }) => {
       )}
 
       <Modal visible={modalVisible} transparent={true} animationType="slide">
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>{editingItem ? 'Edit FAQ' : 'Add FAQ'}</Text>
             <TextInput
               style={styles.modalInput}
               placeholder="Question"
+              placeholderTextColor={colors.textMuted}
               value={question}
               onChangeText={setQuestion}
               multiline
@@ -198,13 +206,14 @@ const FaqManagementScreen = ({ navigation }) => {
             <TextInput
               style={[styles.modalInput, { height: 80 }]}
               placeholder="Answer"
+              placeholderTextColor={colors.textMuted}
               value={answer}
               onChangeText={setAnswer}
               multiline
             />
             <View style={styles.modalSwitchRow}>
               <Text style={styles.modalSwitchLabel}>Active</Text>
-              <Switch value={isActive} onValueChange={setIsActive} trackColor={{ false: '#ddd', true: COLORS.primary }} />
+              <Switch value={isActive} onValueChange={setIsActive} trackColor={{ false: colors.borderStrong, true: colors.primary }} />
             </View>
             <View style={styles.modalButtons}>
               <TouchableOpacity style={[styles.btn, styles.cancelBtn]} onPress={() => setModalVisible(false)}>
@@ -215,23 +224,17 @@ const FaqManagementScreen = ({ navigation }) => {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
-  header: {
-    paddingTop: 12, paddingHorizontal: 16, paddingBottom: 16, backgroundColor: COLORS.white,
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
-  },
-  headerTitle: { fontSize: 20, fontWeight: '800', color: COLORS.textPrimary },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   listContainer: { padding: 12, paddingBottom: 32 },
   card: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: 12, marginBottom: 8, overflow: 'hidden',
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
   },
@@ -240,34 +243,34 @@ const styles = StyleSheet.create({
   },
   cardHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: COLORS.headerBg, paddingVertical: 14, paddingHorizontal: 12,
+    backgroundColor: colors.headerBg, paddingVertical: 14, paddingHorizontal: 12,
   },
   cardHeaderInactive: {
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.surfaceMuted,
   },
   cardHeaderLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 },
   dragHandle: { marginRight: 8 },
-  questionText: { fontSize: 15, fontWeight: '700', color: COLORS.white, flex: 1 },
+  questionText: { fontSize: 15, fontWeight: '700', color: colors.headerText, flex: 1 },
   cardHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   cardActionIcon: { marginLeft: 4 },
-  cardBody: { padding: 12, paddingTop: 8, backgroundColor: COLORS.primaryFaint },
-  answerText: { fontSize: 14, color: COLORS.textSecondary, lineHeight: 20 },
-  emptyText: { textAlign: 'center', marginTop: 40, fontSize: 15, color: COLORS.textMuted },
+  cardBody: { padding: 12, paddingTop: 8, backgroundColor: colors.primaryFaint },
+  answerText: { fontSize: 14, color: colors.textSecondary, lineHeight: 20 },
+  emptyText: { textAlign: 'center', marginTop: 40, fontSize: 15, color: colors.textMuted },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: COLORS.white, borderRadius: 14, padding: 20 },
-  modalTitle: { fontSize: 18, fontWeight: '800', color: COLORS.textPrimary, marginBottom: 16 },
+  modalContent: { backgroundColor: colors.card, borderRadius: 14, padding: 20, width: '100%', maxWidth: 560, alignSelf: 'center' },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary, marginBottom: 16 },
   modalInput: {
-    backgroundColor: COLORS.background, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10,
-    fontSize: 14, color: COLORS.textPrimary, marginBottom: 12, borderWidth: 1, borderColor: '#eee', textAlignVertical: 'top',
+    backgroundColor: colors.surfaceMuted, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10,
+    fontSize: 14, color: colors.textPrimary, marginBottom: 12, borderWidth: 1, borderColor: colors.border, textAlignVertical: 'top',
   },
   modalSwitchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-  modalSwitchLabel: { fontSize: 15, fontWeight: '600', color: COLORS.textPrimary },
+  modalSwitchLabel: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
   modalButtons: { flexDirection: 'row', gap: 10 },
   btn: { flex: 1, padding: 14, borderRadius: 10, alignItems: 'center' },
-  cancelBtn: { backgroundColor: COLORS.surfaceMuted },
-  cancelBtnText: { fontSize: 14, fontWeight: '600', color: COLORS.textSecondary },
-  saveBtn: { backgroundColor: COLORS.primary },
-  saveBtnText: { fontSize: 14, fontWeight: '700', color: COLORS.white },
+  cancelBtn: { backgroundColor: colors.surfaceMuted },
+  cancelBtnText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
+  saveBtn: { backgroundColor: colors.primary },
+  saveBtnText: { fontSize: 14, fontWeight: '700', color: colors.white },
 });
 
 export default FaqManagementScreen;

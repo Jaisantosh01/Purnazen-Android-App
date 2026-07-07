@@ -25,6 +25,17 @@ import useTheme from '../hooks/useTheme';
  *   onBack     custom back handler (defaults to navigation.goBack)
  *   right      node rendered on the trailing edge
  */
+/**
+ * useHeaderTopPadding — safe-area top padding for screens that keep a custom
+ * header layout instead of <ScreenHeader/>. Replaces hardcoded paddingTop
+ * values (50–56px) that overlap the status bar on tall-inset devices and
+ * waste space on short ones.
+ */
+export const useHeaderTopPadding = (extra = 12) => {
+  const insetsCtx = useContext(SafeAreaInsetsContext);
+  return Math.max(insetsCtx?.top ?? 0, 12) + extra;
+};
+
 export default function ScreenHeader({
   title,
   subtitle,

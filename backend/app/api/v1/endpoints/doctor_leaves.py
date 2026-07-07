@@ -182,6 +182,90 @@ def get_pending_leaves(
     return success_response(response["message"], response)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# ADMIN ENDPOINTS  (require admin role)
+# NOTE: these static paths MUST be declared before "/{leave_id}" — FastAPI
+# matches routes in declaration order, so declaring them later makes
+# /doctor-leaves/stats and /doctor-leaves/admin resolve to leave_id="stats" /
+# "admin", which fails UUID validation with a 400.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@router.get(
+    "/stats",
+    summary="Leave KPI counts (admin)",
+    description="Returns a count breakdown of all leave records grouped by status.",
+)
+def get_leave_stats(
+    user: User = Depends(require_role("admin")),
+    db: Session = Depends(get_db),
+):
+    counts = (
+        db.query(DoctorLeave.status, func.count(DoctorLeave.id))
+        .group_by(DoctorLeave.status)
+        .all()
+    )
+    stats = {"pending": 0, "approved": 0, "rejected": 0, "cancelled": 0}
+    for status, count in counts:
+        if status in stats:
+            stats[status] = count
+    return success_response("Leave stats fetched successfully", stats)
+
+
+@router.get(
+    "/admin",
+    summary="List all leave requests (admin)",
+    description=(
+        "Returns all leave records across all doctors. "
+        "Supports filtering by `doctor_id`, `status`, `from_date`, `to_date`, and `leave_type`."
+    ),
+)
+def get_all_leaves_admin(
+    doctor_id: Optional[uuid.UUID] = Query(None, description="Filter by doctor UUID"),
+    status: Optional[str] = Query(None, description="Filter by status"),
+    from_date: Optional[date_type] = Query(None, description="Filter start_date >= this date"),
+    to_date: Optional[date_type] = Query(None, description="Filter end_date <= this date"),
+    leave_type: Optional[str] = Query(None, description="single | multiple | custom"),
+    search: Optional[str] = Query(None, description="Search by doctor name"),
+    user: User = Depends(require_role("admin")),
+    db: Session = Depends(get_db),
+):
+    query = (
+        db.query(DoctorLeave)
+        .options(
+            joinedload(DoctorLeave.doctor).joinedload(Doctor.user),
+            joinedload(DoctorLeave.slots).joinedload(DoctorLeaveSlot.slot_timing),
+        )
+        .filter(DoctorLeave.is_active == True)
+    )
+
+    if doctor_id:
+        query = query.filter(DoctorLeave.doctor_id == doctor_id)
+    if status:
+        query = query.filter(DoctorLeave.status == status)
+    if from_date:
+        query = query.filter(DoctorLeave.start_date >= from_date)
+    if to_date:
+        query = query.filter(DoctorLeave.end_date <= to_date)
+    if leave_type:
+        query = query.filter(DoctorLeave.leave_type == leave_type)
+    if search:
+        doctor_ids = (
+            db.query(Doctor.id)
+            .join(User, Doctor.user_id == User.id)
+            .filter(User.full_name.ilike(f"%{search}%"))
+            .subquery()
+        )
+        query = query.filter(DoctorLeave.doctor_id.in_(doctor_ids))
+
+    leaves = query.order_by(DoctorLeave.applied_at.desc()).all()
+    serialized = [_leave_to_dict_admin(l) for l in leaves]
+    return success_response(
+        "Doctor leaves fetched successfully",
+        {"leaves": serialized, "total": len(serialized)},
+    )
+
+
 @router.get(
     "/{leave_id}",
     summary="Get details of a specific leave request",
@@ -287,86 +371,6 @@ def delete_leave(
     if not response["success"]:
         return error_response(response["message"], status_code)
     return success_response(response["message"])
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# ADMIN ENDPOINTS  (require admin role, not changed from original behaviour)
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-@router.get(
-    "/stats",
-    summary="Leave KPI counts (admin)",
-    description="Returns a count breakdown of all leave records grouped by status.",
-)
-def get_leave_stats(
-    user: User = Depends(require_role("admin")),
-    db: Session = Depends(get_db),
-):
-    counts = (
-        db.query(DoctorLeave.status, func.count(DoctorLeave.id))
-        .group_by(DoctorLeave.status)
-        .all()
-    )
-    stats = {"pending": 0, "approved": 0, "rejected": 0, "cancelled": 0}
-    for status, count in counts:
-        if status in stats:
-            stats[status] = count
-    return success_response("Leave stats fetched successfully", stats)
-
-
-@router.get(
-    "/admin",
-    summary="List all leave requests (admin)",
-    description=(
-        "Returns all leave records across all doctors. "
-        "Supports filtering by `doctor_id`, `status`, `from_date`, `to_date`, and `leave_type`."
-    ),
-)
-def get_all_leaves_admin(
-    doctor_id: Optional[uuid.UUID] = Query(None, description="Filter by doctor UUID"),
-    status: Optional[str] = Query(None, description="Filter by status"),
-    from_date: Optional[date_type] = Query(None, description="Filter start_date >= this date"),
-    to_date: Optional[date_type] = Query(None, description="Filter end_date <= this date"),
-    leave_type: Optional[str] = Query(None, description="single | multiple | custom"),
-    search: Optional[str] = Query(None, description="Search by doctor name"),
-    user: User = Depends(require_role("admin")),
-    db: Session = Depends(get_db),
-):
-    query = (
-        db.query(DoctorLeave)
-        .options(
-            joinedload(DoctorLeave.doctor).joinedload(Doctor.user),
-            joinedload(DoctorLeave.slots).joinedload(DoctorLeaveSlot.slot_timing),
-        )
-        .filter(DoctorLeave.is_active == True)
-    )
-
-    if doctor_id:
-        query = query.filter(DoctorLeave.doctor_id == doctor_id)
-    if status:
-        query = query.filter(DoctorLeave.status == status)
-    if from_date:
-        query = query.filter(DoctorLeave.start_date >= from_date)
-    if to_date:
-        query = query.filter(DoctorLeave.end_date <= to_date)
-    if leave_type:
-        query = query.filter(DoctorLeave.leave_type == leave_type)
-    if search:
-        doctor_ids = (
-            db.query(Doctor.id)
-            .join(User, Doctor.user_id == User.id)
-            .filter(User.full_name.ilike(f"%{search}%"))
-            .subquery()
-        )
-        query = query.filter(DoctorLeave.doctor_id.in_(doctor_ids))
-
-    leaves = query.order_by(DoctorLeave.applied_at.desc()).all()
-    serialized = [_leave_to_dict_admin(l) for l in leaves]
-    return success_response(
-        "Doctor leaves fetched successfully",
-        {"leaves": serialized, "total": len(serialized)},
-    )
 
 
 @router.patch(

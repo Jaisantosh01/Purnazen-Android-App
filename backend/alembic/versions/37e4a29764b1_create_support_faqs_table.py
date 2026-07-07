@@ -19,6 +19,12 @@ depends_on = None
 from app.db.types import GUID
 
 def upgrade():
+    # support_faqs is already created by ancestor migration e2f3a4b5c6d7
+    # (create_support_tables); this revision was added without noticing that,
+    # so it must be a no-op whenever the table is present.
+    bind = op.get_bind()
+    if sa.inspect(bind).has_table('support_faqs'):
+        return
     op.create_table(
         'support_faqs',
         sa.Column('id', GUID(), primary_key=True),
@@ -33,4 +39,5 @@ def upgrade():
     )
 
 def downgrade():
-    op.drop_table('support_faqs')
+    # No-op: the table belongs to e2f3a4b5c6d7 and must survive this downgrade.
+    pass

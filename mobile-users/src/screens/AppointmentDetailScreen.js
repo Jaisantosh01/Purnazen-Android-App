@@ -14,6 +14,7 @@ import { showAlert } from '../utils/alert';
 import { APPOINTMENT_DETAIL_STATUS_COLORS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
 import { APPOINTMENT_HISTORY_STATUS_LABELS, APPOINTMENT_PAYMENT_LABELS } from '../constants/strings';
+import { useHeaderTopPadding } from '../components/ScreenHeader';
 
 
 const STATUS_COLORS = APPOINTMENT_DETAIL_STATUS_COLORS;
@@ -36,6 +37,7 @@ const getInitials = (name) => {
 };
 
 const AppointmentDetailScreen = ({ navigation, route }) => {
+  const headerTop = useHeaderTopPadding();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { appointment } = route.params;
@@ -57,7 +59,7 @@ const AppointmentDetailScreen = ({ navigation, route }) => {
     <View style={styles.root}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
 
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: headerTop }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <MCIcon name="arrow-left" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
@@ -228,7 +230,7 @@ const makeStyles = colors => StyleSheet.create({
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingTop: 50, paddingHorizontal: 16, paddingBottom: 14,
+    paddingHorizontal: 16, paddingBottom: 14,
     backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.surfaceMuted,
   },
   backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },

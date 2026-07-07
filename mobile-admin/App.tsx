@@ -51,6 +51,7 @@ import VideoManagementScreen from './src/screens/VideoManagementScreen';
 import VideoGroupDetailScreen from './src/screens/VideoGroupDetailScreen';
 import UploadVideoScreen from './src/screens/UploadVideoScreen';
 import FaqManagementScreen from './src/screens/FaqManagementScreen';
+import NotificationAdminScreen from './src/screens/NotificationAdminScreen';
 
 
 
@@ -79,6 +80,7 @@ function HomeStackNavigator() {
       <HomeStack.Screen name="VideoGroupDetail" component={VideoGroupDetailScreen} />
       <HomeStack.Screen name="UploadVideo"     component={UploadVideoScreen} />
       <HomeStack.Screen name="FaqManagement"   component={FaqManagementScreen} />
+      <HomeStack.Screen name="NotificationAdmin" component={NotificationAdminScreen} />
 
     </HomeStack.Navigator>
   );

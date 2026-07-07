@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  StatusBar,
   TextInput,
   ScrollView,
   Modal,
@@ -78,7 +77,6 @@ const UserManagementScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
       {/* Header removed from here as it is now in UnifiedUserDoctorScreen */}
 
       {loading && filteredUsers.length === 0 ? (

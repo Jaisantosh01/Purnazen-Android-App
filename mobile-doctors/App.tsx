@@ -12,6 +12,7 @@ import authService from './src/services/authService';
 import biometricService from './src/services/biometricService';
 // @ts-ignore
 import { useAuthStore } from './src/store/authStore';
+import pushService from './src/services/pushService';
 // @ts-ignore
 import { navigationRef } from './src/navigation/navigationRef';
 // @ts-ignore
@@ -31,6 +32,8 @@ import useToastStore from './src/utils/toast';
 
 import LoginScreen from './src/screens/LoginScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
+// @ts-ignore
+import NotificationCenterScreen from './src/screens/NotificationCenterScreen';
 import AppointmentsScreen from './src/screens/AppointmentsScreen';
 import AppointmentDetailScreen from './src/screens/AppointmentDetailScreen';
 import ScheduleScreen from './src/screens/ScheduleScreen';
@@ -68,6 +71,7 @@ const AppointmentsStack = createNativeStackNavigator();
 const PatientsStack = createNativeStackNavigator();
 const ProfileStack = createNativeStackNavigator();
 const ScheduleStack = createNativeStackNavigator();
+const DashboardStack = createNativeStackNavigator();
 
 const TAB_ICONS: Record<string, { active: string; inactive: string }> = {
   Dashboard: { active: 'view-dashboard', inactive: 'view-dashboard-outline' },
@@ -113,6 +117,15 @@ function PatientsStackNavigator() {
       <PatientsStack.Screen name="FaceScanReport" component={FaceScanReportScreen} />
       <PatientsStack.Screen name="TongueScanReport" component={TongueScanReportScreen} />
     </PatientsStack.Navigator>
+  );
+}
+
+function DashboardStackNavigator() {
+  return (
+    <DashboardStack.Navigator screenOptions={{ headerShown: false }}>
+      <DashboardStack.Screen name="DashboardMain" component={DashboardScreen} />
+      <DashboardStack.Screen name="NotificationCenter" component={NotificationCenterScreen} />
+    </DashboardStack.Navigator>
   );
 }
 
@@ -165,7 +178,7 @@ function MainTabs() {
         },
         tabBarLabelStyle: { fontSize: 10, fontWeight: '600', paddingBottom: 2 },
       })}>
-      <Tab.Screen name="Dashboard" component={DashboardScreen} />
+      <Tab.Screen name="Dashboard" component={DashboardStackNavigator} />
       <Tab.Screen name="Appointments" component={AppointmentsStackNavigator} />
       <Tab.Screen name="Schedule" component={ScheduleStackNavigator} />
       <Tab.Screen name="Patients" component={PatientsStackNavigator} />
@@ -187,6 +200,15 @@ function SplashScreen() {
 export default function App() {
   const [bootstrapped, setBootstrapped] = useState(false);
   const isLoggedIn = useAuthStore((s: any) => s.isLoggedIn);
+
+  // Register / release this device for push when auth state flips.
+  useEffect(() => {
+    if (isLoggedIn) {
+      pushService.init();
+    } else {
+      pushService.unregister();
+    }
+  }, [isLoggedIn]);
   const { message, type, visible, hide } = useToastStore();
   const { colors, isDark } = useTheme();
 

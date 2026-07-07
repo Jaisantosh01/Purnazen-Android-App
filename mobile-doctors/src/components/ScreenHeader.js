@@ -7,6 +7,17 @@ import { SPACING } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
 
 /**
+ * useHeaderTopPadding — safe-area top padding for screens that keep a custom
+ * header layout instead of <ScreenHeader/>. Replaces hardcoded paddingTop
+ * values (50–56px) that overlap the status bar on tall-inset devices and
+ * waste space on short ones.
+ */
+export const useHeaderTopPadding = (extra = 12) => {
+  const insets = useSafeAreaInsets();
+  return Math.max(insets.top, 12) + extra;
+};
+
+/**
  * Simple top app bar used across the doctor screens. Shows a title, an optional
  * back button, and an optional right-side action.
  */

@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  StatusBar,
   TextInput,
   Modal,
   ScrollView,
@@ -16,6 +15,7 @@ import { ENDPOINTS } from '../constants/apiEndpoints';
 import TimePickerModal from '../components/TimePickerModal';
 import SkeletonBox, { LeaveCardSkeleton, LeaveStatsSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
+import ScreenHeader from '../components/ScreenHeader';
 import { showAlert } from '../utils/alert';
 
 const STATUS_COLORS = {
@@ -181,7 +181,10 @@ const LeaveCard = ({ leave, onPress, onStatusUpdate }) => {
   );
 };
 
-const DoctorLeaveManagementScreen = ({ navigation }) => {
+const DoctorLeaveManagementScreen = ({ navigation, route }) => {
+  // Rendered both as the "Leaves" tab (route name LeaveCenter) and pushed from
+  // Home — only the pushed instance gets a back arrow.
+  const isTabInstance = route?.name === 'LeaveCenter';
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [leaves, setLeaves] = useState([]);
@@ -410,16 +413,16 @@ const DoctorLeaveManagementScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <MCIcon name="arrow-left" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Doctor Leaves</Text>
-        <TouchableOpacity onPress={openFilterModal} style={styles.filterBtn}>
-          <MCIcon name="filter-variant" size={22} color={hasActiveFilters ? colors.primary : colors.textSecondary} />
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title="Doctor Leaves"
+        subtitle="Review and manage leave requests"
+        onBack={isTabInstance ? undefined : () => navigation.goBack()}
+        right={
+          <TouchableOpacity onPress={openFilterModal} style={styles.filterBtn}>
+            <MCIcon name="filter-variant" size={22} color={hasActiveFilters ? colors.primary : colors.textSecondary} />
+          </TouchableOpacity>
+        }
+      />
 
       <View style={styles.searchContainer}>
         <MCIcon name="magnify" size={20} color={colors.textMuted} />
@@ -793,12 +796,6 @@ const DoctorLeaveManagementScreen = ({ navigation }) => {
 
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  header: {
-    paddingTop: 12, paddingHorizontal: 12, paddingBottom: 12, backgroundColor: colors.card,
-    flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: colors.border,
-  },
-  backBtn: { padding: 4, marginRight: 8 },
-  headerTitle: { fontSize: 20, fontWeight: '800', color: colors.textPrimary, flex: 1 },
   filterBtn: { padding: 6 },
   searchContainer: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card,
@@ -842,7 +839,7 @@ const makeStyles = colors => StyleSheet.create({
 
   // Filter Modal
   filterModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  filterModalContainer: { backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%' },
+  filterModalContainer: { backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%', width: '100%', maxWidth: 640, alignSelf: 'center' },
   filterModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
   filterModalTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
   filterModalBody: { padding: 20 },
@@ -887,7 +884,7 @@ const makeStyles = colors => StyleSheet.create({
 
   // Detail Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 20 },
-  modalContainer: { backgroundColor: colors.card, borderRadius: 16, overflow: 'hidden' },
+  modalContainer: { backgroundColor: colors.card, borderRadius: 16, overflow: 'hidden', width: '100%', maxWidth: 560, alignSelf: 'center' },
   modalTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary, marginBottom: 4, paddingHorizontal: 20 },
   modalSubtitle: { fontSize: 14, color: colors.textSecondary, marginBottom: 8, paddingHorizontal: 20 },
   modalReason: { fontSize: 13, color: colors.textMuted, marginBottom: 16, fontStyle: 'italic', paddingHorizontal: 20 },

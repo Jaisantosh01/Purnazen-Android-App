@@ -39,6 +39,9 @@ class Appointment(Base):
     payment_status = Column(
         String(20), nullable=False, default="pending", server_default="pending"
     )  # pending | unpaid | paid
+    # Set when the pre-appointment reminder notification has been dispatched,
+    # so the scheduler never reminds twice.
+    reminder_sent_at = Column(DateTime, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
     created_by = Column(GUID(), ForeignKey("users.id"), nullable=True)
