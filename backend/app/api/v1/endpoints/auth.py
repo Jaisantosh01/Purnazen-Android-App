@@ -16,6 +16,7 @@ from app.schemas.auth import (
     ChangePasswordRequest,
     LoginRequest,
     RegisterRequest,
+    SocialLoginRequest,
     UpdateProfileRequest,
 )
 from app.services.auth_service import AuthService
@@ -48,6 +49,33 @@ def register(request: Request, body: RegisterRequest, db: Session = Depends(get_
 @limiter.limit(settings.RATE_LIMIT_LOGIN)
 def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)):
     response, status_code = AuthService.login(db, body.model_dump())
+
+    if not response["success"]:
+        return error_response(response["message"], status_code)
+
+    return success_response(
+        response["message"],
+        {
+            "access_token": response["access_token"],
+            "refresh_token": response["refresh_token"],
+            "user": response["user"],
+        },
+        status_code,
+    )
+
+
+@router.post(
+    "/social",
+    summary="Login or sign up with a social provider (Firebase Auth)",
+    description=(
+        "Verifies a Firebase Auth ID token server-side (any provider enabled "
+        "in the Firebase console), then signs the matching account in "
+        "(creating a patient account on first login). Rate-limited per client IP."
+    ),
+)
+@limiter.limit(settings.RATE_LIMIT_LOGIN)
+def social_login(request: Request, body: SocialLoginRequest, db: Session = Depends(get_db)):
+    response, status_code = AuthService.social_login(db, body.model_dump())
 
     if not response["success"]:
         return error_response(response["message"], status_code)

@@ -1,3 +1,5 @@
+import secrets
+
 from sqlalchemy.orm import Session
 
 from app.core.security import (
@@ -13,6 +15,7 @@ from app.models.therapy_session import TherapySession
 from app.models.user import User
 from app.models.user_preference import UserPreference
 from app.repositories.user_repository import UserRepository
+from app.services.social_auth import SocialAuthError, verify_firebase
 
 
 class AuthService:
@@ -53,6 +56,70 @@ class AuthService:
         # RBAC gate: reject a valid credential trying to use the wrong app.
         expected_role = data.get("expected_role")
         if expected_role and (not user.role or user.role.name != expected_role):
+            return {
+                "success": False,
+                "message": "This account is not permitted to use this app",
+            }, 403
+
+        return {
+            "success": True,
+            "message": "Login successful",
+            "access_token": create_access_token(str(user.id), user.token_version or 0),
+            "refresh_token": create_refresh_token(str(user.id), user.token_version or 0),
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "full_name": user.full_name,
+                "role": user.role.name if user.role else None,
+            },
+        }, 200
+
+    @staticmethod
+    def social_login(db: Session, data: dict):
+        """Sign in (or sign up) with a Firebase-verified identity.
+
+        Firebase Auth proves ownership of the email (whichever provider the
+        user picked in the app); we then reuse the account with that email or
+        create a fresh patient account. Sign-up via social is patient-only —
+        doctor/admin accounts are provisioned by an admin, so an unknown email
+        asked for by those apps is rejected instead of created.
+        """
+        try:
+            profile = verify_firebase(data["id_token"])
+        except SocialAuthError as exc:
+            return {"success": False, "message": exc.message}, exc.status_code
+
+        if not profile["email_verified"]:
+            return {
+                "success": False,
+                "message": "This account's email address is not verified with the provider",
+            }, 403
+
+        expected_role = data.get("expected_role")
+        user = UserRepository.find_by_email(db, profile["email"])
+
+        if user is None:
+            if expected_role not in (None, "patient"):
+                return {
+                    "success": False,
+                    "message": "No account found for this email. Please contact your administrator.",
+                }, 403
+            # Random throwaway password: the account is provider-backed and can
+            # never be entered via the password form.
+            user = UserRepository.create_user(
+                db,
+                {
+                    "full_name": profile["full_name"],
+                    "email": profile["email"],
+                    "password": hash_password(secrets.token_urlsafe(32)),
+                },
+            )
+            user.auth_provider = profile["provider"] or None
+            if profile.get("avatar_url"):
+                user.avatar_url = profile["avatar_url"]
+            db.commit()
+            db.refresh(user)
+        elif expected_role and (not user.role or user.role.name != expected_role):
             return {
                 "success": False,
                 "message": "This account is not permitted to use this app",

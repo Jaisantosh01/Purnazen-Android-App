@@ -58,10 +58,12 @@ class Settings(BaseSettings):
     # When empty, video-consultation bookings skip Meet link creation.
     GOOGLE_SERVICE_ACCOUNT_JSON: str = ""
 
-    # Firebase Cloud Messaging — base64-encoded service account JSON key for the
-    # Firebase project. When empty, device push is skipped (in-app notifications
-    # still work).
+    # Firebase — base64-encoded service account JSON key for the Firebase
+    # project. Powers BOTH device push (FCM) and social sign-in token
+    # verification. When empty, push is skipped and social login is disabled.
     FIREBASE_SERVICE_ACCOUNT_JSON: str = ""
+    # Optional override; normally derived from the service account JSON above.
+    FIREBASE_PROJECT_ID: str = ""
 
     # Social auth — Google client ID for ID token verification (Sprint 5)
     GOOGLE_CLIENT_ID: str = ""

@@ -21,6 +21,11 @@ class User(Base):
     phone = Column(String(15), nullable=True)
     date_of_birth = Column(Date, nullable=True)
 
+    # Social sign-in provider the account was created through (google | github);
+    # null for password accounts. Informational — login always re-verifies with
+    # the provider.
+    auth_provider = Column(String(20), nullable=True)
+
     role_id = Column(GUID(), ForeignKey("roles.id"))
 
     token_version = Column(Integer, nullable=False, default=0, server_default="0")
@@ -54,6 +59,7 @@ class User(Base):
             "gender": self.gender,
             "date_of_birth": self.date_of_birth.isoformat() if self.date_of_birth else None,
             "age": self.age,
+            "auth_provider": self.auth_provider,
             "role_id": self.role_id,
             "role": self.role.name if self.role else None,
             "is_active": self.is_active,

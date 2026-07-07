@@ -51,32 +51,16 @@ admin app). `appointments.reminder_sent_at` guarantees exactly-once delivery.
 
 ## Enabling device push (Firebase) — one-time setup
 
-Everything is wired; push activates as soon as the Firebase config is present.
-Without it the apps run normally with in-app notifications only.
+See **docs/FIREBASE.md** for the full walkthrough (it covers this plus social
+sign-in — the same Firebase project and the same
+`FIREBASE_SERVICE_ACCOUNT_JSON` env var power both). Without it the apps run
+normally with in-app notifications only.
 
-1. **Create a Firebase project** at https://console.firebase.google.com (one
-   project for all apps).
-2. **Add two Android apps** to the project with the package names of the
-   users and doctors apps (see `applicationId` in each
-   `android/app/build.gradle`). Download each app's `google-services.json`.
-3. **Drop the files into the repos**:
-   - `mobile-users/android/app/google-services.json`
-   - `mobile-doctors/android/app/google-services.json`
-   The Gradle config applies the Google Services plugin only when the file
-   exists, so builds never break without it.
-4. **Backend credentials**: Firebase console → Project settings → Service
-   accounts → *Generate new private key*. Base64-encode the JSON and set it in
-   `backend/.env`:
-   ```
-   FIREBASE_SERVICE_ACCOUNT_JSON=<base64 of the service-account json>
-   ```
-   (PowerShell: `[Convert]::ToBase64String([IO.File]::ReadAllBytes("key.json"))`)
-5. Rebuild the two apps. On login each app requests the Android 13+
-   notification permission, fetches its FCM token and registers it via
-   `POST /device-tokens`. Logout unregisters it.
-
-Closed-app delivery needs no headless JS: the backend sends a `notification`
-payload, which Android displays in the system tray via the FCM SDK.
+Once configured and rebuilt, each app requests the Android 13+ notification
+permission on login, fetches its FCM token and registers it via
+`POST /device-tokens`; logout unregisters it. Closed-app delivery needs no
+headless JS: the backend sends a `notification` payload, which Android
+displays in the system tray via the FCM SDK.
 
 ## App entry points
 
