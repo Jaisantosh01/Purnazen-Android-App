@@ -75,6 +75,7 @@ def verify_firebase(token: str) -> dict:
     email_verified = bool(claims.get("email_verified")) or provider in _TRUSTED_UNVERIFIED_PROVIDERS
 
     return {
+        "uid": claims.get("sub") or claims.get("user_id"),
         "email": email,
         "email_verified": email_verified,
         "full_name": claims.get("name") or email.split("@")[0],

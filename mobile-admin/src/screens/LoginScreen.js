@@ -16,6 +16,7 @@ import {
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import authService from '../services/authService';
+import socialAuthService from '../services/socialAuthService';
 import useTheme from '../hooks/useTheme';
 
 const LoginScreen = ({ navigation }) => {
@@ -26,6 +27,7 @@ const LoginScreen = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [socialLoading, setSocialLoading] = useState(null); // 'google' | 'github'
   const [focused, setFocused] = useState(null); // 'email' | 'password'
   const emailRef = useRef(null);
   const passwordRef = useRef(null);
@@ -70,6 +72,25 @@ const LoginScreen = ({ navigation }) => {
       setError(err.message || 'Login failed. Please try again.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Sign-in only: the backend never creates an admin account from social
+  // login. The provider email must match the account email, or the admin
+  // must have linked the social account in Settings first.
+  const handleSocialLogin = async provider => {
+    if (isLoading || socialLoading) return;
+    setError('');
+    setSocialLoading(provider);
+    try {
+      await (provider === 'google'
+        ? socialAuthService.signInWithGoogle()
+        : socialAuthService.signInWithGitHub());
+      // null = user cancelled; success is handled by the auth-state listener
+    } catch (err) {
+      setError(err.message || 'Sign-in failed. Please try again.');
+    } finally {
+      setSocialLoading(null);
     }
   };
 
@@ -180,9 +201,49 @@ const LoginScreen = ({ navigation }) => {
             )}
           </TouchableOpacity>
 
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or continue with</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <View style={styles.socialRow}>
+            <TouchableOpacity
+              style={styles.socialBtn}
+              activeOpacity={0.8}
+              onPress={() => handleSocialLogin('google')}
+              disabled={isLoading || !!socialLoading}
+            >
+              {socialLoading === 'google' ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <>
+                  <MCIcon name="google" size={20} color="#DB4437" />
+                  <Text style={styles.socialBtnText}>Google</Text>
+                </>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.socialBtn}
+              activeOpacity={0.8}
+              onPress={() => handleSocialLogin('github')}
+              disabled={isLoading || !!socialLoading}
+            >
+              {socialLoading === 'github' ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <>
+                  <MCIcon name="github" size={21} color={colors.textPrimary} />
+                  <Text style={styles.socialBtnText}>GitHub</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+
           <Text style={styles.note}>
             Admin accounts are provisioned by the Purnazen team — there is no
-            self sign-up.
+            self sign-up. Social sign-in works for existing accounts (same
+            email, or linked in Settings).
           </Text>
         </ScrollView>
       </View>
@@ -311,6 +372,30 @@ const makeStyles = colors => StyleSheet.create({
   },
   primaryBtnDisabled: { opacity: 0.7 },
   primaryBtnText: { fontSize: 16, fontWeight: '800', color: colors.white },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 22,
+    marginBottom: 16,
+  },
+  dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
+  dividerText: { fontSize: 12.5, color: colors.textMuted, fontWeight: '600' },
+  socialRow: { flexDirection: 'row', gap: 12 },
+  socialBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceMuted,
+    paddingVertical: 13,
+    minHeight: 50,
+  },
+  socialBtnText: { fontSize: 14.5, fontWeight: '700', color: colors.textPrimary },
   note: {
     fontSize: 12.5,
     color: colors.textMuted,

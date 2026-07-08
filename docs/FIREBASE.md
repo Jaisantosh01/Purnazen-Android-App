@@ -4,9 +4,18 @@ One Firebase project powers both features:
 
 - **FCM push** — notifications delivered with the app closed (see
   docs/NOTIFICATIONS.md for what gets sent and when).
-- **Firebase Authentication** — Google / GitHub sign-in on the users app login
-  screen. The backend verifies the Firebase ID token and issues its own JWTs;
+- **Firebase Authentication** — Google / GitHub sign-in in ALL three apps.
+  The backend verifies the Firebase ID token and issues its own JWTs;
   Firebase never becomes the identity store, your Postgres stays authoritative.
+  - **Users app**: sign in AND sign up (first social login creates a patient
+    account). Buttons on both the Login and Register screens.
+  - **Doctors / Admin apps**: sign in ONLY — the backend never creates
+    doctor/admin accounts from social login. The provider email must match an
+    existing account, or the account must be linked first (below).
+  - **Linked accounts** (all apps): Settings → Account → Linked Social
+    Account. Links a Google/GitHub identity (any email) to the logged-in
+    account so the social button signs into it afterwards. Unlink from the
+    same row.
 
 Everything degrades gracefully until configured: notifications stay in-app
 only, the social buttons show a friendly "unavailable" message, and password
@@ -19,19 +28,18 @@ login is untouched.
 2. In the project: **Add app → Android**, once per app:
    - Users app: package name `com.purnazen`
    - Doctors app: package name `com.purnazen.doctor`
-   (Admin app only needs one too — `com.purnazen.admin` — if you later want
-   push/social there; not required now.)
-3. For the **users app**, add the signing SHA-1 (required for native Google
-   sign-in; push works without it):
+   - Admin app: package name `com.purnazen.admin`
+3. (Optional) Add each app's signing SHA-1 fingerprint under Project
+   settings → the matching Android app → **Add fingerprint**. Sign-in and
+   push both work without it — it only enables extra Firebase integrity
+   checks. Get it with:
    ```
    cd mobile-users/android && ./gradlew signingReport
    ```
-   Copy the `SHA1` of the `debug` variant (and the release keystore's SHA-1
-   when you set up release builds) into Project settings → your Android app →
-   **Add fingerprint**.
 4. Download each app's **google-services.json** and place it at:
    - `mobile-users/android/app/google-services.json`
    - `mobile-doctors/android/app/google-services.json`
+   - `mobile-admin/android/app/google-services.json`
    Gradle applies the Google Services plugin only when the file exists, so
    nothing breaks when it's absent.
 
@@ -57,9 +65,8 @@ Firebase console → **Build → Authentication → Get started → Sign-in meth
 
 ### Google
 - Enable the **Google** provider, pick a support email, save. That's it —
-  the web client ID it creates lands in `google-services.json`, and the app
-  auto-detects it (`EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` exists as an optional
-  override but is normally not needed).
+  no client IDs to copy anywhere; the app uses Firebase's built-in browser
+  consent flow, same as GitHub.
 
 ### GitHub
 1. GitHub → Settings → Developer settings → **OAuth Apps → New OAuth App**:
@@ -77,13 +84,13 @@ them and runs the OAuth dance in a browser tab.
 
 ## 4. Rebuild the apps
 
-Native modules were added (`@react-native-firebase/app`, `messaging`, `auth`,
-`@react-native-google-signin/google-signin`), so a JS-only reload is not
-enough — rebuild:
+Native modules were added (`@react-native-firebase/app`, `messaging`,
+`auth`), so a JS-only reload is not enough — rebuild:
 
 ```
 cd mobile-users && npm install && npm run android
 cd mobile-doctors && npm install && npm run android
+cd mobile-admin && npm install && npm run android
 ```
 
 ## What works afterwards
@@ -91,27 +98,39 @@ cd mobile-doctors && npm install && npm run android
 - Users/doctors apps register an FCM token on login; backend pushes
   appointment/payment/reminder/broadcast notifications even when the app is
   closed (docs/NOTIFICATIONS.md).
-- Users app login screen: **Google** opens the native account picker;
-  **GitHub** opens a browser consent tab. First social login auto-creates a
-  patient account (random unusable password, `auth_provider` recorded); later
-  logins with the same email reuse the account, including ones that
-  registered with a password.
-- Doctor/admin emails are never auto-created through social login — an unknown
-  email gets "No account found" (accounts for those roles are provisioned by
-  an admin).
+- All three login screens: **Google** and **GitHub** open a browser consent
+  tab (Firebase's provider flow — one code path for every provider).
+- Users app only: first social login auto-creates a patient account (random
+  unusable password, `auth_provider` recorded); later logins with the same
+  email reuse the account, including ones that registered with a password.
+- Doctor/admin emails are never auto-created through social login — an
+  unknown email gets "No account found". To sign into a doctor/admin account
+  whose email differs from the Google/GitHub email, link it first:
+  Settings → Account → **Linked Social Account** → Google/GitHub.
+- Settings → Account → **Email Address** changes the login email in every
+  app (password confirmation for password accounts; linked-provider proof for
+  social-created ones).
 
 ## Flow reference
 
 ```
 Login button
-  → Firebase sign-in on device (Google picker / GitHub browser tab)
+  → Firebase sign-in on device (browser consent tab for any provider)
   → app gets the Firebase ID token
   → POST /api/v1/auth/social {id_token, expected_role}
   → backend verifies signature + audience against the Firebase project
-  → find user by email, or create patient account
+  → find user by linked firebase_uid, else by email, else create patient
+    (patient app only)
   → backend's own access/refresh tokens (same as password login)
+
+Linking (Settings, any role, while logged in)
+  → same device-side Firebase sign-in
+  → POST /api/v1/auth/social/link {id_token}
+  → binds users.firebase_uid (+ auth_provider) to the current account
+  → POST /api/v1/auth/social/unlink removes it
 ```
 
 Touch points: `backend/app/services/social_auth.py` (verification),
-`AuthService.social_login`, `mobile-users/src/services/socialAuthService.js`,
-login buttons in `mobile-users/src/screens/LoginScreen.js`.
+`AuthService.social_login/link_social/unlink_social/change_email`,
+`src/services/socialAuthService.js` + login/register buttons and
+Settings rows in each app.

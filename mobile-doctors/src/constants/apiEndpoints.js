@@ -13,6 +13,10 @@ export { BASE_URL };
 export const ENDPOINTS = {
   // Auth (shared with patients; doctors log in with their own accounts)
   LOGIN: `${API_VERSION}/auth/login`,
+  SOCIAL_LOGIN: `${API_VERSION}/auth/social`,
+  SOCIAL_LINK: `${API_VERSION}/auth/social/link`,
+  SOCIAL_UNLINK: `${API_VERSION}/auth/social/unlink`,
+  CHANGE_EMAIL: `${API_VERSION}/auth/change-email`,
   LOGOUT: `${API_VERSION}/auth/logout`,
   REFRESH: `${API_VERSION}/auth/refresh`,
   ME: `${API_VERSION}/auth/me`,
