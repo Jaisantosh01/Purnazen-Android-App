@@ -6,10 +6,12 @@ import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { SessionPlayerSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
+import { useHeaderTopPadding } from '../components/ScreenHeader';
 import { showAlert } from '../utils/alert';
 
 const VideoGroupDetailScreen = ({ route, navigation }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
+  const headerTop = useHeaderTopPadding();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { groupId, groupTitle } = route.params;
   const [catalog, setCatalog] = useState(null);
@@ -104,8 +106,8 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
-      <View style={styles.header}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.card} />
+      <View style={[styles.header, { paddingTop: headerTop }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}><MCIcon name="arrow-left" size={24} color={colors.textPrimary} /></TouchableOpacity>
         <Text style={styles.headerTitle}>{groupTitle}</Text>
         <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
@@ -214,7 +216,7 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
 
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  header: { paddingTop: 56, padding: 20, backgroundColor: colors.card, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  header: { padding: 20, backgroundColor: colors.card, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerTitle: { fontSize: 20, fontWeight: '800' },
   container: { flex: 1 },
   list: { padding: 16 },

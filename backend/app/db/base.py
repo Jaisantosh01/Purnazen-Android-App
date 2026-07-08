@@ -44,3 +44,6 @@ from app.models.support_faq import SupportFaq  # noqa: E402,F401
 from app.models.consultation_record import ConsultationRecord  # noqa: E402,F401
 from app.models.app_release import AppRelease  # noqa: E402,F401
 from app.models.user_address import UserAddress  # noqa: E402,F401
+from app.models.notification import Notification  # noqa: E402,F401
+from app.models.device_token import DeviceToken  # noqa: E402,F401
+from app.models.notification_setting import NotificationSetting  # noqa: E402,F401

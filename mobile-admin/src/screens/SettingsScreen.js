@@ -22,6 +22,7 @@ import { checkForUpdate, FORCE_MARKER } from '../services/updateService';
 import { APP_VERSION } from '../config';
 import { useAuthStore } from '../store/authStore';
 import useTheme from '../hooks/useTheme';
+import { useHeaderTopPadding } from '../components/ScreenHeader';
 
 // Shared toggle ids with the backend user_preferences.notifications dict.
 const PREF_KEYS = {
@@ -56,6 +57,7 @@ const languageLabel = code => (LANGUAGES.find(l => l.code === code) || LANGUAGES
 const SettingsScreen = ({ navigation }) => {
   const user = useAuthStore(state => state.user);
   const { colors, isDark, setMode } = useTheme();
+  const headerTop = useHeaderTopPadding(16);
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const tint = hue => hue || colors.primary;
@@ -321,7 +323,7 @@ const SettingsScreen = ({ navigation }) => {
       <StatusBar barStyle="light-content" backgroundColor={colors.headerBg} />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: headerTop }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <MCIcon name="arrow-left" size={22} color={colors.white} />
         </TouchableOpacity>
@@ -611,7 +613,6 @@ const makeStyles = colors => StyleSheet.create({
 
   header: {
     backgroundColor: colors.headerBg,
-    paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 24,
     borderBottomLeftRadius: 24,

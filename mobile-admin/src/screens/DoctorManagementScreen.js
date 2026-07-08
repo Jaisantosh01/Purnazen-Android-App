@@ -6,7 +6,6 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  StatusBar,
   TextInput,
   ScrollView,
   Alert,
@@ -166,7 +165,6 @@ const DoctorManagementScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
       
       {/* Header removed as it is now in UnifiedUserDoctorScreen */}
 
@@ -284,15 +282,15 @@ const makeStyles = colors => StyleSheet.create({
   doctorName: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
   specialty: { fontSize: 13, color: colors.primary, fontWeight: '600', marginTop: 2 },
   expertiseContainer: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8, gap: 6 },
-  expertiseTag: { backgroundColor: '#f0f0f0', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  expertiseTag: { backgroundColor: colors.surfaceMuted, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   expertiseText: { fontSize: 11, color: colors.textSecondary, fontWeight: '500' },
 
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start' },
-  doctorCardInactive: { opacity: 0.6, backgroundColor: '#f5f5f5' },
-  avatarInactive: { backgroundColor: '#e0e0e0' },
+  doctorCardInactive: { opacity: 0.6, backgroundColor: colors.surfaceMuted },
+  avatarInactive: { backgroundColor: colors.borderStrong },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   textInactive: { color: colors.textMuted },
-  tagInactive: { backgroundColor: '#e0e0e0' },
+  tagInactive: { backgroundColor: colors.borderStrong },
   inactiveBadge: {
     backgroundColor: colors.danger,
     paddingHorizontal: 6,
@@ -326,6 +324,6 @@ const makeStyles = colors => StyleSheet.create({
     paddingHorizontal: 16,
     gap: 10,
   },
-  menuDivider: { height: 1, backgroundColor: '#f0f0f0', marginHorizontal: 8 },
+  menuDivider: { height: 1, backgroundColor: colors.border, marginHorizontal: 8 },
   menuItemText: { fontSize: 14, fontWeight: '500', color: colors.textPrimary },
 });

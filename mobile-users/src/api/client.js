@@ -19,6 +19,7 @@ const STATUS_MESSAGES = {
 // trigger the silent-refresh flow for them.
 const NO_REFRESH_PATHS = [
   ENDPOINTS.LOGIN,
+  ENDPOINTS.SOCIAL_LOGIN,
   ENDPOINTS.REGISTER,
   ENDPOINTS.REFRESH,
   ENDPOINTS.LOGOUT,
@@ -161,6 +162,8 @@ const apiClient = {
     client.post(endpoint, body, config).then(response => response.data),
   put: (endpoint, body, config) =>
     client.put(endpoint, body, config).then(response => response.data),
+  patch: (endpoint, body, config) =>
+    client.patch(endpoint, body, config).then(response => response.data),
   delete: (endpoint, config) => client.delete(endpoint, config).then(response => response.data),
 };
 

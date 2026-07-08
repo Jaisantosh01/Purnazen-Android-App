@@ -7,10 +7,12 @@ import { ENDPOINTS } from '../constants/apiEndpoints';
 import { ROLE_ICONS, WELLNESS_ICONS } from '../constants/icons';
 import { ListSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
+import { useHeaderTopPadding } from '../components/ScreenHeader';
 import { showAlert } from '../utils/alert';
 
 const VideoManagementScreen = ({ navigation }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
+  const headerTop = useHeaderTopPadding();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [activeTab, setActiveTab] = useState('sessions');
   const [groups, setGroups] = useState([]);
@@ -184,8 +186,8 @@ const VideoManagementScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
-      <View style={styles.header}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.card} />
+      <View style={[styles.header, { paddingTop: headerTop }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}><MCIcon name="arrow-left" size={24} color={colors.textPrimary} /></TouchableOpacity>
         <Text style={styles.headerTitle}>Video Management</Text>
         <TouchableOpacity style={styles.addBtn} onPress={activeTab === 'sessions' ? openAddSessionModal : openAddGroupModal}>
@@ -362,7 +364,7 @@ const VideoManagementScreen = ({ navigation }) => {
 
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  header: { paddingTop: 56, padding: 20, backgroundColor: colors.card, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  header: { padding: 20, backgroundColor: colors.card, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerTitle: { fontSize: 20, fontWeight: '800' },
   list: { padding: 16 },
   card: { backgroundColor: colors.card, padding: 16, borderRadius: 12, marginBottom: 12, flexDirection: 'row', alignItems: 'center', elevation: 2 },

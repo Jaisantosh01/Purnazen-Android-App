@@ -16,6 +16,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import scanService from '../services/scanService';
 import useScanStore from '../store/scanStore';
 import useTheme from '../hooks/useTheme';
+import { useHeaderTopPadding } from '../components/ScreenHeader';
 
 function glowColor(score, muted = '#9CA3AF') {
   if (score == null) return muted;
@@ -61,6 +62,7 @@ function GlowTrend({ points, styles, colors }) {
 }
 
 const ScanHistoryScreen = ({ navigation }) => {
+  const headerTop = useHeaderTopPadding();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [items, setItems] = useState([]);
@@ -130,7 +132,7 @@ const ScanHistoryScreen = ({ navigation }) => {
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor="#C850C0" />
 
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: headerTop }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <MCIcon name="arrow-left" size={22} color={colors.white} />
         </TouchableOpacity>
@@ -198,7 +200,6 @@ const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   header: {
     backgroundColor: '#C850C0',
-    paddingTop: 52,
     paddingBottom: 20,
     paddingHorizontal: 20,
     flexDirection: 'row',

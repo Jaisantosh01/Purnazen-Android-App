@@ -16,6 +16,7 @@ from app.schemas.appointment import BookAppointmentRequest, UpdateAppointmentReq
 from app.services.doctor_service import (
     VISIT_SLUG_TO_CONSULTATION_TYPE,
 )
+from app.services.notification_service import NotificationService
 
 # Google Meet integration — gracefully skipped when the service is unavailable
 try:
@@ -103,6 +104,22 @@ class AppointmentService:
                     appointment.meeting_link = link
                     db.commit()
 
+        # Notify the doctor about the new booking request
+        slot = db.get(SlotTimings, data.slot_timing_id)
+        slot_str = slot.start_time.strftime("%I:%M %p") if slot and slot.start_time else ""
+        NotificationService.notify_safely(
+            db,
+            doctor.user_id,
+            category="appointment",
+            event="appointment_booked",
+            title="New appointment request",
+            body=(
+                f"{user.full_name or 'A patient'} booked {appointment.reference} "
+                f"on {data.date.strftime('%d %b %Y')} at {slot_str}".strip()
+            ),
+            data={"appointmentId": str(appointment.id)},
+        )
+
         return {
             "success": True,
             "message": "Appointment booked successfully",
@@ -115,6 +132,9 @@ class AppointmentService:
         if not appointment:
             return None
 
+        old_status = appointment.status
+        old_payment_status = appointment.payment_status
+
         if data.visit_type:
             appointment.visit_type = data.visit_type
         if data.date:
@@ -125,12 +145,81 @@ class AppointmentService:
             appointment.status = data.status
         if data.payment_status:
             appointment.payment_status = data.payment_status
-            
+
         appointment.updated_at = datetime.utcnow()
         appointment.updated_by = user.id
         db.commit()
         db.refresh(appointment)
+
+        AppointmentService._notify_transitions(
+            db, appointment, actor=user,
+            old_status=old_status, old_payment_status=old_payment_status,
+        )
         return appointment
+
+    @staticmethod
+    def _notify_transitions(db, appointment, actor, old_status, old_payment_status):
+        """Fan out notifications for status / payment transitions.
+
+        The actor (whoever performed the change) is not notified; the other
+        parties are. Best-effort — never raises.
+        """
+        doctor_user_id = appointment.doctor.user_id if appointment.doctor else None
+        patient_id = appointment.user_id
+        ref = appointment.reference
+        when = f"{appointment.date.strftime('%d %b %Y')}"
+        doctor_name = (
+            f"Dr. {appointment.doctor.user.full_name}"
+            if appointment.doctor and appointment.doctor.user
+            else "Your doctor"
+        )
+        patient_name = appointment.user.full_name if appointment.user else "The patient"
+
+        transitions = {
+            "booked": (
+                "Appointment confirmed",
+                f"{doctor_name} accepted {ref} on {when}.",
+            ),
+            "cancelled": (
+                "Appointment cancelled",
+                f"{ref} on {when} has been cancelled.",
+            ),
+            "completed": (
+                "Appointment completed",
+                f"{ref} with {doctor_name} is complete. We'd love your feedback!",
+            ),
+        }
+
+        new_status = appointment.status
+        if new_status != old_status and new_status in transitions:
+            title, body = transitions[new_status]
+            payload = {"appointmentId": str(appointment.id)}
+            event = f"appointment_{new_status}"
+            # Patient hears about everything they didn't do themselves
+            if actor.id != patient_id:
+                NotificationService.notify_safely(
+                    db, patient_id, category="appointment", event=event,
+                    title=title, body=body, data=payload,
+                )
+            # Doctor hears when the patient (or an admin) changed the state
+            if doctor_user_id and actor.id != doctor_user_id:
+                doc_body = (
+                    f"{patient_name}'s {ref} on {when} is now {new_status}."
+                )
+                NotificationService.notify_safely(
+                    db, doctor_user_id, category="appointment", event=event,
+                    title=title, body=doc_body, data=payload,
+                )
+
+        new_payment = appointment.payment_status
+        if new_payment != old_payment_status and new_payment == "paid":
+            fee = f"₹{appointment.fee}" if appointment.fee is not None else ""
+            NotificationService.notify_safely(
+                db, patient_id, category="payment", event="payment_paid",
+                title="Payment received",
+                body=f"Payment {fee} for {ref} was received successfully.".replace("  ", " "),
+                data={"appointmentId": str(appointment.id)},
+            )
 
     @staticmethod
     def get_user_appointments(db: Session, user_id: uuid.UUID) -> dict:

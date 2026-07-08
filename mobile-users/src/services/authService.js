@@ -22,8 +22,29 @@ class AuthService {
       throw new Error(response.message || 'Login failed');
     }
 
-    const { access_token, refresh_token, user } = response.data;
+    return this._persistSession(response.data);
+  }
 
+  /**
+   * Sign in with a Firebase Auth ID token (any provider — Google, GitHub...).
+   * The backend verifies it against the Firebase project and creates a
+   * patient account on first login.
+   */
+  async socialLogin(firebaseIdToken) {
+    const response = await apiClient.post(ENDPOINTS.SOCIAL_LOGIN, {
+      id_token: firebaseIdToken,
+      expected_role: APP_ROLE,
+    });
+
+    if (!response.success) {
+      throw new Error(response.message || 'Sign-in failed');
+    }
+
+    return this._persistSession(response.data);
+  }
+
+  /** Shared post-login step: RBAC check, then persist tokens + profile. */
+  async _persistSession({ access_token, refresh_token, user }) {
     // RBAC: this app only serves APP_ROLE accounts. Reject a wrong-role login
     // client-side too (covers an older backend without the role gate) and never
     // persist its tokens.

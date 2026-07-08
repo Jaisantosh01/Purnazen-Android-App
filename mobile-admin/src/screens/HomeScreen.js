@@ -12,12 +12,14 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import useTheme from '../hooks/useTheme';
+import { useHeaderTopPadding } from '../components/ScreenHeader';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const HomeScreen = ({ navigation }) => {
   const { colors } = useTheme();
+  const headerTop = useHeaderTopPadding(16);
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -80,7 +82,7 @@ const HomeScreen = ({ navigation }) => {
         }
       >
         {/* ── Header ── */}
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: headerTop }]}>
           <View style={styles.headerTopRow}>
             <View style={styles.headerTextCol}>
               <Text style={styles.greeting}>{greeting}</Text>
@@ -174,6 +176,16 @@ const HomeScreen = ({ navigation }) => {
               </View>
               <MCIcon name="chevron-right" size={22} color={colors.textMuted} />
             </TouchableOpacity>
+            <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('NotificationAdmin')} activeOpacity={0.7}>
+              <View style={[styles.mgmtIconCircle, { backgroundColor: colors.primaryLight }]}>
+                <MCIcon name="bell-cog-outline" size={24} color={colors.primary} />
+              </View>
+              <View style={styles.mgmtTextCol}>
+                <Text style={styles.mgmtTitle}>Notifications</Text>
+                <Text style={styles.mgmtSub}>Broadcasts, switches & reminders</Text>
+              </View>
+              <MCIcon name="chevron-right" size={22} color={colors.textMuted} />
+            </TouchableOpacity>
             <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('FaqManagement')} activeOpacity={0.7}>
               <View style={[styles.mgmtIconCircle, { backgroundColor: colors.primaryLight }]}>
                 <MCIcon name="help-circle-outline" size={24} color={colors.primary} />
@@ -200,7 +212,6 @@ const makeStyles = colors => StyleSheet.create({
   // Header
   header: {
     backgroundColor: colors.primary,
-    paddingTop: 56,
     paddingHorizontal: 20,
     paddingBottom: 28,
     borderBottomLeftRadius: 28,

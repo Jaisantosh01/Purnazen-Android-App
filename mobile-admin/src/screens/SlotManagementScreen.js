@@ -6,12 +6,13 @@ import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { ListSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
+import { useHeaderTopPadding } from '../components/ScreenHeader';
 import { showAlert } from '../utils/alert';
 
 const ITEM_HEIGHT = 40;
 
 const TimePickerColumn = ({ data, value, onChange }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const flatListRef = React.useRef(null);
   const index = data.findIndex(item => item === value);
@@ -49,7 +50,7 @@ const TimePickerColumn = ({ data, value, onChange }) => {
 };
 
 const TimeSelector = ({ value, onChange }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [h, m] = value.split(':');
   const hours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
@@ -65,7 +66,8 @@ const TimeSelector = ({ value, onChange }) => {
 };
 
 const SlotManagementScreen = ({ navigation }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
+  const headerTop = useHeaderTopPadding(0);
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [days, setDays] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -154,8 +156,8 @@ const SlotManagementScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
-      <View style={styles.header}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.card} />
+      <View style={[styles.header, { height: undefined, paddingTop: headerTop, paddingBottom: 12 }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}><MCIcon name="arrow-left" size={24} color={colors.textPrimary} /></TouchableOpacity>
         <Text style={styles.headerTitle}>Schedule Manager</Text>
         <TouchableOpacity style={styles.addBtn} onPress={() => { setTargetDay(selectedDay); setModalVisible(true); }}><MCIcon name="plus" size={24} color={colors.white} /></TouchableOpacity>

@@ -26,6 +26,14 @@ class LoginRequest(BaseModel):
     expected_role: str | None = None
 
 
+class SocialLoginRequest(BaseModel):
+    # Firebase Auth ID token — one token shape regardless of which provider
+    # (Google, GitHub, ...) the user picked; verified server-side against the
+    # Firebase project.
+    id_token: str = Field(min_length=1)
+    expected_role: str | None = None
+
+
 class UpdateProfileRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 

@@ -1,37 +1,38 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { COLORS } from '../constants/theme';
 import UserManagementScreen from './UserManagementScreen';
 import DoctorManagementScreen from './DoctorManagementScreen';
 import { ENDPOINTS } from '../constants/apiEndpoints';
+import useTheme from '../hooks/useTheme';
+import ScreenHeader from '../components/ScreenHeader';
 
 const UnifiedUserDoctorScreen = ({ navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [activeTab, setActiveTab] = useState('users');
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
-      
-      {/* Header with Title and Action Icon */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>User Management</Text>
-        {activeTab === 'users' ? (
-          <TouchableOpacity 
-            style={styles.manageBtn} 
+      <ScreenHeader
+        title="Users & Doctors"
+        subtitle={activeTab === 'users' ? 'Manage app users and their roles' : 'Manage doctors and their profiles'}
+        right={activeTab === 'users' ? (
+          <TouchableOpacity
+            style={styles.manageBtn}
             onPress={() => navigation.navigate('ManageRoles', { title: 'Roles', endpoint: ENDPOINTS.ROLES })}
           >
-            <MCIcon name="account-cog" size={24} color={COLORS.primary} />
+            <MCIcon name="account-cog" size={24} color={colors.primary} />
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.manageBtn}
             onPress={() => navigation.navigate('EditDoctor', { doctorId: null })}
           >
-            <MCIcon name="plus" size={24} color={COLORS.primary} />
+            <MCIcon name="plus" size={24} color={colors.primary} />
           </TouchableOpacity>
         )}
-      </View>
+      />
 
       {/* Top Tab Bar */}
       <View style={styles.topTabBar}>
@@ -61,26 +62,14 @@ const UnifiedUserDoctorScreen = ({ navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
-  header: { 
-    paddingTop: 12, 
-    paddingHorizontal: 12, 
-    paddingBottom: 16, 
-    backgroundColor: COLORS.white, 
-    borderBottomWidth: 1, 
-    borderBottomColor: '#f0f0f0',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center'
-  },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: COLORS.textPrimary },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   manageBtn: { padding: 4 },
   topTabBar: {
     flexDirection: 'row',
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: colors.border,
   },
   tab: {
     flex: 1,
@@ -90,15 +79,15 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   activeTab: {
-    borderBottomColor: COLORS.primary,
+    borderBottomColor: colors.primary,
   },
   tabText: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   activeTabText: {
-    color: COLORS.primary,
+    color: colors.primary,
   },
   content: { flex: 1 }
 });

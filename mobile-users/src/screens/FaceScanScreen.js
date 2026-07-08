@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Linking,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { showAlert } from '../utils/alert';
 import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
 import { launchImageLibrary } from 'react-native-image-picker';
@@ -59,7 +60,8 @@ function deriveQuality(issues) {
 const FaceScanScreen = ({ navigation, route }) => {
   const scanType = route?.params?.scanType ?? 'face';
   const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
+  const styles = useMemo(() => makeStyles(colors, insets), [colors, insets]);
 
   const cameraRef = useRef(null);
   const device = useCameraDevice('front');
@@ -175,6 +177,24 @@ const FaceScanScreen = ({ navigation, route }) => {
     }
   };
 
+  // Once the user has denied the permission, Android stops showing the request
+  // dialog and requestPermission() resolves false immediately — so a bare
+  // requestPermission onPress looks like a dead button. Fall through to the
+  // system settings in that case (hasPermission refreshes on app resume).
+  const handleGrantPermission = async () => {
+    const granted = await requestPermission();
+    if (!granted) {
+      showAlert(
+        'Permission Needed',
+        'Android is no longer showing the camera dialog because access was denied earlier. Please enable Camera for Purnazen in Settings.',
+        [
+          { text: 'Not Now', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+        ],
+      );
+    }
+  };
+
   const handleGallery = async () => {
     if (uploading) return;
     setUploading(true);
@@ -200,8 +220,8 @@ const FaceScanScreen = ({ navigation, route }) => {
   // ── Permission denied ────────────────────────────────────────────────────────
   if (!hasPermission) {
     return (
-      <View style={styles.root}>
-        <StatusBar barStyle="light-content" backgroundColor="#C850C0" />
+      <View style={styles.rootThemed}>
+        <StatusBar barStyle="light-content" backgroundColor={ACCENT} />
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
             <MCIcon name="arrow-left" size={22} color="#fff" />
@@ -210,19 +230,19 @@ const FaceScanScreen = ({ navigation, route }) => {
           <View style={{ width: 38 }} />
         </View>
         <View style={styles.permissionBody}>
-          <MCIcon name="camera-off" size={64} color="#e9d5ff" />
+          <MCIcon name="camera-off" size={64} color={`${ACCENT}66`} />
           <Text style={styles.permTitle}>Camera Access Required</Text>
           <Text style={styles.permSub}>
             Purnazen needs camera access to scan your face and provide personalised wellness insights.
           </Text>
-          <TouchableOpacity style={styles.permBtn} onPress={requestPermission}>
+          <TouchableOpacity style={styles.permBtn} onPress={handleGrantPermission}>
             <Text style={styles.permBtnText}>Grant Camera Access</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.permBtnOutline} onPress={() => Linking.openSettings()}>
+          {/* <TouchableOpacity style={styles.permBtnOutline} onPress={() => Linking.openSettings()}>
             <Text style={styles.permBtnOutlineText}>Open Settings</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
           <TouchableOpacity style={[styles.permBtnOutline, { marginTop: 4 }]} onPress={handleGallery}>
-            <MCIcon name="image-multiple" size={16} color="#C850C0" />
+            <MCIcon name="image-multiple" size={16} color={ACCENT} />
             <Text style={[styles.permBtnOutlineText, { marginLeft: 6 }]}>Use Gallery Instead</Text>
           </TouchableOpacity>
         </View>
@@ -233,8 +253,8 @@ const FaceScanScreen = ({ navigation, route }) => {
   // ── No front camera ──────────────────────────────────────────────────────────
   if (!device) {
     return (
-      <View style={styles.root}>
-        <StatusBar barStyle="light-content" backgroundColor="#C850C0" />
+      <View style={styles.rootThemed}>
+        <StatusBar barStyle="light-content" backgroundColor={ACCENT} />
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
             <MCIcon name="arrow-left" size={22} color="#fff" />
@@ -243,7 +263,7 @@ const FaceScanScreen = ({ navigation, route }) => {
           <View style={{ width: 38 }} />
         </View>
         <View style={styles.permissionBody}>
-          <MCIcon name="camera-outline" size={64} color="#e9d5ff" />
+          <MCIcon name="camera-outline" size={64} color={`${ACCENT}66`} />
           <Text style={styles.permTitle}>No Front Camera Found</Text>
           <TouchableOpacity style={styles.permBtn} onPress={handleGallery}>
             <MCIcon name="image-plus" size={18} color="#fff" />
@@ -313,7 +333,7 @@ const FaceScanScreen = ({ navigation, route }) => {
           activeOpacity={0.85}
         >
           {(uploading || capturing) ? (
-            <ActivityIndicator color="#C850C0" size="large" />
+            <ActivityIndicator color={ACCENT} size="large" />
           ) : (
             <View style={[styles.captureInner, ready && styles.captureInnerReady]} />
           )}
@@ -328,12 +348,15 @@ const FaceScanScreen = ({ navigation, route }) => {
 
 export default FaceScanScreen;
 
-const makeStyles = colors => StyleSheet.create({
+const ACCENT = '#C850C0';
+
+const makeStyles = (colors, insets) => StyleSheet.create({
   root: { flex: 1, backgroundColor: '#000' },
+  rootThemed: { flex: 1, backgroundColor: colors.background },
 
   header: {
-    backgroundColor: '#C850C0',
-    paddingTop: 52,
+    backgroundColor: ACCENT,
+    paddingTop: Math.max(insets.top, 12) + 16,
     paddingBottom: 20,
     paddingHorizontal: 20,
     flexDirection: 'row',
@@ -345,7 +368,7 @@ const makeStyles = colors => StyleSheet.create({
   cameraHeader: {
     position: 'absolute',
     top: 0, left: 0, right: 0,
-    paddingTop: 52,
+    paddingTop: Math.max(insets.top, 12) + 12,
     paddingBottom: 16,
     paddingHorizontal: 20,
     flexDirection: 'row',
@@ -408,17 +431,17 @@ const makeStyles = colors => StyleSheet.create({
   permSub: { fontSize: 14, color: colors.textMuted, textAlign: 'center', lineHeight: 21 },
   permBtn: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#C850C0', borderRadius: 16,
+    backgroundColor: ACCENT, borderRadius: 16,
     paddingVertical: 14, paddingHorizontal: 32,
     alignSelf: 'stretch', justifyContent: 'center',
   },
   permBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   permBtnOutline: {
     flexDirection: 'row', alignItems: 'center',
-    borderWidth: 1.5, borderColor: '#C850C0',
+    borderWidth: 1.5, borderColor: ACCENT,
     borderRadius: 12, paddingVertical: 10, paddingHorizontal: 24,
     alignSelf: 'stretch', justifyContent: 'center',
-    backgroundColor: '#fdf4ff',
+    backgroundColor: ACCENT + '14',
   },
-  permBtnOutlineText: { color: '#C850C0', fontSize: 14, fontWeight: '600' },
+  permBtnOutlineText: { color: ACCENT, fontSize: 14, fontWeight: '600' },
 });

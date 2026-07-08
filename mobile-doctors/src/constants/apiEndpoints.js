@@ -26,6 +26,13 @@ export const ENDPOINTS = {
   // User preferences (user-scoped; the shared route serves any authenticated role)
   PREFERENCES: `${API_VERSION}/users/me/preferences`,
 
+  // Notifications
+  NOTIFICATIONS: `${API_VERSION}/notifications`,
+  NOTIFICATIONS_READ_ALL: `${API_VERSION}/notifications/read-all`,
+  NOTIFICATION_READ: id => `${API_VERSION}/notifications/${id}/read`,
+  DEVICE_TOKENS: `${API_VERSION}/notifications/device-tokens`,
+  DEVICE_TOKENS_REMOVE: `${API_VERSION}/notifications/device-tokens/remove`,
+
   // Doctor directory / profile
   DOCTORS: `${API_VERSION}/doctors`,
   DOCTOR_DETAIL: id => `${API_VERSION}/doctors/${id}`,

@@ -16,10 +16,11 @@ import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { EditFormSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
+import { useHeaderTopPadding } from '../components/ScreenHeader';
 import { showAlert } from '../utils/alert';
 
 const SelectionModal = ({ visible, onClose, title, data, selectedIds, onToggle }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
   <Modal visible={visible} animationType="slide" transparent={true}>
@@ -47,7 +48,8 @@ const SelectionModal = ({ visible, onClose, title, data, selectedIds, onToggle }
 };
 
 const EditDoctorScreen = ({ route, navigation }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
+  const headerTop = useHeaderTopPadding();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { doctorId } = route.params;
   const [loading, setLoading] = useState(true);
@@ -213,8 +215,8 @@ const EditDoctorScreen = ({ route, navigation }) => {
 
   if (loading) return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
-      <View style={styles.header}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.card} />
+      <View style={[styles.header, { paddingTop: headerTop }]}>
         <TouchableOpacity><MCIcon name="arrow-left" size={24} color={colors.textPrimary} /></TouchableOpacity>
         <Text style={styles.headerTitle}>Edit Doctor Details</Text>
         <View style={{ width: 24 }} />
@@ -225,8 +227,8 @@ const EditDoctorScreen = ({ route, navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
-      <View style={styles.header}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.card} />
+      <View style={[styles.header, { paddingTop: headerTop }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}><MCIcon name="arrow-left" size={24} color={colors.textPrimary} /></TouchableOpacity>
         <Text style={styles.headerTitle}>Edit Doctor Details</Text>
         <View style={{ width: 24 }} />
@@ -419,7 +421,7 @@ const EditDoctorScreen = ({ route, navigation }) => {
 
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  header: { paddingTop: 56, paddingHorizontal: 20, paddingBottom: 16, backgroundColor: colors.card, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  header: { paddingHorizontal: 20, paddingBottom: 16, backgroundColor: colors.card, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerTitle: { fontSize: 20, fontWeight: '800', color: colors.textPrimary },
   content: { padding: 20 },
   sectionLabel: { fontSize: 16, fontWeight: '700', color: colors.textPrimary, marginTop: 20, marginBottom: 8 },

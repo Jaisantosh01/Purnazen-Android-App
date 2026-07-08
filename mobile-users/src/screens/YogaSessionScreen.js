@@ -16,6 +16,7 @@ import useTheme from '../hooks/useTheme';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { syncVideoProgress } from '../utils/videoTracker';
+import { useHeaderTopPadding } from '../components/ScreenHeader';
 
 const SessionPlayer = ({ session, navigation }) => {
   const { colors } = useTheme();
@@ -97,7 +98,7 @@ const SessionPlayer = ({ session, navigation }) => {
 
   return (
     <View style={styles.root}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: headerTop }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <MCIcon name="arrow-left" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
@@ -194,7 +195,8 @@ const SessionPlayer = ({ session, navigation }) => {
 };
 
 const YogaSessionScreen = ({ navigation, route }) => {
-  const { colors } = useTheme();
+  const headerTop = useHeaderTopPadding();
+  const { colors, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const sessionKey = route?.params?.sessionKey || 'YogaSession';
   const [session, setSession]     = useState(null);
@@ -210,8 +212,8 @@ const YogaSessionScreen = ({ navigation, route }) => {
   if (isLoading) {
     return (
       <View style={styles.root}>
-        <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
-        <View style={styles.header}>
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.card} />
+        <View style={[styles.header, { paddingTop: headerTop }]}>
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
             <MCIcon name="arrow-left" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
@@ -228,8 +230,8 @@ const YogaSessionScreen = ({ navigation, route }) => {
   if (error || !session) {
     return (
       <View style={styles.root}>
-        <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
-        <View style={styles.header}>
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.card} />
+        <View style={[styles.header, { paddingTop: headerTop }]}>
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
             <MCIcon name="arrow-left" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
@@ -248,7 +250,7 @@ const YogaSessionScreen = ({ navigation, route }) => {
 
   return (
     <>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.card} />
       <SessionPlayer session={session} navigation={navigation} />
     </>
   );
@@ -263,7 +265,6 @@ const makeStyles = colors => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 50,
     paddingHorizontal: SPACING.lg,
     paddingBottom: SPACING.lg,
     backgroundColor: colors.card,
