@@ -160,8 +160,8 @@ class DoctorService:
         slots = []
         booked_str = {str(b) for b in booked_ids}
         for av, st in rows:
-            if st.id in booked_ids:
-                continue
+            # Booked slots stay in the list flagged `booked: true` (the booking
+            # UI greys them out); only leave-blocked slots are omitted entirely.
             if st.id in blocked_slots_by_leave:
                 continue
             slots.append({
