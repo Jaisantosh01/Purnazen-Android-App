@@ -140,3 +140,12 @@ dependencies {
         implementation jscFlavor
     }
 }
+// Firebase (social sign-in). The Google Services plugin hard-fails without
+// google-services.json, so it is only applied once the config file from the
+// Firebase console has been dropped into android/app/. Until then the app
+// builds and runs normally with social login disabled.
+if (file('google-services.json').exists()) {
+    apply plugin: 'com.google.gms.google-services'
+} else {
+    logger.lifecycle('google-services.json not found - Firebase disabled for this build.')
+}

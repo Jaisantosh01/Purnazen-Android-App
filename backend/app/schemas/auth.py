@@ -34,6 +34,19 @@ class SocialLoginRequest(BaseModel):
     expected_role: str | None = None
 
 
+class SocialLinkRequest(BaseModel):
+    id_token: str = Field(min_length=1)
+
+
+class ChangeEmailRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    new_email: EmailStr = Field(alias="newEmail")
+    # Required for password accounts; social-created accounts (random unusable
+    # password) may omit it — the linked provider identity is the proof.
+    current_password: str | None = Field(default=None, alias="currentPassword")
+
+
 class UpdateProfileRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 

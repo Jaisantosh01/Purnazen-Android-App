@@ -14,7 +14,12 @@ const STATUS_MESSAGES = {
 
 // 401s from these endpoints mean bad credentials / dead session — never
 // trigger the silent-refresh flow for them.
-const NO_REFRESH_PATHS = [ENDPOINTS.LOGIN, ENDPOINTS.REFRESH, ENDPOINTS.LOGOUT];
+const NO_REFRESH_PATHS = [
+  ENDPOINTS.LOGIN,
+  ENDPOINTS.SOCIAL_LOGIN,
+  ENDPOINTS.REFRESH,
+  ENDPOINTS.LOGOUT,
+];
 
 const client = axios.create({
   baseURL: BASE_URL,

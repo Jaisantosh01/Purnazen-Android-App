@@ -20,17 +20,7 @@
  * to the host and works for BOTH. (Emulator without adb reverse: set 10.0.2.2 in
  * .env; physical device over Wi-Fi: set your machine's LAN IP.)
  */
-import { Platform } from 'react-native';
-
-const DEFAULT_PORT = '5000';
-const getDevBaseUrl = () => {
-  if (Platform.OS === 'android') {
-    return `http://10.0.2.2:${DEFAULT_PORT}`;
-  }
-  return `http://localhost:${DEFAULT_PORT}`;
-};
-
-export const BASE_URL = process.env.EXPO_PUBLIC_API_URL || getDevBaseUrl();
+export const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
 
 export const API_VERSION = '/api/v1';
 
@@ -46,3 +36,8 @@ export const GITHUB_REPO = 'Calypsion-Innovations/PurnaZen_Android_App';
 // The single backend role this app serves. Login is gated to this role both
 // client-side (authService) and server-side (login `expected_role`).
 export const APP_ROLE = 'doctor';
+
+// ── Social sign-in via Firebase Auth (see docs/FIREBASE.md) ─────────────────
+// Optional override for the Google OAuth web client ID. Normally left empty:
+// it is auto-detected from android/app/google-services.json at runtime.
+export const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '';

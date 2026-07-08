@@ -118,6 +118,48 @@ class AuthService {
     return user;
   }
 
+  /** Cache an updated profile locally + in the store. */
+  async _cacheUser(user) {
+    await AsyncStorage.setItem('user', JSON.stringify(user));
+    useAuthStore.getState().setAuth(user);
+    return user;
+  }
+
+  /** Bind a Firebase-verified social identity to the logged-in account. */
+  async linkSocial(firebaseIdToken) {
+    const response = await apiClient.post(ENDPOINTS.SOCIAL_LINK, {
+      id_token: firebaseIdToken,
+    });
+    if (!response.success) {
+      throw new Error(response.message || 'Could not link the account');
+    }
+    return this._cacheUser(response.data.user);
+  }
+
+  /** Remove the linked social identity. */
+  async unlinkSocial() {
+    const response = await apiClient.post(ENDPOINTS.SOCIAL_UNLINK);
+    if (!response.success) {
+      throw new Error(response.message || 'Could not unlink the account');
+    }
+    return this._cacheUser(response.data.user);
+  }
+
+  /**
+   * Change the login email. Password accounts must confirm the current
+   * password; social-created accounts may pass null.
+   */
+  async changeEmail(newEmail, currentPassword) {
+    const response = await apiClient.post(ENDPOINTS.CHANGE_EMAIL, {
+      newEmail,
+      currentPassword: currentPassword || undefined,
+    });
+    if (!response.success) {
+      throw new Error(response.message || 'Could not update email');
+    }
+    return this._cacheUser(response.data.user);
+  }
+
   /**
    * Change the password. The backend revokes every previously issued token
    * and returns a fresh pair, which replaces the stored ones.

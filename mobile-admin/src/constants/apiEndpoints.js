@@ -8,6 +8,10 @@ export const ENDPOINTS = {
 
   // Auth
   LOGIN: `${API_VERSION}/auth/login`,
+  SOCIAL_LOGIN: `${API_VERSION}/auth/social`,
+  SOCIAL_LINK: `${API_VERSION}/auth/social/link`,
+  SOCIAL_UNLINK: `${API_VERSION}/auth/social/unlink`,
+  CHANGE_EMAIL: `${API_VERSION}/auth/change-email`,
   REGISTER: `${API_VERSION}/auth/register`,
   LOGOUT: `${API_VERSION}/auth/logout`,
   REFRESH: `${API_VERSION}/auth/refresh`,
