@@ -7,18 +7,17 @@
  *   - linkAccount(): bind the identity to the ALREADY logged-in account so
  *     the social button logs into it later (Settings → Linked account)
  *
- * - Google: native account picker (@react-native-google-signin), then the
- *   Google ID token is turned into a Firebase credential.
- * - GitHub: Firebase's built-in browser flow (signInWithPopup maps to the
- *   native SDK's provider flow) — no deep links or OAuth plumbing on our side.
+ * Google and GitHub both use Firebase's built-in browser flow — on native,
+ * signInWithPopup maps to the SDK's Custom-Tab provider flow. Any provider
+ * enabled in the Firebase console works the same way; no per-provider SDKs,
+ * deep links, or OAuth plumbing on our side.
  *
- * Everything requires android/app/google-services.json; without it (or Play
- * Services) the methods fail with a friendly message and password login is
- * unaffected. Sign-in methods resolve to the logged-in user, or null when
- * the user cancelled.
+ * Everything requires android/app/google-services.json; without it the
+ * methods fail with a friendly message and password login is unaffected.
+ * Sign-in methods resolve to the logged-in user, or null when the user
+ * cancelled.
  */
 import authService from './authService';
-import { GOOGLE_WEB_CLIENT_ID } from '../config';
 
 const UNAVAILABLE_MESSAGE =
   'Social sign-in is unavailable in this build. Please use email login.';
@@ -46,37 +45,23 @@ async function getFirebaseIdToken(provider) {
     throw new Error(UNAVAILABLE_MESSAGE);
   }
 
-  let userCredential;
+  const oauthProvider = new fb.fbAuth.OAuthProvider(
+    provider === 'google' ? 'google.com' : 'github.com',
+  );
   if (provider === 'google') {
-    let GoogleSignin;
-    try {
-      ({ GoogleSignin } = require('@react-native-google-signin/google-signin'));
-    } catch (e) {
-      throw new Error(UNAVAILABLE_MESSAGE);
-    }
-    // 'autoDetect' reads the web client ID from google-services.json, so no
-    // extra env var is needed; EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID can override.
-    GoogleSignin.configure({ webClientId: GOOGLE_WEB_CLIENT_ID || 'autoDetect' });
-    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-
-    const result = await GoogleSignin.signIn();
-    if (result.type !== 'success') return null; // dismissed the picker
-    const googleIdToken = result.data?.idToken;
-    if (!googleIdToken) {
-      throw new Error('Google did not return an ID token. Please try again.');
-    }
-    const credential = fb.fbAuth.GoogleAuthProvider.credential(googleIdToken);
-    userCredential = await fb.fbAuth.signInWithCredential(fb.auth, credential);
+    oauthProvider.addScope('email');
+    oauthProvider.addScope('profile');
   } else {
-    const oauthProvider = new fb.fbAuth.OAuthProvider('github.com');
     oauthProvider.addScope('user:email');
-    try {
-      // On native this runs the Firebase SDK's Custom-Tab OAuth flow.
-      userCredential = await fb.fbAuth.signInWithPopup(fb.auth, oauthProvider);
-    } catch (err) {
-      if (isCancellation(err)) return null; // closed the browser sheet
-      throw err;
-    }
+  }
+
+  let userCredential;
+  try {
+    // On native this runs the Firebase SDK's Custom-Tab OAuth flow.
+    userCredential = await fb.fbAuth.signInWithPopup(fb.auth, oauthProvider);
+  } catch (err) {
+    if (isCancellation(err)) return null; // closed the browser sheet
+    throw err;
   }
 
   const idToken = await fb.fbAuth.getIdToken(userCredential.user);

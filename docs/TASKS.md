@@ -32,12 +32,13 @@ Conventions for backend tasks: model → import in `db/base.py` →
 
 ### C. Auth
 
-- **C1. Social auth backend (T40)** — `google-auth` JWKS validation + Apple
-  identity tokens; `POST /auth/social/google|apple`; `find_by_oauth()` /
-  `create_oauth_user()`; guard `login()` for password-less users. OAuth columns
-  already exist on `users`.
-- **C2. Social auth mobile (T41 remainder)** — `@react-native-google-signin`,
-  `socialAuthService.js`, Google button on `LoginScreen`. Needs real client IDs.
+- **C1. Social auth backend (T40)** — DONE via Firebase Auth: the backend
+  verifies Firebase ID tokens (`social_auth.py`, `POST /auth/social`), so any
+  provider enabled in the Firebase console (Google, GitHub, ...) works with the
+  single `FIREBASE_SERVICE_ACCOUNT_JSON` credential. Apple deferred (no iOS).
+- **C2. Social auth mobile (T41 remainder)** — DONE via Firebase Auth's
+  built-in browser flow (`socialAuthService.js` in all three apps); no
+  per-provider SDKs or client IDs needed, only `google-services.json`.
 - **C3. OTP authentication** — SRS lists OTP/password; not implemented.
 
 ### D. Face analysis — remaining sprint work (spec: [FACE_ANALYSIS_SPEC.md](FACE_ANALYSIS_SPEC.md))

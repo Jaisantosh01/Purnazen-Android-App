@@ -29,15 +29,13 @@ login is untouched.
    - Users app: package name `com.purnazen`
    - Doctors app: package name `com.purnazen.doctor`
    - Admin app: package name `com.purnazen.admin`
-3. For **each app**, add the signing SHA-1 (required for native Google
-   sign-in; push works without it):
+3. (Optional) Add each app's signing SHA-1 fingerprint under Project
+   settings → the matching Android app → **Add fingerprint**. Sign-in and
+   push both work without it — it only enables extra Firebase integrity
+   checks. Get it with:
    ```
    cd mobile-users/android && ./gradlew signingReport
    ```
-   Copy the `SHA1` of the `debug` variant (and the release keystore's SHA-1
-   when you set up release builds) into Project settings → the matching
-   Android app → **Add fingerprint**. The debug SHA-1 is the same for all
-   three apps when they share `~/.android/debug.keystore` (the default).
 4. Download each app's **google-services.json** and place it at:
    - `mobile-users/android/app/google-services.json`
    - `mobile-doctors/android/app/google-services.json`
@@ -67,9 +65,8 @@ Firebase console → **Build → Authentication → Get started → Sign-in meth
 
 ### Google
 - Enable the **Google** provider, pick a support email, save. That's it —
-  the web client ID it creates lands in `google-services.json`, and the app
-  auto-detects it (`EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` exists as an optional
-  override but is normally not needed).
+  no client IDs to copy anywhere; the app uses Firebase's built-in browser
+  consent flow, same as GitHub.
 
 ### GitHub
 1. GitHub → Settings → Developer settings → **OAuth Apps → New OAuth App**:
@@ -87,9 +84,8 @@ them and runs the OAuth dance in a browser tab.
 
 ## 4. Rebuild the apps
 
-Native modules were added (`@react-native-firebase/app`, `messaging`, `auth`,
-`@react-native-google-signin/google-signin`), so a JS-only reload is not
-enough — rebuild:
+Native modules were added (`@react-native-firebase/app`, `messaging`,
+`auth`), so a JS-only reload is not enough — rebuild:
 
 ```
 cd mobile-users && npm install && npm run android
@@ -102,8 +98,8 @@ cd mobile-admin && npm install && npm run android
 - Users/doctors apps register an FCM token on login; backend pushes
   appointment/payment/reminder/broadcast notifications even when the app is
   closed (docs/NOTIFICATIONS.md).
-- All three login screens: **Google** opens the native account picker;
-  **GitHub** opens a browser consent tab.
+- All three login screens: **Google** and **GitHub** open a browser consent
+  tab (Firebase's provider flow — one code path for every provider).
 - Users app only: first social login auto-creates a patient account (random
   unusable password, `auth_provider` recorded); later logins with the same
   email reuse the account, including ones that registered with a password.
@@ -119,7 +115,7 @@ cd mobile-admin && npm install && npm run android
 
 ```
 Login button
-  → Firebase sign-in on device (Google picker / GitHub browser tab)
+  → Firebase sign-in on device (browser consent tab for any provider)
   → app gets the Firebase ID token
   → POST /api/v1/auth/social {id_token, expected_role}
   → backend verifies signature + audience against the Firebase project

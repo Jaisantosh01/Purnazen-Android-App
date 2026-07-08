@@ -36,8 +36,3 @@ export const GITHUB_REPO = 'Calypsion-Innovations/PurnaZen_Android_App';
 // The single backend role this app serves. Login is gated to this role both
 // client-side (authService) and server-side (login `expected_role`).
 export const APP_ROLE = 'doctor';
-
-// ── Social sign-in via Firebase Auth (see docs/FIREBASE.md) ─────────────────
-// Optional override for the Google OAuth web client ID. Normally left empty:
-// it is auto-detected from android/app/google-services.json at runtime.
-export const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '';

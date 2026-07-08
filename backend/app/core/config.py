@@ -65,11 +65,6 @@ class Settings(BaseSettings):
     # Optional override; normally derived from the service account JSON above.
     FIREBASE_PROJECT_ID: str = ""
 
-    # Social auth — Google client ID for ID token verification (Sprint 5)
-    GOOGLE_CLIENT_ID: str = ""
-    # Apple app bundle ID for Sign In with Apple identity token verification (Sprint 5)
-    APPLE_APP_ID: str = ""
-
     # Scan upload limits
     SCAN_MAX_FILE_SIZE_MB: int = 15
     RATE_LIMIT_SCAN_UPLOAD: str = "5/minute"
