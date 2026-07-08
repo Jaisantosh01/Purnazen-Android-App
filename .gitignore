@@ -1,6 +1,7 @@
 # ===== BACKEND (FastAPI) =====
 backend/venv/
 backend/venv*/
+backend/.purnazen/
 backend/.env
 backend/__pycache__/
 backend/*.pyc
