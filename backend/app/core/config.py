@@ -42,10 +42,28 @@ class Settings(BaseSettings):
     # SAS token lifetime for video streaming (needs to outlive the longest video session)
     AZURE_VIDEO_SAS_EXPIRY_MINUTES: int = 240
 
-    # Social auth — Google client ID for ID token verification (Sprint 5)
-    GOOGLE_CLIENT_ID: str = ""
-    # Apple app bundle ID for Sign In with Apple identity token verification (Sprint 5)
-    APPLE_APP_ID: str = ""
+    # App release distribution (OTA). A PRIVATE container holds the signed APKs;
+    # the backend mints a short-lived read-only SAS so the in-app updater can
+    # download without the container ever being public. CI uploads here.
+    AZURE_RELEASES_CONTAINER_NAME: str = "app-releases"
+    AZURE_RELEASE_SAS_EXPIRY_MINUTES: int = 15
+    # Shared secret the release CI presents (X-Release-Token) to register a new
+    # version. Separate from user auth so CI needs no user login. Empty => the
+    # register endpoint is disabled.
+    RELEASE_REGISTER_TOKEN: str = ""
+    # How many recent versions to keep active per app (older ones are deactivated).
+    RELEASE_KEEP_VERSIONS: int = 4
+
+    # Google Calendar / Meet integration — base64-encoded service account JSON key.
+    # When empty, video-consultation bookings skip Meet link creation.
+    GOOGLE_SERVICE_ACCOUNT_JSON: str = ""
+
+    # Firebase — base64-encoded service account JSON key for the Firebase
+    # project. Powers BOTH device push (FCM) and social sign-in token
+    # verification. When empty, push is skipped and social login is disabled.
+    FIREBASE_SERVICE_ACCOUNT_JSON: str = ""
+    # Optional override; normally derived from the service account JSON above.
+    FIREBASE_PROJECT_ID: str = ""
 
     # Scan upload limits
     SCAN_MAX_FILE_SIZE_MB: int = 15

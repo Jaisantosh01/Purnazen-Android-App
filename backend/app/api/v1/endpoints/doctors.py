@@ -19,6 +19,9 @@ def doctor_card(doctor):
     return {
         "id": str(doctor.id),
         "name": f"Dr. {doctor.user.full_name}",
+        "full_name": doctor.user.full_name,
+        "email": doctor.user.email,
+        "phone": doctor.user.phone,
         "specialties": [mapping.specialty.name for mapping in doctor.speciality_mappings],
         "specialty_ids": [mapping.speciality_id for mapping in doctor.speciality_mappings],
         # Image URL when set, else null — the app falls back to the doctor's
@@ -63,6 +66,7 @@ def doctor_card(doctor):
             }
             for clinic in doctor.clinics
         ],
+        "is_active": doctor.is_active,
     }
 
 
@@ -213,6 +217,23 @@ def update_doctor(
     if not updated_doctor:
         return error_response("Doctor not found", 404)
     return success_response("Doctor updated successfully", doctor_card(updated_doctor))
+
+
+@router.delete(
+    "/doctors/{doctor_id}",
+    summary="Deactivate a doctor",
+    description="Sets is_active=False on both the doctor and the linked user.",
+    dependencies=[Depends(require_role("admin"))],
+)
+def delete_doctor(
+    doctor_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not DoctorService.deactivate(db, doctor_id):
+        return error_response("Doctor not found", 404)
+
+    return success_response("Doctor deactivated successfully")
 
 
 @router.get(

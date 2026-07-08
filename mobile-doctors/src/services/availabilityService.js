@@ -8,11 +8,21 @@ import { ENDPOINTS } from '../constants/apiEndpoints';
 const availabilityService = {
   async list() {
     const res = await apiClient.get(ENDPOINTS.AVAILABILITY);
-    return res?.data ?? [];
+    const data = res?.data ?? [];
+    return data.map(item => ({
+      id: item.availability_id,
+      doctor_id: item.doctor_id,
+      slot_timing_id: item.slot_timing_id,
+      is_active: item.is_active,
+      day: item.day,
+      day_of_week_id: item.day_of_week_id,
+      start_time: item.start_time,
+      end_time: item.end_time,
+    }));
   },
 
   async create(slot) {
-    // slot: { doctor_id, day_of_week, start_time, end_time, slot_duration_minutes }
+    // slot: { doctor_id, slot_timing_id }
     const res = await apiClient.post(ENDPOINTS.AVAILABILITY, slot);
     return res?.data ?? null;
   },
@@ -25,6 +35,16 @@ const availabilityService = {
   async remove(id) {
     const res = await apiClient.delete(ENDPOINTS.AVAILABILITY_ITEM(id));
     return res?.success ?? false;
+  },
+
+  async getSlots() {
+    const res = await apiClient.get(ENDPOINTS.SLOT_TIMINGS);
+    return res?.data ?? [];
+  },
+
+  async getDoctors() {
+    const res = await apiClient.get(ENDPOINTS.DOCTORS, { params: { limit: 100 } });
+    return res?.data?.doctors ?? [];
   },
 };
 

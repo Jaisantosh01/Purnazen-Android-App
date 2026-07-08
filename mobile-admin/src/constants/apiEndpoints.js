@@ -8,11 +8,20 @@ export const ENDPOINTS = {
 
   // Auth
   LOGIN: `${API_VERSION}/auth/login`,
+  SOCIAL_LOGIN: `${API_VERSION}/auth/social`,
+  SOCIAL_LINK: `${API_VERSION}/auth/social/link`,
+  SOCIAL_UNLINK: `${API_VERSION}/auth/social/unlink`,
+  CHANGE_EMAIL: `${API_VERSION}/auth/change-email`,
   REGISTER: `${API_VERSION}/auth/register`,
   LOGOUT: `${API_VERSION}/auth/logout`,
   REFRESH: `${API_VERSION}/auth/refresh`,
   ME: `${API_VERSION}/auth/me`,
   CHANGE_PASSWORD: `${API_VERSION}/auth/change-password`,
+
+  // App releases (OTA) — backend-brokered update check + short-lived SAS download
+  APP_RELEASE_LATEST: slug => `${API_VERSION}/app-releases/latest?app=${slug}`,
+  APP_RELEASE_DOWNLOAD: (slug, version) =>
+    `${API_VERSION}/app-releases/${slug}/${encodeURIComponent(version)}/download`,
 
   // User preferences
   PREFERENCES: `${API_VERSION}/users/me/preferences`,
@@ -79,6 +88,11 @@ export const ENDPOINTS = {
   USERS: `${API_VERSION}/users`,
   ROLES: `${API_VERSION}/roles`,
   SLOT_TIMINGS: `${API_VERSION}/slot-timings`,
+  SUPPORT_FAQS: `${API_VERSION}/support-faqs`,
+
+  // Notifications (admin)
+  NOTIFICATION_SETTINGS: `${API_VERSION}/notifications/admin/settings`,
+  NOTIFICATION_BROADCAST: `${API_VERSION}/notifications/admin/broadcast`,
   DOCTOR_LEAVES: `${API_VERSION}/doctor-leaves`,
   DOCTOR_LEAVES_STATS: `${API_VERSION}/doctor-leaves/stats`,
   DOCTOR_LEAVES_UPDATE_STATUS: (id) => `${API_VERSION}/doctor-leaves/${id}/status`,

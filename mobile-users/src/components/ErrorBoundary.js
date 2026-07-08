@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Appearance } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import errorReportingService from '../services/errorReportingService';
+import { getColors } from '../constants/theme';
 
 /**
  * React error boundary — catches unhandled render/lifecycle errors,
@@ -43,6 +44,9 @@ class ErrorBoundary extends React.Component {
 
     const { error } = this.state;
     const message   = error?.message || 'Something went wrong';
+    // Class components can't use the useTheme hook; resolving the palette from
+    // the OS scheme at render keeps this rarely-shown screen close enough.
+    const styles = makeStyles(getColors(Appearance.getColorScheme() || 'light'));
 
     return (
       <View style={styles.root}>
@@ -75,10 +79,10 @@ class ErrorBoundary extends React.Component {
 
 export default ErrorBoundary;
 
-const styles = StyleSheet.create({
+const makeStyles = colors => StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: colors.background,
   },
   content: {
     flexGrow: 1,
@@ -92,7 +96,7 @@ const styles = StyleSheet.create({
     width: 112,
     height: 112,
     borderRadius: 56,
-    backgroundColor: '#fef2f2',
+    backgroundColor: colors.danger + '14',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
@@ -100,12 +104,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#111827',
+    color: colors.textPrimary,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,
-    color: '#6b7280',
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 21,
   },

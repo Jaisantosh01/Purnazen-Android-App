@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,43 +6,17 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { showAlert } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import consultService from '../services/consultService';
-import preferencesService from '../services/preferencesService';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 import AppDialog from '../components/AppDialog';
-import FormInput from '../components/FormInput';
 import {DAYS, MONTHS} from '../constants/strings';
 
-// Fallback shown until consultService.getVisitTypes() resolves (or if it fails).
-// Same shape the API returns: { id, icon, title, subtitle, fee }.
-const DEFAULT_VISIT_TYPES = [
-  { id: 'video',  icon: 'video-outline',     title: 'Video Call',   subtitle: 'Online consultation', fee: 500 },
-  { id: 'home',   icon: 'home-outline',      title: 'Home Visit',    subtitle: 'Doctor visits you',   fee: 1200 },
-  { id: 'clinic', icon: 'hospital-building', title: 'Clinic Visit',  subtitle: 'In-person at clinic', fee: 800 },
-];
-
-// Same shape the API returns ({ id, time, end_time }) so list keys are unique
-// and the slot label renders before getTimeSlots() resolves.
-const DEFAULT_TIME_SLOTS = [
-  { id: 'd1',  time: '09:00 AM', end_time: '09:30 AM' },
-  { id: 'd2',  time: '09:30 AM', end_time: '10:00 AM' },
-  { id: 'd3',  time: '10:00 AM', end_time: '10:30 AM' },
-  { id: 'd4',  time: '10:30 AM', end_time: '11:00 AM' },
-  { id: 'd5',  time: '11:00 AM', end_time: '11:30 AM' },
-  { id: 'd6',  time: '11:30 AM', end_time: '12:00 PM' },
-  { id: 'd7',  time: '02:00 PM', end_time: '02:30 PM' },
-  { id: 'd8',  time: '02:30 PM', end_time: '03:00 PM' },
-  { id: 'd9',  time: '03:00 PM', end_time: '03:30 PM' },
-  { id: 'd10', time: '03:30 PM', end_time: '04:00 PM' },
-  { id: 'd11', time: '04:00 PM', end_time: '04:30 PM' },
-  { id: 'd12', time: '04:30 PM', end_time: '05:00 PM' },
-];
 
 
 const BookAppointmentScreen = ({ navigation, route }) => {
@@ -51,31 +25,59 @@ const BookAppointmentScreen = ({ navigation, route }) => {
   const { doctor } = route.params;
 
   const today = new Date();
-  const [visitTypes, setVisitTypes]         = useState(DEFAULT_VISIT_TYPES);
-  const [timeSlots, setTimeSlots]           = useState(DEFAULT_TIME_SLOTS);
+  const [visitTypes, setVisitTypes]         = useState([]);
+  const [timeSlots, setTimeSlots]           = useState([]);
   const [selectedVisit, setSelectedVisit]   = useState('video');
   const [selectedTime, setSelectedTime]     = useState(null);
   const [currentMonth, setCurrentMonth]     = useState(today.getMonth());
   const [currentYear, setCurrentYear]       = useState(today.getFullYear());
-  const [selectedDate, setSelectedDate]     = useState(today.getDate());
+  // Default to null — no date is pre-selected
+  const [selectedDate, setSelectedDate]     = useState(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [userDescription, setUserDescription] = useState('');
-  const [savedAddress, setSavedAddress]     = useState('');
-  const [showAddress, setShowAddress]       = useState(false);
-  const [addressDraft, setAddressDraft]     = useState('');
+  const [clinics, setClinics]               = useState([]);
+  const [selectedClinic, setSelectedClinic] = useState(null);
+  const [userAddresses, setUserAddresses]   = useState([]);
+  const [selectedAddress, setSelectedAddress] = useState(null);
+  const [showAddressPicker, setShowAddressPicker] = useState(false);
+  const [addressesLoading, setAddressesLoading] = useState(false);
+  const [slotsLoading, setSlotsLoading] = useState(false);
 
-  // Load the saved address (shared with Settings) for the Home Visit card.
-  useEffect(() => {
-    preferencesService.getPreferences()
-      .then(prefs => { if (prefs?.address) setSavedAddress(prefs.address); })
-      .catch(() => {});
+  // Load user addresses and auto-select the best one for home visit.
+  const loadAddresses = useCallback(async () => {
+    setAddressesLoading(true);
+    try {
+      const data = await consultService.getUserAddresses();
+      setUserAddresses(data || []);
+      if (data && data.length > 0) {
+        const defaultAddr = data.find(a => a.isDefault);
+        setSelectedAddress(defaultAddr || data[0]);
+      } else {
+        setSelectedAddress(null);
+      }
+    } catch {
+      setUserAddresses([]);
+      setSelectedAddress(null);
+    } finally {
+      setAddressesLoading(false);
+    }
   }, []);
 
-  const openAddress = () => { setAddressDraft(savedAddress); setShowAddress(true); };
-  const handleSaveAddress = () => {
-    const trimmed = addressDraft.trim();
-    setSavedAddress(trimmed);
-    setShowAddress(false);
-    preferencesService.updatePreferences({ address: trimmed }).catch(() => {});
+  useEffect(() => {
+    if (selectedVisit === 'home') loadAddresses();
+  }, [selectedVisit, loadAddresses]);
+
+  // Reload when returning from AddressManagement
+  useEffect(() => {
+    const unsub = navigation.addListener('focus', () => {
+      if (selectedVisit === 'home') loadAddresses();
+    });
+    return unsub;
+  }, [navigation, selectedVisit, loadAddresses]);
+
+  const formatAddress = (addr) => {
+    if (!addr) return '';
+    return [addr.houseName, addr.area, addr.landmark, addr.city, addr.state, addr.pincode].filter(Boolean).join(', ');
   };
 
   const selectedVisitData = visitTypes.find(v => v.id === selectedVisit);
@@ -92,13 +94,36 @@ const BookAppointmentScreen = ({ navigation, route }) => {
   }, [doctor.id]);
 
   useEffect(() => {
+    if (selectedVisit !== 'clinic') {
+      setClinics([]);
+      setSelectedClinic(null);
+      return;
+    }
+    consultService.getDoctorClinics(doctor.id)
+      .then(data => { if (Array.isArray(data) && data.length) setClinics(data); })
+      .catch(() => setClinics([]));
+  }, [doctor.id, selectedVisit]);
+
+  const fetchTimeSlots = useCallback(() => {
     if (!selectedDate) return;
     setSelectedTime(null);
+    setTimeSlots([]);
+    setSlotsLoading(true);
     const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(selectedDate).padStart(2, '0')}`;
     consultService.getTimeSlots(doctor.id, dateStr)
       .then(data => { if (Array.isArray(data)) setTimeSlots(data); })
-      .catch(() => setTimeSlots([]));
+      .catch(() => setTimeSlots([]))
+      .finally(() => setSlotsLoading(false));
   }, [doctor.id, selectedDate, currentMonth, currentYear]);
+
+  useEffect(() => { fetchTimeSlots(); }, [fetchTimeSlots]);
+
+  // Re-fetch on focus so already-booked slots show as disabled after returning
+  // from BookingConfirmedScreen.
+  useEffect(() => {
+    const unsub = navigation.addListener('focus', () => { fetchTimeSlots(); });
+    return unsub;
+  }, [navigation, fetchTimeSlots]);
 
   const getDaysInMonth = (month, year) => new Date(year, month + 1, 0).getDate();
   const getFirstDayOfMonth = (month, year) => new Date(year, month, 1).getDay();
@@ -110,7 +135,6 @@ const BookAppointmentScreen = ({ navigation, route }) => {
     } else {
       setCurrentMonth(m => m - 1);
     }
-    setSelectedDate(null);
   };
 
   const handleNextMonth = () => {
@@ -120,7 +144,6 @@ const BookAppointmentScreen = ({ navigation, route }) => {
     } else {
       setCurrentMonth(m => m + 1);
     }
-    setSelectedDate(null);
   };
 
   const getSelectedDateString = () => {
@@ -136,15 +159,25 @@ const BookAppointmentScreen = ({ navigation, route }) => {
       showAlert('Missing Info', 'Please select a date and time slot.');
       return;
     }
+    if (selectedVisit === 'clinic' && !selectedClinic) {
+      showAlert('Missing Info', 'Please select a clinic for the visit.');
+      return;
+    }
+    if (selectedVisit === 'home' && !selectedAddress) {
+      showAlert('Missing Info', 'Please add a home address for the visit.');
+      return;
+    }
     const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(selectedDate).padStart(2, '0')}`;
     try {
       const booking = await consultService.bookAppointment({
-        doctorId:       doctor.id,
-        visitType:      selectedVisit,
-        date:           dateStr,
-        slotTimingId:   selectedTime.id,
-        fee:            selectedVisitData?.fee,
-        userDescription: userDescription.trim() || undefined,
+        doctorId:          doctor.id,
+        visitType:         selectedVisit,
+        date:              dateStr,
+        slotTimingId:      selectedTime.id,
+        clinicId:          selectedClinic?.id,
+        userAddressId:     selectedAddress?.id,
+        fee:               selectedVisitData?.fee,
+        userDescription:   userDescription.trim() || undefined,
       });
       navigation.navigate('BookingConfirmed', {
         doctor,
@@ -178,10 +211,6 @@ const BookAppointmentScreen = ({ navigation, route }) => {
   for (let i = 1; i <= remaining; i++) {
     calendarDays.push({ day: i, current: false });
   }
-
-  const isToday = (day, current) =>
-    current && day === today.getDate() &&
-    currentMonth === today.getMonth() && currentYear === today.getFullYear();
 
   const isPast = (day, current) => {
     if (!current) return true;
@@ -220,80 +249,142 @@ const BookAppointmentScreen = ({ navigation, route }) => {
                 <Text style={[styles.visitSubtitle, selectedVisit === visit.id && styles.visitSubtitleActive]}>
                   {visit.subtitle}
                 </Text>
-                <Text style={[styles.visitFee, selectedVisit === visit.id && styles.visitFeeActive]}>
-                  ₹{visit.fee}
-                </Text>
+                <View style={styles.visitCardFooter}>
+                  <Text style={[styles.visitFee, selectedVisit === visit.id && styles.visitFeeActive]}>
+                    ₹{visit.fee}
+                  </Text>
+                </View>
               </TouchableOpacity>
             ))}
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Select Date</Text>
-          <View style={styles.calendarCard}>
-            <View style={styles.calendarHeader}>
-              <TouchableOpacity onPress={handlePrevMonth} style={styles.monthBtn}>
-                <Text style={styles.monthBtnText}>‹</Text>
-              </TouchableOpacity>
-              <Text style={styles.monthTitle}>{MONTHS[currentMonth]} {currentYear}</Text>
-              <TouchableOpacity onPress={handleNextMonth} style={styles.monthBtn}>
-                <Text style={styles.monthBtnText}>›</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.dayHeaders}>
-              {DAYS.map(day => <Text key={day} style={styles.dayHeader}>{day}</Text>)}
-            </View>
-
-            <View style={styles.calendarGrid}>
-              {calendarDays.map((item, index) => {
-                const today_ = isToday(item.day, item.current);
-                const past = isPast(item.day, item.current);
-                const selected = item.current && item.day === selectedDate &&
-                  !(today_ && selectedDate === null);
-                return (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.dayCell,
-                      today_ && styles.dayCellToday,
-                      selected && !today_ && styles.dayCellSelected,
-                    ]}
-                    onPress={() => { if (!item.current || past) return; setSelectedDate(item.day); }}
-                    disabled={!item.current || past}
-                  >
-                    <Text style={[
-                      styles.dayText,
-                      !item.current && styles.dayTextFaded,
-                      past && styles.dayTextPast,
-                      today_ && styles.dayTextToday,
-                      selected && !today_ && styles.dayTextSelected,
-                    ]}>
-                      {item.day}
+        {selectedVisit === 'clinic' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Select Clinic</Text>
+            <View style={styles.clinicList}>
+              {clinics.map(clinic => (
+                <TouchableOpacity
+                  key={clinic.id}
+                  style={[styles.clinicOption, selectedClinic?.id === clinic.id && styles.clinicOptionActive]}
+                  onPress={() => setSelectedClinic(clinic)}
+                  activeOpacity={0.8}
+                >
+                  <MCIcon
+                    name="hospital-marker"
+                    size={20}
+                    color={selectedClinic?.id === clinic.id ? colors.primary : colors.textMuted}
+                  />
+                  <View style={styles.clinicOptionInfo}>
+                    <Text style={[styles.clinicOptionName, selectedClinic?.id === clinic.id && styles.clinicOptionNameActive]}>
+                      {clinic.name}
                     </Text>
-                  </TouchableOpacity>
-                );
-              })}
+                    <Text style={styles.clinicOptionAddress}>{clinic.address}, {clinic.city}</Text>
+                  </View>
+                  {selectedClinic?.id === clinic.id && (
+                    <MCIcon name="check-circle" size={20} color={colors.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
+        )}
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Select Date</Text>
+          <TouchableOpacity
+            style={styles.datePickerRow}
+            activeOpacity={0.8}
+            onPress={() => setShowDatePicker(v => !v)}
+          >
+            <MCIcon name="calendar-blank" size={20} color={colors.primary} />
+            {selectedDate ? (
+              <Text style={styles.datePickerText}>{getSelectedDateString()}</Text>
+            ) : (
+              <Text style={styles.datePickerPlaceholder}>Select a date</Text>
+            )}
+            <MCIcon name={showDatePicker ? "chevron-up" : "chevron-down"} size={20} color={colors.textMuted} />
+          </TouchableOpacity>
+
+          {showDatePicker && (
+            <View style={styles.calendarCard}>
+              <View style={styles.calendarHeader}>
+                <TouchableOpacity onPress={handlePrevMonth} style={styles.monthBtn}>
+                  <Text style={styles.monthBtnText}>‹</Text>
+                </TouchableOpacity>
+                <Text style={styles.monthTitle}>{MONTHS[currentMonth]} {currentYear}</Text>
+                <TouchableOpacity onPress={handleNextMonth} style={styles.monthBtn}>
+                  <Text style={styles.monthBtnText}>›</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.dayHeaders}>
+                {DAYS.map(day => <Text key={day} style={styles.dayHeader}>{day}</Text>)}
+              </View>
+
+              <View style={styles.calendarGrid}>
+                {calendarDays.map((item, index) => {
+                  const past = isPast(item.day, item.current);
+                  const selected = item.current && item.day === selectedDate;
+                  return (
+                    <TouchableOpacity
+                      key={index}
+                      style={[styles.dayCell, selected && styles.dayCellSelected]}
+                      onPress={() => { if (!item.current || past) return; setSelectedDate(item.day); setShowDatePicker(false); }}
+                      disabled={!item.current || past}
+                    >
+                        <Text style={[styles.dayText, !item.current && styles.dayTextFaded, past && styles.dayTextPast, selected && styles.dayTextSelected]}>
+                          {item.day}
+                        </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          )}
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Select Time</Text>
-          <View style={styles.timeGrid}>
-            {timeSlots.map(slot => (
-              <TouchableOpacity
-                key={slot.id}
-                style={[styles.timeSlot, selectedTime?.id === slot.id && styles.timeSlotActive]}
-                onPress={() => setSelectedTime(slot)}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.timeSlotText, selectedTime?.id === slot.id && styles.timeSlotTextActive]}>
-                  {slot.time} - {slot.end_time}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {slotsLoading ? (
+            <ActivityIndicator size="small" color={colors.primary} style={{ paddingVertical: 20 }} />
+          ) : timeSlots.length === 0 && selectedDate ? (
+            <View style={styles.noSlotsCard}>
+              <MCIcon name="clock-off-outline" size={28} color={colors.textMuted} />
+              <Text style={styles.noSlotsTitle}>No Slots Available</Text>
+              <Text style={styles.noSlotsText}>Please choose another date.</Text>
+            </View>
+          ) : timeSlots.length > 0 && timeSlots.every(s => s.booked) ? (
+            <View style={styles.noSlotsCard}>
+              <MCIcon name="clock-off-outline" size={28} color={colors.textMuted} />
+              <Text style={styles.noSlotsTitle}>All Slots Booked</Text>
+              <Text style={styles.noSlotsText}>All slots are booked for this date. Please choose another day.</Text>
+            </View>
+          ) : (
+            <View style={styles.timeGrid}>
+              {timeSlots.map(slot => (
+                <TouchableOpacity
+                  key={slot.id}
+                  style={[
+                    styles.timeSlot,
+                    slot.booked && styles.timeSlotBooked,
+                    !slot.booked && selectedTime?.id === slot.id && styles.timeSlotActive,
+                  ]}
+                  onPress={() => !slot.booked && setSelectedTime(slot)}
+                  activeOpacity={slot.booked ? 1 : 0.8}
+                  disabled={slot.booked}
+                >
+                  <Text style={[
+                    styles.timeSlotText,
+                    slot.booked && styles.timeSlotBookedText,
+                    !slot.booked && selectedTime?.id === slot.id && styles.timeSlotTextActive,
+                  ]}>
+                    {slot.time} - {slot.end_time}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </View>
 
         <View style={styles.section}>
@@ -312,18 +403,35 @@ const BookAppointmentScreen = ({ navigation, route }) => {
 
         {selectedVisit === 'home' && (
           <View style={styles.section}>
-            <View style={styles.addressCard}>
-              <MCIcon name="map-marker" size={20} color={colors.primary} style={styles.addressIcon} />
-              <View style={styles.addressInfo}>
-                <Text style={styles.addressTitle}>Home Address</Text>
-                <Text style={styles.addressText}>
-                  {savedAddress || 'No address saved yet — add one for the doctor to visit.'}
-                </Text>
-                <TouchableOpacity onPress={openAddress}>
-                  <Text style={styles.changeAddress}>{savedAddress ? 'Change Address' : 'Add Address'}</Text>
+            <Text style={styles.sectionTitle}>Home Address</Text>
+            {addressesLoading ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : selectedAddress ? (
+              <View style={styles.homeAddressCard}>
+                <MCIcon name="map-marker" size={20} color={colors.primary} style={styles.addressIcon} />
+                <View style={styles.addressInfo}>
+                  <Text style={styles.addressTitle}>{selectedAddress.houseName || 'Address'}</Text>
+                  <Text style={styles.addressText} numberOfLines={2}>{formatAddress(selectedAddress)}</Text>
+                  <TouchableOpacity onPress={() => setShowAddressPicker(true)}>
+                    <Text style={styles.changeAddress}>Change Address</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.noAddressCard}>
+                <MCIcon name="map-marker-off-outline" size={24} color={colors.textMuted} />
+                <Text style={styles.noAddressText}>No address saved yet</Text>
+                <Text style={styles.noAddressSubtext}>Add an address for the doctor to visit.</Text>
+                <TouchableOpacity
+                  style={styles.addAddressBtn}
+                  onPress={() => navigation.navigate('AddressManagement')}
+                  activeOpacity={0.8}
+                >
+                  <MCIcon name="plus" size={16} color={colors.white} />
+                  <Text style={styles.addAddressBtnText}>Add New Address</Text>
                 </TouchableOpacity>
               </View>
-            </View>
+            )}
           </View>
         )}
 
@@ -350,34 +458,68 @@ const BookAppointmentScreen = ({ navigation, route }) => {
             <Text style={styles.totalAmount}>₹{selectedVisitData?.fee}</Text>
           </View>
           <TouchableOpacity
-            style={[styles.confirmBtn, !selectedTime && styles.confirmBtnDisabled]}
+            style={[styles.confirmBtn, (!selectedDate || !selectedTime) && styles.confirmBtnDisabled]}
             onPress={handleConfirm}
             activeOpacity={selectedTime ? 0.85 : 1}
-            disabled={!selectedTime}
+            disabled={!selectedDate || !selectedTime || (selectedVisit === 'clinic' && !selectedClinic) || (selectedVisit === 'home' && !selectedAddress)}
           >
             <Text style={styles.confirmBtnText}>Confirm Booking</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Address editor (shared with Settings via preferences) */}
+      {/* Address picker dialog */}
       <AppDialog
-        visible={showAddress}
-        onClose={() => setShowAddress(false)}
+        visible={showAddressPicker}
+        onClose={() => setShowAddressPicker(false)}
         icon="home-map-marker"
-        title="Home Address"
-        subtitle="Where should the doctor visit?"
-        confirmLabel="Save"
-        onConfirm={handleSaveAddress}
+        title="Select Address"
+        subtitle="Choose the address for your home visit"
+        confirmLabel="Close"
+        onConfirm={() => setShowAddressPicker(false)}
+        topSlot={(
+          <TouchableOpacity
+            style={styles.pickerAddBtn}
+            onPress={() => { setShowAddressPicker(false); navigation.navigate('AddressManagement'); }}
+            activeOpacity={0.7}
+          >
+            <MCIcon name="plus-circle-outline" size={20} color={colors.primary} />
+            <Text style={styles.pickerAddBtnText}>Add New Address</Text>
+          </TouchableOpacity>
+        )}
       >
-        <FormInput
-          label="Address"
-          icon="map-marker-outline"
-          value={addressDraft}
-          onChangeText={setAddressDraft}
-          placeholder="House / street, area, city, pincode"
-          multiline
-        />
+        {userAddresses.length === 0 ? (
+          <Text style={styles.pickerEmptyText}>No addresses saved yet.</Text>
+        ) : userAddresses.map(addr => (
+          <TouchableOpacity
+            key={addr.id}
+            style={[styles.pickerItem, selectedAddress?.id === addr.id && styles.pickerItemActive]}
+            onPress={() => { setSelectedAddress(addr); setShowAddressPicker(false); }}
+            activeOpacity={0.7}
+          >
+            <MCIcon
+              name={addr.typeOfAddress === 'office' ? 'office-building-outline' : 'home-outline'}
+              size={18}
+              color={selectedAddress?.id === addr.id ? colors.primary : colors.textMuted}
+            />
+            <View style={styles.pickerItemInfo}>
+              <View style={styles.pickerItemTitleRow}>
+                <Text style={[styles.pickerItemTitle, selectedAddress?.id === addr.id && styles.pickerItemTitleActive]} numberOfLines={1}>
+                  {addr.houseName || 'Address'}
+                </Text>
+                {addr.isDefault && (
+                  <View style={styles.pickerDefaultBadge}>
+                    <Text style={styles.pickerDefaultBadgeText}>Default</Text>
+                  </View>
+                )}
+              </View>
+              <Text style={styles.pickerItemDetail} numberOfLines={1}>{formatAddress(addr)}</Text>
+            </View>
+            {selectedAddress?.id === addr.id && (
+              <MCIcon name="check-circle" size={20} color={colors.primary} />
+            )}
+          </TouchableOpacity>
+        ))}
       </AppDialog>
     </View>
   );
@@ -406,6 +548,7 @@ const makeStyles = colors => StyleSheet.create({
   visitCard: {
     flex: 1, backgroundColor: colors.card, borderRadius: 14,
     padding: 16, alignItems: 'flex-start', borderWidth: 1.5, borderColor: colors.border,
+    justifyContent: 'space-between',
   },
   visitCardActive: { borderColor: colors.primary, backgroundColor: colors.primaryFaint },
   visitIcon:        { fontSize: 24, marginBottom: 8, color: colors.textMuted },
@@ -414,13 +557,23 @@ const makeStyles = colors => StyleSheet.create({
   visitTitleActive: { color: colors.primary },
   visitSubtitle:    { fontSize: 11, color: colors.textMuted, marginBottom: 8 },
   visitSubtitleActive: { color: colors.textSecondary },
+  visitCardFooter:  { marginTop: 'auto', width: '100%', alignItems: 'center', paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.surfaceMuted },
   visitFee:         { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
   visitFeeActive:   { color: colors.primary },
+
+  /* Date Picker Row */
+  datePickerRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: colors.card, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12,
+    borderWidth: 1.5, borderColor: colors.border,
+  },
+  datePickerText:       { flex: 1, fontSize: 14, fontWeight: '500', color: colors.textPrimary },
+  datePickerPlaceholder:{ flex: 1, fontSize: 14, color: colors.textMuted },
 
   calendarCard: {
     backgroundColor: colors.card, borderRadius: 14, padding: 16,
     shadowColor: colors.black, shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 3, elevation: 1,
+    shadowOpacity: 0.05, shadowRadius: 3, elevation: 1, marginTop: 10,
   },
   calendarHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16,
@@ -432,13 +585,11 @@ const makeStyles = colors => StyleSheet.create({
   dayHeader:     { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600', color: colors.textMuted },
   calendarGrid:  { flexDirection: 'row', flexWrap: 'wrap' },
   dayCell:       { width: `${100 / 7}%`, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', marginVertical: 2 },
-  dayCellToday:  { backgroundColor: colors.primary, borderRadius: 20 },
-  dayCellSelected: { backgroundColor: colors.primaryLight, borderRadius: 20, borderWidth: 1, borderColor: colors.primary },
+  dayCellSelected: { backgroundColor: colors.primary, borderRadius: 20 },
   dayText:         { fontSize: 13, color: colors.textPrimary, fontWeight: '500' },
   dayTextFaded:    { color: colors.borderStrong },
   dayTextPast:     { color: colors.borderStrong },
-  dayTextToday:    { color: colors.white, fontWeight: '700' },
-  dayTextSelected: { color: colors.primary, fontWeight: '700' },
+  dayTextSelected: { color: colors.white, fontWeight: '700' },
 
   timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   timeSlot: {
@@ -446,8 +597,16 @@ const makeStyles = colors => StyleSheet.create({
     borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, alignItems: 'center',
   },
   timeSlotActive:     { backgroundColor: colors.primary, borderColor: colors.primary },
+  timeSlotBooked:     { backgroundColor: colors.surfaceMuted, borderColor: colors.borderStrong, opacity: 0.45 },
   timeSlotText:       { fontSize: 12, fontWeight: '500', color: colors.textSecondary },
   timeSlotTextActive: { color: colors.white, fontWeight: '700' },
+  timeSlotBookedText:{ fontSize: 12, fontWeight: '500', color: colors.textMuted, textDecorationLine: 'line-through' },
+  noSlotsCard: {
+    alignItems: 'center', backgroundColor: colors.card, borderRadius: 14,
+    padding: 24, borderWidth: 1.5, borderColor: colors.border, gap: 8,
+  },
+  noSlotsTitle: { fontSize: 15, fontWeight: '700', color: colors.textMuted },
+  noSlotsText: { fontSize: 12, color: colors.textMuted, textAlign: 'center', lineHeight: 18 },
 
   descriptionInput: {
     backgroundColor: colors.card, borderRadius: 14, padding: 14,
@@ -455,15 +614,68 @@ const makeStyles = colors => StyleSheet.create({
     color: colors.textPrimary, minHeight: 100,
   },
 
-  addressCard: {
-    flexDirection: 'row', backgroundColor: '#fff9f0', borderRadius: 14,
-    padding: 14, borderWidth: 1, borderColor: '#fed7aa', gap: 10,
+  /* Home Visit Address */
+  homeAddressCard: {
+    flexDirection: 'row', backgroundColor: colors.warning + '14', borderRadius: 14,
+    padding: 14, borderWidth: 1, borderColor: colors.warning + '55', gap: 10,
   },
   addressIcon:    { fontSize: 20 },
   addressInfo:    { flex: 1 },
   addressTitle:   { fontSize: 14, fontWeight: '700', color: colors.textPrimary, marginBottom: 4 },
   addressText:    { fontSize: 13, color: colors.textSecondary, lineHeight: 18 },
   changeAddress:  { fontSize: 13, color: colors.primary, fontWeight: '600', marginTop: 6 },
+  noAddressCard: {
+    alignItems: 'center', backgroundColor: colors.card, borderRadius: 14,
+    padding: 24, borderWidth: 1.5, borderColor: colors.border, gap: 6,
+  },
+  noAddressText:    { fontSize: 14, fontWeight: '600', color: colors.textMuted },
+  noAddressSubtext: { fontSize: 12, color: colors.textMuted, textAlign: 'center' },
+  addAddressBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8,
+    backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 10,
+    borderRadius: 10,
+  },
+  addAddressBtnText: { fontSize: 13, fontWeight: '600', color: colors.white },
+
+  /* Address Picker Dialog */
+  pickerAddBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingVertical: 12, paddingHorizontal: 4, marginBottom: 4,
+  },
+  pickerAddBtnText: { fontSize: 14, fontWeight: '600', color: colors.primary },
+  pickerEmptyText: { fontSize: 13, color: colors.textMuted, textAlign: 'center', paddingVertical: 20 },
+  pickerItem: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingVertical: 12, paddingHorizontal: 10, borderRadius: 12,
+    borderWidth: 1, borderColor: 'transparent', marginBottom: 6,
+    backgroundColor: colors.surfaceMuted,
+  },
+  pickerItemActive: { borderColor: colors.primary, backgroundColor: colors.primaryFaint },
+  pickerItemInfo: { flex: 1 },
+  pickerItemTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  pickerItemTitle: { fontSize: 13, fontWeight: '600', color: colors.textPrimary, flexShrink: 1 },
+  pickerItemTitleActive: { color: colors.primary },
+  pickerDefaultBadge: {
+    backgroundColor: colors.primaryFaint, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6,
+  },
+  pickerDefaultBadgeText: { fontSize: 9, fontWeight: '600', color: colors.primary },
+  pickerItemDetail: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
+
+  clinicCard: {
+    flexDirection: 'row', backgroundColor: '#f0f7ff', borderRadius: 14,
+    padding: 14, borderWidth: 1, borderColor: '#bfdbfe', gap: 10,
+  },
+  clinicList: { gap: 8 },
+  clinicOption: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    padding: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.card,
+  },
+  clinicOptionActive: { borderColor: colors.primary, backgroundColor: colors.primaryFaint },
+  clinicOptionInfo: { flex: 1 },
+  clinicOptionName: { fontSize: 14, fontWeight: '600', color: colors.textPrimary, marginBottom: 2 },
+  clinicOptionNameActive: { color: colors.primary },
+  clinicOptionAddress: { fontSize: 12, color: colors.textSecondary },
 
   bottomBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,

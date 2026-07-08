@@ -2,17 +2,31 @@ import React from 'react';
 import { Text, TouchableOpacity, StyleSheet } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
+import useTheme from '../hooks/useTheme';
 
-const QuickCard = ({ title, iconName, onPress, bg = '#fff', color = '#1a1a1a', sub = '#9ca3af' }) => {
+/**
+ * Quick-relief card. `bg`/`color` come from the backend card record and are
+ * designed against a light surface, so in dark mode the card renders as a
+ * translucent wash of the accent hue on the dark surface instead.
+ * `sub` is the subtitle text (server `subtitle` field).
+ */
+const QuickCard = ({ title, iconName, onPress, bg, color, sub }) => {
+  const { colors, isDark } = useTheme();
+  const accent = color || colors.primary;
+  const cardBg = isDark ? accent + '26' : bg || colors.card;
+  const titleColor = isDark ? colors.textPrimary : color || colors.textPrimary;
+
   return (
     <TouchableOpacity
-      style={[styles.box, { backgroundColor: bg }]}
+      style={[styles.box, { backgroundColor: cardBg }]}
       onPress={onPress}
       activeOpacity={0.85}
     >
-      <MCIcon name={iconName} size={30} color={color} style={styles.icon} />
-      <Text style={[styles.boxTitle, { color }]}>{title}</Text>
-      <Text style={[styles.boxSub, { color: sub }]}>Instant relief</Text>
+      <MCIcon name={iconName} size={30} color={accent} style={styles.icon} />
+      <Text style={[styles.boxTitle, { color: titleColor }]}>{title}</Text>
+      <Text style={[styles.boxSub, { color: colors.textMuted }]}>
+        {sub || 'Instant relief'}
+      </Text>
     </TouchableOpacity>
   );
 };

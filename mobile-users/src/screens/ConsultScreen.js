@@ -18,6 +18,7 @@ import useTheme from '../hooks/useTheme';
 import { doctorInitial } from '../utils/doctorAvatar';
 import {TAG_ICONS} from '../constants/icons';
 import {CONSULT_SCREEN_FILTER_TABS_FALLBACK} from '../constants/miscellaneous';
+import { useHeaderTopPadding } from '../components/ScreenHeader';
 
 
 const FILTER_TABS_FALLBACK = CONSULT_SCREEN_FILTER_TABS_FALLBACK;
@@ -25,8 +26,10 @@ const FILTER_TABS_FALLBACK = CONSULT_SCREEN_FILTER_TABS_FALLBACK;
 
 // Shared header reused in loading/error states
 // Fix 1: always pass searchQuery so TextInput is never uncontrolled
-const ScreenHeader = ({ styles, colors, searchQuery = '', onChangeText, onClear, editable = true, navigation }) => (
-  <View style={styles.header}>
+const ScreenHeader = ({ styles, colors, searchQuery = '', onChangeText, onClear, editable = true, navigation }) => {
+  const headerTop = useHeaderTopPadding();
+  return (
+  <View style={[styles.header, { paddingTop: headerTop }]}>
     <View style={styles.headerTopRow}>
       <View style={styles.headerTextCol}>
         <Text style={styles.headerTitle}>Book Consultation</Text>
@@ -54,7 +57,8 @@ const ScreenHeader = ({ styles, colors, searchQuery = '', onChangeText, onClear,
       )}
     </View>
   </View>
-);
+  );
+};
 
 const ConsultScreen = ({ navigation }) => {
   const { colors } = useTheme();
@@ -142,7 +146,7 @@ const ConsultScreen = ({ navigation }) => {
         <View style={styles.doctorInfo}>
           {/* Fix 6: numberOfLines prevents long names from breaking layout */}
           <Text style={styles.doctorName} numberOfLines={1}>{doctor.name}</Text>
-          <Text style={styles.doctorSpecialty} numberOfLines={1}>{doctor.specialty}</Text>
+          <Text style={styles.doctorSpecialty} numberOfLines={1}>{doctor.specialties || ''}</Text>
 
           <View style={styles.ratingRow}>
             <MCIcon name="star" size={14} color={colors.warning} />
@@ -152,10 +156,12 @@ const ConsultScreen = ({ navigation }) => {
             <Text style={styles.experience}>{doctor.experience} years</Text>
           </View>
 
-          <View style={styles.locationRow}>
-            <MCIcon name="map-marker-outline" size={13} color={colors.textMuted} />
-            <Text style={styles.location} numberOfLines={1}> {doctor.location}</Text>
-          </View>
+          {!!doctor.location && (
+            <View style={styles.locationRow}>
+              <MCIcon name="map-marker-outline" size={13} color={colors.textMuted} />
+              <Text style={styles.location} numberOfLines={1}> {doctor.location}</Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -318,7 +324,6 @@ const makeStyles = colors => StyleSheet.create({
   // Header
   header: {
     backgroundColor: colors.headerBg,
-    paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 20,
     borderBottomLeftRadius: 24,

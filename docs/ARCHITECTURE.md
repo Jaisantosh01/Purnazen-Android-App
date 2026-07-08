@@ -1,8 +1,17 @@
 # Architecture
 
-**Last updated:** 2026-06-15 (Face Analysis Sprints 1–3: consent, upload, mobile camera, and the **real OpenCV/MediaPipe AI pipeline** — see [FACE_ANALYSIS_AI.md](FACE_ANALYSIS_AI.md))
+**Last updated:** 2026-07-03 (endpoint/model counts, navigation tree, doctor-app status refreshed after PR #22) · Face Analysis pipeline write-up: [FACE_ANALYSIS_AI.md](FACE_ANALYSIS_AI.md)
 
 ## System Overview
+
+The repo ships **three React Native apps against one FastAPI backend**, each gated
+to a single role (`expected_role` on login): **`mobile-users`** (patient,
+brand-green), **`mobile-admin`** (admin, burnt-orange), **`mobile-doctors`**
+(doctor, clinical-blue). They share the same conventions and a common
+client-side pattern — `constants/theme.js` (light/dark palettes) + `hooks/useTheme.js`
++ `store/themeStore.js` for theming, `services/biometricService.js` for biometric
+unlock, and `utils/alert.js` + `components/AppAlertHost.js` for themed alerts —
+ported per app rather than shared as a package.
 
 ```
 ┌─────────────────────────────┐         ┌──────────────────────────────┐
@@ -54,24 +63,16 @@ backend/
 │   │   │                    #   get_current_user, require_role(role)
 │   │   └── v1/
 │   │       ├── router.py    # Aggregates endpoint routers under /api/v1
-│   │       └── endpoints/
-│   │           ├── auth.py            # register, login, logout, refresh, admin;
-│   │           │                      #   GET/PUT/DELETE /auth/me, /auth/change-password
-│   │           ├── doctors.py         # GET /doctors (pagination + search), filter routes
-│   │           │                      #   (/available-today, /video-call, /home-visit,
-│   │           │                      #   /top-rated — registered before /doctors/:id),
-│   │           │                      #   /doctors/:id, :id/visit-types, :id/time-slots
-│   │           ├── home.py            # GET /home/quick-relief
-│   │           ├── appointments.py    # POST /appointments/book, GET /appointments (auth)
-│   │           ├── therapy_history.py # POST /therapy-history/save, GET /therapy-history (auth)
-│   │           ├── sessions.py        # GET /sessions[/:key], /relief-sessions[/:key]
-│   │           ├── payments.py        # POST /payments/process, /payments/verify (auth)
-│   │           ├── users.py           # GET/PUT /users/me/preferences (auth)
-│   │           ├── face_glow.py       # GET /face-glow/routines[/:key]
-│   │           ├── face_scan.py       # POST /face-glow/scan/upload (consent-gated),
-│   │           │                      #   GET /scan/:id/status, /history, DELETE /scan/:id
-│   │           ├── consent.py         # GET/POST/DELETE /consent (GDPR consents)
-│   │           └── error_report.py    # POST /errors/report (client error triage)
+│   │       └── endpoints/   # 29 modules / ~131 routes (full inventory: FEATURES.md
+│   │                        #   "Backend platform" table). Groups:
+│   │                        #   - auth, users, user_addresses, consent, error_report
+│   │                        #   - doctors, doctor_availability, doctor_leaves,
+│   │                        #     specialties, expertises, languages, slot_timings, roles
+│   │                        #   - appointments, consultations (clinical records), payments
+│   │                        #   - home, sessions, therapy_history, therapy_feedback, chat
+│   │                        #   - face_glow, face_scan
+│   │                        #   - videos (+ video groups + Azure Blob upload), support (CMS),
+│   │                        #     dashboard (admin stats), app_releases (OTA)
 │   ├── core/
 │   │   ├── config.py        # Settings (pydantic-settings): secrets, DB URL, expiries,
 │   │   │                    #   CORS_ORIGINS, REDIS_URL, RATE_LIMIT_*, RAZORPAY_KEY_*
@@ -84,19 +85,13 @@ backend/
 │   │   ├── base_class.py    # DeclarativeBase
 │   │   ├── base.py          # Imports every model → Base.metadata complete
 │   │   └── session.py       # create_engine + SessionLocal
-│   ├── models/              # 20 SQLAlchemy models (one file each; associations.py
-│   │                        #   holds the 3 many-to-many Tables)
-│   ├── schemas/             # Pydantic request schemas (auth.py, appointment.py,
-│   │                        #   therapy.py, payment.py, preferences.py)
-│   ├── repositories/        # UserRepository, TokenRepository, DoctorRepository,
-│   │                        #   QuickReliefRepository, AppointmentRepository,
-│   │                        #   TherapySessionRepository, SessionCatalogRepository,
-│   │                        #   PaymentRepository, PreferenceRepository — all take a Session arg
-│   ├── services/            # AuthService, DoctorService, HomeService,
-│   │                        #   AppointmentService, TherapyService,
-│   │                        #   SessionCatalogService, PaymentService, PreferenceService,
-│   │                        #   FaceGlowRoutineService, ConsentService, UploadService,
-│   │                        #   scan_pipeline_service, recommendation_engine_service
+│   ├── models/              # 41 SQLAlchemy model files (one per table; associations.py
+│   │                        #   holds the many-to-many Tables)
+│   ├── schemas/             # Pydantic request schemas (one per feature area)
+│   ├── repositories/        # One repository per aggregate — all take a Session arg
+│   ├── services/            # One service per feature area (business logic),
+│   │                        #   plus scan_pipeline_service, recommendation_engine_service,
+│   │                        #   upload/azure_storage helpers
 │   ├── ai/                  # Face analysis pipeline (Sprint 3) — see FACE_ANALYSIS_AI.md
 │   │   ├── face_detector.py      # MediaPipe FaceLandmarker singleton (+ Haar fallback)
 │   │   ├── image_preprocessor.py # resize, blur/lighting checks, landmark-indexed ROIs
@@ -104,11 +99,10 @@ backend/
 │   │   └── analyzers/             # 9 metric analyzers + glow_score_engine + toxin_indicator
 │   └── utils/responses.py   # success_response / error_response (JSON envelope)
 ├── alembic/                 # Plain Alembic (env.py reads settings.DATABASE_URL)
-│   └── versions/            # 10 revisions (users → doctor module → quick_reliefs → avatar
-│                            #   → appointments → therapy_sessions → session catalogs
-│                            #   → token_version → payments → user_preferences)
+│   └── versions/            # 59 revisions — heads were merged 2026-06-17; if you hit a
+│                            #   branched-head error see RUNNING.md §1.3
 ├── alembic.ini
-├── tests/                   # 84 pytest tests, in-memory SQLite, get_db override
+├── tests/                   # pytest suites, in-memory SQLite, get_db override
 │                            #   (limiter off by default; rate_limited_client fixture)
 ├── seed.py                  # Idempotent dev seed (bcrypt-hashed passwords)
 ├── seed_data.py             # Session catalog content (ported from frontend mocks)
@@ -116,7 +110,13 @@ backend/
 └── run.py                   # uvicorn app.main:app --reload, port 5000
 ```
 
-### Database Schema (26 tables)
+### Database Schema (~41 tables)
+
+Core tables below; later features added their own (all follow the same
+model → migration pattern): `doctor_leaves`, `slot_timings`, `roles`,
+`user_addresses`, `therapy_feedback`, `consultation_records`,
+`chat_questions`/`chat_options`, `videos`/`video_groups`/`video_group_mappings`,
+`support_contacts`/`support_faqs`, `app_releases`, `day_of_week`.
 
 | Table | Purpose |
 |-------|---------|
@@ -166,9 +166,10 @@ analyzers in a `ThreadPoolExecutor`, composite scoring, then persists
 ## Frontend (`mobile-users/`) — React Native 0.85 (bare + Expo modules, SDK 56)
 
 > Three RN apps share this backend: **`mobile-users/`** (patient app — described
-> below, full feature set), **`mobile-doctors/`** (doctor app — a scaffolded
-> skeleton with the same stack/infra; see `mobile-doctors/README.md`) and
-> **`mobile-admin/`** (admin app). Each pins a distinct Metro port (8081 / 8082 /
+> below, full feature set), **`mobile-doctors/`** (doctor app — dashboard,
+> appointments, schedule, patients, clinical records; see
+> `mobile-doctors/README.md`) and **`mobile-admin/`** (admin app — management
+> console). Each pins a distinct Metro port (8081 / 8082 /
 > 8083) and a distinct `applicationId` (`com.purnazen` / `.doctor` / `.admin`) so
 > they coexist on one device — see [RUNNING.md](RUNNING.md). The architecture
 > below is the patient app.
@@ -200,10 +201,11 @@ mobile-users/src/
 │                            #   + one-time AsyncStorage migration
 ├── store/                   # Zustand stores: authStore (user/isLoggedIn),
 │                            #   scanStore (face-scan flow state)
-├── services/                # authService (register/login/profile/password/delete),
-│                            #   consultService (incl. payments), wellnessService,
-│                            #   reliefService, therapyService, preferencesService,
-│                            #   scanService, errorReportingService
+├── services/                # authService, consultService (incl. payments),
+│                            #   wellnessService, reliefService, therapyService,
+│                            #   preferencesService, scanService, consentService,
+│                            #   supportService, biometricService, permissionsService,
+│                            #   updateService (OTA), errorReportingService
 ├── screens/                 # Screens (see FEATURES.md) — incl. RegisterScreen and the
 │                            #   scan flow (FaceScan/ScanProcessing/ScanResults/ScanError)
 ├── components/              # QuickCards, ErrorBoundary, ServiceUnavailable,
@@ -225,13 +227,19 @@ mobile-users/src/
 RootStack
 ├── Login
 ├── Register
+├── ProfileCompletion (post-signup phone/gender/DOB)
 └── Main (Bottom Tabs)
-    ├── Home Stack     → Home, SelectSymptom, FaceGlow, FaceScan, ScanProcessing,
-    │                     ScanResults, ScanError, YogaSession, ReliefSession
-    ├── Relief Stack   → Relief, ReliefSession
-    ├── Wellness Stack → Wellness, YogaSession
-    ├── Consult Stack  → Consult, DoctorProfile, BookAppointment, BookingConfirmed, Payment
-    └── Profile Stack  → Profile, TherapyHistory, HelpSupport, Settings, Subscriptions, Notifications
+    ├── Home Stack     → Home, SelectSymptom, FaceGlow, FaceScan, TongueScan,
+    │                     ScanProcessing, ScanResults, ScanHistory, ScanDashboard,
+    │                     ScanComparison, ScanError, YogaSession, ReliefSession,
+    │                     ChatAssistant, VideoPlayer
+    ├── Relief Stack   → Relief, ReliefSession, ChatAssistant, VideoPlayer
+    ├── Wellness Stack → Wellness, YogaSession, VideoPlayer
+    ├── Consult Stack  → Consult, DoctorProfile, BookAppointment, BookingConfirmed,
+    │                     AppointmentHistory, AppointmentDetail, Payment
+    └── Profile Stack  → Profile, AppointmentHistory, AppointmentDetail, TherapyHistory,
+                          VideoPlayer, ReliefSession, HelpSupport, Settings, Consent,
+                          Subscriptions, Notifications, AddressManagement
 ```
 
 ### Known Constraints

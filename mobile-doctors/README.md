@@ -1,13 +1,18 @@
 # Purnazen for Doctors (`mobile-doctors`)
 
-Doctor-facing React Native app — **scaffolded skeleton**. It mirrors the patient
-app's stack and infrastructure (`mobile-users`) and talks to the **same FastAPI
-backend**, but ships placeholder screens for the doctor workflows rather than
-finished features.
+Doctor-facing React Native app. It mirrors the patient app's stack and
+infrastructure (`mobile-users`) and talks to the **same FastAPI backend**,
+gated to the `doctor` role (`com.purnazen.doctor`, Metro port 8082).
 
-> Status: skeleton only. Auth + navigation + service layer are real; feature
-> screens render a "scaffolded" placeholder that documents the intended
-> behaviour and the backend endpoint(s) each will use.
+> Status: **functional**. Real Dashboard (today's counts, pending requests,
+> today's schedule from `GET /appointments/doctor`), Appointments (list +
+> detail + status updates), Schedule (weekly availability CRUD), Patients
+> (roster derived from the appointment feed + patient profile with visit
+> history), and persisted clinical records (consultation notes / diagnosis /
+> prescription via `/appointments/{id}/records`). Profile & Settings are at
+> full parity with the patient app — dark mode, biometric login, themed
+> alerts, editable profile/phone/password, language, check-for-updates, and
+> profile trackers. Feature status: [../docs/FEATURES.md](../docs/FEATURES.md).
 
 ## Stack
 
@@ -53,19 +58,6 @@ ships in dev. `localhost:5000` works on a USB device/emulator with
 `adb reverse tcp:5000 tcp:5000`; for an emulator without it use `http://10.0.2.2:5000`,
 for a device over Wi-Fi use the PC's LAN IP. See [docs/RUNNING.md §2.1](../docs/RUNNING.md#21-point-the-app-at-the-backend).
 
-### Native projects (android/ios)
-
-To keep the skeleton lean this folder ships **JS/TS only** — no committed
-`android/`/`ios/` native projects. Generate them once before the first run:
-
-```powershell
-npx expo prebuild          # expo is a dependency; generates android/ + ios/
-```
-
-(Alternatively, copy `mobile-users/android` + `mobile-users/ios` and rename the
-application id / package from `com.wellness` to a doctor id, e.g.
-`com.purnazen.doctor`.)
-
 ### Run
 
 ```powershell
@@ -88,13 +80,14 @@ npm run lint               # eslint
 > add one (mirroring the `mobile-users` `frontend` job) after the first
 > `npm install` produces a `package-lock.json`.
 
-## Doctor features (planned)
+## Doctor features
 
 | Screen | Backend endpoint(s) |
 |---|---|
 | **Login** | `POST /api/v1/auth/login` (doctor accounts provisioned server-side) |
-| **Dashboard** | summary counts (today / pending / patients) |
-| **Appointments** + detail | `GET /appointments`, `PUT /appointments/:id` — *doctor-scoped list is a backend TODO* |
+| **Dashboard** | `GET /appointments/doctor` (today / pending / active patients + schedule) |
+| **Appointments** + detail | `GET /appointments/doctor`, `PUT /appointments/:id` |
 | **Schedule / availability** | `GET·POST /doctor-availability`, `PUT·DELETE /doctor-availability/:id` |
-| **Patients** + detail | `GET /patients`, `GET /patients/:id`, `GET /patients/:id/face-glow/history` — *backend TODO* |
-| **Profile** | `GET /auth/me`, `POST /auth/logout`, `POST /auth/change-password` |
+| **Patients** + profile | derived from the appointment feed + `GET /users/:id` (no separate patients table) |
+| **Clinical records** | `GET/POST /appointments/:id/records`, `PUT/DELETE .../records/:recordId` |
+| **Profile / Settings** | `GET/PUT /auth/me`, `POST /auth/logout`, `POST /auth/change-password`, `GET/PUT /users/me/preferences` |

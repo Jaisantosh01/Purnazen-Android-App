@@ -1,3 +1,5 @@
+import secrets
+
 from sqlalchemy.orm import Session
 
 from app.core.security import (
@@ -13,6 +15,7 @@ from app.models.therapy_session import TherapySession
 from app.models.user import User
 from app.models.user_preference import UserPreference
 from app.repositories.user_repository import UserRepository
+from app.services.social_auth import SocialAuthError, verify_firebase
 
 
 class AuthService:
@@ -63,12 +66,162 @@ class AuthService:
             "message": "Login successful",
             "access_token": create_access_token(str(user.id), user.token_version or 0),
             "refresh_token": create_refresh_token(str(user.id), user.token_version or 0),
-            "user": {
-                "id": user.id,
-                "email": user.email,
-                "full_name": user.full_name,
-                "role": user.role.name if user.role else None,
-            },
+            # Full profile (includes auth_provider/social_linked for Settings)
+            "user": user.to_dict(),
+        }, 200
+
+    @staticmethod
+    def social_login(db: Session, data: dict):
+        """Sign in (or sign up) with a Firebase-verified identity.
+
+        Firebase Auth proves ownership of the email (whichever provider the
+        user picked in the app); we then reuse the account with that email or
+        create a fresh patient account. Sign-up via social is patient-only —
+        doctor/admin accounts are provisioned by an admin, so an unknown email
+        asked for by those apps is rejected instead of created.
+        """
+        try:
+            profile = verify_firebase(data["id_token"])
+        except SocialAuthError as exc:
+            return {"success": False, "message": exc.message}, exc.status_code
+
+        if not profile["email_verified"]:
+            return {
+                "success": False,
+                "message": "This account's email address is not verified with the provider",
+            }, 403
+
+        expected_role = data.get("expected_role")
+        # A linked social identity (Settings → Linked accounts) wins over email
+        # matching, so any role can sign in with a social account whose email
+        # differs from the account email.
+        user = None
+        if profile.get("uid"):
+            user = db.query(User).filter_by(firebase_uid=profile["uid"]).first()
+        if user is None:
+            user = UserRepository.find_by_email(db, profile["email"])
+
+        if user is None:
+            if expected_role not in (None, "patient"):
+                return {
+                    "success": False,
+                    "message": "No account found for this email. Please contact your administrator.",
+                }, 403
+            # Random throwaway password: the account is provider-backed and can
+            # never be entered via the password form.
+            user = UserRepository.create_user(
+                db,
+                {
+                    "full_name": profile["full_name"],
+                    "email": profile["email"],
+                    "password": hash_password(secrets.token_urlsafe(32)),
+                },
+            )
+            user.auth_provider = profile["provider"] or None
+            user.firebase_uid = profile.get("uid")
+            if profile.get("avatar_url"):
+                user.avatar_url = profile["avatar_url"]
+            db.commit()
+            db.refresh(user)
+        elif expected_role and (not user.role or user.role.name != expected_role):
+            return {
+                "success": False,
+                "message": "This account is not permitted to use this app",
+            }, 403
+        elif not user.firebase_uid and profile.get("uid"):
+            # First social sign-in on an email-matched account: bind the
+            # identity so it shows under Linked accounts and future provider
+            # email changes don't break the mapping.
+            user.firebase_uid = profile["uid"]
+            user.auth_provider = user.auth_provider or profile["provider"] or None
+            db.commit()
+
+        return {
+            "success": True,
+            "message": "Login successful",
+            "access_token": create_access_token(str(user.id), user.token_version or 0),
+            "refresh_token": create_refresh_token(str(user.id), user.token_version or 0),
+            "user": user.to_dict(),
+        }, 200
+
+    @staticmethod
+    def link_social(db: Session, user: User, data: dict):
+        """Bind a Firebase-verified social identity to the logged-in account.
+
+        The provider email may differ from the account email — that's the
+        point: afterwards the social button logs into THIS account (any role).
+        """
+        try:
+            profile = verify_firebase(data["id_token"])
+        except SocialAuthError as exc:
+            return {"success": False, "message": exc.message}, exc.status_code
+
+        uid = profile.get("uid")
+        if not uid:
+            return {"success": False, "message": "Sign-in token has no user id"}, 400
+
+        holder = db.query(User).filter_by(firebase_uid=uid).first()
+        if holder is not None and holder.id != user.id:
+            return {
+                "success": False,
+                "message": "This social account is already linked to another user",
+            }, 409
+
+        user.firebase_uid = uid
+        user.auth_provider = profile["provider"] or None
+        db.commit()
+        db.refresh(user)
+
+        return {
+            "success": True,
+            "message": f"{(profile['provider'] or 'Social').capitalize()} account linked successfully",
+            "user": user.to_dict(),
+        }, 200
+
+    @staticmethod
+    def unlink_social(db: Session, user: User):
+        if not user.firebase_uid:
+            return {"success": False, "message": "No social account is linked"}, 400
+
+        user.firebase_uid = None
+        user.auth_provider = None
+        db.commit()
+        db.refresh(user)
+
+        return {
+            "success": True,
+            "message": "Social account unlinked",
+            "user": user.to_dict(),
+        }, 200
+
+    @staticmethod
+    def change_email(db: Session, user: User, data: dict):
+        """Change the login email.
+
+        Password accounts must confirm the current password. Social-created
+        accounts have a random unusable password, so a linked social identity
+        stands in as the proof instead.
+        """
+        new_email = data["new_email"].lower().strip()
+
+        if user.auth_provider is None or data.get("current_password"):
+            if not data.get("current_password"):
+                return {"success": False, "message": "Current password is required"}, 400
+            if not verify_password(data["current_password"], user.password):
+                return {"success": False, "message": "Current password is incorrect"}, 401
+
+        existing = UserRepository.find_by_email(db, new_email)
+        if existing and existing.id != user.id:
+            return {"success": False, "message": "Email already exists"}, 400
+
+        user.email = new_email
+        db.commit()
+        db.refresh(user)
+
+        return {
+            "success": True,
+            "message": "Email updated successfully",
+            "user": user.to_dict(),
         }, 200
 
     @staticmethod

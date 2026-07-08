@@ -62,12 +62,26 @@ jobs:
             backend
 
       - name: Deploy to Container App
+        env:
+          # OTA config (sourced from repo secret/var); applied here because the
+          # Container App control plane is configured during deploy, not locally.
+          REG_TOKEN: ${{ secrets.RELEASE_REGISTER_TOKEN }}
+          REL_CONTAINER: ${{ vars.AZURE_RELEASES_CONTAINER }}
         run: |
+          APP="${{ vars.BACKEND_CONTAINERAPP }}"
+          RG="${{ vars.AZURE_RESOURCE_GROUP }}"
+          EXTRA_ENV=""
+          if [ -n "$REG_TOKEN" ]; then
+            # Store the CI register token as a Container App secret and reference it.
+            az containerapp secret set --name "$APP" --resource-group "$RG" \
+              --secrets "release-register-token=$REG_TOKEN" --output none
+            EXTRA_ENV="RELEASE_REGISTER_TOKEN=secretref:release-register-token AZURE_RELEASES_CONTAINER_NAME=${REL_CONTAINER:-app-releases}"
+          fi
           az containerapp update \
-            --name "${{ vars.BACKEND_CONTAINERAPP }}" \
-            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --name "$APP" \
+            --resource-group "$RG" \
             --image "${{ vars.ACR_LOGIN_SERVER }}/${IMAGE_NAME}:${{ steps.meta.outputs.tag }}" \
-            --set-env-vars "RUN_MIGRATIONS=${{ inputs.run_migrations == true && '1' || '0' }}" \
+            --set-env-vars "RUN_MIGRATIONS=${{ inputs.run_migrations == true && '1' || '0' }}" $EXTRA_ENV \
             --output none
           echo "Image rolled out. Active revision:"
           az containerapp revision list \

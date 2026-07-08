@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,18 +7,22 @@ import {
   TouchableOpacity,
   StatusBar,
   TextInput,
-  Alert,
   Modal,
   ScrollView,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
-import { COLORS } from '../constants/theme';
 import { ROLE_ICONS } from '../constants/icons';
 import { ListSkeleton } from '../components/SkeletonLoader';
+import useTheme from '../hooks/useTheme';
+import { useHeaderTopPadding } from '../components/ScreenHeader';
+import { showAlert } from '../utils/alert';
 
 const MetadataManagementScreen = ({ route, navigation }) => {
+  const { colors, isDark } = useTheme();
+  const headerTop = useHeaderTopPadding();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { title, endpoint } = route.params;
   const isRole = title === 'Roles';
   const [items, setItems] = useState([]);
@@ -31,6 +35,7 @@ const MetadataManagementScreen = ({ route, navigation }) => {
 
   useEffect(() => {
     fetchItems();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchItems = () => {
@@ -63,7 +68,7 @@ const MetadataManagementScreen = ({ route, navigation }) => {
         setModalVisible(false);
         fetchItems();
       })
-      .catch(() => Alert.alert('Error', 'Failed to save item'));
+      .catch(() => showAlert('Error', 'Failed to save item'));
   };
 
   const startEdit = (item) => {
@@ -83,7 +88,7 @@ const MetadataManagementScreen = ({ route, navigation }) => {
 
   const handleDelete = (id) => {
     setMenuVisible(null);
-    Alert.alert('Delete', 'Are you sure?', [
+    showAlert('Delete', 'Are you sure?', [
       { text: 'Cancel' },
       {
         text: 'Delete',
@@ -91,7 +96,7 @@ const MetadataManagementScreen = ({ route, navigation }) => {
           apiClient
             .delete(`${endpoint}/${id}`)
             .then(fetchItems)
-            .catch(() => Alert.alert('Error', 'Failed to delete'));
+            .catch(() => showAlert('Error', 'Failed to delete'));
         },
       },
     ]);
@@ -100,22 +105,22 @@ const MetadataManagementScreen = ({ route, navigation }) => {
   const renderItem = ({ item }) => (
     <View style={styles.itemCard}>
       <View style={{flexDirection: 'row', alignItems: 'center'}}>
-        {isRole && item.icon && <MCIcon name={item.icon} size={20} color={COLORS.primary} style={{marginRight: 10}} />}
+        {isRole && item.icon && <MCIcon name={item.icon} size={20} color={colors.primary} style={{marginRight: 10}} />}
         <Text style={styles.itemName}>{item.name}</Text>
       </View>
       <TouchableOpacity onPress={() => setMenuVisible(menuVisible === item.id ? null : item.id)}>
-        <MCIcon name="dots-vertical" size={24} color={COLORS.textMuted} />
+        <MCIcon name="dots-vertical" size={24} color={colors.textMuted} />
       </TouchableOpacity>
       
       {menuVisible === item.id && (
         <View style={styles.menu}>
           <TouchableOpacity style={styles.menuItem} onPress={() => startEdit(item)}>
-            <MCIcon name="pencil" size={18} color={COLORS.primary} />
+            <MCIcon name="pencil" size={18} color={colors.primary} />
             <Text style={styles.menuItemText}>Edit</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.menuItem} onPress={() => handleDelete(item.id)}>
             <MCIcon name="delete" size={18} color="#FF4D4D" />
-            <Text style={[styles.menuItemText, { color: '#FF4D4D' }]}>Delete</Text>
+            <Text style={[styles.menuItemText, { color: colors.danger }]}>Delete</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -124,14 +129,14 @@ const MetadataManagementScreen = ({ route, navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
-      <View style={styles.header}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.card} />
+      <View style={[styles.header, { paddingTop: headerTop }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <MCIcon name="arrow-left" size={24} color={COLORS.textPrimary} />
+          <MCIcon name="arrow-left" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{title}</Text>
         <TouchableOpacity onPress={openAddModal}>
-          <MCIcon name="plus" size={24} color={COLORS.primary} />
+          <MCIcon name="plus" size={24} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
@@ -169,7 +174,7 @@ const MetadataManagementScreen = ({ route, navigation }) => {
                                     style={[styles.iconOption, selectedIcon === icon && styles.selectedIcon]}
                                     onPress={() => setSelectedIcon(icon)}
                                 >
-                                    <MCIcon name={icon} size={24} color={selectedIcon === icon ? COLORS.primary : COLORS.textPrimary} />
+                                    <MCIcon name={icon} size={24} color={selectedIcon === icon ? colors.primary : colors.textPrimary} />
                                 </TouchableOpacity>
                             ))}
                         </View>
@@ -186,31 +191,31 @@ const MetadataManagementScreen = ({ route, navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
-  header: { paddingTop: 56, paddingHorizontal: 20, paddingBottom: 16, backgroundColor: COLORS.white, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  headerTitle: { fontSize: 20, fontWeight: '800', color: COLORS.textPrimary },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
+  header: { paddingHorizontal: 20, paddingBottom: 16, backgroundColor: colors.card, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  headerTitle: { fontSize: 20, fontWeight: '800', color: colors.textPrimary },
   listContainer: { padding: 16 },
-  itemCard: { backgroundColor: COLORS.white, padding: 16, borderRadius: 12, marginBottom: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', position: 'relative' },
+  itemCard: { backgroundColor: colors.card, padding: 16, borderRadius: 12, marginBottom: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', position: 'relative' },
   itemName: { fontSize: 16, fontWeight: '600' },
-  menu: { position: 'absolute', right: 40, top: 16, backgroundColor: COLORS.white, borderRadius: 8, padding: 8, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, zIndex: 10 },
+  menu: { position: 'absolute', right: 40, top: 16, backgroundColor: colors.card, borderRadius: 8, padding: 8, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, zIndex: 10 },
   menuItem: { flexDirection: 'row', alignItems: 'center', padding: 8, gap: 8 },
   menuItemText: { fontSize: 14, fontWeight: '500' },
-  emptyText: { textAlign: 'center', marginTop: 20, color: COLORS.textMuted },
+  emptyText: { textAlign: 'center', marginTop: 20, color: colors.textMuted },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: COLORS.white, borderRadius: 12, padding: 20 },
+  modalContent: { backgroundColor: colors.card, borderRadius: 12, padding: 20 },
   modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15 },
-  modalInput: { backgroundColor: COLORS.background, borderRadius: 8, paddingHorizontal: 12, height: 44, marginBottom: 15, borderWidth: 1, borderColor: '#ddd' },
+  modalInput: { backgroundColor: colors.background, borderRadius: 8, paddingHorizontal: 12, height: 44, marginBottom: 15, borderWidth: 1, borderColor: colors.borderStrong },
   iconPicker: { marginBottom: 15 },
   label: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
-  iconOption: { padding: 10, borderRadius: 8, marginRight: 8, backgroundColor: '#f0f0f0' },
-  selectedIcon: { backgroundColor: COLORS.primaryLight, borderWidth: 1, borderColor: COLORS.primary },
+  iconOption: { padding: 10, borderRadius: 8, marginRight: 8, backgroundColor: colors.surfaceMuted },
+  selectedIcon: { backgroundColor: colors.primaryLight, borderWidth: 1, borderColor: colors.primary },
   modalButtons: { flexDirection: 'row', gap: 10 },
   iconContainer: { flexDirection: 'row', flexWrap: 'wrap' },
   btn: { flex: 1, padding: 12, borderRadius: 8, alignItems: 'center' },
-  cancelBtn: { backgroundColor: '#eee' },
-  saveBtn: { backgroundColor: COLORS.primary },
-  saveBtnText: { color: COLORS.white, fontWeight: 'bold' }
+  cancelBtn: { backgroundColor: colors.surfaceMuted },
+  saveBtn: { backgroundColor: colors.primary },
+  saveBtnText: { color: colors.white, fontWeight: 'bold' }
 });
 
 export default MetadataManagementScreen;

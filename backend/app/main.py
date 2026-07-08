@@ -55,6 +55,10 @@ OPENAPI_TAGS = [
         "description": "Save completed wellness/relief sessions and list them with stats.",
     },
     {
+        "name": "Therapy Feedback",
+        "description": "Create and update therapy feedback records (pain levels, user/doctor/admin feedback) in a dedicated table.",
+    },
+    {
         "name": "Sessions",
         "description": "Wellness and relief player content catalogs (steps, cycles, media).",
     },
@@ -98,9 +102,23 @@ async def lifespan(app: FastAPI):
             "MediaPipe pre-warm skipped (AI packages may not be installed): %s", exc
         )
 
+    # Appointment reminder scheduler (admin-configurable lead time).
+    reminder_task = None
+    try:
+        import asyncio
+
+        from app.services.reminder_scheduler import reminder_loop
+
+        reminder_task = asyncio.create_task(reminder_loop())
+    except Exception as exc:
+        logger.warning("Reminder scheduler not started: %s", exc)
+
     yield  # application is running
 
     # --- Shutdown ---
+    if reminder_task is not None:
+        reminder_task.cancel()
+
     detector = getattr(app.state, "face_detector", None)
     if detector is not None:
         try:

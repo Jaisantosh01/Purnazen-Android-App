@@ -1,0 +1,103 @@
+"""Appointment reminder scheduler.
+
+A lightweight asyncio loop (started from the FastAPI lifespan) that wakes every
+minute and dispatches reminder notifications for appointments starting within
+the configured lead window (notification_settings.reminder_lead_minutes,
+admin-controlled). ``appointments.reminder_sent_at`` guarantees exactly-once
+delivery across restarts.
+
+No external scheduler dependency: the appointment volume is small and the
+loop's work is one indexed query per minute.
+"""
+
+import asyncio
+import logging
+from datetime import date, datetime, timedelta
+
+from app.db.session import SessionLocal
+from app.models.appointment import Appointment
+from app.services.notification_service import NotificationService
+
+logger = logging.getLogger(__name__)
+
+_INTERVAL_SECONDS = 60
+
+
+def send_due_reminders(now: datetime | None = None) -> int:
+    """Send reminders for appointments starting within the lead window.
+
+    Returns the number of appointments reminded (for tests/logging).
+    """
+    now = now or datetime.now()
+    db = SessionLocal()
+    try:
+        settings_row = NotificationService.get_settings(db)
+        if not settings_row.reminders_enabled:
+            return 0
+        lead = timedelta(minutes=settings_row.reminder_lead_minutes)
+
+        candidates = (
+            db.query(Appointment)
+            .filter(
+                Appointment.status.in_(["pending", "booked"]),
+                Appointment.reminder_sent_at.is_(None),
+                Appointment.is_active == True,  # noqa: E712
+                Appointment.date.in_([now.date(), (now + lead).date()]),
+            )
+            .all()
+        )
+
+        reminded = 0
+        for appointment in candidates:
+            slot = appointment.slot_timing
+            if not slot or not slot.start_time:
+                continue
+            start_dt = datetime.combine(appointment.date, slot.start_time)
+            if not (now <= start_dt <= now + lead):
+                continue
+
+            time_str = slot.start_time.strftime("%I:%M %p")
+            minutes_left = max(1, int((start_dt - now).total_seconds() // 60))
+            payload = {"appointmentId": str(appointment.id)}
+
+            doctor_name = (
+                f"Dr. {appointment.doctor.user.full_name}"
+                if appointment.doctor and appointment.doctor.user
+                else "your doctor"
+            )
+            NotificationService.notify_safely(
+                db, appointment.user_id, category="reminder",
+                event="appointment_reminder",
+                title="Upcoming appointment",
+                body=f"{appointment.reference} with {doctor_name} starts at {time_str} (~{minutes_left} min).",
+                data=payload,
+            )
+            if appointment.doctor:
+                patient = appointment.user.full_name if appointment.user else "a patient"
+                NotificationService.notify_safely(
+                    db, appointment.doctor.user_id, category="reminder",
+                    event="appointment_reminder",
+                    title="Upcoming appointment",
+                    body=f"{appointment.reference} with {patient} starts at {time_str} (~{minutes_left} min).",
+                    data=payload,
+                )
+
+            appointment.reminder_sent_at = now
+            db.commit()
+            reminded += 1
+
+        return reminded
+    finally:
+        db.close()
+
+
+async def reminder_loop() -> None:
+    logger.info("Appointment reminder scheduler started (every %ss).", _INTERVAL_SECONDS)
+    while True:
+        try:
+            count = await asyncio.to_thread(send_due_reminders)
+            if count:
+                logger.info("Dispatched %s appointment reminder(s).", count)
+        except Exception as exc:
+            logger.warning("Reminder scheduler tick failed: %s", exc)
+        await asyncio.sleep(_INTERVAL_SECONDS)

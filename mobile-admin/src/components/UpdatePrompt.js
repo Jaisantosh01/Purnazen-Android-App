@@ -12,17 +12,19 @@
  * the app itself free of the sensitive REQUEST_INSTALL_PACKAGES permission — the
  * OS installer handles the install-time consent.
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   Modal, View, Text, TouchableOpacity, StyleSheet, Linking, ScrollView,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { checkForUpdate, FORCE_MARKER } from '../services/updateService';
-import { COLORS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 
 const SKIP_KEY = 'pz_update_skipped_version';
 
 export default function UpdatePrompt() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [info, setInfo] = useState(null);
   const [visible, setVisible] = useState(false);
 
@@ -92,7 +94,7 @@ export default function UpdatePrompt() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = colors => StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -103,21 +105,21 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 420,
-    backgroundColor: COLORS.white || '#fff',
+    backgroundColor: colors.card || '#fff',
     borderRadius: 16,
     padding: 22,
   },
-  title: { fontSize: 19, fontWeight: '700', color: COLORS.textPrimary || '#111', marginBottom: 6 },
-  subtitle: { fontSize: 14, color: COLORS.textMuted || '#666', marginBottom: 14 },
+  title: { fontSize: 19, fontWeight: '700', color: colors.textPrimary || '#111', marginBottom: 6 },
+  subtitle: { fontSize: 14, color: colors.textMuted || '#666', marginBottom: 14 },
   notes: { maxHeight: 160, marginBottom: 16 },
-  notesText: { fontSize: 13, lineHeight: 19, color: COLORS.textPrimary || '#333' },
+  notesText: { fontSize: 13, lineHeight: 19, color: colors.textPrimary || '#333' },
   primaryBtn: {
-    backgroundColor: COLORS.primary || '#1FA77A',
+    backgroundColor: colors.primary || '#1FA77A',
     borderRadius: 10,
     paddingVertical: 13,
     alignItems: 'center',
   },
-  primaryText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  primaryText: { color: colors.white, fontSize: 15, fontWeight: '700' },
   secondaryBtn: { paddingVertical: 12, alignItems: 'center', marginTop: 4 },
-  secondaryText: { color: COLORS.textMuted || '#666', fontSize: 14, fontWeight: '600' },
+  secondaryText: { color: colors.textMuted || '#666', fontSize: 14, fontWeight: '600' },
 });

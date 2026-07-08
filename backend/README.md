@@ -1,6 +1,7 @@
-# Wellness Backend API
+# Purnazen Backend API
 
-Enterprise-grade wellness SaaS backend built with **FastAPI**.
+The shared **FastAPI** backend serving all three Purnazen apps (patient, doctor,
+admin). Endpoint inventory and feature status: [../docs/FEATURES.md](../docs/FEATURES.md).
 
 ## Tech Stack
 - **Framework:** FastAPI (ASGI, served by Uvicorn)

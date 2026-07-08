@@ -16,6 +16,7 @@ import permissionsService from './src/services/permissionsService';
 import preferencesService from './src/services/preferencesService';
 // @ts-ignore
 import { useAuthStore } from './src/store/authStore';
+import pushService from './src/services/pushService';
 // @ts-ignore
 import { navigationRef } from './src/navigation/navigationRef';
 // @ts-ignore
@@ -51,6 +52,7 @@ import HelpSupportScreen from './src/screens/HelpSupportScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import SubscriptionsScreen from './src/screens/SubscriptionsScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
+import NotificationCenterScreen from './src/screens/NotificationCenterScreen';
 import SelectSymptomScreen from './src/screens/SelectSymptomScreen';
 import FaceGlowScreen from './src/screens/FaceGlowScreen';
 import FaceScanScreen from './src/screens/FaceScanScreen';
@@ -73,6 +75,8 @@ import BookingConfirmedScreen from './src/screens/BookingConfirmedScreen';
 import AppointmentHistoryScreen from './src/screens/AppointmentHistoryScreen';
 import AppointmentDetailScreen from './src/screens/AppointmentDetailScreen';
 import PaymentScreen from './src/screens/PaymentScreen';
+// @ts-ignore
+import AddressManagementScreen from './src/screens/AddressManagementScreen';
 
 const RootStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -94,6 +98,7 @@ function HomeStackNavigator() {
   return (
     <HomeStack.Navigator screenOptions={{ headerShown: false }}>
       <HomeStack.Screen name="HomeMain"       component={HomeScreen}          />
+      <HomeStack.Screen name="NotificationCenter" component={NotificationCenterScreen} />
       <HomeStack.Screen name="SelectSymptom"  component={SelectSymptomScreen} />
       <HomeStack.Screen name="FaceGlow"       component={FaceGlowScreen}      />
       <HomeStack.Screen name="FaceScan"       component={FaceScanScreen}      />
@@ -143,6 +148,7 @@ function ConsultStackNavigator() {
       <ConsultStack.Screen name="AppointmentHistory" component={AppointmentHistoryScreen} />
       <ConsultStack.Screen name="AppointmentDetail"  component={AppointmentDetailScreen}  />
       <ConsultStack.Screen name="Payment"          component={PaymentScreen}         />
+      <ConsultStack.Screen name="AddressManagement" component={AddressManagementScreen} />
     </ConsultStack.Navigator>
   );
 }
@@ -161,6 +167,7 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="Consent"        component={ConsentScreen}        />
       <ProfileStack.Screen name="Subscriptions"  component={SubscriptionsScreen}  />
       <ProfileStack.Screen name="Notifications"  component={NotificationsScreen}  />
+      <ProfileStack.Screen name="AddressManagement" component={AddressManagementScreen} />
     </ProfileStack.Navigator>
   );
 }
@@ -230,6 +237,15 @@ export default function App() {
   const [bootstrapped, setBootstrapped] = useState(false);
   // Subscribe to auth state — changes here drive navigator re-render
   const isLoggedIn = useAuthStore((s: any) => s.isLoggedIn);
+
+  // Register / release this device for push when auth state flips.
+  useEffect(() => {
+    if (isLoggedIn) {
+      pushService.init();
+    } else {
+      pushService.unregister();
+    }
+  }, [isLoggedIn]);
   const needsProfile = useProfileStore((s: any) => s.pendingCompletion);
   const { message, type, visible, hide } = useToastStore();
   const { colors, isDark } = useTheme();

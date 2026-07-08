@@ -140,3 +140,12 @@ dependencies {
         implementation jscFlavor
     }
 }
+// Firebase (push notifications). The Google Services plugin hard-fails without
+// google-services.json, so it is only applied once the config file from the
+// Firebase console has been dropped into android/app/. Until then the app
+// builds and runs normally with device push disabled.
+if (file('google-services.json').exists()) {
+    apply plugin: 'com.google.gms.google-services'
+} else {
+    logger.lifecycle('google-services.json not found - Firebase push disabled for this build.')
+}

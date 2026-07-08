@@ -4,12 +4,15 @@ import uuid
 
 from sqlalchemy.orm import Session
 
+from app.core.security import hash_password
 from app.models.award import Award
 from app.models.clinic import Clinic
 from app.models.doctor import Doctor
 from app.models.doctor_expertise_mapping import DoctorExpertiseMapping
 from app.models.doctor_language_mapping import DoctorLanguageMapping
 from app.models.doctor_speciality_mapping import DoctorSpecialityMapping
+from app.models.role import Role
+from app.models.user import User
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.doctor_repository import DoctorRepository
 
@@ -82,7 +85,7 @@ class DoctorService:
 
         Reads the doctor's ``availabilities`` (doctor_availability table), joins
         through ``SlotTimings`` → ``DayOfWeek`` to match the weekday,
-        and excludes slot_timing_ids that are already booked.
+        and excludes slot_timing_ids that are already booked or blocked by approved leave.
         """
         day_name = on_date.strftime("%A")
         booked_ids = AppointmentRepository.get_booked_slot_ids(db, doctor.id, on_date)
@@ -90,6 +93,8 @@ class DoctorService:
         from app.models.doctor_availability import DoctorAvailability
         from app.models.slot_timings import SlotTimings
         from app.models.day_of_week import DayOfWeek
+        from app.models.doctor_leave import DoctorLeave
+        from app.models.doctor_leave_slot import DoctorLeaveSlot
 
         rows = (
             db.query(DoctorAvailability, SlotTimings)
@@ -104,14 +109,66 @@ class DoctorService:
             .all()
         )
 
+        # Get all approved active leaves for this doctor
+        leaves = (
+            db.query(DoctorLeave)
+            .filter(
+                DoctorLeave.doctor_id == doctor.id,
+                DoctorLeave.status == "approved",
+                DoctorLeave.is_active == True,
+            )
+            .all()
+        )
+
+        blocked_slots_by_leave = set()
+        for leave in leaves:
+            # Check date overlap
+            date_matches = False
+            if leave.start_date and leave.end_date:
+                if leave.start_date <= on_date <= leave.end_date:
+                    date_matches = True
+            elif leave.leave_date:
+                if leave.leave_date == on_date:
+                    date_matches = True
+
+            if not date_matches:
+                continue
+
+            # Determine blocked slots based on leave type
+            if leave.leave_type == "multiple":
+                for av, st in rows:
+                    blocked_slots_by_leave.add(st.id)
+            elif leave.leave_type == "single":
+                if leave.start_time and leave.end_time:
+                    for av, st in rows:
+                        if st.start_time < leave.end_time and st.end_time > leave.start_time:
+                            blocked_slots_by_leave.add(st.id)
+                elif leave.slot_timing_id:
+                    blocked_slots_by_leave.add(leave.slot_timing_id)
+                else:
+                    for av, st in rows:
+                        blocked_slots_by_leave.add(st.id)
+            elif leave.leave_type == "custom":
+                custom_slots = (
+                    db.query(DoctorLeaveSlot.slot_timing_id)
+                    .filter(DoctorLeaveSlot.leave_id == leave.id)
+                    .all()
+                )
+                for (stid,) in custom_slots:
+                    blocked_slots_by_leave.add(stid)
+
         slots = []
+        booked_str = {str(b) for b in booked_ids}
         for av, st in rows:
             if st.id in booked_ids:
+                continue
+            if st.id in blocked_slots_by_leave:
                 continue
             slots.append({
                 "id": str(st.id),
                 "time": st.start_time.strftime("%I:%M %p"),
                 "end_time": st.end_time.strftime("%I:%M %p"),
+                "booked": str(st.id) in booked_str,
             })
 
         return slots
@@ -121,7 +178,19 @@ class DoctorService:
         doctor = db.get(Doctor, doctor_id)
         if not doctor:
             return None
-        
+
+        # Update linked user fields
+        if "full_name" in data:
+            doctor.user.full_name = data["full_name"]
+        if "email" in data:
+            existing = db.query(User).filter(
+                User.email == data["email"], User.id != doctor.user_id
+            ).first()
+            if not existing:
+                doctor.user.email = data["email"]
+        if "phone" in data:
+            doctor.user.phone = data.get("phone", doctor.user.phone)
+
         # Update basic fields
         doctor.about = data.get("about", doctor.about)
         doctor.education = data.get("education", doctor.education)
@@ -196,9 +265,30 @@ class DoctorService:
 
     @staticmethod
     def create(db: Session, data: dict, user):
-        # Assuming data contains 'user_id' to link the doctor profile to
         if not data.get("user_id"):
-            return None
+            full_name = data.get("name") or data.get("full_name")
+            if not full_name or not data.get("email") or not data.get("password"):
+                return None
+
+            doctor_role = db.query(Role).filter_by(name="doctor").first()
+            if not doctor_role:
+                return None
+
+            existing_user = db.query(User).filter_by(email=data["email"]).first()
+            if existing_user:
+                return None
+
+            new_user = User(
+                full_name=full_name,
+                email=data["email"],
+                password=hash_password(data["password"]),
+                role_id=doctor_role.id,
+                phone=data.get("phone"),
+            )
+            db.add(new_user)
+            db.commit()
+            db.refresh(new_user)
+            data["user_id"] = new_user.id
             
         new_doctor = Doctor(
             user_id=data["user_id"],
@@ -266,3 +356,13 @@ class DoctorService:
         db.commit()
         db.refresh(new_doctor)
         return new_doctor
+
+    @staticmethod
+    def deactivate(db: Session, doctor_id: uuid.UUID) -> bool:
+        doctor = db.get(Doctor, doctor_id)
+        if not doctor:
+            return False
+        doctor.is_active = False
+        doctor.user.is_active = False
+        db.commit()
+        return True

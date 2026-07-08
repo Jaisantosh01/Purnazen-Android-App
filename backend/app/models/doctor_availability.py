@@ -1,4 +1,5 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, DateTime, String, Time, func
+from sqlalchemy import Column, ForeignKey, Boolean, DateTime, func
+from sqlalchemy.orm import relationship
 from app.db.types import GUID
 import uuid
 
@@ -17,20 +18,27 @@ class DoctorAvailability(Base):
     updated_by = Column(GUID(), ForeignKey("users.id"), nullable=True)
     is_active = Column(Boolean, default=True)
 
+    slot_timing = relationship("SlotTimings", foreign_keys=[slot_timing_id])
+
     def to_dict(self):
+        day_name = None
+        day_of_week_id = None
+        start_time_str = None
+        end_time_str = None
+        if self.slot_timing:
+            start_time_str = self.slot_timing.start_time.strftime("%H:%M:%S") if self.slot_timing.start_time else None
+            end_time_str = self.slot_timing.end_time.strftime("%H:%M:%S") if self.slot_timing.end_time else None
+            if self.slot_timing.day_of_week:
+                day_name = self.slot_timing.day_of_week.day
+                day_of_week_id = str(self.slot_timing.day_of_week.id)
+
         return {
-        "id": self.id,
-        "doctor_id": self.doctor_id,
-        "slot_timing_id": str(self.slot_timing_id),
-        "is_active": self.is_active,
-        "created_at": (
-            self.created_at.isoformat()
-            if self.created_at
-            else None
-        ),
-        "updated_at": (
-            self.updated_at.isoformat()
-            if self.updated_at
-            else None
-        ),
-    }
+            "availability_id": str(self.id),
+            "doctor_id": str(self.doctor_id),
+            "slot_timing_id": str(self.slot_timing_id),
+            "day": day_name,
+            "day_of_week_id": day_of_week_id,
+            "start_time": start_time_str,
+            "end_time": end_time_str,
+            "is_active": self.is_active,
+        }

@@ -1,15 +1,19 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar, Modal, Alert, ScrollView } from 'react-native';
+import React, { useEffect, useState, useMemo } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar, Modal, ScrollView } from 'react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
-import { COLORS } from '../constants/theme';
 import { ListSkeleton } from '../components/SkeletonLoader';
+import useTheme from '../hooks/useTheme';
+import { useHeaderTopPadding } from '../components/ScreenHeader';
+import { showAlert } from '../utils/alert';
 
 const ITEM_HEIGHT = 40;
 
 const TimePickerColumn = ({ data, value, onChange }) => {
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const flatListRef = React.useRef(null);
   const index = data.findIndex(item => item === value);
 
@@ -17,6 +21,7 @@ const TimePickerColumn = ({ data, value, onChange }) => {
     setTimeout(() => {
       flatListRef.current?.scrollToOffset({ offset: index * ITEM_HEIGHT, animated: false });
     }, 100);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const onMomentumScrollEnd = (event) => {
@@ -45,6 +50,8 @@ const TimePickerColumn = ({ data, value, onChange }) => {
 };
 
 const TimeSelector = ({ value, onChange }) => {
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [h, m] = value.split(':');
   const hours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
   const minutes = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
@@ -59,6 +66,9 @@ const TimeSelector = ({ value, onChange }) => {
 };
 
 const SlotManagementScreen = ({ navigation }) => {
+  const { colors, isDark } = useTheme();
+  const headerTop = useHeaderTopPadding(0);
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [days, setDays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState(null);
@@ -88,7 +98,7 @@ const SlotManagementScreen = ({ navigation }) => {
   const [editingSlot, setEditingSlot] = useState(null);
 
   const handleSaveSlot = () => {
-    if (!targetDay) { Alert.alert('Error', 'Please select a day'); return; }
+    if (!targetDay) { showAlert('Error', 'Please select a day'); return; }
 
     const payload = {
         day_of_week_id: targetDay.id,
@@ -99,21 +109,21 @@ const SlotManagementScreen = ({ navigation }) => {
     if (isEditing && editingSlot) {
         apiClient.put(`${ENDPOINTS.SLOT_TIMINGS}/${editingSlot.id}`, payload)
         .then(() => { setModalVisible(false); setIsEditing(false); setEditingSlot(null); fetchSlots(); })
-        .catch(err => Alert.alert('Error', 'Failed to update slot'));
+        .catch(err => showAlert('Error', 'Failed to update slot'));
     } else {
         apiClient.post(ENDPOINTS.SLOT_TIMINGS, payload)
         .then(() => { setModalVisible(false); fetchSlots(); })
-        .catch(err => Alert.alert('Error', 'Failed to add slot'));
+        .catch(err => showAlert('Error', 'Failed to add slot'));
     }
   };
 
   const handleDeleteSlot = (slotId) => {
-    Alert.alert('Delete Slot', 'Are you sure?', [
+    showAlert('Delete Slot', 'Are you sure?', [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Delete', style: 'destructive', onPress: () => {
             apiClient.delete(`${ENDPOINTS.SLOT_TIMINGS}/${slotId}`)
             .then(fetchSlots)
-            .catch(err => Alert.alert('Error', 'Failed to delete slot'));
+            .catch(err => showAlert('Error', 'Failed to delete slot'));
         }}
     ]);
   };
@@ -139,18 +149,18 @@ const SlotManagementScreen = ({ navigation }) => {
 
   const renderHiddenItem = (data, rowMap) => (
     <View style={styles.rowBack}>
-      <TouchableOpacity style={[styles.backBtn, styles.deleteBack]} onPress={() => { handleDeleteSlot(data.item.id); rowMap[data.item.id]?.closeRow(); }}><MCIcon name="delete" size={24} color={COLORS.white} /></TouchableOpacity>
-      <TouchableOpacity style={[styles.backBtn, styles.editBack]} onPress={() => { openEditModal(data.item); rowMap[data.item.id]?.closeRow(); }}><MCIcon name="pencil" size={24} color={COLORS.white} /></TouchableOpacity>
+      <TouchableOpacity style={[styles.backBtn, styles.deleteBack]} onPress={() => { handleDeleteSlot(data.item.id); rowMap[data.item.id]?.closeRow(); }}><MCIcon name="delete" size={24} color={colors.white} /></TouchableOpacity>
+      <TouchableOpacity style={[styles.backBtn, styles.editBack]} onPress={() => { openEditModal(data.item); rowMap[data.item.id]?.closeRow(); }}><MCIcon name="pencil" size={24} color={colors.white} /></TouchableOpacity>
     </View>
   );
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}><MCIcon name="arrow-left" size={24} color={COLORS.textPrimary} /></TouchableOpacity>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.card} />
+      <View style={[styles.header, { height: undefined, paddingTop: headerTop, paddingBottom: 12 }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}><MCIcon name="arrow-left" size={24} color={colors.textPrimary} /></TouchableOpacity>
         <Text style={styles.headerTitle}>Schedule Manager</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={() => { setTargetDay(selectedDay); setModalVisible(true); }}><MCIcon name="plus" size={24} color={COLORS.white} /></TouchableOpacity>
+        <TouchableOpacity style={styles.addBtn} onPress={() => { setTargetDay(selectedDay); setModalVisible(true); }}><MCIcon name="plus" size={24} color={colors.white} /></TouchableOpacity>
       </View>
       
       {loading ? (
@@ -158,12 +168,12 @@ const SlotManagementScreen = ({ navigation }) => {
           <View style={styles.sidebar}>
             {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
               <View key={d} style={[styles.dayBtn, { borderWidth: 0, height: 40, marginBottom: 4 }]}>
-                <View style={{ width: 24, height: 14, borderRadius: 4, backgroundColor: COLORS.surfaceMuted }} />
+                <View style={{ width: 24, height: 14, borderRadius: 4, backgroundColor: colors.surfaceMuted }} />
               </View>
             ))}
           </View>
           <View style={styles.mainContent}>
-            <View style={{ height: 24, width: 120, borderRadius: 6, backgroundColor: COLORS.surfaceMuted, marginBottom: 16 }} />
+            <View style={{ height: 24, width: 120, borderRadius: 6, backgroundColor: colors.surfaceMuted, marginBottom: 16 }} />
             <ListSkeleton count={5} />
           </View>
         </View>
@@ -180,7 +190,7 @@ const SlotManagementScreen = ({ navigation }) => {
             renderItem={({ item }) => (
               <View style={[styles.slotCard, !item.is_active && styles.inactiveCard]}>
                 <Text style={styles.timeText}>{item.start_time.slice(0, 5)} - {item.end_time.slice(0, 5)}</Text>
-                <MCIcon name="drag-horizontal" size={20} color={COLORS.textMuted} />
+                <MCIcon name="drag-horizontal" size={20} color={colors.textMuted} />
               </View>
             )}
             renderHiddenItem={renderHiddenItem}
@@ -212,7 +222,7 @@ const SlotManagementScreen = ({ navigation }) => {
                 
                 <View style={styles.modalActions}>
                     <TouchableOpacity style={styles.modalBtn} onPress={() => setModalVisible(false)}><Text>Cancel</Text></TouchableOpacity>
-                    <TouchableOpacity style={[styles.modalBtn, styles.saveBtn]} onPress={handleSaveSlot}><Text style={{color: COLORS.white}}>{isEditing ? 'Save Changes' : 'Add Slot'}</Text></TouchableOpacity>
+                    <TouchableOpacity style={[styles.modalBtn, styles.saveBtn]} onPress={handleSaveSlot}><Text style={{color: colors.white}}>{isEditing ? 'Save Changes' : 'Add Slot'}</Text></TouchableOpacity>
                 </View>
             </View>
         </View>
@@ -221,20 +231,20 @@ const SlotManagementScreen = ({ navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#F8F9FB' },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.surfaceMuted },
   header: {
   height: 80,
   paddingHorizontal: 16,
   flexDirection: 'row',
   alignItems: 'center',
   justifyContent: 'space-between',
-  backgroundColor: '#F4F6FA',
+  backgroundColor: colors.surfaceMuted,
 },
 headerTitle: {
   fontSize: 22,
   fontWeight: '700',
-  color: '#222',
+  color: colors.textPrimary,
 },
   addBtn: {
   width: 46,
@@ -248,16 +258,16 @@ headerTitle: {
   content: {
   flex: 1,
   flexDirection: 'row',
-  backgroundColor: '#FFF',
+  backgroundColor: colors.card,
   borderTopLeftRadius: 24,
   borderTopRightRadius: 24,
   overflow: 'hidden',
 },
   sidebar: {
   width: 90,
-  backgroundColor: '#FAFAFA',
+  backgroundColor: colors.surfaceMuted,
   borderRightWidth: 1,
-  borderRightColor: '#EEE',
+  borderRightColor: colors.border,
 },
   dayItem: {
   height: 64,
@@ -265,19 +275,19 @@ headerTitle: {
   alignItems: 'center',
 },
 selectedDayItem: {
-  backgroundColor: '#EEF9F4',
+  backgroundColor: '#10B98114',
 },
   dayText: {
   fontSize: 16,
   fontWeight: '600',
-  color: '#7A7A7A',
+  color: colors.textSecondary,
 },
 
 selectedDayText: {
   color: '#1FA97A',
   fontWeight: '700',
 },
-  activeIndicator: { position: 'absolute', left: 0, top: 20, bottom: 20, width: 4, backgroundColor: COLORS.primary, borderTopRightRadius: 2, borderBottomRightRadius: 2 },
+  activeIndicator: { position: 'absolute', left: 0, top: 20, bottom: 20, width: 4, backgroundColor: colors.primary, borderTopRightRadius: 2, borderBottomRightRadius: 2 },
   mainContent: {
   flex: 1,
   paddingHorizontal: 18,
@@ -286,12 +296,12 @@ selectedDayText: {
   selectedDayTitle: {
   fontSize: 20,
   fontWeight: '700',
-  color: '#222',
+  color: colors.textPrimary,
   marginBottom: 16,
 },
   slotsList: { gap: 12 },
   slotCard: {
-  backgroundColor: '#FFF',
+  backgroundColor: colors.card,
   paddingVertical: 18,
   paddingHorizontal: 16,
   borderRadius: 14,
@@ -300,37 +310,37 @@ selectedDayText: {
   alignItems: 'center',
   marginBottom: 12,
   borderWidth: 1,
-  borderColor: '#ECECEC',
+  borderColor: colors.border,
 },
 timeText: {
   fontSize: 18,
   fontWeight: '600',
-  color: '#222',
+  color: colors.textPrimary,
 },
   rowBack: { flexDirection: 'row', justifyContent: 'space-between', flex: 1, alignItems: 'center', marginBottom: 12, height: 54, borderRadius: 14, overflow: 'hidden' },
   backBtn: { width: 75, height: '100%', justifyContent: 'center', alignItems: 'center' },
-  editBack: { backgroundColor: COLORS.primary },
-  deleteBack: { backgroundColor: COLORS.danger },
+  editBack: { backgroundColor: colors.primary },
+  deleteBack: { backgroundColor: colors.danger },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', padding: 20 },
-  modalCard: { backgroundColor: COLORS.white, padding: 20, borderRadius: 16, maxHeight: '80%' },
+  modalCard: { backgroundColor: colors.card, padding: 20, borderRadius: 16, maxHeight: '80%' },
   modalTitle: { fontSize: 18, fontWeight: '800', marginBottom: 16 },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 10 },
-  modalBtn: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 8, backgroundColor: '#EEE' },
-  saveBtn: { backgroundColor: COLORS.primary },
+  modalBtn: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 8, backgroundColor: colors.surfaceMuted },
+  saveBtn: { backgroundColor: colors.primary },
   daySelector: { flexDirection: 'row', marginBottom: 16 },
-  dayChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, backgroundColor: '#F8F9FB', marginRight: 8 },
-  selectedChip: { backgroundColor: COLORS.primary },
-  selectedChipText: { color: COLORS.white },
+  dayChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, backgroundColor: colors.surfaceMuted, marginRight: 8 },
+  selectedChip: { backgroundColor: colors.primary },
+  selectedChipText: { color: colors.white },
   label: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
-  timeSelector: { flexDirection: 'row', height: 100, alignItems: 'center', backgroundColor: '#F8F9FB', borderRadius: 8, marginBottom: 16 },
+  timeSelector: { flexDirection: 'row', height: 100, alignItems: 'center', backgroundColor: colors.surfaceMuted, borderRadius: 8, marginBottom: 16 },
   timeCol: { flex: 1 },
   timeOption: { paddingVertical: 10, alignItems: 'center' },
-  selectedTime: { backgroundColor: COLORS.primaryLight },
-  selectedTimeText: { fontWeight: 'bold', color: COLORS.primary },
+  selectedTime: { backgroundColor: colors.primaryLight },
+  selectedTimeText: { fontWeight: 'bold', color: colors.primary },
   timeSep: { fontSize: 20, fontWeight: 'bold' },
-  pickerContainer: { flex: 1, height: 100, backgroundColor: '#F8F9FB', borderRadius: 8, overflow: 'hidden' },
+  pickerContainer: { flex: 1, height: 100, backgroundColor: colors.surfaceMuted, borderRadius: 8, overflow: 'hidden' },
   pickerItem: { height: 40, alignItems: 'center', justifyContent: 'center' },
-  pickerItemText: { fontSize: 16, fontWeight: '600', color: COLORS.textPrimary },
+  pickerItemText: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
   selectionIndicator: { position: 'absolute', top: 30, left: 10, right: 10, height: 40, backgroundColor: 'rgba(74, 144, 226, 0.1)', borderRadius: 8, zIndex: -1 }
 });
 

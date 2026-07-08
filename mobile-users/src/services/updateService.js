@@ -1,22 +1,23 @@
 /**
- * Live-update (OTA) check against GitHub Releases.
+ * Live-update (OTA) check — backend-brokered.
  *
- * The apps are distributed as sideloaded APKs published by the "Release Mobile
- * Apps" workflow, which tags each release `<APP_SLUG>-v<version>` and attaches a
- * `purnazen-<APP_SLUG>-v<version>.apk`. On launch we ask the GitHub API for the
- * newest release for THIS app, compare it to the running APP_VERSION (baked in at
- * build time), and surface an update prompt when a newer one exists.
- *
- * A release whose notes contain the marker `purnazen:force-update` is treated as
- * mandatory — the prompt becomes non-dismissible (see UpdatePrompt).
+ * The signed APKs live in a PRIVATE Azure blob container; the backend exposes
+ * the latest version per app and mints a short-lived read-only SAS download URL.
+ * The app polls `/app-releases/latest?app=<slug>` (JWT auto-attached by the api
+ * client) and, when a newer version exists, fetches a SAS URL from
+ * `/app-releases/<slug>/<version>/download`. Nothing is ever public and the repo
+ * stays private. A release flagged `forced` makes the prompt non-dismissible
+ * (see UpdatePrompt).
  */
-import { APP_SLUG, APP_VERSION, GITHUB_REPO } from '../config';
+import apiClient from '../api/client';
+import { ENDPOINTS } from '../constants/apiEndpoints';
+import { APP_SLUG, APP_VERSION } from '../config';
 
-const RELEASES_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=30`;
+// Kept for backwards-compat with call sites (Settings) that imported it; the
+// backend now returns a `forced` boolean directly, so it's only a sentinel.
 export const FORCE_MARKER = 'purnazen:force-update';
 
 // Compare dotted versions numerically: compareSemver('1.2.10','1.2.9') === 1.
-// Returns 1 / 0 / -1. Missing/odd parts count as 0.
 export function compareSemver(a, b) {
   const pa = String(a).split('.').map(n => parseInt(n, 10) || 0);
   const pb = String(b).split('.').map(n => parseInt(n, 10) || 0);
@@ -32,45 +33,39 @@ export function compareSemver(a, b) {
  * @param {{force?: boolean}} [opts] force=true runs the check even in dev (used
  *   by the manual "Check for Updates" button); the automatic launch check leaves
  *   it false so Metro/dev sessions aren't nagged.
- * @returns {Promise<null | {version, current, forced, notes, apkUrl, pageUrl}>}
- *   null when up to date, offline, or (unless forced) running in dev.
+ * @returns {Promise<null | {version, current, forced, notes, sha256, apkUrl, pageUrl}>}
+ *   null when up to date, offline, unauthenticated, or (unless forced) in dev.
  */
 export async function checkForUpdate({ force = false } = {}) {
-  // Don't nag during Metro/dev — APP_VERSION isn't baked there. A manual check
-  // (force) still runs so the feature is testable from a dev build.
   if (!force && typeof __DEV__ !== 'undefined' && __DEV__) return null;
   try {
-    const res = await fetch(RELEASES_URL, {
-      headers: { Accept: 'application/vnd.github+json' },
-    });
-    if (!res.ok) return null;
-    const releases = await res.json();
-    if (!Array.isArray(releases)) return null;
+    const res = await apiClient.get(ENDPOINTS.APP_RELEASE_LATEST(APP_SLUG));
+    const latest = res?.data; // { version, versionCode, forced, notes, sha256 }
+    if (!latest || !latest.version) return null;
+    if (compareSemver(latest.version, APP_VERSION) <= 0) return null; // up to date
 
-    const prefix = `${APP_SLUG}-v`;
-    let best = null; // newest release for THIS app, by semver
-    for (const r of releases) {
-      if (r.draft || !r.tag_name || !r.tag_name.startsWith(prefix)) continue;
-      const version = r.tag_name.slice(prefix.length);
-      if (!best || compareSemver(version, best.version) > 0) {
-        best = { version, release: r };
-      }
+    // Mint the short-lived SAS only when there's actually an update to offer.
+    let apkUrl = null;
+    try {
+      const dl = await apiClient.get(
+        ENDPOINTS.APP_RELEASE_DOWNLOAD(APP_SLUG, latest.version),
+      );
+      apkUrl = dl?.data?.url || null;
+    } catch {
+      // Surface the update even if the download URL fetch fails; the user can
+      // retry from Settings.
     }
-    if (!best) return null;
-    if (compareSemver(best.version, APP_VERSION) <= 0) return null; // up to date
 
-    const apk = (best.release.assets || []).find(
-      a => a.name && a.name.toLowerCase().endsWith('.apk'),
-    );
     return {
-      version: best.version,
+      version: latest.version,
       current: APP_VERSION,
-      forced: (best.release.body || '').includes(FORCE_MARKER),
-      notes: best.release.body || '',
-      apkUrl: apk ? apk.browser_download_url : best.release.html_url,
-      pageUrl: best.release.html_url,
+      forced: !!latest.forced,
+      notes: latest.notes || '',
+      sha256: latest.sha256 || null,
+      apkUrl,
+      pageUrl: apkUrl,
     };
   } catch {
-    return null; // never block app start on a network/parse error
+    return null; // never block app start on a network/auth/parse error
   }
 }

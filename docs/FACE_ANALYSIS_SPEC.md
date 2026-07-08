@@ -2,7 +2,7 @@
 
 **Feature:** Face Glow Scan — AI-powered skin analysis, TCM tongue diagnosis, and personalised wellness recommendations
 **Status:** Sprints 1–4 of 8 complete + Cycle 5 enhancements (2026-06-16). Consent UI (Sprint 5 slice) shipped. Remaining: social auth (Sprint 5), security/polish (Sprint 6), Celery (Sprint 7), premium/analytics (Sprint 8).
-**Tracking:** See [TASKS.md](TASKS.md) § Face Analysis for sprint-by-sprint progress; per-cycle detail in [CHANGELOG.md](CHANGELOG.md); AI write-up in [FACE_ANALYSIS_AI.md](FACE_ANALYSIS_AI.md)
+**Tracking:** Open items are section D of [TASKS.md](TASKS.md); per-cycle detail in [CHANGELOG.md](CHANGELOG.md); AI write-up in [FACE_ANALYSIS_AI.md](FACE_ANALYSIS_AI.md)
 
 ---
 
@@ -467,8 +467,8 @@ mobile-users/src/
 | `react-native-image-resizer` | `3.0.10` | 2 | ✅ |
 | `react-native-svg` | `^15.0.0` | 2 | ✅ |
 | `react-native-chart-kit` | `^6.12.0` | 4 | ❌ dropped — TrendChart uses react-native-svg directly |
-| `@react-native-google-signin/google-signin` | `^13.0.0` | 5 | ⏳ not started |
-| `@invertase/react-native-apple-authentication` | `^2.4.0` | 5 | ⏳ not started |
+| `@react-native-google-signin/google-signin` | `^13.0.0` | 5 | ❌ dropped — social sign-in goes through Firebase Auth's built-in provider flow (docs/FIREBASE.md) |
+| `@invertase/react-native-apple-authentication` | `^2.4.0` | 5 | ❌ dropped — same: Firebase Auth covers providers; no iOS build yet |
 | `react-native-view-shot` | `^3.8.0` | 6 | ⏳ not started |
 
 ---

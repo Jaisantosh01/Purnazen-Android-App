@@ -22,8 +22,29 @@ class AuthService {
       throw new Error(response.message || 'Login failed');
     }
 
-    const { access_token, refresh_token, user } = response.data;
+    return this._persistSession(response.data);
+  }
 
+  /**
+   * Sign in with a Firebase Auth ID token (Google/GitHub). Sign-in only for
+   * admins: the backend never creates an admin account from social login —
+   * the identity must match an existing account's email or a linked account.
+   */
+  async socialLogin(firebaseIdToken) {
+    const response = await apiClient.post(ENDPOINTS.SOCIAL_LOGIN, {
+      id_token: firebaseIdToken,
+      expected_role: APP_ROLE,
+    });
+
+    if (!response.success) {
+      throw new Error(response.message || 'Sign-in failed');
+    }
+
+    return this._persistSession(response.data);
+  }
+
+  /** Shared post-login step: RBAC check, then persist tokens + profile. */
+  async _persistSession({ access_token, refresh_token, user }) {
     // RBAC: this app only serves APP_ROLE accounts. Reject a wrong-role login
     // client-side too (covers an older backend without the role gate) and never
     // persist its tokens.
@@ -38,6 +59,45 @@ class AuthService {
     useAuthStore.getState().setAuth(user);
 
     return user;
+  }
+
+  /** Cache an updated profile locally + in the store. */
+  async _cacheUser(user) {
+    await AsyncStorage.setItem('user', JSON.stringify(user));
+    useAuthStore.getState().setAuth(user);
+    return user;
+  }
+
+  /** Bind a Firebase-verified social identity to the logged-in account. */
+  async linkSocial(firebaseIdToken) {
+    const response = await apiClient.post(ENDPOINTS.SOCIAL_LINK, {
+      id_token: firebaseIdToken,
+    });
+    if (!response.success) {
+      throw new Error(response.message || 'Could not link the account');
+    }
+    return this._cacheUser(response.data.user);
+  }
+
+  /** Remove the linked social identity. */
+  async unlinkSocial() {
+    const response = await apiClient.post(ENDPOINTS.SOCIAL_UNLINK);
+    if (!response.success) {
+      throw new Error(response.message || 'Could not unlink the account');
+    }
+    return this._cacheUser(response.data.user);
+  }
+
+  /** Change the login email (password confirmation for password accounts). */
+  async changeEmail(newEmail, currentPassword) {
+    const response = await apiClient.post(ENDPOINTS.CHANGE_EMAIL, {
+      newEmail,
+      currentPassword: currentPassword || undefined,
+    });
+    if (!response.success) {
+      throw new Error(response.message || 'Could not update email');
+    }
+    return this._cacheUser(response.data.user);
   }
 
   /** Create an account, then log straight in (returns the user). */
@@ -73,9 +133,13 @@ class AuthService {
     useAuthStore.getState().clearAuth();
   }
 
-  /** Update full name / avatar; keeps the cached user and store in sync. */
-  async updateProfile({ fullName, avatarUrl } = {}) {
-    const response = await apiClient.put(ENDPOINTS.ME, { fullName, avatarUrl });
+  /** Update full name / avatar / phone; keeps the cached user and store in sync. */
+  async updateProfile({ fullName, avatarUrl, phone } = {}) {
+    const payload = {};
+    if (fullName !== undefined) payload.fullName = fullName;
+    if (avatarUrl !== undefined) payload.avatarUrl = avatarUrl;
+    if (phone !== undefined) payload.phone = phone;
+    const response = await apiClient.put(ENDPOINTS.ME, payload);
 
     if (!response.success) {
       throw new Error(response.message || 'Profile update failed');
