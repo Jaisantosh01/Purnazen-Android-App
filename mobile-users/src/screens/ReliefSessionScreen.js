@@ -19,6 +19,7 @@ import { syncVideoProgress } from '../utils/videoTracker';
 import { useHeaderTopPadding } from '../components/ScreenHeader';
 
 const ReliefPlayer = ({ session, navigation, reliefId }) => {
+  const headerTop = useHeaderTopPadding();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [isPlaying, setIsPlaying]           = useState(false);

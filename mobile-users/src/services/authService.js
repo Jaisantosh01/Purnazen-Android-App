@@ -77,6 +77,12 @@ class AuthService {
   }
 
   async logout() {
+    // Unregister the push token while the access token is still valid — the
+    // App.tsx auth-flip effect fires too late (tokens already cleared → 401).
+    try {
+      await require('./pushService').default.unregister();
+    } catch {}
+
     // Revoke the refresh token server-side; clear locally even if that fails
     try {
       const refreshToken = await secureStorage.getRefreshToken();

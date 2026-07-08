@@ -36,7 +36,8 @@ client.interceptors.request.use(async config => {
   // as a misleading "network error". Proceed unauthenticated if it can't be read.
   try {
     const token = await secureStorage.getAccessToken();
-    if (token) {
+    // Keep an explicitly-set header (logout sends the refresh token as Bearer)
+    if (token && !config.headers.Authorization) {
       config.headers.Authorization = `Bearer ${token}`;
     }
   } catch (e) {
