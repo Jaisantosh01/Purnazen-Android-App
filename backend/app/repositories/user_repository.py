@@ -17,15 +17,17 @@ class UserRepository:
         return db.get(User, user_id)
 
     @staticmethod
-    def create_user(db: Session, data: dict):
-        # Find default patient role
-        patient_role = db.query(Role).filter_by(name="patient").first()
-        
+    def create_user(db: Session, data: dict, role_id: uuid.UUID | None = None):
+        if role_id is None:
+            patient_role = db.query(Role).filter_by(name="patient").first()
+            role_id = patient_role.id if patient_role else None
+
         user = User(
             full_name=data["full_name"],
             email=data["email"],
             password=data["password"],
-            role_id=patient_role.id if patient_role else None
+            role_id=role_id,
+            phone=data.get("phone"),
         )
         db.add(user)
         db.commit()

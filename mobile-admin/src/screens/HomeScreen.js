@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,12 +11,16 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
-import { COLORS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
+import { useHeaderTopPadding } from '../components/ScreenHeader';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const HomeScreen = ({ navigation }) => {
+  const { colors } = useTheme();
+  const headerTop = useHeaderTopPadding(16);
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -47,8 +51,8 @@ const HomeScreen = ({ navigation }) => {
   // for the icon, instead of a per-tile rainbow.
   const KpiCard = ({ title, value, icon, onPress }) => (
     <TouchableOpacity style={styles.kpiCard} onPress={onPress} activeOpacity={0.7}>
-      <View style={[styles.kpiIconCircle, { backgroundColor: COLORS.primaryLight }]}>
-        <MCIcon name={icon} size={22} color={COLORS.primary} />
+      <View style={[styles.kpiIconCircle, { backgroundColor: colors.primaryLight }]}>
+        <MCIcon name={icon} size={22} color={colors.primary} />
       </View>
       <Text style={styles.kpiValue}>{value ?? '-'}</Text>
       <Text style={styles.kpiTitle}>{title}</Text>
@@ -57,28 +61,28 @@ const HomeScreen = ({ navigation }) => {
 
   const KpiSkeleton = () => (
     <View style={styles.kpiCard}>
-      <View style={[styles.kpiIconCircle, { backgroundColor: COLORS.surfaceMuted }]}>
-        <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#E5E7EB' }} />
+      <View style={[styles.kpiIconCircle, { backgroundColor: colors.surfaceMuted }]}>
+        <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: colors.surfaceMuted }} />
       </View>
-      <View style={{ width: 40, height: 24, borderRadius: 6, backgroundColor: '#E5E7EB', marginTop: 8 }} />
-      <View style={{ width: 70, height: 12, borderRadius: 6, backgroundColor: '#E5E7EB', marginTop: 6 }} />
+      <View style={{ width: 40, height: 24, borderRadius: 6, backgroundColor: colors.surfaceMuted, marginTop: 8 }} />
+      <View style={{ width: 70, height: 12, borderRadius: 6, backgroundColor: colors.surfaceMuted, marginTop: 6 }} />
     </View>
   );
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
 
       <ScrollView
         style={styles.container}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.white} colors={[COLORS.primary]} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.white} colors={[colors.primary]} />
         }
       >
         {/* ── Header ── */}
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: headerTop }]}>
           <View style={styles.headerTopRow}>
             <View style={styles.headerTextCol}>
               <Text style={styles.greeting}>{greeting}</Text>
@@ -94,7 +98,7 @@ const HomeScreen = ({ navigation }) => {
         {/* ── KPIs ── */}
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
-            <MCIcon name="chart-box-outline" size={20} color={COLORS.textPrimary} />
+            <MCIcon name="chart-box-outline" size={20} color={colors.textPrimary} />
             <Text style={styles.sectionTitle}>Platform Statistics</Text>
           </View>
           <View style={styles.statsGrid}>
@@ -132,13 +136,13 @@ const HomeScreen = ({ navigation }) => {
                   title="Today Leaves"
                   value={stats?.today_doctor_leaves}
                   icon="beach"
-                  onPress={() => navigation.navigate('DoctorLeaveManagement')}
+                  onPress={() => navigation.navigate('LeaveCenter')}
                 />
                 <KpiCard
                   title="Total Leaves"
                   value={stats?.total_doctor_leaves}
                   icon="calendar-remove"
-                  onPress={() => navigation.navigate('DoctorLeaveManagement')}
+                  onPress={() => navigation.navigate('LeaveCenter')}
                 />
               </>
             )}
@@ -148,39 +152,49 @@ const HomeScreen = ({ navigation }) => {
         {/* ── Management ── */}
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
-            <MCIcon name="view-dashboard-outline" size={20} color={COLORS.textPrimary} />
+            <MCIcon name="view-dashboard-outline" size={20} color={colors.textPrimary} />
             <Text style={styles.sectionTitle}>Management</Text>
           </View>
           <View style={{ gap: 10 }}>
-            <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('DoctorLeaveManagement')} activeOpacity={0.7}>
-              <View style={[styles.mgmtIconCircle, { backgroundColor: COLORS.primaryLight }]}>
-                <MCIcon name="beach" size={24} color={COLORS.primary} />
-              </View>
-              <View style={styles.mgmtTextCol}>
-                <Text style={styles.mgmtTitle}>Doctor Leaves</Text>
-                <Text style={styles.mgmtSub}>Manage doctor leave requests</Text>
-              </View>
-              <MCIcon name="chevron-right" size={22} color={COLORS.textMuted} />
-            </TouchableOpacity>
             <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('SlotManagement')} activeOpacity={0.7}>
-              <View style={[styles.mgmtIconCircle, { backgroundColor: COLORS.primaryLight }]}>
-                <MCIcon name="clock-outline" size={24} color={COLORS.primary} />
+              <View style={[styles.mgmtIconCircle, { backgroundColor: colors.primaryLight }]}>
+                <MCIcon name="clock-outline" size={24} color={colors.primary} />
               </View>
               <View style={styles.mgmtTextCol}>
                 <Text style={styles.mgmtTitle}>Time Slots</Text>
                 <Text style={styles.mgmtSub}>Configure available time slots</Text>
               </View>
-              <MCIcon name="chevron-right" size={22} color={COLORS.textMuted} />
+              <MCIcon name="chevron-right" size={22} color={colors.textMuted} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('VideoManagement')} activeOpacity={0.7}>
-              <View style={[styles.mgmtIconCircle, { backgroundColor: COLORS.primaryLight }]}>
-                <MCIcon name="video-outline" size={24} color={COLORS.primary} />
+              <View style={[styles.mgmtIconCircle, { backgroundColor: colors.primaryLight }]}>
+                <MCIcon name="video-outline" size={24} color={colors.primary} />
               </View>
               <View style={styles.mgmtTextCol}>
                 <Text style={styles.mgmtTitle}>Wellness Videos</Text>
                 <Text style={styles.mgmtSub}>Manage wellness video content</Text>
               </View>
-              <MCIcon name="chevron-right" size={22} color={COLORS.textMuted} />
+              <MCIcon name="chevron-right" size={22} color={colors.textMuted} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('NotificationAdmin')} activeOpacity={0.7}>
+              <View style={[styles.mgmtIconCircle, { backgroundColor: colors.primaryLight }]}>
+                <MCIcon name="bell-cog-outline" size={24} color={colors.primary} />
+              </View>
+              <View style={styles.mgmtTextCol}>
+                <Text style={styles.mgmtTitle}>Notifications</Text>
+                <Text style={styles.mgmtSub}>Broadcasts, switches & reminders</Text>
+              </View>
+              <MCIcon name="chevron-right" size={22} color={colors.textMuted} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('FaqManagement')} activeOpacity={0.7}>
+              <View style={[styles.mgmtIconCircle, { backgroundColor: colors.primaryLight }]}>
+                <MCIcon name="help-circle-outline" size={24} color={colors.primary} />
+              </View>
+              <View style={styles.mgmtTextCol}>
+                <Text style={styles.mgmtTitle}>FAQ Management</Text>
+                <Text style={styles.mgmtSub}>Configure FAQ content</Text>
+              </View>
+              <MCIcon name="chevron-right" size={22} color={colors.textMuted} />
             </TouchableOpacity>
           </View>
         </View>
@@ -191,14 +205,13 @@ const HomeScreen = ({ navigation }) => {
 
 export default HomeScreen;
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1 },
 
   // Header
   header: {
-    backgroundColor: COLORS.primary,
-    paddingTop: 56,
+    backgroundColor: colors.primary,
     paddingHorizontal: 20,
     paddingBottom: 28,
     borderBottomLeftRadius: 28,
@@ -207,7 +220,7 @@ const styles = StyleSheet.create({
   headerTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   headerTextCol: { flex: 1 },
   greeting: { fontSize: 14, color: 'rgba(255,255,255,0.8)', fontWeight: '500' },
-  title: { fontSize: 26, color: COLORS.white, fontWeight: '800', letterSpacing: 0.2, marginTop: 2 },
+  title: { fontSize: 26, color: colors.white, fontWeight: '800', letterSpacing: 0.2, marginTop: 2 },
   dateChip: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 20,
@@ -218,12 +231,12 @@ const styles = StyleSheet.create({
   // Sections
   section: { paddingHorizontal: 16, marginTop: 24 },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: COLORS.textPrimary },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
 
   // Stats Grid
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },
   kpiCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 16,
     width: '48%',
@@ -238,12 +251,12 @@ const styles = StyleSheet.create({
     width: 46, height: 46, borderRadius: 23,
     alignItems: 'center', justifyContent: 'center',
   },
-  kpiValue: { fontSize: 22, fontWeight: '800', marginTop: 10, color: COLORS.textPrimary },
-  kpiTitle: { fontSize: 12, color: COLORS.textMuted, marginTop: 4, textAlign: 'center', fontWeight: '600' },
+  kpiValue: { fontSize: 22, fontWeight: '800', marginTop: 10, color: colors.textPrimary },
+  kpiTitle: { fontSize: 12, color: colors.textMuted, marginTop: 4, textAlign: 'center', fontWeight: '600' },
 
   // Management
   managementCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: 14,
     padding: 16,
     flexDirection: 'row',
@@ -257,6 +270,6 @@ const styles = StyleSheet.create({
   },
   mgmtIconCircle: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
   mgmtTextCol: { flex: 1 },
-  mgmtTitle: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
-  mgmtSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2, fontWeight: '500' },
+  mgmtTitle: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
+  mgmtSub: { fontSize: 12, color: colors.textMuted, marginTop: 2, fontWeight: '500' },
 });

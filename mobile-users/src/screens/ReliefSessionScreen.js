@@ -16,8 +16,10 @@ import useTheme from '../hooks/useTheme';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { syncVideoProgress } from '../utils/videoTracker';
+import { useHeaderTopPadding } from '../components/ScreenHeader';
 
 const ReliefPlayer = ({ session, navigation, reliefId }) => {
+  const headerTop = useHeaderTopPadding();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [isPlaying, setIsPlaying]           = useState(false);
@@ -98,7 +100,7 @@ const ReliefPlayer = ({ session, navigation, reliefId }) => {
 
   return (
     <View style={styles.root}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: headerTop }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <MCIcon name="arrow-left" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
@@ -195,7 +197,8 @@ const ReliefPlayer = ({ session, navigation, reliefId }) => {
 };
 
 const ReliefSessionScreen = ({ navigation, route }) => {
-  const { colors } = useTheme();
+  const headerTop = useHeaderTopPadding();
+  const { colors, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const reliefKey = route?.params?.reliefKey || route?.params?.reliefTitle || 'Headache';
   const [session, setSession]     = useState(null);
@@ -211,8 +214,8 @@ const ReliefSessionScreen = ({ navigation, route }) => {
   if (isLoading) {
     return (
       <View style={styles.root}>
-        <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
-        <View style={styles.header}>
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.card} />
+        <View style={[styles.header, { paddingTop: headerTop }]}>
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
             <MCIcon name="arrow-left" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
@@ -229,8 +232,8 @@ const ReliefSessionScreen = ({ navigation, route }) => {
   if (error || !session) {
     return (
       <View style={styles.root}>
-        <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
-        <View style={styles.header}>
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.card} />
+        <View style={[styles.header, { paddingTop: headerTop }]}>
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
             <MCIcon name="arrow-left" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
@@ -249,7 +252,7 @@ const ReliefSessionScreen = ({ navigation, route }) => {
 
   return (
     <>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.card} />
       <ReliefPlayer session={session} navigation={navigation} reliefId={reliefKey} />
     </>
   );
@@ -262,7 +265,7 @@ const makeStyles = colors => StyleSheet.create({
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingTop: 50, paddingHorizontal: SPACING.lg, paddingBottom: SPACING.lg,
+    paddingHorizontal: SPACING.lg, paddingBottom: SPACING.lg,
     backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.surfaceMuted,
   },
   backBtn:       { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },

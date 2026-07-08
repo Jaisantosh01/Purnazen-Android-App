@@ -1,85 +1,242 @@
 import uuid
-from datetime import date, datetime
+from datetime import date as date_type
+from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, or_
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
-from app.api.deps import get_db, get_current_user, require_role
-from app.models.doctor_leave import DoctorLeave
+from app.api.deps import get_current_user, get_db, require_role
 from app.models.doctor import Doctor
-from app.models.slot_timings import SlotTimings
+from app.models.doctor_leave import DoctorLeave
+from app.models.doctor_leave_slot import DoctorLeaveSlot
 from app.models.user import User
+from app.schemas.doctor_leave import (
+    DoctorLeaveCreate,
+    DoctorLeaveStatusUpdate,
+    DoctorLeaveUpdate,
+)
+from app.services.doctor_leave_service import DoctorLeaveService
 from app.utils.responses import error_response, success_response
 
 router = APIRouter(prefix="/doctor-leaves", tags=["Doctor Leaves"])
 
 
-def _parse_time(value: str):
-    """Parse HH:MM (24h) into a time object."""
-    return datetime.strptime(value.strip(), "%H:%M").time()
+# ─────────────────────────────────────────────────────────────────────────────
+# Internal helper — used only by the legacy admin read endpoints that still
+# do their own querying (these are not touched per the "do not change existing
+# logic" requirement).
+# ─────────────────────────────────────────────────────────────────────────────
 
-
-def _leave_to_dict(leave: DoctorLeave) -> dict:
+def _leave_to_dict_admin(leave: DoctorLeave) -> dict:
+    """
+    Serialises a DoctorLeave for the admin list / detail endpoints.
+    Enriches with doctor_name and slot timing detail where available.
+    """
     doctor_name = None
-    if leave.doctor:
-        doctor_name = leave.doctor.user.full_name if leave.doctor.user else None
+    if leave.doctor and leave.doctor.user:
+        doctor_name = leave.doctor.user.full_name
 
-    slot_time = None
-    if leave.slot_timing:
-        slot_time = {
-            "start_time": leave.slot_timing.start_time.strftime("%I:%M %p") if leave.slot_timing.start_time else None,
-            "end_time": leave.slot_timing.end_time.strftime("%I:%M %p") if leave.slot_timing.end_time else None,
-        }
+    slot_dicts = []
+    for s in (leave.slots or []):
+        entry = {"slot_timing_id": str(s.slot_timing_id)}
+        if s.slot_timing:
+            entry["start_time"] = (
+                s.slot_timing.start_time.strftime("%I:%M %p")
+                if s.slot_timing.start_time
+                else None
+            )
+            entry["end_time"] = (
+                s.slot_timing.end_time.strftime("%I:%M %p")
+                if s.slot_timing.end_time
+                else None
+            )
+        slot_dicts.append(entry)
+
+    if leave.leave_type == "multiple" and leave.start_date and leave.end_date:
+        if leave.start_date == leave.end_date:
+            date_str = leave.start_date.isoformat()
+        else:
+            date_str = f"{leave.start_date.isoformat()} to {leave.end_date.isoformat()}"
+    elif leave.start_date:
+        date_str = leave.start_date.isoformat()
+    else:
+        date_str = None
 
     return {
         "id": str(leave.id),
-        "doctor_id": str(leave.doctor_id),
-        "doctor_name": doctor_name,
-        "leave_date": leave.leave_date.isoformat() if leave.leave_date else None,
-        "slot_timing_id": str(leave.slot_timing_id) if leave.slot_timing_id else None,
-        "slot_time": slot_time,
-        "doctor_reason": leave.doctor_reason,
-        "admin_reason": leave.admin_reason,
+        "doctorId": str(leave.doctor_id),
+        "doctorName": doctor_name,
+        "leaveType": leave.leave_type,
+        "startDate": leave.start_date.isoformat() if leave.start_date else None,
+        "endDate": leave.end_date.isoformat() if leave.end_date else None,
+        "startTime": (
+            leave.start_time.strftime("%I:%M %p") if leave.start_time else None
+        ),
+        "endTime": leave.end_time.strftime("%I:%M %p") if leave.end_time else None,
+        "reason": leave.reason,
+        "notes": leave.notes,
+        "adminReason": leave.admin_reason,
         "status": leave.status,
-        "is_active": leave.is_active,
-        "created_at": leave.created_at.isoformat() if leave.created_at else None,
-        "updated_at": leave.updated_at.isoformat() if leave.updated_at else None,
+        "isActive": leave.is_active,
+        "approvedBy": str(leave.approved_by) if leave.approved_by else None,
+        "approvedAt": leave.approved_at.isoformat() if leave.approved_at else None,
+        "appliedAt": leave.applied_at.isoformat() if leave.applied_at else None,
+        "createdAt": leave.created_at.isoformat() if leave.created_at else None,
+        "updatedAt": leave.updated_at.isoformat() if leave.updated_at else None,
+        "slots": slot_dicts,
+        "leaveDate": date_str,
     }
 
 
-@router.get("/stats", summary="Get doctor leave KPI counts")
-def get_leave_stats(
-    db: Session = Depends(get_db),
+# ─────────────────────────────────────────────────────────────────────────────
+# DOCTOR SELF-SERVICE  (authenticated doctor, no admin role required)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@router.post(
+    "",
+    status_code=201,
+    summary="Submit a leave request",
+    description=(
+        "Doctor submits a new leave request. "
+        "`leaveType` must be **single**, **multiple**, or **custom** (Partial Day). "
+        "For Partial Day, `slotTimingIds` (list of UUIDs) is required."
+    ),
+)
+def create_leave(
+    body: DoctorLeaveCreate,
     user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    response, status_code = DoctorLeaveService.create_leave(db, user, body)
+    if not response["success"]:
+        return error_response(response["message"], status_code)
+    return success_response(response["message"], response["leave"], status_code)
+
+
+@router.get(
+    "",
+    summary="List the authenticated doctor's leave requests",
+    description=(
+        "Returns all leave requests for the currently logged-in doctor, newest first. "
+        "Filter by `status` (pending | approved | rejected | cancelled)."
+    ),
+)
+def get_leaves(
+    status: Optional[str] = Query(
+        None,
+        description="Filter by status: pending | approved | rejected | cancelled",
+    ),
+    limit: int = Query(50, ge=1, le=200, description="Max records to return"),
+    offset: int = Query(0, ge=0, description="Pagination offset"),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    response, status_code = DoctorLeaveService.get_leave_history(
+        db, user, status=status, limit=limit, offset=offset
+    )
+    if not response["success"]:
+        return error_response(response["message"], status_code)
+    return success_response(response["message"], response)
+
+
+@router.get(
+    "/history",
+    summary="Leave history for the authenticated doctor",
+    description=(
+        "Alias for GET /doctor-leaves. Returns the full leave history for the "
+        "logged-in doctor, newest first, with optional status filtering."
+    ),
+)
+def get_leave_history(
+    status: Optional[str] = Query(
+        None,
+        description="Filter by status: pending | approved | rejected | cancelled",
+    ),
+    limit: int = Query(50, ge=1, le=200, description="Max records to return"),
+    offset: int = Query(0, ge=0, description="Pagination offset"),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    response, status_code = DoctorLeaveService.get_leave_history(
+        db, user, status=status, limit=limit, offset=offset
+    )
+    if not response["success"]:
+        return error_response(response["message"], status_code)
+    return success_response(response["message"], response)
+
+
+@router.get(
+    "/pending",
+    summary="Pending leave requests for the authenticated doctor",
+    description="Returns all leave requests with status **pending** for the logged-in doctor.",
+)
+def get_pending_leaves(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    response, status_code = DoctorLeaveService.get_pending_leaves(db, user)
+    if not response["success"]:
+        return error_response(response["message"], status_code)
+    return success_response(response["message"], response)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ADMIN ENDPOINTS  (require admin role)
+# NOTE: these static paths MUST be declared before "/{leave_id}" — FastAPI
+# matches routes in declaration order, so declaring them later makes
+# /doctor-leaves/stats and /doctor-leaves/admin resolve to leave_id="stats" /
+# "admin", which fails UUID validation with a 400.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@router.get(
+    "/stats",
+    summary="Leave KPI counts (admin)",
+    description="Returns a count breakdown of all leave records grouped by status.",
+)
+def get_leave_stats(
+    user: User = Depends(require_role("admin")),
+    db: Session = Depends(get_db),
 ):
     counts = (
         db.query(DoctorLeave.status, func.count(DoctorLeave.id))
         .group_by(DoctorLeave.status)
         .all()
     )
-    stats = {"pending": 0, "approved": 0, "rejected": 0}
+    stats = {"pending": 0, "approved": 0, "rejected": 0, "cancelled": 0}
     for status, count in counts:
-        stats[status] = count
+        if status in stats:
+            stats[status] = count
     return success_response("Leave stats fetched successfully", stats)
 
 
-@router.get("", summary="Fetch all doctor leaves")
-def get_leaves(
-    doctor_id: uuid.UUID | None = Query(default=None),
-    status: str | None = Query(default=None),
-    from_date: str | None = Query(default=None, description="YYYY-MM-DD"),
-    to_date: str | None = Query(default=None, description="YYYY-MM-DD"),
-    search: str | None = Query(default=None, description="Search by doctor name"),
-    leave_type: str | None = Query(default=None, description="full_day or partial"),
-    time_from: str | None = Query(default=None, description="HH:MM start time filter"),
-    time_to: str | None = Query(default=None, description="HH:MM end time filter"),
+@router.get(
+    "/admin",
+    summary="List all leave requests (admin)",
+    description=(
+        "Returns all leave records across all doctors. "
+        "Supports filtering by `doctor_id`, `status`, `from_date`, `to_date`, and `leave_type`."
+    ),
+)
+def get_all_leaves_admin(
+    doctor_id: Optional[uuid.UUID] = Query(None, description="Filter by doctor UUID"),
+    status: Optional[str] = Query(None, description="Filter by status"),
+    from_date: Optional[date_type] = Query(None, description="Filter start_date >= this date"),
+    to_date: Optional[date_type] = Query(None, description="Filter end_date <= this date"),
+    leave_type: Optional[str] = Query(None, description="single | multiple | custom"),
+    search: Optional[str] = Query(None, description="Search by doctor name"),
+    user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
 ):
-    query = db.query(DoctorLeave).options(
-        joinedload(DoctorLeave.doctor).joinedload(Doctor.user),
-        joinedload(DoctorLeave.slot_timing),
+    query = (
+        db.query(DoctorLeave)
+        .options(
+            joinedload(DoctorLeave.doctor).joinedload(Doctor.user),
+            joinedload(DoctorLeave.slots).joinedload(DoctorLeaveSlot.slot_timing),
+        )
+        .filter(DoctorLeave.is_active == True)
     )
 
     if doctor_id:
@@ -87,116 +244,152 @@ def get_leaves(
     if status:
         query = query.filter(DoctorLeave.status == status)
     if from_date:
-        query = query.filter(DoctorLeave.leave_date >= date.fromisoformat(from_date))
+        query = query.filter(DoctorLeave.start_date >= from_date)
     if to_date:
-        query = query.filter(DoctorLeave.leave_date <= date.fromisoformat(to_date))
+        query = query.filter(DoctorLeave.end_date <= to_date)
+    if leave_type:
+        query = query.filter(DoctorLeave.leave_type == leave_type)
     if search:
-        query = query.join(Doctor, DoctorLeave.doctor_id == Doctor.id).join(
-            User, Doctor.user_id == User.id
-        ).filter(User.full_name.ilike(f"%{search}%"))
-    if leave_type == "full_day":
-        query = query.filter(DoctorLeave.slot_timing_id.is_(None))
-    elif leave_type == "partial":
-        query = query.filter(DoctorLeave.slot_timing_id.isnot(None))
-    if time_from or time_to:
-        query = query.join(SlotTimings, DoctorLeave.slot_timing_id == SlotTimings.id)
-        if time_from:
-            query = query.filter(SlotTimings.start_time >= _parse_time(time_from))
-        if time_to:
-            query = query.filter(SlotTimings.end_time <= _parse_time(time_to))
+        doctor_ids = (
+            db.query(Doctor.id)
+            .join(User, Doctor.user_id == User.id)
+            .filter(User.full_name.ilike(f"%{search}%"))
+            .subquery()
+        )
+        query = query.filter(DoctorLeave.doctor_id.in_(doctor_ids))
 
-    leaves = query.order_by(DoctorLeave.leave_date.desc()).all()
-    return success_response("Doctor leaves fetched successfully", [_leave_to_dict(l) for l in leaves])
-
-
-@router.post("", summary="Create a doctor leave", dependencies=[Depends(require_role("admin"))])
-def create_leave(
-    data: dict,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    doctor_id = data.get("doctor_id")
-    if not doctor_id:
-        return error_response("doctor_id is required", 400)
-
-    doctor = db.get(Doctor, doctor_id)
-    if not doctor:
-        return error_response("Doctor not found", 404)
-
-    leave_date = data.get("leave_date")
-    if not leave_date:
-        return error_response("leave_date is required", 400)
-
-    if isinstance(leave_date, str):
-        leave_date = date.fromisoformat(leave_date)
-
-    leave = DoctorLeave(
-        doctor_id=doctor_id,
-        leave_date=leave_date,
-        slot_timing_id=data.get("slot_timing_id"),
-        doctor_reason=data.get("doctor_reason"),
-        admin_reason=data.get("admin_reason"),
-        status=data.get("status", "pending"),
-        created_by=user.id,
+    leaves = query.order_by(DoctorLeave.applied_at.desc()).all()
+    serialized = [_leave_to_dict_admin(l) for l in leaves]
+    return success_response(
+        "Doctor leaves fetched successfully",
+        {"leaves": serialized, "total": len(serialized)},
     )
-    db.add(leave)
-    db.commit()
-    db.refresh(leave)
-    return success_response("Leave created successfully", _leave_to_dict(leave), 201)
 
 
-@router.put("/{leave_id}", summary="Update a doctor leave", dependencies=[Depends(require_role("admin"))])
+@router.get(
+    "/{leave_id}",
+    summary="Get details of a specific leave request",
+    description="Returns the details of a specific leave request for the authenticated doctor.",
+)
+def get_leave_by_id(
+    leave_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    response, status_code = DoctorLeaveService.get_leave_by_id(db, user, leave_id)
+    if not response["success"]:
+        return error_response(response["message"], status_code)
+    return success_response(response["message"], response["leave"])
+
+
+@router.put(
+    "/{leave_id}",
+    summary="Update a pending leave request",
+    description=(
+        "The authenticated doctor can edit a **pending** leave request. "
+        "Only the owning doctor may update their own request. "
+        "Approved or rejected requests cannot be changed."
+    ),
+)
 def update_leave(
     leave_id: uuid.UUID,
-    data: dict,
-    db: Session = Depends(get_db),
+    body: DoctorLeaveUpdate,
     user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    leave = db.get(DoctorLeave, leave_id)
-    if not leave:
-        return error_response("Leave not found", 404)
-
-    if "leave_date" in data:
-        val = data["leave_date"]
-        leave.leave_date = date.fromisoformat(val) if isinstance(val, str) else val
-    if "slot_timing_id" in data:
-        leave.slot_timing_id = data["slot_timing_id"]
-    if "doctor_reason" in data:
-        leave.doctor_reason = data["doctor_reason"]
-    if "admin_reason" in data:
-        leave.admin_reason = data["admin_reason"]
-    if "status" in data:
-        leave.status = data["status"]
-    if "is_active" in data:
-        leave.is_active = data["is_active"]
-
-    leave.updated_at = leave.updated_at
-    leave.updated_by = user.id
-    db.commit()
-    db.refresh(leave)
-    return success_response("Leave updated successfully", _leave_to_dict(leave))
+    response, status_code = DoctorLeaveService.update_leave(db, user, leave_id, body)
+    if not response["success"]:
+        return error_response(response["message"], status_code)
+    return success_response(response["message"], response["leave"])
 
 
-@router.patch("/{leave_id}/status", summary="Update leave status only", dependencies=[Depends(require_role("admin"))])
-def update_leave_status(
+@router.put(
+    "/{leave_id}/approve",
+    summary="Approve a leave request (admin)",
+    description=(
+        "Admin-only. Transitions the leave status from **pending** → **approved**. "
+        "Optionally attach an `adminReason`."
+    ),
+)
+def approve_leave(
     leave_id: uuid.UUID,
-    data: dict,
+    body: DoctorLeaveStatusUpdate = DoctorLeaveStatusUpdate(status="approved"),
+    user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
 ):
-    leave = db.get(DoctorLeave, leave_id)
-    if not leave:
-        return error_response("Leave not found", 404)
+    # Force the status to "approved" regardless of what the body says
+    from app.schemas.doctor_leave import DoctorLeaveStatusUpdate as _SU
 
-    status = data.get("status")
-    if not status or status not in ("pending", "approved", "rejected"):
-        return error_response("Invalid status. Must be pending, approved, or rejected", 400)
+    approve_body = _SU(status="approved", admin_reason=body.admin_reason)
+    response, status_code = DoctorLeaveService.update_leave_status(
+        db, user, leave_id, approve_body
+    )
+    if not response["success"]:
+        return error_response(response["message"], status_code)
+    return success_response(response["message"], response["leave"])
 
-    leave.status = status
-    if data.get("admin_reason"):
-        leave.admin_reason = data["admin_reason"]
-    leave.updated_at = leave.updated_at
-    leave.updated_by = user.id
-    db.commit()
-    db.refresh(leave)
-    return success_response("Leave status updated successfully", _leave_to_dict(leave))
+
+@router.put(
+    "/{leave_id}/reject",
+    summary="Reject a leave request (admin)",
+    description=(
+        "Admin-only. Transitions the leave status from **pending** → **rejected**. "
+        "Provide `adminReason` to explain the rejection."
+    ),
+)
+def reject_leave(
+    leave_id: uuid.UUID,
+    body: DoctorLeaveStatusUpdate = DoctorLeaveStatusUpdate(status="rejected"),
+    user: User = Depends(require_role("admin")),
+    db: Session = Depends(get_db),
+):
+    from app.schemas.doctor_leave import DoctorLeaveStatusUpdate as _SU
+
+    reject_body = _SU(status="rejected", admin_reason=body.admin_reason)
+    response, status_code = DoctorLeaveService.update_leave_status(
+        db, user, leave_id, reject_body
+    )
+    if not response["success"]:
+        return error_response(response["message"], status_code)
+    return success_response(response["message"], response["leave"])
+
+
+@router.delete(
+    "/{leave_id}",
+    summary="Cancel / delete a pending leave request",
+    description=(
+        "The authenticated doctor soft-deletes their own **pending** leave request. "
+        "Approved or rejected requests cannot be deleted."
+    ),
+)
+def delete_leave(
+    leave_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    response, status_code = DoctorLeaveService.delete_leave(db, user, leave_id)
+    if not response["success"]:
+        return error_response(response["message"], status_code)
+    return success_response(response["message"])
+
+
+@router.patch(
+    "/{leave_id}/status",
+    summary="Update leave status (admin)",
+    description=(
+        "Admin-only. Set status to any valid value: "
+        "**pending** | **approved** | **rejected** | **cancelled**."
+    ),
+)
+def update_leave_status_admin(
+    leave_id: uuid.UUID,
+    body: DoctorLeaveStatusUpdate,
+    user: User = Depends(require_role("admin")),
+    db: Session = Depends(get_db),
+):
+    response, status_code = DoctorLeaveService.update_leave_status(
+        db, user, leave_id, body
+    )
+    if not response["success"]:
+        return error_response(response["message"], status_code)
+    return success_response(response["message"], response["leave"])

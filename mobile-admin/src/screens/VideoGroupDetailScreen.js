@@ -1,13 +1,18 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar, Alert, Modal, Pressable } from 'react-native';
+import React, { useEffect, useState, useMemo } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar, ActivityIndicator, Modal, Pressable } from 'react-native';
 import Video from 'react-native-video';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
-import { COLORS } from '../constants/theme';
 import { SessionPlayerSkeleton } from '../components/SkeletonLoader';
+import useTheme from '../hooks/useTheme';
+import { useHeaderTopPadding } from '../components/ScreenHeader';
+import { showAlert } from '../utils/alert';
 
 const VideoGroupDetailScreen = ({ route, navigation }) => {
+  const { colors, isDark } = useTheme();
+  const headerTop = useHeaderTopPadding();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { groupId, groupTitle } = route.params;
   const [catalog, setCatalog] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -21,13 +26,14 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
 
   useEffect(() => {
     fetchCatalog();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupId]);
 
   const fetchCatalog = () => {
     setLoading(true);
     apiClient.get(ENDPOINTS.VIDEO_GROUP_CATALOG(groupId))
       .then(res => setCatalog(res.data))
-      .catch(() => Alert.alert('Error', 'Failed to fetch catalog'))
+      .catch(() => showAlert('Error', 'Failed to fetch catalog'))
       .finally(() => setLoading(false));
   };
 
@@ -44,7 +50,7 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
         setAllVideos(all);
         setSelectedVideoIds(groupVideoIds);
       })
-      .catch(() => Alert.alert('Error', 'Failed to load videos'))
+      .catch(() => showAlert('Error', 'Failed to load videos'))
       .finally(() => setVideosLoading(false));
   };
 
@@ -68,7 +74,7 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
         setAddVideoModalVisible(false);
         fetchCatalog();
       })
-      .catch(() => Alert.alert('Error', 'Failed to update videos'));
+      .catch(() => showAlert('Error', 'Failed to update videos'));
   };
 
   const renderVideo = ({ item, index }) => {
@@ -86,7 +92,7 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
             }
         }}
       >
-        <MCIcon name={iconName} size={32} color={isActive ? COLORS.white : COLORS.primary} style={styles.icon} />
+        <MCIcon name={iconName} size={32} color={isActive ? colors.white : colors.primary} style={styles.icon} />
         <View style={styles.cardContent}>
           <Text style={[styles.videoTitle, isActive && styles.activeText]}>{item.title}</Text>
           <Text style={[styles.videoMeta, isActive && styles.activeText]}>{Math.floor(item.duration / 60)} min</Text>
@@ -100,26 +106,26 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}><MCIcon name="arrow-left" size={24} color={COLORS.textPrimary} /></TouchableOpacity>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.card} />
+      <View style={[styles.header, { paddingTop: headerTop }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()}><MCIcon name="arrow-left" size={24} color={colors.textPrimary} /></TouchableOpacity>
         <Text style={styles.headerTitle}>{groupTitle}</Text>
         <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
           <TouchableOpacity onPress={() => navigation.navigate('UploadVideo', { videoGroupId: groupId })}>
-            <MCIcon name="cloud-upload" size={24} color={COLORS.primary} />
+            <MCIcon name="cloud-upload" size={24} color={colors.primary} />
           </TouchableOpacity>
           <TouchableOpacity onPress={openAddVideoModal}>
-            <MCIcon name="pencil" size={22} color={COLORS.primary} />
+            <MCIcon name="pencil" size={22} color={colors.primary} />
           </TouchableOpacity>
         </View>
       </View>
       
       {loading ? <SessionPlayerSkeleton /> : hasNoVideos ? (
         <View style={styles.emptyContainer}>
-          <MCIcon name="video-off" size={64} color={COLORS.textMuted} />
+          <MCIcon name="video-off" size={64} color={colors.textMuted} />
           <Text style={styles.emptyText}>No videos in this group</Text>
           <TouchableOpacity style={styles.addVideoBtn} onPress={openAddVideoModal}>
-            <MCIcon name="pencil" size={20} color={COLORS.white} />
+            <MCIcon name="pencil" size={20} color={colors.white} />
             <Text style={styles.addVideoBtnText}>Manage Videos</Text>
           </TouchableOpacity>
         </View>
@@ -127,7 +133,7 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
         <View style={styles.container}>
             {catalog?.description ? (
               <View style={styles.descriptionBanner}>
-                <MCIcon name="information-outline" size={18} color={COLORS.primary} style={{marginRight: 8}} />
+                <MCIcon name="information-outline" size={18} color={colors.primary} style={{marginRight: 8}} />
                 <Text style={styles.descriptionText}>{catalog.description}</Text>
               </View>
             ) : null}
@@ -145,14 +151,14 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
                 )}
                 {currentVideo && (
                     <TouchableOpacity style={styles.floatingPlayBtn} onPress={() => setIsPlaying(!isPlaying)}>
-                        <MCIcon name={isPlaying ? 'pause' : 'play'} size={24} color={COLORS.white} />
+                        <MCIcon name={isPlaying ? 'pause' : 'play'} size={24} color={colors.white} />
                     </TouchableOpacity>
                 )}
             </View>
 
             {currentVideo && currentVideo.description ? (
               <View style={styles.videoDescriptionBanner}>
-                <MCIcon name="playlist-play" size={18} color={COLORS.accent} style={{marginRight: 8}} />
+                <MCIcon name="playlist-play" size={18} color={colors.accent} style={{marginRight: 8}} />
                 <Text style={styles.videoDescriptionText}>{currentVideo.description}</Text>
               </View>
             ) : null}
@@ -182,9 +188,9 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
                   return (
                     <TouchableOpacity style={styles.videoPickerCard} onPress={() => toggleVideo(item.id)}>
                       <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-                        {isSelected && <MCIcon name="check" size={18} color={COLORS.white} />}
+                        {isSelected && <MCIcon name="check" size={18} color={colors.white} />}
                       </View>
-                      <MCIcon name={item.icon || 'play-circle'} size={24} color={COLORS.primary} style={{marginRight: 12}} />
+                      <MCIcon name={item.icon || 'play-circle'} size={24} color={colors.primary} style={{marginRight: 12}} />
                       <View style={styles.cardContent}>
                         <Text style={styles.videoPickerTitle}>{item.title}</Text>
                         {item.description ? (
@@ -199,7 +205,7 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
             )}
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.modalBtn} onPress={() => setAddVideoModalVisible(false)}><Text>Cancel</Text></TouchableOpacity>
-              <TouchableOpacity style={[styles.modalBtn, styles.saveBtn]} onPress={handleSaveVideos}><Text style={{color: COLORS.white}}>Save</Text></TouchableOpacity>
+              <TouchableOpacity style={[styles.modalBtn, styles.saveBtn]} onPress={handleSaveVideos}><Text style={{color: colors.white}}>Save</Text></TouchableOpacity>
             </View>
           </Pressable>
         </Pressable>
@@ -208,42 +214,42 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
-  header: { paddingTop: 56, padding: 20, backgroundColor: COLORS.white, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
+  header: { padding: 20, backgroundColor: colors.card, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerTitle: { fontSize: 20, fontWeight: '800' },
   container: { flex: 1 },
   list: { padding: 16 },
-  card: { backgroundColor: COLORS.white, padding: 16, borderRadius: 12, marginBottom: 12, flexDirection: 'row', alignItems: 'center', elevation: 2 },
-  activeCard: { backgroundColor: COLORS.primary },
-  activeText: { color: COLORS.white },
+  card: { backgroundColor: colors.card, padding: 16, borderRadius: 12, marginBottom: 12, flexDirection: 'row', alignItems: 'center', elevation: 2 },
+  activeCard: { backgroundColor: colors.primary },
+  activeText: { color: colors.white },
   icon: { marginRight: 15 },
   cardContent: { flex: 1 },
   videoTitle: { fontSize: 16, fontWeight: '700' },
-  videoMeta: { color: COLORS.textSecondary, marginTop: 4 },
-  playerArea: { width: '100%', height: 220, backgroundColor: COLORS.black, justifyContent: 'center', alignItems: 'center' },
+  videoMeta: { color: colors.textSecondary, marginTop: 4 },
+  playerArea: { width: '100%', height: 220, backgroundColor: colors.black, justifyContent: 'center', alignItems: 'center' },
   video: { width: '100%', height: '100%' },
-  placeholder: { color: COLORS.white },
-  floatingPlayBtn: { position: 'absolute', bottom: 16, right: 16, width: 50, height: 50, borderRadius: 25, backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center' },
+  placeholder: { color: colors.white },
+  floatingPlayBtn: { position: 'absolute', bottom: 16, right: 16, width: 50, height: 50, borderRadius: 25, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyText: { marginTop: 16, fontSize: 16, color: COLORS.textMuted },
-  descriptionBanner: { flexDirection: 'row', alignItems: 'center', padding: 14, backgroundColor: COLORS.white, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  descriptionText: { fontSize: 14, color: COLORS.textSecondary, lineHeight: 20, flex: 1 },
-  videoDescriptionBanner: { flexDirection: 'row', alignItems: 'center', padding: 12, backgroundColor: '#FFF9E6', borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  videoDescriptionText: { fontSize: 13, color: COLORS.textSecondary, lineHeight: 18, flex: 1 },
-  addVideoBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.primary, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 8, marginTop: 20 },
-  addVideoBtnText: { color: COLORS.white, fontWeight: '600', marginLeft: 8 },
+  emptyText: { marginTop: 16, fontSize: 16, color: colors.textMuted },
+  descriptionBanner: { flexDirection: 'row', alignItems: 'center', padding: 14, backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border },
+  descriptionText: { fontSize: 14, color: colors.textSecondary, lineHeight: 20, flex: 1 },
+  videoDescriptionBanner: { flexDirection: 'row', alignItems: 'center', padding: 12, backgroundColor: colors.warning + '1A', borderBottomWidth: 1, borderBottomColor: colors.border },
+  videoDescriptionText: { fontSize: 13, color: colors.textSecondary, lineHeight: 18, flex: 1 },
+  addVideoBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 8, marginTop: 20 },
+  addVideoBtnText: { color: colors.white, fontWeight: '600', marginLeft: 8 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', padding: 20 },
-  modalCard: { backgroundColor: COLORS.white, padding: 20, borderRadius: 16 },
+  modalCard: { backgroundColor: colors.card, padding: 20, borderRadius: 16 },
   modalTitle: { fontSize: 18, fontWeight: '800', marginBottom: 16 },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 16 },
-  modalBtn: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 8, backgroundColor: '#EEE' },
-  saveBtn: { backgroundColor: COLORS.primary },
-  videoPickerCard: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 8, marginBottom: 6, backgroundColor: '#F9F9F9' },
-  checkbox: { width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: COLORS.primary, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  checkboxSelected: { backgroundColor: COLORS.primary },
+  modalBtn: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 8, backgroundColor: colors.surfaceMuted },
+  saveBtn: { backgroundColor: colors.primary },
+  videoPickerCard: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 8, marginBottom: 6, backgroundColor: colors.surfaceMuted },
+  checkbox: { width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: colors.primary, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  checkboxSelected: { backgroundColor: colors.primary },
   videoPickerTitle: { fontSize: 14, fontWeight: '600' },
-  videoPickerDesc: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
+  videoPickerDesc: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
 });
 
 export default VideoGroupDetailScreen;

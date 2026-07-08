@@ -8,6 +8,10 @@ export const ENDPOINTS = {
 
   // Auth
   LOGIN: `${API_VERSION}/auth/login`,
+  SOCIAL_LOGIN: `${API_VERSION}/auth/social`,
+  SOCIAL_LINK: `${API_VERSION}/auth/social/link`,
+  SOCIAL_UNLINK: `${API_VERSION}/auth/social/unlink`,
+  CHANGE_EMAIL: `${API_VERSION}/auth/change-email`,
   REGISTER: `${API_VERSION}/auth/register`,
   LOGOUT: `${API_VERSION}/auth/logout`,
   REFRESH: `${API_VERSION}/auth/refresh`,
@@ -21,6 +25,13 @@ export const ENDPOINTS = {
 
   // User preferences
   PREFERENCES: `${API_VERSION}/users/me/preferences`,
+
+  // Notifications
+  NOTIFICATIONS: `${API_VERSION}/notifications`,
+  NOTIFICATIONS_READ_ALL: `${API_VERSION}/notifications/read-all`,
+  NOTIFICATION_READ: id => `${API_VERSION}/notifications/${id}/read`,
+  DEVICE_TOKENS: `${API_VERSION}/notifications/device-tokens`,
+  DEVICE_TOKENS_REMOVE: `${API_VERSION}/notifications/device-tokens/remove`,
 
   // Home
   HOME_QUICK_RELIEF: `${API_VERSION}/home/quick-relief`,

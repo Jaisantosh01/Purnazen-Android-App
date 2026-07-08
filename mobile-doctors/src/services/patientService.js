@@ -17,9 +17,25 @@ const patientService = {
     return res?.data ?? null;
   },
 
-  /** A patient's face-scan history (reuses the user-scoped face-glow history). */
-  async scanHistory(id) {
-    const res = await apiClient.get(ENDPOINTS.PATIENT_SCANS(id));
+  async scanHistory(id, scanType = 'face') {
+    const res = await apiClient.get(`${ENDPOINTS.PATIENT_DETAIL(id)}/face-glow/history`, {
+      params: { scan_type: scanType }
+    });
+    return res?.data ?? [];
+  },
+
+  async scanReport(patientId, scanId) {
+    const res = await apiClient.get(`${ENDPOINTS.PATIENT_DETAIL(patientId)}/scan/${scanId}/report`);
+    return res?.data ?? null;
+  },
+
+  async consultations(id) {
+    const res = await apiClient.get(`${ENDPOINTS.PATIENT_DETAIL(id)}/consultations`);
+    return res?.data ?? [];
+  },
+
+  async prescriptions(id) {
+    const res = await apiClient.get(`${ENDPOINTS.PATIENT_DETAIL(id)}/prescriptions`);
     return res?.data ?? [];
   },
 };

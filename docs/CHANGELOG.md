@@ -2,6 +2,91 @@
 
 All notable changes to the Purnazen App are documented here.
 
+## [2026-07-03] — Staff-app dark mode everywhere, themed cards/chips, per-app icons
+
+### Changed — doctor & admin apps (full dark-mode coverage)
+- Every remaining screen and shared component in **mobile-doctors** (13 screens +
+  ScreenHeader/Toast/UpdatePrompt/Placeholder/AddRecordMenu) and **mobile-admin**
+  (16 screens + SkeletonLoader/TimePickerModal/Toast/UpdatePrompt) migrated from
+  the static light `COLORS` export to `useTheme()` + `makeStyles(colors)` —
+  the same pattern the patient app uses. Native `Alert.alert` calls swapped for
+  the themed `showAlert`.
+- Status chips are now scheme-aware: pastel bg + deep text in light, a
+  translucent wash of the status hue + light text in dark (new
+  `mobile-doctors/src/utils/statusChip.js`; admin already used washes).
+  Hardcoded light surfaces/borders (`#f0f0f0`, `#eee`, `#f9f9f9`, pink error
+  boxes, etc.) mapped to theme tokens across the admin app.
+
+### Fixed — patient app cards/chips in dark mode
+- `QuickCard` (home quick-relief) was fully hardcoded light and misused the
+  server `subtitle` as a text color; now themed (dark mode renders an
+  accent-hue wash) and the subtitle actually displays.
+- `ServiceUnavailable`, `ErrorBoundary` (via OS scheme — class component),
+  `Toast`, `UpdatePrompt`, `SkeletonLoader` themed; `TherapyHistoryScreen`
+  light-green root/chips, `BookAppointmentScreen` address notice and
+  `WellnessScreen` state-baked icon colors moved to palette tokens.
+
+### Added — per-app launcher icons
+- `scripts/generate_icon.py` now takes a brand color; regenerated icon sets:
+  **doctor = clinical blue #2563EB**, **admin = burnt orange #EA580C** (patient
+  stays green). Adaptive `ic_launcher_background.xml` updated to match.
+  Requires a native rebuild to see the new icons.
+
+### Fixed — validation debris (pre-existing)
+- Admin: missing `ActivityIndicator` import in `VideoGroupDetailScreen`
+  (runtime crash on the loading state); six stale test suites copied from the
+  patient app deleted; jest now transforms gesture-handler/swipe-list-view/expo
+  packages and mocks `expo-document-picker` — full admin suite passes.
+- Users: jest transforms + mocks for `react-native-webview` and
+  `@react-native-community/geolocation` (AddressManagementScreen imports);
+  auth tests updated for the role-gated login.
+- All three apps now pass eslint (0 errors), tsc, jest, and a release Metro
+  bundle.
+
+## [2026-07-03] — Therapy feedback, user address book, booking fixes (PR #22)
+
+### Added — therapy feedback (pain before/after)
+- **Backend:** `therapy_feedback` table + model/repository/service and endpoints
+  under `/therapy-feedback`: `GET /by-group/{video_group_id}`, `POST` (create
+  with pain-before), `PUT /{id}/pain-after` (post-session pain level + user
+  feedback), and doctor/admin feedback slots (`PUT /{id}/doctor-feedback`,
+  `/{id}/admin-feedback`). Feedback columns added to `therapy_sessions`;
+  `GET /therapy-history/completed-count/{group_id}` counts completed videos in
+  a group. Three new Alembic migrations.
+- **User app:** `ChatAssistantScreen` collects a 1-10 pain-before rating and
+  creates the feedback record before handing off to the video player;
+  `VideoPlayerScreen` prompts for pain-after + free-text feedback on completion.
+
+### Added — user address book
+- **Backend:** `user_addresses` table + CRUD endpoints under `/user-addresses`
+  (soft delete). Appointment schema carries the selected address.
+- **User app:** new `AddressManagementScreen` (Profile stack) with full
+  add/edit/delete; `BookAppointmentScreen` requires a saved address for
+  home-visit bookings.
+
+### Fixed
+- Home and clinic appointment booking flow (visit-type handling in
+  `BookAppointmentScreen` / `consultService`).
+- Seed data no longer prefixes doctors with "Dr".
+
+### Changed
+- `DoctorProfileScreen` shows richer metadata; `VideoPlayerScreen` player
+  behaviour improved; `ChatAssistantScreen` flow polish.
+
+## [2026-06-26] — Pre-prod validation pass (API URL, OTA source, UUID migration, DB Help & Support)
+
+- **fix(mobile):** the configured `EXPO_PUBLIC_API_URL` is now used **verbatim**
+  — the localhost → 10.0.2.2 rewrite was dropped (use
+  `adb reverse tcp:5000 tcp:5000` for local dev).
+- **fix(mobile):** OTA update check pointed at the Calypsion prod releases
+  source (superseded the same day by the private-blob flow below).
+- **fix(backend):** face-scan UUID migration corrected.
+- **Added:** DB-backed **Help & Support** — `support_contacts` + `support_faqs`
+  tables, `GET /support/help` for the app plus admin CRUD endpoints
+  (`/support/contacts`, `/support/faqs`); user-app `supportService` +
+  `HelpSupportScreen` render server content.
+- Assorted mobile UI polish (Settings, Wellness, themed alerts helper).
+
 ## [2026-06-26] — OTA updates from private Azure Blob (no more public GitHub releases)
 
 The in-app "Check for Updates" polled the **private** prod repo's GitHub Releases

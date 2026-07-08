@@ -14,6 +14,7 @@ import { useAuthStore } from '../store/authStore';
 import authService from '../services/authService';
 import appointmentService from '../services/appointmentService';
 import useTheme from '../hooks/useTheme';
+import { useHeaderTopPadding } from '../components/ScreenHeader';
 
 // Icon backgrounds are a translucent wash of the icon hue so the tint reads
 // correctly over both light and dark cards.
@@ -29,6 +30,7 @@ const isToday = value => {
 };
 
 const ProfileScreen = ({ navigation }) => {
+  const headerTop = useHeaderTopPadding(16);
   const doctor = useAuthStore(state => state.doctor);
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -98,7 +100,7 @@ const ProfileScreen = ({ navigation }) => {
         contentContainerStyle={{ paddingBottom: 24 }}
       >
         {/* ── Header ── */}
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: headerTop }]}>
           <View style={styles.profileRow}>
             <View style={styles.avatar}>
               <Text style={styles.avatarLetter}>{avatarLetter}</Text>
@@ -174,7 +176,6 @@ const makeStyles = colors => StyleSheet.create({
 
   header: {
     backgroundColor: colors.headerBg,
-    paddingTop: 56,
     paddingHorizontal: 20,
     paddingBottom: 24,
     borderBottomLeftRadius: 28,

@@ -1,23 +1,37 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SPACING } from '../constants/theme';
+import { SPACING } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
+
+/**
+ * useHeaderTopPadding — safe-area top padding for screens that keep a custom
+ * header layout instead of <ScreenHeader/>. Replaces hardcoded paddingTop
+ * values (50–56px) that overlap the status bar on tall-inset devices and
+ * waste space on short ones.
+ */
+export const useHeaderTopPadding = (extra = 12) => {
+  const insets = useSafeAreaInsets();
+  return Math.max(insets.top, 12) + extra;
+};
 
 /**
  * Simple top app bar used across the doctor screens. Shows a title, an optional
  * back button, and an optional right-side action.
  */
 const ScreenHeader = ({ title, subtitle, onBack, right }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.wrap, { paddingTop: Math.max(insets.top, 12) + 4 }]}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
       <View style={styles.row}>
         {onBack ? (
           <TouchableOpacity onPress={onBack} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <MCIcon name="arrow-left" size={24} color={COLORS.white} />
+            <MCIcon name="arrow-left" size={24} color={colors.white} />
           </TouchableOpacity>
         ) : (
           <View style={styles.spacer} />
@@ -40,15 +54,15 @@ const ScreenHeader = ({ title, subtitle, onBack, right }) => {
 
 export default ScreenHeader;
 
-const styles = StyleSheet.create({
+const makeStyles = colors => StyleSheet.create({
   wrap: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingBottom: SPACING.md,
     paddingHorizontal: SPACING.lg,
   },
   row: { flexDirection: 'row', alignItems: 'center' },
   titleWrap: { flex: 1, marginHorizontal: SPACING.md },
-  title: { fontSize: 19, fontWeight: '800', color: COLORS.white },
+  title: { fontSize: 19, fontWeight: '800', color: colors.white },
   subtitle: { fontSize: 12.5, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
   right: { minWidth: 24, alignItems: 'flex-end' },
   spacer: { width: 24, height: 24 },

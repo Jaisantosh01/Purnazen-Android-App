@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,15 +6,19 @@ import {
   TouchableOpacity,
   StatusBar,
   ScrollView,
-  Alert,
   TextInput,
 } from 'react-native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
-import { COLORS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
+import { useHeaderTopPadding } from '../components/ScreenHeader';
+import { showAlert } from '../utils/alert';
 
 const EditUserScreen = ({ route, navigation }) => {
+  const { colors, isDark } = useTheme();
+  const headerTop = useHeaderTopPadding();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { user } = route.params;
   const [loading, setLoading] = useState(false);
   const [editedUser, setEditedUser] = useState({ 
@@ -32,11 +36,11 @@ const EditUserScreen = ({ route, navigation }) => {
     setLoading(true);
     apiClient.put(`${ENDPOINTS.USERS}/${user.id}`, editedUser)
       .then(() => {
-        Alert.alert('Success', 'User updated successfully');
+        showAlert('Success', 'User updated successfully');
         navigation.goBack();
       })
       .catch((error) => {
-        Alert.alert('Error', 'Failed to update user');
+        showAlert('Error', 'Failed to update user');
         console.error(error);
       })
       .finally(() => setLoading(false));
@@ -44,10 +48,10 @@ const EditUserScreen = ({ route, navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
-      <View style={styles.header}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.card} />
+      <View style={[styles.header, { paddingTop: headerTop }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-            <MCIcon name="arrow-left" size={24} color={COLORS.textPrimary} />
+            <MCIcon name="arrow-left" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Edit User</Text>
         <View style={{width: 24}} />
@@ -84,23 +88,23 @@ const EditUserScreen = ({ route, navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
-  header: { paddingTop: 56, padding: 20, backgroundColor: COLORS.white, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  headerTitle: { fontSize: 20, fontWeight: '800', color: COLORS.textPrimary },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
+  header: { padding: 20, backgroundColor: colors.card, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: colors.border },
+  headerTitle: { fontSize: 20, fontWeight: '800', color: colors.textPrimary },
   content: { padding: 20 },
-  label: { fontSize: 14, fontWeight: '600', color: COLORS.textSecondary, marginTop: 15 },
-  input: { backgroundColor: COLORS.white, padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#ddd', marginTop: 8 },
-  roleOption: { padding: 15, backgroundColor: COLORS.white, marginTop: 10, borderRadius: 8, borderWidth: 1, borderColor: '#eee' },
-  selectedRole: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryLight },
-  roleText: { color: COLORS.textPrimary },
-  selectedRoleText: { color: COLORS.primary, fontWeight: '600' },
-  footer: { flexDirection: 'row', padding: 20, backgroundColor: COLORS.white, borderTopWidth: 1, borderTopColor: '#eee' },
+  label: { fontSize: 14, fontWeight: '600', color: colors.textSecondary, marginTop: 15 },
+  input: { backgroundColor: colors.card, padding: 12, borderRadius: 8, borderWidth: 1, borderColor: colors.borderStrong, marginTop: 8 },
+  roleOption: { padding: 15, backgroundColor: colors.card, marginTop: 10, borderRadius: 8, borderWidth: 1, borderColor: colors.border },
+  selectedRole: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
+  roleText: { color: colors.textPrimary },
+  selectedRoleText: { color: colors.primary, fontWeight: '600' },
+  footer: { flexDirection: 'row', padding: 20, backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.border },
   button: { flex: 1, padding: 15, borderRadius: 8, alignItems: 'center' },
-  cancelButton: { backgroundColor: '#eee', marginRight: 10 },
-  saveButton: { backgroundColor: COLORS.primary },
-  cancelButtonText: { color: COLORS.textPrimary, fontWeight: 'bold' },
-  saveButtonText: { color: COLORS.white, fontWeight: 'bold' }
+  cancelButton: { backgroundColor: colors.surfaceMuted, marginRight: 10 },
+  saveButton: { backgroundColor: colors.primary },
+  cancelButtonText: { color: colors.textPrimary, fontWeight: 'bold' },
+  saveButtonText: { color: colors.white, fontWeight: 'bold' }
 });
 
 export default EditUserScreen;

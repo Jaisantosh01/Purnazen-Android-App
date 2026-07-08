@@ -9,6 +9,14 @@ class RegisterRequest(BaseModel):
     password: str
 
 
+class AdminCreateUserRequest(BaseModel):
+    full_name: str
+    email: EmailStr
+    password: str
+    phone: str | None = None
+    role_name: str = "patient"
+
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
@@ -16,6 +24,27 @@ class LoginRequest(BaseModel):
     # valid credential signing into the wrong app is rejected. Optional for
     # backward compatibility — when omitted, no role gate is applied.
     expected_role: str | None = None
+
+
+class SocialLoginRequest(BaseModel):
+    # Firebase Auth ID token — one token shape regardless of which provider
+    # (Google, GitHub, ...) the user picked; verified server-side against the
+    # Firebase project.
+    id_token: str = Field(min_length=1)
+    expected_role: str | None = None
+
+
+class SocialLinkRequest(BaseModel):
+    id_token: str = Field(min_length=1)
+
+
+class ChangeEmailRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    new_email: EmailStr = Field(alias="newEmail")
+    # Required for password accounts; social-created accounts (random unusable
+    # password) may omit it — the linked provider identity is the proof.
+    current_password: str | None = Field(default=None, alias="currentPassword")
 
 
 class UpdateProfileRequest(BaseModel):

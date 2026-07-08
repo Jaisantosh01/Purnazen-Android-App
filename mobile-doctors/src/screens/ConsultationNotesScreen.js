@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -15,7 +14,9 @@ import AddRecordMenu from '../components/AddRecordMenu';
 import useConsultationStore from '../store/consultationStore';
 import appointmentService from '../services/appointmentService';
 import { showSuccess, showError } from '../utils/toast';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { SPACING, RADIUS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
+import { showAlert } from '../utils/alert';
 
 // ─── Section config ──────────────────────────────────────────────────────────────
 const SECTIONS = [
@@ -76,14 +77,18 @@ const formatRecordTimestamp = (isoString) => {
 };
 
 // ─── Section Header ──────────────────────────────────────────────────────────────
-const SectionHeader = ({ icon, title, count }) => (
+const SectionHeader = ({ icon, title, count }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
   <View style={styles.sectionHeader}>
     <View style={styles.sectionIconWrap}>
-      <MCIcon name={icon} size={16} color={COLORS.primary} />
+      <MCIcon name={icon} size={16} color={colors.primary} />
     </View>
     <Text style={styles.sectionTitle}>{title} ({count})</Text>
   </View>
-);
+  );
+};
 
 // ─── Record Card ─────────────────────────────────────────────────────────────────
 const RecordCard = ({
@@ -95,7 +100,10 @@ const RecordCard = ({
   onToggle,
   onEdit,
   onDelete,
-}) => (
+}) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
   <View style={styles.recordCard}>
     <View style={styles.recordHeaderRow}>
       <TouchableOpacity
@@ -105,7 +113,7 @@ const RecordCard = ({
         <MCIcon
           name={isExpanded ? 'chevron-down' : 'chevron-right'}
           size={20}
-          color={COLORS.textSecondary}
+          color={colors.textSecondary}
           style={styles.chevron}
         />
         <View style={styles.headerTextWrap}>
@@ -120,14 +128,14 @@ const RecordCard = ({
           activeOpacity={0.6}
           hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
           onPress={onEdit}>
-          <MCIcon name="pencil-outline" size={17} color={COLORS.primary} />
+          <MCIcon name="pencil-outline" size={17} color={colors.primary} />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.headerActionBtn}
           activeOpacity={0.6}
           hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
           onPress={onDelete}>
-          <MCIcon name="delete-outline" size={17} color={COLORS.danger} />
+          <MCIcon name="delete-outline" size={17} color={colors.danger} />
         </TouchableOpacity>
       </View>
     </View>
@@ -138,10 +146,13 @@ const RecordCard = ({
       </View>
     )}
   </View>
-);
+  );
+};
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────────
 const ConsultationNotesScreen = ({ route, navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { appointment } = route.params || {};
   const [showMenu, setShowMenu] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -185,7 +196,7 @@ const ConsultationNotesScreen = ({ route, navigation }) => {
 
   // Confirm & delete a record
   const handleDelete = (deleteAction, singularLabel, recordId) => {
-    Alert.alert(
+    showAlert(
       `Delete ${singularLabel}`,
       `Are you sure you want to delete this ${singularLabel.toLowerCase()}?`,
       [
@@ -229,14 +240,14 @@ const ConsultationNotesScreen = ({ route, navigation }) => {
         onBack={() => navigation.goBack()}
         right={
           <TouchableOpacity onPress={() => setShowMenu(true)}>
-            <MCIcon name="plus" size={24} color={COLORS.white} />
+            <MCIcon name="plus" size={24} color={colors.white} />
           </TouchableOpacity>
         }
       />
 
       {loading ? (
         <View style={styles.emptyWrap}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : !hasRecords ? (
         /* ── Empty State ──────────────────────────────────────────────────── */
@@ -245,7 +256,7 @@ const ConsultationNotesScreen = ({ route, navigation }) => {
             style={styles.emptyIconWrap}
             activeOpacity={0.7}
             onPress={() => setShowMenu(true)}>
-            <MCIcon name="plus" size={48} color={COLORS.primary} />
+            <MCIcon name="plus" size={48} color={colors.primary} />
           </TouchableOpacity>
           <Text style={styles.emptyTitle}>Add Clinical Record</Text>
           <Text style={styles.emptySubtitle}>
@@ -307,9 +318,9 @@ const ConsultationNotesScreen = ({ route, navigation }) => {
             disabled={submitting}
             onPress={handleComplete}>
             {submitting ? (
-              <ActivityIndicator size="small" color={COLORS.white} />
+              <ActivityIndicator size="small" color={colors.white} />
             ) : (
-              <MCIcon name="checkbox-marked-circle-outline" size={20} color={COLORS.white} />
+              <MCIcon name="checkbox-marked-circle-outline" size={20} color={colors.white} />
             )}
             <Text style={styles.completeBtnText}>
               {submitting ? 'Completing…' : 'Complete Consultation'}
@@ -332,8 +343,8 @@ const ConsultationNotesScreen = ({ route, navigation }) => {
 export default ConsultationNotesScreen;
 
 // ─── Styles ─────────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   scroll: { padding: SPACING.lg, gap: SPACING.md },
   bottomSpacer: { height: 40 },
 
@@ -349,18 +360,18 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: COLORS.primaryFaint,
+    backgroundColor: colors.primaryFaint,
     borderWidth: 2,
-    borderColor: COLORS.primary,
+    borderColor: colors.primary,
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: SPACING.sm,
   },
-  emptyTitle: { fontSize: 20, fontWeight: '800', color: COLORS.textPrimary },
+  emptyTitle: { fontSize: 20, fontWeight: '800', color: colors.textPrimary },
   emptySubtitle: {
     fontSize: 14,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 21,
     maxWidth: 280,
@@ -378,18 +389,18 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: COLORS.primaryFaint,
+    backgroundColor: colors.primaryFaint,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sectionTitle: { fontSize: 15, fontWeight: '800', color: COLORS.textPrimary, flex: 1 },
+  sectionTitle: { fontSize: 15, fontWeight: '800', color: colors.textPrimary, flex: 1 },
 
   // ── Record card ─────────────────────────────────────────────────────────────
   recordCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     elevation: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -419,11 +430,11 @@ const styles = StyleSheet.create({
   recordNumber: {
     fontSize: 14,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   recordTimestamp: {
     fontSize: 11,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   headerActions: {
     flexDirection: 'row',
@@ -435,7 +446,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: COLORS.surfaceMuted,
+    backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -446,7 +457,7 @@ const styles = StyleSheet.create({
   },
   recordContent: {
     fontSize: 13.5,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     lineHeight: 21,
   },
 
@@ -458,9 +469,9 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 15,
     borderRadius: RADIUS.md,
-    backgroundColor: COLORS.success,
+    backgroundColor: colors.success,
     marginTop: SPACING.sm,
   },
-  completeBtnText: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
+  completeBtnText: { color: colors.white, fontSize: 16, fontWeight: '700' },
   btnDisabled: { opacity: 0.6 },
 });

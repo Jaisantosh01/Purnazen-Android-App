@@ -134,6 +134,7 @@ const VideoPlayerScreen = ({ route, navigation }) => {
       }
       watchedRef.current = watched;
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [catalog, currentVideoIndex, groupId],
   );
 

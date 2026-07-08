@@ -15,12 +15,14 @@ import consultService from '../services/consultService';
 import { APPOINTMENT_STATUS_COLORS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
 import { APPOINTMENT_HISTORY_STATUS_LABELS } from '../constants/strings';
+import { useHeaderTopPadding } from '../components/ScreenHeader';
 
 
 const STATUS_COLORS = APPOINTMENT_STATUS_COLORS;
 const STATUS_LABELS = APPOINTMENT_HISTORY_STATUS_LABELS;
 
 const AppointmentHistoryScreen = ({ navigation }) => {
+  const headerTop = useHeaderTopPadding();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [appointments, setAppointments] = useState([]);
@@ -113,7 +115,7 @@ const AppointmentHistoryScreen = ({ navigation }) => {
     <View style={styles.root}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
 
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: headerTop }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <MCIcon name="arrow-left" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
@@ -180,7 +182,7 @@ const makeStyles = colors => StyleSheet.create({
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingTop: 50, paddingHorizontal: 16, paddingBottom: 14,
+    paddingHorizontal: 16, paddingBottom: 14,
     backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.surfaceMuted,
   },
   backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },

@@ -4,7 +4,11 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db, require_role
+from app.core.security import hash_password
+from app.models.role import Role
 from app.models.user import User
+from app.repositories.user_repository import UserRepository
+from app.schemas.auth import AdminCreateUserRequest
 from app.schemas.preferences import UpdatePreferencesRequest
 from app.services.preference_service import PreferenceService
 from app.utils.responses import error_response, success_response
@@ -21,6 +25,36 @@ def get_all_users(
     return success_response(
         "Users fetched successfully",
         [u.to_dict() for u in users],
+    )
+
+
+@router.post(
+    "",
+    status_code=201,
+    summary="Create a new user (admin only)",
+    description="Creates a user with the given role. Password is hashed before storage.",
+)
+def create_user(
+    body: AdminCreateUserRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("admin")),
+):
+    existing_user = UserRepository.find_by_email(db, body.email)
+    if existing_user:
+        return error_response("Email already exists", 400)
+
+    role = db.query(Role).filter_by(name=body.role_name).first()
+    if not role:
+        return error_response(f"Role '{body.role_name}' not found", 404)
+
+    data = body.model_dump()
+    data["password"] = hash_password(data["password"])
+    new_user = UserRepository.create_user(db, data, role_id=role.id)
+
+    return success_response(
+        "User created successfully",
+        new_user.to_dict(),
+        status_code=201,
     )
 
 

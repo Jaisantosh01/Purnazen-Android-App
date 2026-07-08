@@ -14,8 +14,8 @@ from app.repositories.doctor_availability_repository import (
 class DoctorAvailabilityService:
 
     @staticmethod
-    def get_all(db):
-        return DoctorAvailabilityRepository.get_all(db)
+    def get_all(db, doctor_id=None):
+        return DoctorAvailabilityRepository.get_all(db, doctor_id=doctor_id)
 
     @staticmethod
     def create(

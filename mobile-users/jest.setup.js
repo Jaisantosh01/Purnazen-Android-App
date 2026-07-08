@@ -34,3 +34,17 @@ jest.mock('react-native-keychain', () => {
     }),
   };
 });
+
+// Native-only modules used by AddressManagementScreen (PR #22).
+jest.mock('react-native-webview', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return { WebView: props => React.createElement(View, props) };
+});
+
+jest.mock('@react-native-community/geolocation', () => ({
+  getCurrentPosition: jest.fn(),
+  watchPosition: jest.fn(),
+  clearWatch: jest.fn(),
+  requestAuthorization: jest.fn(),
+}));

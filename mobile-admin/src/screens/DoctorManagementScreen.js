@@ -1,30 +1,36 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  StatusBar,
   TextInput,
   ScrollView,
+  Alert,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
-import { COLORS } from '../constants/theme';
 import { ListSkeleton } from '../components/SkeletonLoader';
+import useTheme from '../hooks/useTheme';
 
 const DoctorManagementScreen = ({ navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [doctors, setDoctors] = useState([]);
   const [stats, setStats] = useState({ active_doctors: 0, inactive_doctors: 0 });
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [menuTarget, setMenuTarget] = useState(null);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+    }, [])
+  );
 
   const fetchData = () => {
     setLoading(true);
@@ -52,74 +58,130 @@ const DoctorManagementScreen = ({ navigation }) => {
     (doc.specialty || '').toLowerCase().includes(search.toLowerCase())
   );
 
+  const handleEdit = (item) => {
+    navigation.navigate('EditDoctor', { doctorId: item.id });
+  };
+
+  const handleDelete = (item) => {
+    Alert.alert(
+      'Deactivate Doctor',
+      `Are you sure you want to deactivate ${item.name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Deactivate',
+          style: 'destructive',
+          onPress: () => {
+            apiClient.delete(ENDPOINTS.DOCTOR_DETAIL(item.id))
+              .then(() => {
+                Alert.alert('Success', `${item.name} has been deactivated`);
+                fetchData();
+              })
+              .catch((err) => {
+                Alert.alert('Error', err.message || 'Failed to deactivate doctor');
+              });
+          },
+        },
+      ]
+    );
+  };
+
   const renderDoctorItem = ({ item }) => {
     const specialties = item.specialties || [];
     const expertise = item.expertise || [];
+    const isInactive = item.is_active === false;
     
-    // Display all specialties joined by comma
     const displaySpecialties = specialties.join(', ');
-        
-    // Display at most 2 expertise tags
     const displayExpertise = expertise.slice(0, 2);
     const hasMoreExpertise = expertise.length > 2;
 
     return (
-        <View style={styles.doctorCard}>
-        <View style={styles.doctorInfo}>
-            <View style={styles.avatarPlaceholder}>
-            <MCIcon name="account" size={32} color={COLORS.primary} />
-            </View>
-            <View style={styles.details}>
-            <Text style={styles.doctorName}>{item.name}</Text>
-            <Text style={styles.specialty} numberOfLines={1} ellipsizeMode="tail">{displaySpecialties || 'N/A'}</Text>
-            <View style={styles.expertiseContainer}>
-                {displayExpertise.map((expName, idx) => (
-                <View key={idx} style={styles.expertiseTag}>
-                    <Text style={styles.expertiseText}>{expName}</Text>
-                </View>
-                ))}
-                {hasMoreExpertise && (
-                    <View style={styles.expertiseTag}>
-                        <Text style={styles.expertiseText}>...</Text>
+      <TouchableOpacity
+        activeOpacity={isInactive ? 1 : 0.7}
+        onPress={() => {
+          if (!isInactive) {
+            navigation.navigate('DoctorDetail', { doctorId: item.id });
+          }
+        }}
+      >
+        <View style={[styles.doctorCard, isInactive && styles.doctorCardInactive, menuTarget?.id === item.id && { zIndex: 100 }]}>
+          <View style={styles.cardHeader}>
+            <View style={styles.doctorInfo}>
+              <View style={[styles.avatarPlaceholder, isInactive && styles.avatarInactive]}>
+                <MCIcon name="account" size={32} color={isInactive ? colors.textMuted : colors.primary} />
+              </View>
+              <View style={styles.details}>
+                <View style={styles.nameRow}>
+                  <Text style={[styles.doctorName, isInactive && styles.textInactive]}>{item.name}</Text>
+                  {isInactive && (
+                    <View style={styles.inactiveBadge}>
+                      <Text style={styles.inactiveBadgeText}>INACTIVE</Text>
                     </View>
-                )}
+                  )}
+                </View>
+                <Text style={[styles.specialty, isInactive && styles.textInactive]} numberOfLines={1} ellipsizeMode="tail">
+                  {displaySpecialties || 'N/A'}
+                </Text>
+                <View style={styles.expertiseContainer}>
+                  {displayExpertise.map((expName, idx) => (
+                    <View key={idx} style={[styles.expertiseTag, isInactive && styles.tagInactive]}>
+                      <Text style={[styles.expertiseText, isInactive && styles.textInactive]}>{expName}</Text>
+                    </View>
+                  ))}
+                  {hasMoreExpertise && (
+                    <View style={[styles.expertiseTag, isInactive && styles.tagInactive]}>
+                      <Text style={[styles.expertiseText, isInactive && styles.textInactive]}>...</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
             </View>
+            <View style={styles.actionBtns}>
+              <TouchableOpacity
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                onPress={() => setMenuTarget(menuTarget?.id === item.id ? null : item)}
+              >
+                <MCIcon name="dots-vertical" size={20} color={isInactive ? colors.textMuted : colors.textPrimary} />
+              </TouchableOpacity>
+              {menuTarget?.id === item.id && (
+                <View style={styles.cardDropdown}>
+                  <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuTarget(null); handleEdit(item); }}>
+                    <MCIcon name="pencil-outline" size={16} color={colors.textPrimary} />
+                    <Text style={styles.menuItemText}>Edit</Text>
+                  </TouchableOpacity>
+                  <View style={styles.menuDivider} />
+                  <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuTarget(null); handleDelete(item); }}>
+                    <MCIcon name="delete-outline" size={16} color={colors.danger} />
+                    <Text style={[styles.menuItemText, { color: colors.danger }]}>Delete</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
-            <MCIcon name="chevron-right" size={24} color={COLORS.textMuted} />
+          </View>
         </View>
-        </View>
+      </TouchableOpacity>
     );
   };
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
       
-      {/* ── Header ── */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Doctor Management</Text>
-        {/*
-        <TouchableOpacity 
-          style={styles.addBtn}
-          onPress={() => navigation.navigate('EditDoctor', { doctorId: null })}
-        >
-          <MCIcon name="plus" size={24} color={COLORS.white} />
-        </TouchableOpacity>
-    */}
-      </View>
+      {/* Header removed as it is now in UnifiedUserDoctorScreen */}
 
       <ScrollView 
         contentContainerStyle={{ paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
+        onScroll={() => menuTarget && setMenuTarget(null)}
+        scrollEventThrottle={16}
       >
         {/* ── Stats ── */}
         <View style={styles.statsRow}>
-          <View style={[styles.statCard, { borderColor: COLORS.primary }]}>
-            <Text style={[styles.statValue, { color: COLORS.primary }]}>{stats.active_doctors}</Text>
+          <View style={[styles.statCard, { borderColor: colors.primary }]}>
+            <Text style={[styles.statValue, { color: colors.primary }]}>{stats.active_doctors}</Text>
             <Text style={styles.statLabel}>Active</Text>
           </View>
-          <View style={[styles.statCard, { borderColor: COLORS.danger }]}>
-            <Text style={[styles.statValue, { color: COLORS.danger }]}>{stats.inactive_doctors}</Text>
+          <View style={[styles.statCard, { borderColor: colors.danger }]}>
+            <Text style={[styles.statValue, { color: colors.danger }]}>{stats.inactive_doctors}</Text>
             <Text style={styles.statLabel}>Inactive</Text>
           </View>
         </View>
@@ -153,7 +215,7 @@ const DoctorManagementScreen = ({ navigation }) => {
 
         {/* ── Search ── */}
         <View style={styles.searchContainer}>
-          <MCIcon name="magnify" size={20} color={COLORS.textMuted} style={styles.searchIcon} />
+          <MCIcon name="magnify" size={20} color={colors.textMuted} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search by name or specialty..."
@@ -168,19 +230,13 @@ const DoctorManagementScreen = ({ navigation }) => {
             <ListSkeleton count={5} />
           ) : filteredDoctors.length > 0 ? (
             filteredDoctors.map(item => (
-              <TouchableOpacity 
-                key={item.id} 
-                onPress={() => {
-                  console.log('Doctor clicked:', item);
-                  navigation.navigate('DoctorDetail', { doctorId: item.id });
-                }}
-              >
+              <View key={item.id}>
                 {renderDoctorItem({ item })}
-              </TouchableOpacity>
+              </View>
             ))
           ) : (
             <View style={styles.emptyContainer}>
-              <MCIcon name="doctor" size={64} color={COLORS.textMuted} />
+              <MCIcon name="doctor" size={64} color={colors.textMuted} />
               <Text style={styles.emptyText}>No doctors found</Text>
             </View>
           )}
@@ -192,43 +248,82 @@ const DoctorManagementScreen = ({ navigation }) => {
 
 export default DoctorManagementScreen;
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   header: {
-    paddingTop: 56,
+    paddingTop: 16,
     paddingHorizontal: 20,
     paddingBottom: 16,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: colors.border,
   },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: COLORS.textPrimary },
-  addBtn: { backgroundColor: COLORS.primary, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontSize: 22, fontWeight: '800', color: colors.textPrimary },
+  addBtn: { backgroundColor: colors.primary, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   statsRow: { flexDirection: 'row', padding: 16, gap: 12 },
-  statCard: { flex: 1, backgroundColor: COLORS.white, borderRadius: 12, padding: 12, alignItems: 'center', borderWidth: 1 },
+  statCard: { flex: 1, backgroundColor: colors.card, borderRadius: 12, padding: 12, alignItems: 'center', borderWidth: 1 },
   statValue: { fontSize: 18, fontWeight: '800' },
-  statLabel: { fontSize: 12, color: COLORS.textMuted, marginTop: 2, fontWeight: '600' },
-  searchContainer: { marginHorizontal: 16, marginBottom: 16, flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white, borderRadius: 12, paddingHorizontal: 12, height: 44, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  statLabel: { fontSize: 12, color: colors.textMuted, marginTop: 2, fontWeight: '600' },
+  searchContainer: { marginHorizontal: 16, marginBottom: 16, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: 12, paddingHorizontal: 12, height: 44, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
   searchIcon: { marginRight: 8 },
-  searchInput: { flex: 1, fontSize: 14, color: COLORS.textPrimary },
+  searchInput: { flex: 1, fontSize: 14, color: colors.textPrimary },
   manageOptions: { marginBottom: 16 },
   manageOptionsContent: { paddingHorizontal: 16, gap: 8 },
-  optionBtn: { backgroundColor: COLORS.white, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: COLORS.primary },
-  optionText: { color: COLORS.primary, fontWeight: '600' },
+  optionBtn: { backgroundColor: colors.card, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: colors.primary },
+  optionText: { color: colors.primary, fontWeight: '600' },
   listContainer: { paddingHorizontal: 16 },
-  doctorCard: { backgroundColor: COLORS.white, borderRadius: 16, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
-  doctorInfo: { flexDirection: 'row', alignItems: 'center' },
-  avatarPlaceholder: { width: 56, height: 56, borderRadius: 28, backgroundColor: COLORS.primaryLight, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
+  doctorCard: { backgroundColor: colors.card, borderRadius: 16, padding: 16, marginBottom: 12, overflow: 'visible', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+  doctorInfo: { flex: 1, flexDirection: 'row', alignItems: 'center' },
+  avatarPlaceholder: { width: 56, height: 56, borderRadius: 28, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
   details: { flex: 1 },
-  doctorName: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
-  specialty: { fontSize: 13, color: COLORS.primary, fontWeight: '600', marginTop: 2 },
+  doctorName: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
+  specialty: { fontSize: 13, color: colors.primary, fontWeight: '600', marginTop: 2 },
   expertiseContainer: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8, gap: 6 },
-  expertiseTag: { backgroundColor: '#f0f0f0', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  expertiseText: { fontSize: 11, color: COLORS.textSecondary, fontWeight: '500' },
+  expertiseTag: { backgroundColor: colors.surfaceMuted, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  expertiseText: { fontSize: 11, color: colors.textSecondary, fontWeight: '500' },
 
+  cardHeader: { flexDirection: 'row', alignItems: 'flex-start' },
+  doctorCardInactive: { opacity: 0.6, backgroundColor: colors.surfaceMuted },
+  avatarInactive: { backgroundColor: colors.borderStrong },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  textInactive: { color: colors.textMuted },
+  tagInactive: { backgroundColor: colors.borderStrong },
+  inactiveBadge: {
+    backgroundColor: colors.danger,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  inactiveBadgeText: { color: colors.white, fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
+  actionBtns: { position: 'relative', marginLeft: 8, paddingTop: 4 },
   emptyContainer: { alignItems: 'center', justifyContent: 'center', marginTop: 60 },
-  emptyText: { marginTop: 16, fontSize: 16, color: COLORS.textMuted },
+  emptyText: { marginTop: 16, fontSize: 16, color: colors.textMuted },
+
+  cardDropdown: {
+    position: 'absolute',
+    top: 22,
+    right: 0,
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    paddingVertical: 4,
+    minWidth: 140,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+    zIndex: 10,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    gap: 10,
+  },
+  menuDivider: { height: 1, backgroundColor: colors.border, marginHorizontal: 8 },
+  menuItemText: { fontSize: 14, fontWeight: '500', color: colors.textPrimary },
 });

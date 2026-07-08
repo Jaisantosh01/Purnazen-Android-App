@@ -7,6 +7,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // @ts-ignore
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { Text, TouchableOpacity, StyleSheet } from 'react-native';
 // @ts-ignore
 import authService from './src/services/authService';
 // @ts-ignore
@@ -33,6 +34,7 @@ import useToastStore from './src/utils/toast';
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import HomeScreen from './src/screens/HomeScreen';
+import UnifiedUserDoctorScreen from './src/screens/UnifiedUserDoctorScreen';
 import DoctorManagementScreen from './src/screens/DoctorManagementScreen';
 import DoctorDetailScreen from './src/screens/DoctorDetailScreen';
 import EditDoctorScreen from './src/screens/EditDoctorScreen';
@@ -48,20 +50,22 @@ import DoctorLeaveManagementScreen from './src/screens/DoctorLeaveManagementScre
 import VideoManagementScreen from './src/screens/VideoManagementScreen';
 import VideoGroupDetailScreen from './src/screens/VideoGroupDetailScreen';
 import UploadVideoScreen from './src/screens/UploadVideoScreen';
+import FaqManagementScreen from './src/screens/FaqManagementScreen';
+import NotificationAdminScreen from './src/screens/NotificationAdminScreen';
+
 
 
 const RootStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 const HomeStack = createNativeStackNavigator();
-const DoctorsStack = createNativeStackNavigator();
 const UsersStack = createNativeStackNavigator();
 const AppointmentsStack = createNativeStackNavigator();
 const ProfileStack = createNativeStackNavigator();
 
 const TAB_ICONS: Record<string, { active: string; inactive: string }> = {
   Home:        { active: 'home',                    inactive: 'home-outline'                  },
-  Doctors:     { active: 'doctor',                  inactive: 'doctor'                        },
   Users:       { active: 'account-group',           inactive: 'account-group-outline'         },
+  LeaveCenter: { active: 'beach',                   inactive: 'beach'                         },
   Appointments:{ active: 'calendar-clock',          inactive: 'calendar-clock-outline'        },
   Profile:     { active: 'account-circle',          inactive: 'account-circle-outline'        },
 };
@@ -75,30 +79,24 @@ function HomeStackNavigator() {
       <HomeStack.Screen name="VideoManagement" component={VideoManagementScreen} />
       <HomeStack.Screen name="VideoGroupDetail" component={VideoGroupDetailScreen} />
       <HomeStack.Screen name="UploadVideo"     component={UploadVideoScreen} />
+      <HomeStack.Screen name="FaqManagement"   component={FaqManagementScreen} />
+      <HomeStack.Screen name="NotificationAdmin" component={NotificationAdminScreen} />
 
     </HomeStack.Navigator>
   );
 }
 
-function DoctorsStackNavigator() {
-  return (
-    <DoctorsStack.Navigator screenOptions={{ headerShown: false }}>
-      <DoctorsStack.Screen name="DoctorsMain"      component={DoctorManagementScreen} />
-      <DoctorsStack.Screen name="DoctorDetail"     component={DoctorDetailScreen} />
-      <DoctorsStack.Screen name="EditDoctor"       component={EditDoctorScreen} />
-      <DoctorsStack.Screen name="ManageExpertise"  component={MetadataManagementScreen} />
-      <DoctorsStack.Screen name="ManageLanguages"  component={MetadataManagementScreen} />
-      <DoctorsStack.Screen name="ManageSpecialties" component={MetadataManagementScreen} />
-    </DoctorsStack.Navigator>
-  );
-}
-
-function UsersStackNavigator() {
+function UsersAndDoctorsStackNavigator() {
   return (
     <UsersStack.Navigator screenOptions={{ headerShown: false }}>
-      <UsersStack.Screen name="UsersMain" component={UserManagementScreen} />
-      <UsersStack.Screen name="ManageRoles" component={MetadataManagementScreen} />
+      <UsersStack.Screen name="UsersAndDoctorsMain" component={UnifiedUserDoctorScreen} />
       <UsersStack.Screen name="EditUser" component={EditUserScreen} />
+      <UsersStack.Screen name="ManageRoles" component={MetadataManagementScreen} />
+      <UsersStack.Screen name="DoctorDetail" component={DoctorDetailScreen} />
+      <UsersStack.Screen name="EditDoctor" component={EditDoctorScreen} />
+      <UsersStack.Screen name="ManageExpertise" component={MetadataManagementScreen} />
+      <UsersStack.Screen name="ManageLanguages" component={MetadataManagementScreen} />
+      <UsersStack.Screen name="ManageSpecialties" component={MetadataManagementScreen} />
     </UsersStack.Navigator>
   );
 }
@@ -159,13 +157,15 @@ function MainTabs() {
       })}
     >
       <Tab.Screen name="Home"        component={HomeStackNavigator}    />
-      <Tab.Screen name="Doctors"     component={DoctorsStackNavigator} />
-      <Tab.Screen name="Users"       component={UsersStackNavigator} />
+      <Tab.Screen name="Users"       component={UsersAndDoctorsStackNavigator} />
+      <Tab.Screen name="LeaveCenter" component={DoctorLeaveManagementScreen} options={{ tabBarLabel: 'Leaves' }} />
       <Tab.Screen name="Appointments" component={AppointmentsStackNavigator} />
       <Tab.Screen name="Profile"     component={ProfileStackNavigator} />
     </Tab.Navigator>
   );
 }
+
+const styles = StyleSheet.create({});
 
 // ── Minimal splash shown while bootstrap is in-flight ─────────────────────────
 function SplashScreen() {

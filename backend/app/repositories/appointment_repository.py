@@ -27,6 +27,8 @@ class AppointmentRepository:
         from app.models.specialty import Specialty
         from app.models.doctor_expertise_mapping import DoctorExpertiseMapping
         from app.models.expertise import Expertise
+        from app.models.clinic import Clinic
+        from app.models.user_address import UserAddress
 
         return (
             db.query(Appointment)
@@ -40,6 +42,8 @@ class AppointmentRepository:
                 joinedload(Appointment.doctor)
                 .joinedload(Doctor.expertise_mappings)
                 .joinedload(DoctorExpertiseMapping.expertise),
+                joinedload(Appointment.clinic),
+                joinedload(Appointment.user_address),
             )
             .filter(Appointment.user_id == user_id)
             .order_by(Appointment.date.desc(), SlotTimings.start_time.desc())

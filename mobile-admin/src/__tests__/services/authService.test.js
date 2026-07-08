@@ -30,7 +30,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   removeItem: jest.fn().mockResolvedValue(undefined),
 }));
 
-const USER = { id: 1, email: 'test@example.com', full_name: 'Test User' };
+const USER = { id: 1, email: 'test@example.com', full_name: 'Test User', role: 'admin' };
 
 describe('AuthService', () => {
   beforeEach(() => jest.clearAllMocks());

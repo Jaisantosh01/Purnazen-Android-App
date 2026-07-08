@@ -16,6 +16,7 @@ import {
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import authService from '../services/authService';
+import socialAuthService from '../services/socialAuthService';
 import useTheme from '../hooks/useTheme';
 import { useProfileStore } from '../store/profileStore';
 
@@ -31,6 +32,7 @@ const RegisterScreen = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError]               = useState('');
   const [isLoading, setIsLoading]       = useState(false);
+  const [socialLoading, setSocialLoading] = useState(null); // 'google' | 'github'
   const [focused, setFocused]           = useState(null); // 'name' | 'email' | 'password' | 'confirm'
 
   const nameRef     = useRef(null);
@@ -83,6 +85,28 @@ const RegisterScreen = ({ navigation }) => {
       setError(err.message || 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Social signup IS social login: first sign-in auto-creates the account.
+  const handleSocialSignup = async provider => {
+    if (isLoading || socialLoading) return;
+    setError('');
+    setSocialLoading(provider);
+    try {
+      const user = await (provider === 'google'
+        ? socialAuthService.signInWithGoogle()
+        : socialAuthService.signInWithGitHub());
+      // null = user cancelled; otherwise navigation is handled by App.tsx.
+      // Only prompt profile completion when the profile is actually blank —
+      // the same button may have signed into an established account.
+      if (user && !user.phone && !user.gender && !user.date_of_birth) {
+        useProfileStore.getState().setPendingCompletion(true);
+      }
+    } catch (err) {
+      setError(err.message || 'Sign-up failed. Please try again.');
+    } finally {
+      setSocialLoading(null);
     }
   };
 
@@ -262,6 +286,45 @@ const RegisterScreen = ({ navigation }) => {
             )}
           </TouchableOpacity>
 
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or sign up with</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <View style={styles.socialRow}>
+            <TouchableOpacity
+              style={styles.socialBtn}
+              activeOpacity={0.8}
+              onPress={() => handleSocialSignup('google')}
+              disabled={isLoading || !!socialLoading}
+            >
+              {socialLoading === 'google' ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <>
+                  <MCIcon name="google" size={20} color="#DB4437" />
+                  <Text style={styles.socialBtnText}>Google</Text>
+                </>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.socialBtn}
+              activeOpacity={0.8}
+              onPress={() => handleSocialSignup('github')}
+              disabled={isLoading || !!socialLoading}
+            >
+              {socialLoading === 'github' ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <>
+                  <MCIcon name="github" size={21} color={colors.textPrimary} />
+                  <Text style={styles.socialBtnText}>GitHub</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+
           <View style={styles.switchRow}>
             <Text style={styles.switchHint}>Already have an account? </Text>
             <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}>
@@ -401,10 +464,34 @@ const makeStyles = colors => StyleSheet.create({
   primaryBtnDisabled: { opacity: 0.7 },
   primaryBtnText: { fontSize: 16, fontWeight: '800', color: colors.white },
 
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 22,
+    marginBottom: 16,
+  },
+  dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
+  dividerText: { fontSize: 12.5, color: colors.textMuted, fontWeight: '600' },
+  socialRow: { flexDirection: 'row', gap: 12 },
+  socialBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceMuted,
+    paddingVertical: 13,
+    minHeight: 50,
+  },
+  socialBtnText: { fontSize: 14.5, fontWeight: '700', color: colors.textPrimary },
   switchRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 22,
+    marginTop: 20,
   },
   switchHint: { fontSize: 14, color: colors.textSecondary },
   switchLink: { fontSize: 14, fontWeight: '800', color: colors.primary },

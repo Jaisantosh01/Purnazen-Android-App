@@ -11,6 +11,7 @@ import {
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import useTheme from '../hooks/useTheme';
+import { useHeaderTopPadding } from '../components/ScreenHeader';
 
 // Curated list — maps each symptom to a relief session slug so tapping
 // navigates directly to the right guided session.
@@ -26,6 +27,7 @@ const SYMPTOMS = [
 ];
 
 const SelectSymptomScreen = ({ navigation }) => {
+  const headerTop = useHeaderTopPadding();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -47,7 +49,7 @@ const SelectSymptomScreen = ({ navigation }) => {
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
 
       {/* ── Header ── */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: headerTop }]}>
         <View style={styles.headerTop}>
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
             <MCIcon name="arrow-left" size={22} color={colors.textPrimary} />
@@ -128,7 +130,6 @@ const makeStyles = colors => StyleSheet.create({
   // Header
   header: {
     backgroundColor: colors.card,
-    paddingTop: 52,
     paddingHorizontal: 16,
     paddingBottom: 16,
     borderBottomWidth: 1,
