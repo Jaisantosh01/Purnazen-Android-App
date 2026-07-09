@@ -204,13 +204,16 @@ const ApplyLeaveScreen = ({ navigation }) => {
     if (!startDate || !endDate) return false;
     if (new Date(endDate) < new Date(startDate)) return false;
 
-    const isSingleDay = startDate === endDate;
-    if (isSingleDay && isPartialDay) {
-      const selectedSlots = slotSelections[startDate] || [];
-      return selectedSlots.length > 0;
+    if (isPartialDay) {
+      const dates = getDateRange(startDate, endDate);
+      const hasSlot = dates.some((dStr) => {
+        const slots = slotSelections[dStr] || [];
+        return slots.length > 0;
+      });
+      return hasSlot;
     }
     return true;
-  }, [startDate, endDate, reason, isPartialDay, slotSelections]);
+  }, [startDate, endDate, reason, isPartialDay, slotSelections, getDateRange]);
 
   // Animate submit button when validity changes
   useEffect(() => {
@@ -222,12 +225,15 @@ const ApplyLeaveScreen = ({ navigation }) => {
     }).start();
   }, [isFormValid]);
 
-  // Auto-reset Partial Day if multiple dates are selected
+  // Keep activeDayCard in sync with startDate/endDate when isPartialDay is active
   useEffect(() => {
-    if (startDate !== endDate) {
-      setIsPartialDay(false);
+    if (isPartialDay) {
+      const dates = getDateRange(startDate, endDate);
+      if (!activeDayCard || !dates.includes(activeDayCard)) {
+        setActiveDayCard(startDate);
+      }
     }
-  }, [startDate, endDate]);
+  }, [isPartialDay, startDate, endDate, getDateRange, activeDayCard]);
 
   // ─── Handlers ────────────────────────────────────────────────────────────────
 
@@ -311,33 +317,27 @@ const ApplyLeaveScreen = ({ navigation }) => {
         setSubmitting(false);
         return;
       }
-
-      const isSingleDay = startDate === endDate;
-
-      if (isSingleDay && !isPartialDay) {
-        // Single Day Leave
+      if (!isPartialDay) {
+        // Full Day Leave (Single or Multiple Days)
+        const isSingleDay = startDate === endDate;
         await addLeave({
-          leaveType: 'single',
-          startDate,
-          endDate,
-          reason,
-          notes: notes.trim(),
-        });
-      } else if (!isSingleDay) {
-        // Multiple Day Leave
-        await addLeave({
-          leaveType: 'multiple',
+          leaveType: isSingleDay ? 'single' : 'multiple',
           startDate,
           endDate,
           reason,
           notes: notes.trim(),
         });
       } else {
-        // Custom (Partial Day) Leave
-        const selectedSlots = slotSelections[startDate] || [];
-        const uniqueSlotIds = [...new Set(selectedSlots)];
+        // Custom (Partial Day) Leave (Single or Multiple Days)
+        const dates = getDateRange(startDate, endDate);
+        const allSelectedSlots = [];
+        dates.forEach((dStr) => {
+          const daySlots = slotSelections[dStr] || [];
+          allSelectedSlots.push(...daySlots);
+        });
+        const uniqueSlotIds = [...new Set(allSelectedSlots)];
         if (uniqueSlotIds.length === 0) {
-          showError('Please select at least one time slot for the selected date.');
+          showError('Please select at least one time slot.');
           setSubmitting(false);
           return;
         }
@@ -567,35 +567,29 @@ const ApplyLeaveScreen = ({ navigation }) => {
   // ─── Partial Day Section (horizontal day card strip + single-day slots) ──────
 
   const renderPartialDayCheckbox = () => {
-    const isDisabled = startDate !== endDate;
     return (
       <View style={styles.checkboxContainer}>
         <TouchableOpacity
-          style={[styles.checkboxRow, isDisabled && styles.checkboxDisabled]}
-          onPress={() => !isDisabled && setIsPartialDay(!isPartialDay)}
-          disabled={isDisabled || submitting}
+          style={styles.checkboxRow}
+          onPress={() => setIsPartialDay(!isPartialDay)}
+          disabled={submitting}
           activeOpacity={0.8}
         >
           <MCIcon
             name={isPartialDay ? 'checkbox-marked' : 'checkbox-blank-outline'}
             size={24}
-            color={isDisabled ? COLORS.textMuted : (isPartialDay ? COLORS.primary : COLORS.textSecondary)}
+            color={isPartialDay ? COLORS.primary : COLORS.textSecondary}
           />
-          <Text style={[styles.checkboxLabel, isDisabled && styles.checkboxLabelDisabled]}>
+          <Text style={styles.checkboxLabel}>
             Apply for Partial Day Leave
           </Text>
         </TouchableOpacity>
-        {isDisabled && (
-          <Text style={styles.checkboxHelperText}>
-            Partial Day Leave is available only for a single selected date.
-          </Text>
-        )}
       </View>
     );
   };
 
   const renderPartialDaySection = () => {
-    if (!isPartialDay || startDate !== endDate) return null;
+    if (!isPartialDay) return null;
 
     if (loadingSlots) {
       return (
@@ -606,53 +600,106 @@ const ApplyLeaveScreen = ({ navigation }) => {
       );
     }
 
-    const availableSlots = getSlotsForDate(startDate);
-    const selectedForDay = slotSelections[startDate] || [];
+    const currentActiveDay = activeDayCard || startDate;
 
     return (
-      <View style={styles.activeDayPanel}>
-        <View style={styles.activeDayPanelHeader}>
-          <MCIcon name="calendar-clock" size={16} color={COLORS.primary} />
-          <Text style={styles.activeDayPanelTitle}>Available Slots for {formatDateStr(startDate)}</Text>
-        </View>
-        <View style={styles.activeDayDivider} />
+      <View style={styles.partialDayContainer}>
+        {partialDayDates.length > 1 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.dayCardStrip}
+          >
+            {partialDayDates.map((dStr) => {
+              const isActive = dStr === currentActiveDay;
+              const { dayAbbr, dateLabel } = getDayCardLabel(dStr);
+              const selectedSlots = slotSelections[dStr] || [];
+              const available = getSlotsForDate(dStr);
+              
+              let badgeText = '';
+              let badgeStyle = styles.dayCardBadge;
+              if (selectedSlots.length > 0) {
+                if (selectedSlots.length === available.length && available.length > 0) {
+                  badgeText = 'Full Day';
+                  badgeStyle = [styles.dayCardBadge, styles.dayCardBadgeFull];
+                } else {
+                  badgeText = `${selectedSlots.length} Slot${selectedSlots.length > 1 ? 's' : ''}`;
+                  badgeStyle = [styles.dayCardBadge, styles.dayCardBadgeSelected];
+                }
+              } else {
+                badgeText = 'No Slots';
+              }
 
-        {availableSlots.length === 0 ? (
-          <View style={styles.noSlotsRow}>
-            <MCIcon name="calendar-remove" size={20} color={COLORS.textMuted} />
-            <Text style={styles.noSlotsText}>No slots configured for this day.</Text>
-          </View>
-        ) : (
-          <View style={styles.slotsGrid}>
-            {availableSlots.map((slot, index) => {
-              const isSlotActive = selectedForDay.includes(slot.id);
-              const timeLabel = `${formatTime12h(slot.start_time)} – ${formatTime12h(slot.end_time)}`;
-              const isRightCol = index % 2 === 1;
               return (
                 <TouchableOpacity
-                  key={slot.id}
-                  style={[
-                    styles.slotCard,
-                    isSlotActive && styles.slotCardActive,
-                    isRightCol && styles.slotCardRightCol,
-                  ]}
+                  key={dStr}
+                  style={[styles.dayCard, isActive && styles.dayCardActive]}
                   activeOpacity={0.8}
-                  onPress={() => togglePartialSlot(startDate, slot.id)}
+                  onPress={() => setActiveDayCard(dStr)}
                   disabled={submitting}
                 >
-                  <MCIcon
-                    name={isSlotActive ? 'check-circle' : 'clock-outline'}
-                    size={18}
-                    color={isSlotActive ? COLORS.white : COLORS.primary}
-                  />
-                  <Text style={[styles.slotText, isSlotActive && styles.slotTextActive]}>
-                    {timeLabel}
+                  <Text style={[styles.dayCardDayText, isActive && styles.dayCardTextActive]}>
+                    {dayAbbr}
+                  </Text>
+                  <Text style={[styles.dayCardDateText, isActive && styles.dayCardTextActive]}>
+                    {dateLabel}
+                  </Text>
+                  <Text style={[badgeStyle, isActive && styles.dayCardBadgeActive]}>
+                    {badgeText}
                   </Text>
                 </TouchableOpacity>
               );
             })}
-          </View>
+          </ScrollView>
         )}
+
+        <View style={styles.activeDayPanel}>
+          <View style={styles.activeDayPanelHeader}>
+            <MCIcon name="calendar-clock" size={16} color={COLORS.primary} />
+            <Text style={styles.activeDayPanelTitle}>
+              Available Slots for {formatDateStr(currentActiveDay)}
+            </Text>
+          </View>
+          <View style={styles.activeDayDivider} />
+
+          {getSlotsForDate(currentActiveDay).length === 0 ? (
+            <View style={styles.noSlotsRow}>
+              <MCIcon name="calendar-remove" size={20} color={COLORS.textMuted} />
+              <Text style={styles.noSlotsText}>No slots configured for this day.</Text>
+            </View>
+          ) : (
+            <View style={styles.slotsGrid}>
+              {getSlotsForDate(currentActiveDay).map((slot, index) => {
+                const selectedForDay = slotSelections[currentActiveDay] || [];
+                const isSlotActive = selectedForDay.includes(slot.id);
+                const timeLabel = `${formatTime12h(slot.start_time)} – ${formatTime12h(slot.end_time)}`;
+                const isRightCol = index % 2 === 1;
+                return (
+                  <TouchableOpacity
+                    key={slot.id}
+                    style={[
+                      styles.slotCard,
+                      isSlotActive && styles.slotCardActive,
+                      isRightCol && styles.slotCardRightCol,
+                    ]}
+                    activeOpacity={0.8}
+                    onPress={() => togglePartialSlot(currentActiveDay, slot.id)}
+                    disabled={submitting}
+                  >
+                    <MCIcon
+                      name={isSlotActive ? 'check-circle' : 'clock-outline'}
+                      size={18}
+                      color={isSlotActive ? COLORS.white : COLORS.primary}
+                    />
+                    <Text style={[styles.slotText, isSlotActive && styles.slotTextActive]}>
+                      {timeLabel}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+        </View>
       </View>
     );
   };

@@ -7,12 +7,14 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  RefreshControl,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
 import { COLORS, SPACING, RADIUS } from '../constants/theme';
 import appointmentService from '../services/appointmentService';
+import LocationCard from '../components/LocationCard';
 
 // ─── Status config (mirrors AppointmentsScreen) ────────────────────────────────
 const STATUS_CONFIG = {
@@ -71,9 +73,10 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
   const [appointment, setAppointment] = useState(initialAppointment || null);
   const [loading, setLoading] = useState(!initialAppointment);
   const [error, setError] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const fetchAppointmentDetails = useCallback(async () => {
-    if (initialAppointment) {
+  const fetchAppointmentDetails = useCallback(async (force = false) => {
+    if (initialAppointment && !force && !appointment) {
         return;
     }
     if (!id) {
@@ -91,7 +94,25 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, initialAppointment, appointment]);
+
+  const handleRefresh = useCallback(async () => {
+    if (!id) return;
+    setRefreshing(true);
+    try {
+      const data = await appointmentService.detail(id);
+      if (data) {
+        setAppointment(data);
+        if (route.params?.onStatusUpdate) {
+          route.params.onStatusUpdate(id, data.status);
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to refresh appointment details:', err);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [id, route.params]);
 
   useEffect(() => {
     if (!initialAppointment) {
@@ -102,10 +123,13 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
   // ── Status Action Helpers ───────────────────────────────────────────────────
   const handleUpdateStatus = async (status) => {
     try {
+      if (route.params?.onStatusUpdate) {
+        route.params.onStatusUpdate(id, status);
+      }
+      navigation.goBack();
       await appointmentService.updateStatus(id, status);
-      await fetchAppointmentDetails();
     } catch (e) {
-      Alert.alert('Error', e?.message || 'Could not update appointment status.');
+      console.warn('Could not update appointment status:', e?.message);
     }
   };
 
@@ -193,7 +217,18 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
     const isBooked = apptStatus === 'booked';
 
     return (
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={[COLORS.primary]}
+            tintColor={COLORS.primary}
+          />
+        }
+      >
         {/* ── Patient Profile Summary Card ── */}
         <TouchableOpacity
           style={styles.profileCard}
@@ -254,6 +289,10 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
             value={appointment.previousVisitsCount != null ? String(appointment.previousVisitsCount) : '0'}
           />
         </SectionCard>
+
+        {appointment.location ? (
+          <LocationCard location={appointment.location} />
+        ) : null}
 
         {/* ── Status Actions ── */}
         {(isPending || isBooked) && (

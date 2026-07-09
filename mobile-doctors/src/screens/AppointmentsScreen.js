@@ -110,6 +110,9 @@ const AppointmentCard = ({ item, onAccept, onComplete, onCancel, onPress }) => {
       <View style={styles.cardTimeCol}>
         <Text style={styles.cardTime}>{item.time || '—'}</Text>
         <View style={[styles.timeLine, { backgroundColor: STATUS_CONFIG[item.status]?.dot ?? colors.primary }]} />
+        {item.endTime ? (
+          <Text style={styles.cardTime}>{item.endTime}</Text>
+        ) : null}
       </View>
 
       {/* Main Content */}
@@ -398,10 +401,16 @@ const AppointmentsScreen = ({ navigation }) => {
     );
   };
 
-  // ── Card press ──────────────────────────────────────────────────────────────
   const handlePress = item => {
     navigation.navigate('AppointmentDetail', {
       appointment: item,
+      onStatusUpdate: (updatedId, newStatus) => {
+        setAppointments(prev =>
+          prev.map(appt => (appt.id === updatedId ? { ...appt, status: newStatus } : appt))
+        );
+        fetchAppointments(false);
+        fetchAllAppointmentDates();
+      },
     });
   };
 
@@ -853,7 +862,7 @@ const makeStyles = colors => StyleSheet.create({
     shadowOpacity: 0.07,
     shadowRadius: 4,
   },
-  cardTimeCol: { width: 62, alignItems: 'center', paddingTop: 14, paddingBottom: 10, gap: 6, backgroundColor: colors.primaryFaint },
+  cardTimeCol: { width: 65, alignItems: 'center', paddingTop: 12, paddingBottom: 12, gap: 4, backgroundColor: colors.primaryFaint },
   cardTime: { fontSize: 11.5, fontWeight: '800', color: colors.primary, textAlign: 'center', lineHeight: 15 },
   timeLine: { flex: 1, width: 3, borderRadius: 2, minHeight: 20 },
   cardBody: { flex: 1, padding: SPACING.md, gap: SPACING.sm },
