@@ -29,13 +29,22 @@ login is untouched.
    - Users app: package name `com.purnazen`
    - Doctors app: package name `com.purnazen.doctor`
    - Admin app: package name `com.purnazen.admin`
-3. (Optional) Add each app's signing SHA-1 fingerprint under Project
-   settings → the matching Android app → **Add fingerprint**. Sign-in and
-   push both work without it — it only enables extra Firebase integrity
-   checks. Get it with:
+3. **REQUIRED for social sign-in:** add each build's signing SHA-1 AND SHA-256
+   fingerprints under Project settings → the matching Android app →
+   **Add fingerprint**. The Firebase provider flow (`signInWithPopup` →
+   native Custom-Tab) verifies the calling app's certificate hash server-side;
+   a signature whose hashes are not registered fails with
+   `[auth/invalid-cert-hash]`. FCM push works without fingerprints.
+
+   Register BOTH the debug cert (dev builds) and the release/upload cert
+   (CI builds) for every app. Debug: `cd mobile-users/android && ./gradlew
+   signingReport`. Release: read it straight from a signed APK —
    ```
-   cd mobile-users/android && ./gradlew signingReport
+   apksigner verify --print-certs purnazen-mobile-users-v<ver>.apk
    ```
+   All three apps are signed with the same upload keystore, so the release
+   fingerprints are identical across them (but each app entry in the console
+   needs them added separately).
 4. Download each app's **google-services.json** and place it at:
    - `mobile-users/android/app/google-services.json`
    - `mobile-doctors/android/app/google-services.json`

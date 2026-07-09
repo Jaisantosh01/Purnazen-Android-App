@@ -25,7 +25,7 @@ const NOTIFICATION_GROUPS = [
     items: [
       { id: 'session_reminder', icon: 'yoga', iconColor: COLORS.accent, iconBg: COLORS.accentLight, title: 'Session Reminders', subtitle: 'Daily yoga & meditation alerts', default: true },
       { id: 'streak_alert',    icon: 'fire',  iconColor: '#ea580c', iconBg: '#FFF3E0', title: 'Streak Alerts',     subtitle: 'Keep your streak going',       default: true },
-      { id: 'new_program',     icon: 'star-outline', iconColor: COLORS.warning, iconBg: '#FFFBEB', title: 'New Programs', subtitle: 'When new sessions are added', default: false },
+      { id: 'new_program',     icon: 'star-outline', iconColor: COLORS.warning, iconBg: '#FFFBEB', title: 'New Programs', subtitle: 'When new sessions are added', default: true },
     ],
   },
   {
@@ -40,7 +40,9 @@ const NOTIFICATION_GROUPS = [
     title: 'Account',
     items: [
       { id: 'payment',   icon: 'credit-card-outline', iconColor: COLORS.textSecondary, iconBg: COLORS.surfaceMuted, title: 'Payment Updates',  subtitle: 'Receipts & payment alerts',   default: true  },
-      { id: 'offers',    icon: 'tag-outline',          iconColor: COLORS.warning, iconBg: '#FFFBEB', title: 'Offers & Deals',  subtitle: 'Discounts & promotions',      default: false },
+      // Every category defaults ON (allowing notifications = all of them; each
+      // stays individually opt-out) — matches backend _user_allows_push.
+      { id: 'offers',    icon: 'tag-outline',          iconColor: COLORS.warning, iconBg: '#FFFBEB', title: 'Offers & Deals',  subtitle: 'Discounts & promotions',      default: true },
       { id: 'security',  icon: 'shield-lock-outline',  iconColor: '#D46F6F', iconBg: '#FFEEEE', title: 'Security Alerts', subtitle: 'Login & account activity',    default: true  },
     ],
   },

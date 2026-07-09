@@ -1,7 +1,10 @@
 package com.purnazen.doctor
 
 import android.app.Application
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.res.Configuration
+import android.os.Build
 import com.facebook.react.PackageList
 import com.facebook.react.ReactApplication
 import com.facebook.react.ReactHost
@@ -26,6 +29,41 @@ class MainApplication : Application(), ReactApplication {
     super.onCreate()
     loadReactNative(this)
     ApplicationLifecycleDispatcher.onApplicationCreate(this)
+    createNotificationChannels()
+  }
+
+  /**
+   * Android 8+ drops any notification aimed at a channel the app has not
+   * created, and these are also the per-category toggles the user sees under
+   * system Settings → App info → Notifications. Ids must match the backend's
+   * category → channel map (notification_service._CHANNEL) and the manifest's
+   * default_notification_channel_id.
+   */
+  private fun createNotificationChannels() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+    val manager = getSystemService(NotificationManager::class.java) ?: return
+    manager.createNotificationChannels(listOf(
+      NotificationChannel("appointments", "Appointments",
+        NotificationManager.IMPORTANCE_HIGH).apply {
+        description = "New bookings, changes and appointment updates"
+      },
+      NotificationChannel("reminders", "Reminders",
+        NotificationManager.IMPORTANCE_HIGH).apply {
+        description = "Upcoming appointment reminders"
+      },
+      NotificationChannel("payments", "Payments",
+        NotificationManager.IMPORTANCE_DEFAULT).apply {
+        description = "Payment and payout updates"
+      },
+      NotificationChannel("offers", "Offers & Promotions",
+        NotificationManager.IMPORTANCE_DEFAULT).apply {
+        description = "Announcements and promotional broadcasts"
+      },
+      NotificationChannel("general", "General",
+        NotificationManager.IMPORTANCE_DEFAULT).apply {
+        description = "Service announcements and everything else"
+      },
+    ))
   }
 
   override fun onConfigurationChanged(newConfig: Configuration) {
