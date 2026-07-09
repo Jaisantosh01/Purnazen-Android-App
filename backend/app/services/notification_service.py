@@ -10,8 +10,8 @@ Every notification flows through ``NotificationService.notify``:
 Delivery rules:
   * Transactional categories (appointment / payment / reminder / system) always
     create the in-app row; user preferences only mute the device push.
-  * Promotional ("promo") notifications respect the user's opt-out fully —
-    neither a row nor a push is created when the user disabled offers.
+  * Promotional ("promo") notifications are ON by default (opt-out): a user who
+    explicitly disabled the offers toggle gets neither a row nor a push.
   * A disabled global admin switch drops the notification entirely.
 
 All hooks call this best-effort: a notification failure must never break the
@@ -52,6 +52,16 @@ _PREF_KEY = {
     # "system" ignores user toggles
 }
 
+# category → Android notification channel id (created in each app's
+# MainApplication.kt; ids must stay in sync or Android drops the push)
+_CHANNEL = {
+    "appointment": "appointments",
+    "payment": "payments",
+    "promo": "offers",
+    "reminder": "reminders",
+    "system": "general",
+}
+
 
 class NotificationService:
 
@@ -73,16 +83,16 @@ class NotificationService:
     def _user_allows_push(db: Session, user_id, category: str) -> bool:
         pref = db.query(UserPreference).filter(UserPreference.user_id == user_id).first()
         if pref is None:
-            # No prefs row yet: default everything on except promos opt-in
-            return category != "promo"
+            # No prefs row yet: everything defaults ON (offers included —
+            # allowing notifications means all categories; each is opt-out).
+            return True
         if not pref.push_enabled:
             return False
         key = _PREF_KEY.get(category)
         if key is None:  # system
             return True
         toggles = pref.notifications or {}
-        default = category != "promo"  # offers default OFF, rest default ON
-        return bool(toggles.get(key, default))
+        return bool(toggles.get(key, True))  # every category defaults ON
 
     # ── core ────────────────────────────────────────────────────────────────
 
@@ -123,11 +133,18 @@ class NotificationService:
         db.refresh(notification)
 
         if allows_push:
-            NotificationService._push_to_user(db, user_id, title, body, {
-                "category": category,
-                "event": event,
-                **{k: str(v) for k, v in (data or {}).items()},
-            })
+            NotificationService._push_to_user(
+                db,
+                user_id,
+                title,
+                body,
+                {
+                    "category": category,
+                    "event": event,
+                    **{k: str(v) for k, v in (data or {}).items()},
+                },
+                channel_id=_CHANNEL.get(category, "general"),
+            )
 
         return notification
 
@@ -144,13 +161,15 @@ class NotificationService:
                 pass
 
     @staticmethod
-    def _push_to_user(db: Session, user_id, title: str, body: str, data: dict) -> None:
+    def _push_to_user(
+        db, user_id, title: str, body: str, data: dict, channel_id: str = "general"
+    ) -> None:
         if not fcm_service.is_enabled():
             return
         tokens = db.query(DeviceToken).filter(DeviceToken.user_id == user_id).all()
         dead = []
         for t in tokens:
-            if not fcm_service.send_to_token(t.token, title, body, data):
+            if not fcm_service.send_to_token(t.token, title, body, data, channel_id):
                 dead.append(t)
         for t in dead:
             db.delete(t)
