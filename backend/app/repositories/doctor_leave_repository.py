@@ -188,11 +188,9 @@ class DoctorLeaveRepository:
         deleted_by: uuid.UUID,
     ) -> DoctorLeave:
         """
-        Soft-delete a leave request by setting is_active = False.
-
-        Hard deletion is intentionally avoided to preserve the audit trail.
+        Cancel a leave request by setting status = 'cancelled'.
         """
-        leave.is_active = False
+        leave.status = 'cancelled'
         leave.updated_by = deleted_by
         leave.updated_at = datetime.utcnow()
 

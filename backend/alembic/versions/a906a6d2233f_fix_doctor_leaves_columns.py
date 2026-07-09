@@ -18,16 +18,41 @@ depends_on = None
 
 
 def upgrade():
-    op.add_column('doctor_leaves', sa.Column('reason', sa.String(length=255), nullable=True))
-    op.add_column('doctor_leaves', sa.Column('approved_by', GUID(), nullable=True))
-    op.add_column('doctor_leaves', sa.Column('approved_at', sa.DateTime(), nullable=True))
-    op.add_column('doctor_leaves', sa.Column('applied_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True))
-    op.create_foreign_key(None, 'doctor_leaves', 'users', ['approved_by'], ['id'])
-    op.execute("UPDATE doctor_leaves SET reason = doctor_reason WHERE doctor_reason IS NOT NULL")
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    columns = {c['name']: c for c in inspector.get_columns('doctor_leaves')}
+
+    if 'reason' not in columns:
+        op.add_column('doctor_leaves', sa.Column('reason', sa.String(length=255), nullable=True))
+    if 'approved_by' not in columns:
+        op.add_column('doctor_leaves', sa.Column('approved_by', GUID(), nullable=True))
+    if 'approved_at' not in columns:
+        op.add_column('doctor_leaves', sa.Column('approved_at', sa.DateTime(), nullable=True))
+    if 'applied_at' not in columns:
+        op.add_column('doctor_leaves', sa.Column('applied_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True))
+
+    fks = inspector.get_foreign_keys('doctor_leaves')
+    fk_exists = any(
+        fk['referred_table'] == 'users' and fk['constrained_columns'] == ['approved_by']
+        for fk in fks
+    )
+    if not fk_exists:
+        op.create_foreign_key(None, 'doctor_leaves', 'users', ['approved_by'], ['id'])
+
+    if 'doctor_reason' in columns:
+        op.execute("UPDATE doctor_leaves SET reason = doctor_reason WHERE doctor_reason IS NOT NULL")
 
 
 def downgrade():
-    op.drop_column('doctor_leaves', 'reason')
-    op.drop_column('doctor_leaves', 'approved_by')
-    op.drop_column('doctor_leaves', 'approved_at')
-    op.drop_column('doctor_leaves', 'applied_at')
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    columns = {c['name'] for c in inspector.get_columns('doctor_leaves')}
+
+    if 'applied_at' in columns:
+        op.drop_column('doctor_leaves', 'applied_at')
+    if 'approved_at' in columns:
+        op.drop_column('doctor_leaves', 'approved_at')
+    if 'approved_by' in columns:
+        op.drop_column('doctor_leaves', 'approved_by')
+    if 'reason' in columns:
+        op.drop_column('doctor_leaves', 'reason')

@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.models.doctor import Doctor
 from app.models.user import User
+from app.models.doctor_leave import DoctorLeave
 from app.repositories.doctor_leave_repository import DoctorLeaveRepository
 from app.schemas.doctor_leave import (
     DoctorLeaveCreate,
@@ -90,6 +91,22 @@ class DoctorLeaveService:
             return {
                 "success": False,
                 "message": "End date cannot be earlier than start date",
+            }, 400
+
+        # Overlapping active leave guard
+        overlapping = db.query(DoctorLeave).filter(
+            DoctorLeave.doctor_id == doctor.id,
+            DoctorLeave.is_active == True,
+            DoctorLeave.status.in_(["pending", "approved"]),
+            DoctorLeave.start_date <= data.end_date,
+            DoctorLeave.end_date >= data.start_date,
+        ).first()
+
+        if overlapping:
+            status_str = "pending approval" if overlapping.status == "pending" else "approved"
+            return {
+                "success": False,
+                "message": f"You already have a {status_str} leave request overlapping this date range.",
             }, 400
 
         # Leave type guard
