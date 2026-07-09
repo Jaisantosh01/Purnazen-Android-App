@@ -111,7 +111,7 @@ const LeaveCard = ({ leave, onPress, onStatusUpdate }) => {
         <View style={styles.cardRow}>
           <MCIcon name="calendar-range" size={16} color={colors.primary} />
           <Text style={styles.cardLabel}>Range:</Text>
-          <Text style={styles.cardValue}>{leave.startDate} to {leave.endDate}</Text>
+          <Text style={styles.cardValue}>{leave.startDate || leave.leaveDate || '—'} to {leave.endDate || leave.startDate || '—'}</Text>
         </View>
       );
     } else if (leave.leaveType === 'custom') {
@@ -135,7 +135,11 @@ const LeaveCard = ({ leave, onPress, onStatusUpdate }) => {
       <View style={styles.cardHeader}>
         <View style={styles.cardHeaderLeft}>
           <MCIcon name="calendar-remove" size={20} color={colors.primary} />
-          <Text style={styles.leaveDate}>{leave.leaveDate}</Text>
+          <Text style={styles.leaveDate}>
+            {leave.leaveType === 'multiple'
+              ? (leave.startDate ? `${leave.startDate} - ${leave.endDate || ''}` : leave.leaveDate || leave.startDate || '—')
+              : leave.leaveDate || leave.startDate || '—'}
+          </Text>
         </View>
         <View style={[styles.statusBadge, { backgroundColor: status.bg + '20' }]}>
           <View style={[styles.statusDot, { backgroundColor: status.bg }]} />
@@ -481,7 +485,11 @@ const DoctorLeaveManagementScreen = ({ navigation, route }) => {
                     <MCIcon name={statusIcon} size={28} color="#fff" />
                     <View style={styles.detailStatusHeaderText}>
                       <Text style={styles.detailStatusHeaderLabel}>{sc.label}</Text>
-                      <Text style={styles.detailStatusHeaderDate}>{detailLeave.leaveDate}</Text>
+                      <Text style={styles.detailStatusHeaderDate}>
+                        {detailLeave.leaveType === 'multiple'
+                          ? `${detailLeave.startDate || detailLeave.leaveDate || '—'} - ${detailLeave.endDate || detailLeave.startDate || '—'}`
+                          : detailLeave.leaveDate || detailLeave.startDate || '—'}
+                      </Text>
                     </View>
                   </View>
 
@@ -504,7 +512,20 @@ const DoctorLeaveManagementScreen = ({ navigation, route }) => {
                       </View>
                       <View style={styles.detailCol}>
                         <Text style={styles.detailFieldLabel}>Leave Date</Text>
-                        <Text style={styles.detailFieldValue}>{detailLeave.leaveDate}</Text>
+                        {detailLeave.leaveType === 'multiple' ? (
+                          <Text style={styles.detailFieldValue}>{detailLeave.startDate || detailLeave.leaveDate || '—'} - {detailLeave.endDate || detailLeave.startDate || '—'}</Text>
+                        ) : detailLeave.leaveType === 'custom' ? (
+                          <>
+                            <Text style={styles.detailFieldValue}>{detailLeave.leaveDate || detailLeave.startDate || '—'}</Text>
+                            {detailLeave.slots?.map((slot, idx) => (
+                              <Text key={idx} style={styles.detailSlotText}>
+                                Slot {idx + 1}: {slot.start_time} - {slot.end_time}
+                              </Text>
+                            ))}
+                          </>
+                        ) : (
+                          <Text style={styles.detailFieldValue}>{detailLeave.leaveDate || detailLeave.startDate || '—'}</Text>
+                        )}
                       </View>
                     </View>
 
@@ -620,7 +641,7 @@ const DoctorLeaveManagementScreen = ({ navigation, route }) => {
             <Text style={styles.modalTitle}>{newStatus === 'approved' ? 'Approve' : 'Reject'} Leave</Text>
             {selectedLeave && (
               <Text style={styles.modalSubtitle}>
-                {selectedLeave.doctorName || selectedLeave.doctorId} - {selectedLeave.leaveDate}
+                {selectedLeave.doctorName || selectedLeave.doctorId} - {selectedLeave.leaveDate || selectedLeave.startDate || '—'}
               </Text>
             )}
             {selectedLeave?.reason && (
@@ -908,6 +929,7 @@ const makeStyles = colors => StyleSheet.create({
   detailCol: { flex: 1 },
   detailFieldLabel: { fontSize: 11, fontWeight: '600', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
   detailFieldValue: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
+  detailSlotText: { fontSize: 13, color: colors.textSecondary, marginTop: 2, fontWeight: '500' },
   detailReasonText: { fontSize: 14, color: colors.textPrimary, lineHeight: 20, marginTop: 2 },
   detailDivider: { height: 1, backgroundColor: colors.surfaceMuted, marginVertical: 12 },
   closeDetailBtn: { backgroundColor: colors.primary, padding: 14, borderRadius: 10, alignItems: 'center', marginHorizontal: 20, marginBottom: 20 },

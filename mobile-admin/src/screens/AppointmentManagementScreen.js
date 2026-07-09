@@ -8,6 +8,8 @@ import {
   Modal,
   ScrollView,
   TextInput,
+  Linking,
+  Platform,
 } from 'react-native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
@@ -26,6 +28,30 @@ const STATUS_COLORS = {
 };
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+const formatAddress = (addr) => {
+  if (!addr) return '';
+  const parts = [addr.area, addr.city, addr.state, addr.pincode].filter(Boolean);
+  return addr.houseName ? `${addr.houseName}, ${parts.join(', ')}` : parts.join(', ');
+};
+
+const openMap = (label, lat, lng) => {
+  if (lat && lng) {
+    const url = Platform.OS === 'ios'
+      ? `maps://maps.apple.com/?ll=${lat},${lng}&q=${encodeURIComponent(label)}`
+      : `geo:${lat},${lng}?q=${lat},${lng}(${encodeURIComponent(label)})`;
+    Linking.openURL(url).catch(() => {
+      Linking.openURL(`https://maps.google.com/?q=${lat},${lng}`);
+    });
+  } else {
+    const url = Platform.OS === 'ios'
+      ? `maps://maps.apple.com/?q=${encodeURIComponent(label)}`
+      : `geo:0,0?q=${encodeURIComponent(label)}`;
+    Linking.openURL(url).catch(() => {
+      Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(label)}`);
+    });
+  }
+};
 
 const CalendarPicker = ({ value, onSelect, onClose }) => {
   const { colors } = useTheme();
@@ -632,6 +658,50 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
                     </View>
                   </View>
 
+                  {selectedAppointment.consultationType?.toLowerCase().includes('clinic') && selectedAppointment.clinicName ? (
+                    <View style={styles.detailSection}>
+                      <Text style={styles.detailSectionTitle}>Clinic Address</Text>
+                      <TouchableOpacity
+                        style={styles.addressRow}
+                        onPress={() => openMap(
+                          selectedAppointment.clinicName + ', ' + (selectedAppointment.clinicAddress || ''),
+                          selectedAppointment.clinicLat,
+                          selectedAppointment.clinicLng,
+                        )}
+                        activeOpacity={0.7}
+                      >
+                        <MCIcon name="hospital-building" size={18} color={colors.primary} style={styles.detailIcon} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.detailValue}>{selectedAppointment.clinicName}</Text>
+                          <Text style={styles.addressText}>{selectedAppointment.clinicAddress}</Text>
+                        </View>
+                        <MCIcon name="map-marker-outline" size={20} color={colors.textMuted} />
+                      </TouchableOpacity>
+                    </View>
+                  ) : null}
+
+                  {selectedAppointment.consultationType?.toLowerCase().includes('home') && selectedAppointment.userAddress ? (
+                    <View style={styles.detailSection}>
+                      <Text style={styles.detailSectionTitle}>Home Address</Text>
+                      <TouchableOpacity
+                        style={styles.addressRow}
+                        onPress={() => openMap(
+                          formatAddress(selectedAppointment.userAddress),
+                          selectedAppointment.userAddress.lat,
+                          selectedAppointment.userAddress.lng,
+                        )}
+                        activeOpacity={0.7}
+                      >
+                        <MCIcon name="home-outline" size={18} color={colors.primary} style={styles.detailIcon} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.detailValue}>{selectedAppointment.userAddress.houseName || 'Home'}</Text>
+                          <Text style={styles.addressText}>{formatAddress(selectedAppointment.userAddress)}</Text>
+                        </View>
+                        <MCIcon name="map-marker-outline" size={20} color={colors.textMuted} />
+                      </TouchableOpacity>
+                    </View>
+                  ) : null}
+
                   {selectedAppointment.userDescription ? (
                     <View style={styles.detailSection}>
                       <Text style={styles.detailSectionTitle}>Patient Description</Text>
@@ -767,6 +837,8 @@ const makeStyles = colors => StyleSheet.create({
   detailGridItem: { width: '46%' },
   detailLabel: { fontSize: 12, color: colors.textMuted, marginBottom: 2 },
   detailDesc: { fontSize: 14, color: colors.textSecondary, lineHeight: 20, marginTop: 4, backgroundColor: colors.surfaceMuted, padding: 10, borderRadius: 8 },
+  addressRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 4, borderRadius: 8, backgroundColor: colors.surfaceMuted },
+  addressText: { fontSize: 13, color: colors.textSecondary, marginTop: 2, lineHeight: 18 },
   closeBtn: { backgroundColor: colors.primary, padding: 14, borderRadius: 10, alignItems: 'center', marginTop: 8 },
   closeBtnText: { color: colors.white, fontWeight: '700', fontSize: 15 },
 });

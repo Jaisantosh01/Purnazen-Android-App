@@ -60,6 +60,8 @@ def _leave_to_dict_admin(leave: DoctorLeave) -> dict:
             date_str = f"{leave.start_date.isoformat()} to {leave.end_date.isoformat()}"
     elif leave.start_date:
         date_str = leave.start_date.isoformat()
+    elif leave.leave_date:
+        date_str = leave.leave_date.isoformat()
     else:
         date_str = None
 
@@ -68,8 +70,8 @@ def _leave_to_dict_admin(leave: DoctorLeave) -> dict:
         "doctorId": str(leave.doctor_id),
         "doctorName": doctor_name,
         "leaveType": leave.leave_type,
-        "startDate": leave.start_date.isoformat() if leave.start_date else None,
-        "endDate": leave.end_date.isoformat() if leave.end_date else None,
+        "startDate": leave.start_date.isoformat() if leave.start_date else (leave.leave_date.isoformat() if leave.leave_date else None),
+        "endDate": leave.end_date.isoformat() if leave.end_date else (leave.leave_date.isoformat() if leave.leave_date else None),
         "startTime": (
             leave.start_time.strftime("%I:%M %p") if leave.start_time else None
         ),

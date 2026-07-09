@@ -37,12 +37,25 @@ def _leave_to_dict(leave) -> dict:
     Serialize a DoctorLeave ORM object to a plain dict that mirrors the
     camelCase convention used everywhere else in the project.
     """
+    if leave.leave_type == "multiple" and leave.start_date and leave.end_date:
+        if leave.start_date == leave.end_date:
+            date_str = leave.start_date.isoformat()
+        else:
+            date_str = f"{leave.start_date.isoformat()} to {leave.end_date.isoformat()}"
+    elif leave.start_date:
+        date_str = leave.start_date.isoformat()
+    elif leave.leave_date:
+        date_str = leave.leave_date.isoformat()
+    else:
+        date_str = None
+
     return {
         "id": str(leave.id),
         "doctorId": str(leave.doctor_id),
         "leaveType": leave.leave_type,
-        "startDate": leave.start_date.isoformat() if leave.start_date else None,
-        "endDate": leave.end_date.isoformat() if leave.end_date else None,
+        "startDate": leave.start_date.isoformat() if leave.start_date else (leave.leave_date.isoformat() if leave.leave_date else None),
+        "endDate": leave.end_date.isoformat() if leave.end_date else (leave.leave_date.isoformat() if leave.leave_date else None),
+        "leaveDate": date_str,
         "startTime": leave.start_time.isoformat() if leave.start_time else None,
         "endTime": leave.end_time.isoformat() if leave.end_time else None,
         "reason": leave.reason,
