@@ -37,6 +37,29 @@ const toApiDate = d => {
 
 const todayApiDate = () => toApiDate(new Date());
 
+const isAppointmentOver = (dateStr, endTimeStr) => {
+  if (!dateStr) return false;
+  const [year, month, day] = dateStr.split('-').map(Number);
+  let hours = 0;
+  let minutes = 0;
+  if (endTimeStr) {
+    const match = endTimeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (match) {
+      hours = parseInt(match[1], 10);
+      minutes = parseInt(match[2], 10);
+      const ampm = match[3].toUpperCase();
+      if (ampm === 'PM' && hours < 12) {
+        hours += 12;
+      } else if (ampm === 'AM' && hours === 12) {
+        hours = 0;
+      }
+    }
+  }
+  const apptEnd = new Date(year, month - 1, day, hours, minutes);
+  const now = new Date();
+  return now >= apptEnd;
+};
+
 // Build an array of Date objects for the horizontal date picker (today ± 6 days)
 const buildDateRange = () => {
   const days = [];
@@ -149,36 +172,50 @@ const AppointmentCard = ({ item, onAccept, onComplete, onCancel, onPress }) => {
             {isPending ? (
               <>
                 <TouchableOpacity
+                  style={[styles.actionBtn, styles.cancelBtn]}
+                  activeOpacity={0.85}
+                  onPress={() => onCancel(item)}>
+                  <MCIcon name="close-circle-outline" size={15} color={colors.danger} />
+                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
                   style={[styles.actionBtn, styles.acceptBtn]}
                   activeOpacity={0.85}
                   onPress={() => onAccept(item)}>
                   <MCIcon name="check-circle-outline" size={15} color={colors.white} />
                   <Text style={styles.acceptBtnText}>Accept</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.actionBtn, styles.cancelBtn]}
-                  activeOpacity={0.85}
-                  onPress={() => onCancel(item)}>
-                  <MCIcon name="close-circle-outline" size={15} color={colors.danger} />
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
-                </TouchableOpacity>
               </>
             ) : (
               <>
                 <TouchableOpacity
-                  style={[styles.actionBtn, styles.completeBtn]}
-                  activeOpacity={0.85}
-                  onPress={() => onComplete(item)}>
-                  <MCIcon name="checkbox-marked-circle-outline" size={15} color={colors.white} />
-                  <Text style={styles.completeBtnText}>Complete</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
                   style={[styles.actionBtn, styles.cancelBtn]}
                   activeOpacity={0.85}
                   onPress={() => onCancel(item)}>
                   <MCIcon name="close-circle-outline" size={15} color={colors.danger} />
                   <Text style={styles.cancelBtnText}>Cancel</Text>
                 </TouchableOpacity>
+                {(() => {
+                  const apptOver = isAppointmentOver(item.date, item.endTime || item.time);
+                  return (
+                    <TouchableOpacity
+                      style={[
+                        styles.actionBtn,
+                        styles.completeBtn,
+                        !apptOver && { backgroundColor: '#E5E7EB', borderColor: '#E5E7EB' }
+                      ]}
+                      disabled={!apptOver}
+                      activeOpacity={0.85}
+                      onPress={() => onComplete(item)}>
+                      <MCIcon
+                        name="checkbox-marked-circle-outline"
+                        size={15}
+                        color={apptOver ? colors.white : '#9CA3AF'}
+                      />
+                      <Text style={[styles.completeBtnText, !apptOver && { color: '#9CA3AF' }]}>Complete</Text>
+                    </TouchableOpacity>
+                  );
+                })()}
               </>
             )}
           </View>
@@ -408,8 +445,6 @@ const AppointmentsScreen = ({ navigation }) => {
         setAppointments(prev =>
           prev.map(appt => (appt.id === updatedId ? { ...appt, status: newStatus } : appt))
         );
-        fetchAppointments(false);
-        fetchAllAppointmentDates();
       },
     });
   };

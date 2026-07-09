@@ -71,13 +71,6 @@ const LocationCard = ({ location }) => {
         <Text style={[styles.addressText, { color: colors.textSecondary }]}>
           {location.address}
         </Text>
-
-        <View style={[styles.actionRow, { borderTopColor: colors.border }]}>
-          <Text style={[styles.actionText, { color: colors.primary }]}>
-            Open in Google Maps
-          </Text>
-          <MCIcon name="google-maps" size={18} color={colors.primary} />
-        </View>
       </View>
     </TouchableOpacity>
   );
@@ -128,17 +121,5 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     paddingLeft: 18 + SPACING.sm,
     marginBottom: SPACING.xs,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderTopWidth: 1,
-    paddingTop: SPACING.md,
-    marginTop: SPACING.xs,
-  },
-  actionText: {
-    fontSize: 13,
-    fontWeight: '700',
   },
 });
