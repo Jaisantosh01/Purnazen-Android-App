@@ -77,6 +77,12 @@ class AuthService {
   }
 
   async logout() {
+    // Unregister the push token while the access token is still valid — the
+    // App.tsx auth-flip effect fires too late (tokens already cleared → 401).
+    try {
+      await require('./pushService').default.unregister();
+    } catch {}
+
     // Revoke the refresh token server-side; clear locally even if that fails
     try {
       const refreshToken = await secureStorage.getRefreshToken();
@@ -116,6 +122,48 @@ class AuthService {
     await AsyncStorage.setItem('user', JSON.stringify(user));
     useAuthStore.getState().setAuth(user);
     return user;
+  }
+
+  /** Cache an updated profile locally + in the store. */
+  async _cacheUser(user) {
+    await AsyncStorage.setItem('user', JSON.stringify(user));
+    useAuthStore.getState().setAuth(user);
+    return user;
+  }
+
+  /** Bind a Firebase-verified social identity to the logged-in account. */
+  async linkSocial(firebaseIdToken) {
+    const response = await apiClient.post(ENDPOINTS.SOCIAL_LINK, {
+      id_token: firebaseIdToken,
+    });
+    if (!response.success) {
+      throw new Error(response.message || 'Could not link the account');
+    }
+    return this._cacheUser(response.data.user);
+  }
+
+  /** Remove the linked social identity. */
+  async unlinkSocial() {
+    const response = await apiClient.post(ENDPOINTS.SOCIAL_UNLINK);
+    if (!response.success) {
+      throw new Error(response.message || 'Could not unlink the account');
+    }
+    return this._cacheUser(response.data.user);
+  }
+
+  /**
+   * Change the login email. Password accounts must confirm the current
+   * password; social-created accounts may pass null.
+   */
+  async changeEmail(newEmail, currentPassword) {
+    const response = await apiClient.post(ENDPOINTS.CHANGE_EMAIL, {
+      newEmail,
+      currentPassword: currentPassword || undefined,
+    });
+    if (!response.success) {
+      throw new Error(response.message || 'Could not update email');
+    }
+    return this._cacheUser(response.data.user);
   }
 
   /**

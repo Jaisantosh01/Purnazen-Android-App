@@ -95,8 +95,8 @@ const getStatusDateText = (item) => {
 };
 
 const getLeaveCardDate = (item) => {
-  const start = formatDateStr(item.start_date || item.startDate);
-  const end = formatDateStr(item.end_date || item.endDate);
+  const start = formatDateStr(item.start_date || item.startDate || item.leaveDate);
+  const end = formatDateStr(item.end_date || item.endDate || item.leaveDate);
   if (!start) return '';
   if (!end || start === end) return start;
   return `${start} - ${end}`;
@@ -106,21 +106,22 @@ const getLeaveDurationText = (item) => {
   const type = item.leaveType || item.leave_type || item.type;
   const startT = item.startTime || item.start_time;
   const endT = item.endTime || item.end_time;
+  const start = formatDateStr(item.start_date || item.startDate || item.leaveDate);
+  const end = formatDateStr(item.end_date || item.endDate || item.leaveDate);
+  const dateRange = (!start || start === end) ? start : `${start} - ${end}`;
 
   if (type === 'single') {
     if (startT && endT) {
-      return `${formatTime(startT)} - ${formatTime(endT)}`;
+      return `${dateRange} ${formatTime(startT)} - ${formatTime(endT)}`;
     }
-    return 'Full Day';
+    return dateRange || 'Full Day';
   } else if (type === 'multiple') {
-    return 'Multiple Days';
+    return dateRange || 'Multiple Days';
   } else if (type === 'custom') {
-    if (item.slots && item.slots.length > 0) {
-      return `Partial Day (${item.slots.length} Slot${item.slots.length > 1 ? 's' : ''})`;
-    }
-    return 'Partial Day';
+    const slotCount = item.slots?.length || 0;
+    return `${dateRange} (${slotCount} Slot${slotCount !== 1 ? 's' : ''})`;
   }
-  return 'Full Day';
+  return dateRange || 'Full Day';
 };
 
 const StatusBadge = ({ status }) => {

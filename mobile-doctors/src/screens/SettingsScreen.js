@@ -16,6 +16,7 @@ import { showAlert } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import authService from '../services/authService';
+import socialAuthService from '../services/socialAuthService';
 import preferencesService from '../services/preferencesService';
 import biometricService from '../services/biometricService';
 import { checkForUpdate, FORCE_MARKER } from '../services/updateService';
@@ -37,6 +38,7 @@ const HUES = {
   blue: '#0284C7',
   amber: '#F59E0B',
   orange: '#EA580C',
+  rose: '#E11D48',
 };
 const soft = hex => `${hex}22`;
 
@@ -179,6 +181,11 @@ const SettingsScreen = ({ navigation }) => {
   // Edit phone modal
   const [showEditPhone, setShowEditPhone] = useState(false);
   const [phone, setPhone]                 = useState('');
+  // Change email modal + social linking
+  const [showEditEmail, setShowEditEmail] = useState(false);
+  const [newEmail, setNewEmail]           = useState('');
+  const [emailPassword, setEmailPassword] = useState('');
+  const [linkBusy, setLinkBusy]           = useState(false);
   // Language modal
   const [showLanguage, setShowLanguage]   = useState(false);
   // Change password modal
@@ -208,6 +215,81 @@ const SettingsScreen = ({ navigation }) => {
     setConfirmPassword('');
     setFormError('');
     setShowChangePassword(true);
+  };
+
+  const openEditEmail = () => {
+    setNewEmail(doctor?.email || '');
+    setEmailPassword('');
+    setFormError('');
+    setShowEditEmail(true);
+  };
+
+  const handleSaveEmail = async () => {
+    const trimmed = newEmail.trim().toLowerCase();
+    if (!/^\S+@\S+\.\S+$/.test(trimmed)) {
+      setFormError('Enter a valid email address.');
+      return;
+    }
+    if (!doctor?.auth_provider && !emailPassword) {
+      setFormError('Enter your current password to confirm.');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await authService.changeEmail(trimmed, emailPassword || null);
+      setShowEditEmail(false);
+      showAlert('Email Updated', 'Use the new email the next time you log in.');
+    } catch (err) {
+      setFormError(err.message || 'Could not update email.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Linked social account: link via Google/GitHub, or unlink the current one.
+  const linkWith = async provider => {
+    setLinkBusy(true);
+    try {
+      const updated = await socialAuthService.linkAccount(provider);
+      if (updated) {
+        showAlert('Account Linked', 'You can now sign in with that account.');
+      }
+    } catch (err) {
+      showAlert('Linking Failed', err.message || 'Could not link the account.');
+    } finally {
+      setLinkBusy(false);
+    }
+  };
+
+  const handleLinkedAccount = () => {
+    if (linkBusy) return;
+    if (doctor?.social_linked) {
+      showAlert(
+        'Linked Account',
+        `This account is linked to ${doctor?.auth_provider || 'a social'} sign-in. Unlink it?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Unlink',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await authService.unlinkSocial();
+                showAlert('Unlinked', 'Social sign-in removed for this account.');
+              } catch (err) {
+                showAlert('Error', err.message || 'Could not unlink the account.');
+              }
+            },
+          },
+        ],
+      );
+    } else {
+      showAlert('Link a Social Account', 'Sign in with the account you want to link.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'GitHub', onPress: () => linkWith('github') },
+        { text: 'Google', onPress: () => linkWith('google') },
+      ]);
+    }
   };
 
   const handleSaveProfile = async () => {
@@ -367,9 +449,26 @@ const SettingsScreen = ({ navigation }) => {
               icon="email-outline"
               hue={HUES.amber}
               title="Email Address"
-              subtitle="Linked email"
+              subtitle="Login email"
               valueText={doctor?.email || 'NA'}
-              onPress={() => showAlert('Email Address', 'Contact an admin to change your account email.')}
+              onPress={openEditEmail}
+            />
+            <View style={styles.rowDivider} />
+            <ArrowRow
+              icon="link-variant"
+              hue={HUES.rose}
+              title="Linked Social Account"
+              subtitle="Sign in with Google or GitHub"
+              valueText={
+                linkBusy
+                  ? 'Linking...'
+                  : doctor?.social_linked
+                  ? (doctor?.auth_provider
+                      ? doctor.auth_provider.charAt(0).toUpperCase() + doctor.auth_provider.slice(1)
+                      : 'Linked')
+                  : 'Not linked'
+              }
+              onPress={handleLinkedAccount}
             />
           </View>
         </View>
@@ -518,6 +617,50 @@ const SettingsScreen = ({ navigation }) => {
                 <Text style={styles.modalBtnCancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.modalBtn, styles.modalBtnSave]} onPress={handleSavePhone} disabled={isSubmitting}>
+                {isSubmitting ? <ActivityIndicator size="small" color={colors.white} /> : <Text style={styles.modalBtnSaveText}>Save</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Change Email modal */}
+      <Modal visible={showEditEmail} transparent animationType="fade"
+        onRequestClose={() => setShowEditEmail(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Change Email</Text>
+            <Text style={styles.modalLabel}>New Email</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={newEmail}
+              onChangeText={text => { setNewEmail(text); setFormError(''); }}
+              placeholder="doctor@example.com"
+              placeholderTextColor={colors.textMuted}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            {!doctor?.auth_provider && (
+              <>
+                <Text style={styles.modalLabel}>Current Password</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  value={emailPassword}
+                  onChangeText={text => { setEmailPassword(text); setFormError(''); }}
+                  placeholder="Confirm with your password"
+                  placeholderTextColor={colors.textMuted}
+                  secureTextEntry
+                  autoCapitalize="none"
+                />
+              </>
+            )}
+            {formError ? <Text style={styles.modalError}>{formError}</Text> : null}
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnCancel]} onPress={() => setShowEditEmail(false)}>
+                <Text style={styles.modalBtnCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnSave]} onPress={handleSaveEmail} disabled={isSubmitting}>
                 {isSubmitting ? <ActivityIndicator size="small" color={colors.white} /> : <Text style={styles.modalBtnSaveText}>Save</Text>}
               </TouchableOpacity>
             </View>

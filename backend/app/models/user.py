@@ -21,10 +21,13 @@ class User(Base):
     phone = Column(String(15), nullable=True)
     date_of_birth = Column(Date, nullable=True)
 
-    # Social sign-in provider the account was created through (google | github);
-    # null for password accounts. Informational — login always re-verifies with
-    # the provider.
+    # Social sign-in provider the account was created/linked through
+    # (google | github); null for password-only accounts. Informational —
+    # login always re-verifies with the provider.
     auth_provider = Column(String(20), nullable=True)
+    # Firebase Auth UID of the linked social identity. Lets a user (any role)
+    # sign in with a social account whose email differs from the account email.
+    firebase_uid = Column(String(128), unique=True, nullable=True)
 
     role_id = Column(GUID(), ForeignKey("roles.id"))
 
@@ -60,6 +63,7 @@ class User(Base):
             "date_of_birth": self.date_of_birth.isoformat() if self.date_of_birth else None,
             "age": self.age,
             "auth_provider": self.auth_provider,
+            "social_linked": bool(self.firebase_uid),
             "role_id": self.role_id,
             "role": self.role.name if self.role else None,
             "is_active": self.is_active,

@@ -51,6 +51,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "735469806084-0blujp6g05khv61ve7jrqep1vlfb67o5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.purnazen.admin",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
           "client_id": "735469806084-7j5or26eg9n0sclcphpvi6sie0r02a0b.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -79,6 +87,14 @@
         }
       },
       "oauth_client": [
+        {
+          "client_id": "735469806084-dam04kikq93js0cd603kp284b17qgelv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.purnazen.doctor",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
         {
           "client_id": "735469806084-7j5or26eg9n0sclcphpvi6sie0r02a0b.apps.googleusercontent.com",
           "client_type": 3

@@ -144,8 +144,8 @@ const LeaveDetailScreen = ({ navigation, route }) => {
   const statusCfg = STATUS_CONFIG[statusLabel] || STATUS_CONFIG.Pending;
 
   const leaveType = detail.leaveType || detail.leave_type || detail.type;
-  const startDate = detail.startDate || detail.start_date;
-  const endDate = detail.endDate || detail.end_date;
+  const startDate = detail.startDate || detail.start_date || detail.leaveDate;
+  const endDate = detail.endDate || detail.end_date || detail.leaveDate;
   const startTime = detail.startTime || detail.start_time;
   const endTime = detail.endTime || detail.end_time;
   const appliedAt = detail.appliedAt || detail.applied_at || detail.created_at;

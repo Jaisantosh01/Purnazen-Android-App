@@ -148,6 +148,7 @@ function ConsultStackNavigator() {
       <ConsultStack.Screen name="AppointmentHistory" component={AppointmentHistoryScreen} />
       <ConsultStack.Screen name="AppointmentDetail"  component={AppointmentDetailScreen}  />
       <ConsultStack.Screen name="Payment"          component={PaymentScreen}         />
+      <ConsultStack.Screen name="AddressManagement" component={AddressManagementScreen} />
     </ConsultStack.Navigator>
   );
 }

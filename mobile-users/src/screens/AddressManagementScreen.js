@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   PermissionsAndroid,
   Platform,
+  Linking,
 } from 'react-native';
 import { showAlert } from '../utils/alert';
 import { showSuccess, showError } from '../utils/toast';
@@ -76,6 +77,7 @@ const AddressManagementScreen = ({ navigation }) => {
   const [selectedLat, setSelectedLat] = useState(null);
   const [selectedLng, setSelectedLng] = useState(null);
   const [showMap, setShowMap] = useState(false);
+  const [locating, setLocating] = useState(false);
 
   const [houseName, setHouseName] = useState('');
   const [area, setArea] = useState('');
@@ -160,35 +162,74 @@ const AddressManagementScreen = ({ navigation }) => {
     setState(addr.state || '');
   };
 
-  const handleCurrentLocation = async () => {
-    try {
-      if (Platform.OS === 'android') {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-        );
-        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-          showAlert('Permission Denied', 'Location permission is required to get current position.');
-          return;
-        }
-      }
-    } catch { return; }
+  const getPosition = (options) =>
+    new Promise((resolve, reject) => Geolocation.getCurrentPosition(resolve, reject, options));
 
-    Geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude, longitude } = pos.coords;
-        setSelectedLat(latitude);
-        setSelectedLng(longitude);
-        setSearchQuery('');
-        setShowSuggestions(false);
-        setShowMap(true);
-        if (mapReadyRef.current && webViewRef.current) {
-          webViewRef.current.injectJavaScript(`panTo(${latitude},${longitude},16);true;`);
-        }
-        reverseGeocode(latitude, longitude);
-      },
-      () => showAlert('Error', 'Could not get current location. Please try again.'),
-      { enableHighAccuracy: true, timeout: 15000 },
-    );
+  const handleCurrentLocation = async () => {
+    if (Platform.OS === 'android') {
+      let granted;
+      try {
+        granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          {
+            title: 'Location Permission',
+            message: 'Purnazen uses your location to fill in your address automatically.',
+            buttonPositive: 'Allow',
+            buttonNegative: 'Deny',
+          },
+        );
+      } catch {
+        granted = PermissionsAndroid.RESULTS.DENIED;
+      }
+      if (granted === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
+        // Android suppresses the dialog after repeated denials — Settings is
+        // the only way to grant from here.
+        showAlert(
+          'Location Permission Needed',
+          'Location access is turned off for this app. Enable it in Settings to use your current location.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => Linking.openSettings() },
+          ],
+        );
+        return;
+      }
+      if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+        showAlert('Permission Denied', 'Location permission is required to use your current location.');
+        return;
+      }
+    }
+
+    setLocating(true);
+    try {
+      let pos;
+      try {
+        pos = await getPosition({ enableHighAccuracy: true, timeout: 10000, maximumAge: 10000 });
+      } catch {
+        // No GPS fix (indoors, emulator) — fall back to network location
+        pos = await getPosition({ enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 });
+      }
+      const { latitude, longitude } = pos.coords;
+      setSelectedLat(latitude);
+      setSelectedLng(longitude);
+      setSearchQuery('');
+      setShowSuggestions(false);
+      setShowMap(true);
+      if (mapReadyRef.current && webViewRef.current) {
+        webViewRef.current.injectJavaScript(`panTo(${latitude},${longitude},16);true;`);
+      }
+      reverseGeocode(latitude, longitude);
+    } catch (err) {
+      // 2 = POSITION_UNAVAILABLE: device location (GPS) is switched off
+      showAlert(
+        'Location Unavailable',
+        err?.code === 2
+          ? 'Turn on your device location (GPS) and try again.'
+          : 'Could not get your current location. Please try again, or search for your address instead.',
+      );
+    } finally {
+      setLocating(false);
+    }
   };
 
   const handleWebViewMessage = (event) => {
@@ -340,8 +381,17 @@ const AddressManagementScreen = ({ navigation }) => {
                   <ActivityIndicator size="small" color={colors.primary} style={styles.searchSpinner} />
                 )}
               </View>
-              <TouchableOpacity style={styles.locationBtn} onPress={handleCurrentLocation} activeOpacity={0.7}>
-                <MCIcon name="crosshairs-gps" size={22} color={colors.primary} />
+              <TouchableOpacity
+                style={styles.locationBtn}
+                onPress={handleCurrentLocation}
+                activeOpacity={0.7}
+                disabled={locating}
+              >
+                {locating ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <MCIcon name="crosshairs-gps" size={22} color={colors.primary} />
+                )}
               </TouchableOpacity>
             </View>
             {showSuggestions && suggestions.length > 0 && (

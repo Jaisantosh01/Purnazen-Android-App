@@ -467,8 +467,8 @@ mobile-users/src/
 | `react-native-image-resizer` | `3.0.10` | 2 | ✅ |
 | `react-native-svg` | `^15.0.0` | 2 | ✅ |
 | `react-native-chart-kit` | `^6.12.0` | 4 | ❌ dropped — TrendChart uses react-native-svg directly |
-| `@react-native-google-signin/google-signin` | `^13.0.0` | 5 | ⏳ not started |
-| `@invertase/react-native-apple-authentication` | `^2.4.0` | 5 | ⏳ not started |
+| `@react-native-google-signin/google-signin` | `^13.0.0` | 5 | ❌ dropped — social sign-in goes through Firebase Auth's built-in provider flow (docs/FIREBASE.md) |
+| `@invertase/react-native-apple-authentication` | `^2.4.0` | 5 | ❌ dropped — same: Firebase Auth covers providers; no iOS build yet |
 | `react-native-view-shot` | `^3.8.0` | 6 | ⏳ not started |
 
 ---

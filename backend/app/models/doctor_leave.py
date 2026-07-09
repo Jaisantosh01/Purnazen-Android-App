@@ -13,6 +13,9 @@ class DoctorLeave(Base):
     doctor_id = Column(GUID(), ForeignKey("doctors.id"), nullable=False, index=True)
     
 
+    # ── Legacy fields ─────────────────────────────────────────────────────────
+    leave_date = Column(Date, nullable=True, index=True)
+
     # ── New fields for full leave management integration ──────────────────────
     # single | multiple | custom
     leave_type = Column(String(20), nullable=False, default="single")

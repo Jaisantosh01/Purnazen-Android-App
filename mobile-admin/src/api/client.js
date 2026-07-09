@@ -16,6 +16,7 @@ const STATUS_MESSAGES = {
 // trigger the silent-refresh flow for them.
 const NO_REFRESH_PATHS = [
   ENDPOINTS.LOGIN,
+  ENDPOINTS.SOCIAL_LOGIN,
   ENDPOINTS.REGISTER,
   ENDPOINTS.REFRESH,
   ENDPOINTS.LOGOUT,
@@ -36,7 +37,8 @@ client.interceptors.request.use(async config => {
   // as a misleading "network error". Proceed unauthenticated if it can't be read.
   try {
     const token = await secureStorage.getAccessToken();
-    if (token) {
+    // Keep an explicitly-set header (logout sends the refresh token as Bearer)
+    if (token && !config.headers.Authorization) {
       config.headers.Authorization = `Bearer ${token}`;
     }
   } catch (e) {

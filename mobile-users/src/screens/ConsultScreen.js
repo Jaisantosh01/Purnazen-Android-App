@@ -26,7 +26,9 @@ const FILTER_TABS_FALLBACK = CONSULT_SCREEN_FILTER_TABS_FALLBACK;
 
 // Shared header reused in loading/error states
 // Fix 1: always pass searchQuery so TextInput is never uncontrolled
-const ScreenHeader = ({ styles, colors, searchQuery = '', onChangeText, onClear, editable = true, navigation }) => (
+const ScreenHeader = ({ styles, colors, searchQuery = '', onChangeText, onClear, editable = true, navigation }) => {
+  const headerTop = useHeaderTopPadding();
+  return (
   <View style={[styles.header, { paddingTop: headerTop }]}>
     <View style={styles.headerTopRow}>
       <View style={styles.headerTextCol}>
@@ -55,10 +57,10 @@ const ScreenHeader = ({ styles, colors, searchQuery = '', onChangeText, onClear,
       )}
     </View>
   </View>
-);
+  );
+};
 
 const ConsultScreen = ({ navigation }) => {
-  const headerTop = useHeaderTopPadding();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [activeFilter, setActiveFilter] = useState('All');
