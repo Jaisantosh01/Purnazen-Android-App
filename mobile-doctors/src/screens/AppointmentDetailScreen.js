@@ -29,6 +29,29 @@ const formatDate = iso => {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
+const isAppointmentOver = (dateStr, endTimeStr) => {
+  if (!dateStr) return false;
+  const [year, month, day] = dateStr.split('-').map(Number);
+  let hours = 0;
+  let minutes = 0;
+  if (endTimeStr) {
+    const match = endTimeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (match) {
+      hours = parseInt(match[1], 10);
+      minutes = parseInt(match[2], 10);
+      const ampm = match[3].toUpperCase();
+      if (ampm === 'PM' && hours < 12) {
+        hours += 12;
+      } else if (ampm === 'AM' && hours === 12) {
+        hours = 0;
+      }
+    }
+  }
+  const apptEnd = new Date(year, month - 1, day, hours, minutes);
+  const now = new Date();
+  return now >= apptEnd;
+};
+
 // ─── Info Row Component ─────────────────────────────────────────────────────────
 const InfoRow = ({ icon, label, value }) => (
   <View style={styles.infoItem}>
@@ -71,6 +94,7 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
   const [appointment, setAppointment] = useState(initialAppointment || null);
   const [loading, setLoading] = useState(!initialAppointment);
   const [error, setError] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   // `silent` refreshes without blanking the screen — used when we already have
   // data (opened from the list, or right after a status change).
@@ -101,7 +125,6 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
     fetchAppointmentDetails(!!initialAppointment);
   }, [fetchAppointmentDetails, initialAppointment]);
 
-  // ── Status Action Helpers ───────────────────────────────────────────────────
   const handleUpdateStatus = async (status) => {
     // Optimistic: reflect the new status immediately, then sync with server.
     setAppointment(prev => (prev ? { ...prev, status } : prev));
@@ -198,71 +221,90 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
     const isBooked = apptStatus === 'booked';
 
     return (
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* ── Patient Profile Summary Card ── */}
-        <TouchableOpacity
-          style={styles.profileCard}
-          activeOpacity={0.85}
-          onPress={handlePatientPress}>
-          <View style={styles.profileTopRow}>
-            <View style={styles.avatarWrap}>
-              <MCIcon name="account" size={36} color={COLORS.primary} />
-            </View>
-            <View style={styles.profileInfo}>
-              <Text style={styles.patientName}>
-                {appointment.userName || 'Unknown Patient'}
-              </Text>
-              <View style={styles.profileMeta}>
-                <View style={styles.metaPill}>
-                  <MCIcon name="calendar-account" size={12} color={COLORS.textSecondary} />
-                  <Text style={styles.metaPillText}>
-                    {appointment.userAge ? `${appointment.userAge} yrs` : 'Age N/A'}
-                  </Text>
-                </View>
-                <View style={styles.metaPill}>
-                  <MCIcon name="gender-male-female" size={12} color={COLORS.textSecondary} />
-                  <Text style={styles.metaPillText}>
-                    {appointment.userGender || 'N/A'}
-                  </Text>
+      <View style={{ flex: 1 }}>
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[COLORS.primary]}
+              tintColor={COLORS.primary}
+            />
+          }
+        >
+          {/* ── Patient Profile Summary Card ── */}
+          <TouchableOpacity
+            style={styles.profileCard}
+            activeOpacity={0.85}
+            onPress={handlePatientPress}>
+            <View style={styles.profileTopRow}>
+              <View style={styles.avatarWrap}>
+                <MCIcon name="account" size={36} color={COLORS.primary} />
+              </View>
+              <View style={styles.profileInfo}>
+                <Text style={styles.patientName}>
+                  {appointment.userName || 'Unknown Patient'}
+                </Text>
+                <View style={styles.profileMeta}>
+                  <View style={styles.metaPill}>
+                    <MCIcon name="calendar-account" size={12} color={COLORS.textSecondary} />
+                    <Text style={styles.metaPillText}>
+                      {appointment.userAge ? `${appointment.userAge} yrs` : 'Age N/A'}
+                    </Text>
+                  </View>
+                  <View style={styles.metaPill}>
+                    <MCIcon name="gender-male-female" size={12} color={COLORS.textSecondary} />
+                    <Text style={styles.metaPillText}>
+                      {appointment.userGender || 'N/A'}
+                    </Text>
+                  </View>
                 </View>
               </View>
+              <StatusBadge status={apptStatus} />
             </View>
-            <StatusBadge status={apptStatus} />
-          </View>
 
-          <View style={styles.viewProfileRow}>
-            <Text style={styles.viewProfileText}>View Patient Profile & Medical History</Text>
-            <MCIcon name="chevron-right" size={16} color={COLORS.primary} />
-          </View>
-        </TouchableOpacity>
+            <View style={styles.viewProfileRow}>
+              <Text style={styles.viewProfileText}>View Patient Profile & Medical History</Text>
+              <MCIcon name="chevron-right" size={16} color={COLORS.primary} />
+            </View>
+          </TouchableOpacity>
 
-        {/* ── Appointment Information ── */}
-        <SectionCard title="Appointment Details" icon="calendar-text">
-          <InfoRow
-            icon="text-box-outline"
-            label="Reason for Visit"
-            value={appointment.userDescription || 'No reason provided'}
-          />
-          <InfoRow
-            icon="calendar-clock"
-            label="Date & Time"
-            value={`${formatDate(appointment.date)}  •  ${appointment.time || '—'}${appointment.endTime ? ` – ${appointment.endTime}` : ''}`}
-          />
-          <InfoRow
-            icon="stethoscope"
-            label="Consultation Type"
-            value={appointment.consultationType}
-          />
-          <InfoRow
-            icon="history"
-            label="Previous Visits"
-            value={appointment.previousVisitsCount != null ? String(appointment.previousVisitsCount) : '0'}
-          />
-        </SectionCard>
+          {/* ── Appointment Information ── */}
+          <SectionCard title="Appointment Details" icon="calendar-text">
+            <InfoRow
+              icon="text-box-outline"
+              label="Reason for Visit"
+              value={appointment.userDescription || 'No reason provided'}
+            />
+            <InfoRow
+              icon="calendar-clock"
+              label="Date & Time"
+              value={`${formatDate(appointment.date)}  •  ${appointment.time || '—'}${appointment.endTime ? ` – ${appointment.endTime}` : ''}`}
+            />
+            <InfoRow
+              icon="stethoscope"
+              label="Consultation Type"
+              value={appointment.consultationType}
+            />
+            <InfoRow
+              icon="history"
+              label="Previous Visits"
+              value={appointment.previousVisitsCount != null ? String(appointment.previousVisitsCount) : '0'}
+            />
+          </SectionCard>
 
-        {/* ── Status Actions ── */}
+          {appointment.location ? (
+            <LocationCard location={appointment.location} />
+          ) : null}
+
+          <View style={styles.bottomSpacer} />
+        </ScrollView>
+
+        {/* ── Status Actions (Fixed to Bottom) ── */}
         {(isPending || isBooked) && (
-          <View style={styles.actionBlock}>
+          <View style={styles.fixedActionBlock}>
             {isPending && (
               <TouchableOpacity
                 style={[styles.actionBtn, styles.acceptBtn]}
@@ -273,15 +315,30 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
               </TouchableOpacity>
             )}
 
-            {isBooked && (
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.completeBtn]}
-                activeOpacity={0.8}
-                onPress={handleComplete}>
-                <MCIcon name="check-decagram" size={18} color={COLORS.white} style={{ marginRight: 6 }} />
-                <Text style={styles.completeBtnText}>Mark as Completed</Text>
-              </TouchableOpacity>
-            )}
+            {isBooked && (() => {
+              const apptOver = isAppointmentOver(appointment.date, appointment.endTime || appointment.time);
+              return (
+                <TouchableOpacity
+                  style={[
+                    styles.actionBtn,
+                    styles.completeBtn,
+                    !apptOver && { backgroundColor: '#E5E7EB', borderColor: '#E5E7EB' }
+                  ]}
+                  disabled={!apptOver}
+                  activeOpacity={0.8}
+                  onPress={handleComplete}>
+                  <MCIcon
+                    name="check-decagram"
+                    size={18}
+                    color={apptOver ? COLORS.white : '#9CA3AF'}
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text style={[styles.completeBtnText, !apptOver && { color: '#9CA3AF' }]}>
+                    Mark as Completed
+                  </Text>
+                </TouchableOpacity>
+              );
+            })()}
 
             <TouchableOpacity
               style={[styles.actionBtn, styles.cancelBtn]}
@@ -292,9 +349,7 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
             </TouchableOpacity>
           </View>
         )}
-
-        <View style={styles.bottomSpacer} />
-      </ScrollView>
+      </View>
     );
   };
 
@@ -318,7 +373,7 @@ const styles = StyleSheet.create({
   scroll: { padding: SPACING.lg, gap: SPACING.md },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SPACING.xl, gap: SPACING.md },
   stateText: { fontSize: 14, color: COLORS.textSecondary, fontWeight: '500' },
-  bottomSpacer: { height: 40 },
+  bottomSpacer: { height: 160 },
 
   // ── Profile Card ──
   profileCard: {
@@ -430,9 +485,13 @@ const styles = StyleSheet.create({
   infoValue: { fontSize: 14, fontWeight: '600', color: COLORS.textPrimary, marginTop: 2 },
 
   // ── Action Buttons Block ──
-  actionBlock: {
+  fixedActionBlock: {
+    backgroundColor: COLORS.white,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
     gap: SPACING.md,
-    marginTop: SPACING.sm,
   },
   actionBtn: {
     flexDirection: 'row',

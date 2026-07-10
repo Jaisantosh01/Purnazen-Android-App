@@ -175,7 +175,7 @@ const LeaveHistoryScreen = ({ route, navigation }) => {
   }, [leaves]);
 
   const filteredLeaves = useMemo(() => {
-    return (leaves || []).filter(l => {
+    const result = (leaves || []).filter(l => {
       // 1. Status Filter
       const matchStatus = selectedStatus === 'all' || (l.status || '').toLowerCase() === selectedStatus;
       if (!matchStatus) return false;
@@ -190,6 +190,13 @@ const LeaveHistoryScreen = ({ route, navigation }) => {
       }
 
       return true;
+    });
+
+    // Default sort by Newest Applied First
+    return [...result].sort((a, b) => {
+      const dateA = new Date(a.appliedAt || a.applied_at || 0);
+      const dateB = new Date(b.appliedAt || b.applied_at || 0);
+      return dateB - dateA;
     });
   }, [leaves, selectedStatus, searchQuery]);
 
@@ -275,11 +282,6 @@ const LeaveHistoryScreen = ({ route, navigation }) => {
       <ScreenHeader 
         title="Leave History" 
         onBack={() => navigation.goBack()} 
-        right={
-          <TouchableOpacity activeOpacity={0.7}>
-            <MCIcon name="filter-variant" size={24} color={COLORS.white} />
-          </TouchableOpacity>
-        }
       />
 
       {loading && leaves.length === 0 ? (
@@ -336,7 +338,7 @@ const LeaveHistoryScreen = ({ route, navigation }) => {
             })}
           </View>
 
-          {/* Search Bar & Filter Row */}
+          {/* Search Bar Row */}
           <View style={styles.searchRow}>
             <View style={styles.searchBar}>
               <MCIcon name="magnify" size={20} color={COLORS.textSecondary} style={styles.searchIcon} />
@@ -348,10 +350,6 @@ const LeaveHistoryScreen = ({ route, navigation }) => {
                 onChangeText={setSearchQuery}
               />
             </View>
-            <TouchableOpacity style={styles.filterBtn} activeOpacity={0.8}>
-              <MCIcon name="tune" size={18} color={COLORS.primary} />
-              <Text style={styles.filterBtnText}>Filter</Text>
-            </TouchableOpacity>
           </View>
 
           {/* Filtered History List */}
@@ -466,24 +464,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     paddingVertical: 0,
   },
-  filterBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.white,
-    borderRadius: RADIUS.md,
-    borderWidth: 1.5,
-    borderColor: COLORS.primary,
-    paddingHorizontal: 12,
-    height: 44,
-    gap: 6,
-  },
-  filterBtnText: {
-    color: COLORS.primary,
-    fontSize: 13,
-    fontWeight: '800',
-  },
-
   historyCard: {
     backgroundColor: COLORS.white,
     borderRadius: RADIUS.md,

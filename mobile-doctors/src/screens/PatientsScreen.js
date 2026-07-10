@@ -17,7 +17,7 @@ import ScreenHeader from '../components/ScreenHeader';
 import { COLORS, SPACING, RADIUS } from '../constants/theme';
 import patientService from '../services/patientService';
 
-const FILTER_CHIPS = ['All', 'Male', 'Female', 'Recent'];
+const FILTER_CHIPS = ['All', 'Male', 'Female', 'Others', 'Recent'];
 
 // ─── Patient Card Component ───────────────────────────────────────────────────
 const PatientCard = ({ item, onPress }) => {
@@ -114,6 +114,8 @@ const PatientsScreen = ({ navigation }) => {
         matchesFilter = patient.gender === 'Male';
       } else if (selectedFilter === 'Female') {
         matchesFilter = patient.gender === 'Female';
+      } else if (selectedFilter === 'Others') {
+        matchesFilter = patient.gender === 'Other' || patient.gender === 'Others' || (patient.gender && patient.gender.toLowerCase() === 'other') || (patient.gender && patient.gender.toLowerCase() === 'others');
       } else if (selectedFilter === 'Recent') {
         matchesFilter = patient.isRecent;
       }
