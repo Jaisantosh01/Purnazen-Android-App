@@ -7,6 +7,9 @@ heads here, change them there too.
 from __future__ import annotations
 
 # Model output heads, in order. Matches app/ai/skin_model.py METRIC_ORDER.
+# muscle_tone_score was removed from the model: no public dataset labels facial
+# muscle tone, so it can't be trained or validated. The backend keeps computing
+# it with the landmark-based CV analyzer.
 METRIC_ORDER = (
     "hydration_score",
     "oiliness_score",
@@ -15,7 +18,6 @@ METRIC_ORDER = (
     "dark_circle_score",
     "pore_score",
     "elasticity_score",
-    "muscle_tone_score",
     "inflammation_score",
 )
 
@@ -33,7 +35,10 @@ SCORE_MAX = 100.0
 # dataset that does label them. "invert" flips a "good→bad" column if needed.
 #
 # Example below targets the Kaggle "Facial Skin Analysis & Type Classification"
-# style columns. Acne is used as an inflammation proxy.
+# style columns. Acne is used as an inflammation proxy; dehydration severity is
+# inverted into a hydration score, and elasticity-loss severity into elasticity.
+# The exact column names in the killa92 xlsx files vary — the training notebook
+# (train_skin_model.ipynb) fuzzy-matches and prints the resolved mapping.
 DEFAULT_COLUMN_MAP = {
     "excessive_oil":     {"metric": "oiliness_score"},
     "open_pores":        {"metric": "pore_score"},
@@ -41,6 +46,8 @@ DEFAULT_COLUMN_MAP = {
     "pigmentation":      {"metric": "pigmentation_score"},
     "acne":              {"metric": "inflammation_score"},
     "dark_circles":      {"metric": "dark_circle_score"},
+    "dehydration":       {"metric": "hydration_score", "invert": True},
+    "skin_elasticity":   {"metric": "elasticity_score", "invert": True},
 }
 
 

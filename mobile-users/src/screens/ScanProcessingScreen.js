@@ -85,7 +85,7 @@ const FACE_FEATURES = [
   { key: 'wrinkles', icon: 'wave',                     label: 'Fine lines',  desc: 'Forehead & eye-corner texture',                     zone: 'forehead'  },
   { key: 'tone',     icon: 'palette-outline',          label: 'Even tone',   desc: 'Pigmentation & redness across the skin',            zone: 'cheeks'    },
   { key: 'undereye', icon: 'eye-outline',              label: 'Under-eyes',  desc: 'Dark circles vs cheek brightness',                  zone: 'under_eyes'},
-  { key: 'firmness', icon: 'arm-flex-outline',         label: 'Firmness',    desc: 'Elasticity & muscle tone',                          zone: 'jawline'   },
+  { key: 'firmness', icon: 'arm-flex-outline',         label: 'Firmness',    desc: 'Skin elasticity along the jawline',                 zone: 'jawline'   },
   { key: 'score',    icon: 'star-four-points-outline', label: 'Glow score',  desc: 'Combining everything into your results',            zone: 'all'       },
 ];
 

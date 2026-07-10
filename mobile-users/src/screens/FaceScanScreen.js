@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useMemo } from 'react';
+import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,18 +10,26 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { showAlert } from '../utils/alert';
-import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
+import { Camera, useCameraDevice, useCameraFormat, useCameraPermission } from 'react-native-vision-camera';
 import { launchImageLibrary } from 'react-native-image-picker';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import scanService from '../services/scanService';
+import { checkCaptureQuality, hasOnDeviceQuality } from '../services/scanQualityService';
 import useScanStore from '../store/scanStore';
 import useTheme from '../hooks/useTheme';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import FaceOverlayGuide from '../components/scan/FaceOverlayGuide';
 
-const QUALITY_CHECK_INTERVAL_MS = 2200;
+// On-device checks are near-instant, so we can run them at a smooth cadence.
+// The server fallback keeps the old conservative interval (network-bound).
+const QUALITY_INTERVAL_DEVICE_MS = 900;
+const QUALITY_INTERVAL_SERVER_MS = 2200;
+
+// Consecutive "ready" readings required before the auto-capture countdown starts.
+const AUTO_CAPTURE_READY_STREAK = 2;
+const AUTO_CAPTURE_COUNTDOWN_START = 3;
 
 // Trailing slash matches the FastAPI route ("/consent/"). Without it the
 // no-slash request hits a 307 redirect that downgrades https→http behind the
@@ -39,6 +47,7 @@ const FACE_GUIDANCE = {
   multiple_faces: 'Only one face in the oval, please',
   face_too_small: 'Move a little closer',
   off_center:     'Align your face inside the oval',
+  not_frontal:    'Look straight at the camera',
   too_dark:       'Find brighter, even lighting',
   too_bright:     'Too bright — avoid glare or backlight',
   too_blurry:     'Hold still — keep your face sharp',
@@ -46,12 +55,25 @@ const FACE_GUIDANCE = {
 
 function deriveQuality(issues) {
   if (issues === null) return { status: 'checking', message: 'Detecting your face…' };
-  if (issues.length === 0) return { status: 'ready', message: 'Perfect — hold still & tap to capture' };
+  if (issues.length === 0) return { status: 'ready', message: 'Perfect — hold this position' };
   const blocking = issues.filter(i => i.blocking);
   const top = blocking[0] || issues[0];
   return {
     status: 'warn',
     message: FACE_GUIDANCE[top.code] || top.guidance || 'Align your face in the oval',
+  };
+}
+
+// Per-aspect pass/fail for the overlay chips (Lighting / Position / Clarity).
+function deriveChecks(issues) {
+  if (issues === null) return null;
+  const has = c => issues.some(i => i.code === c);
+  return {
+    lighting: !has('too_dark') && !has('too_bright'),
+    position:
+      !has('no_face') && !has('multiple_faces') && !has('face_too_small') &&
+      !has('off_center') && !has('not_frontal'),
+    clarity: !has('too_blurry'),
   };
 }
 
@@ -67,11 +89,24 @@ const FaceScanScreen = ({ navigation, route }) => {
   const device = useCameraDevice('front');
   const { hasPermission, requestPermission } = useCameraPermission();
 
+  // Prefer the sensor's full photo resolution — the default format can pick a
+  // low-res stream, which is why in-app captures looked worse than the system
+  // camera app.
+  const format = useCameraFormat(device, [
+    { photoResolution: 'max' },
+    { videoResolution: 'max' },
+  ]);
+
   const [uploading, setUploading] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [cameraActive, setCameraActive] = useState(true);
   const [headerH, setHeaderH] = useState(106);
   const [qualityIssues, setQualityIssues] = useState(null); // null=initial, []= ok, [...]= issues
+  const [autoCapture, setAutoCapture] = useState(true);
+  const [countdown, setCountdown] = useState(null); // null=off, 3..1 while counting
+
+  const readyStreak = useRef(0);
+  const onDeviceChecks = scanType === 'face' && hasOnDeviceQuality;
 
   const setProcessing = useScanStore(s => s.setProcessing);
   const setCurrentScanId = useScanStore(s => s.setCurrentScanId);
@@ -82,7 +117,9 @@ const FaceScanScreen = ({ navigation, route }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Periodic live quality check using silent snapshot
+  // Periodic live quality check on a silent low-res snapshot. With the native
+  // module the frame is analysed on-device (fast, offline, private); otherwise
+  // it falls back to the server preview endpoint.
   useEffect(() => {
     if (!hasPermission || !device) return;
 
@@ -93,9 +130,9 @@ const FaceScanScreen = ({ navigation, route }) => {
       if (running || cancelled || !cameraRef.current || uploading || capturing) return;
       running = true;
       try {
-        const photo = await cameraRef.current.takeSnapshot({ quality: 40 });
+        const photo = await cameraRef.current.takeSnapshot({ quality: 50 });
         if (cancelled) return;
-        const result = await scanService.qualityPreview(`file://${photo.path}`, 'face');
+        const result = await checkCaptureQuality(`file://${photo.path}`, scanType);
         if (!cancelled) setQualityIssues(result?.issues ?? []);
       } catch {
         // Don't claim "ready" on a failed check — leave the last known state
@@ -106,15 +143,16 @@ const FaceScanScreen = ({ navigation, route }) => {
       }
     };
 
-    const interval = setInterval(runCheck, QUALITY_CHECK_INTERVAL_MS);
-    const warmup  = setTimeout(runCheck, 1400);
+    const intervalMs = onDeviceChecks ? QUALITY_INTERVAL_DEVICE_MS : QUALITY_INTERVAL_SERVER_MS;
+    const interval = setInterval(runCheck, intervalMs);
+    const warmup = setTimeout(runCheck, 600);
 
     return () => {
       cancelled = true;
       clearInterval(interval);
       clearTimeout(warmup);
     };
-  }, [hasPermission, device, uploading, capturing]);
+  }, [hasPermission, device, uploading, capturing, scanType, onDeviceChecks]);
 
   const doUpload = async (uri) => {
     const result = await scanService.uploadScan(uri, scanType);
@@ -160,11 +198,16 @@ const FaceScanScreen = ({ navigation, route }) => {
     }
   };
 
-  const handleCapture = async () => {
+  const handleCapture = useCallback(async () => {
     if (capturing || uploading || !cameraRef.current) return;
+    setCountdown(null);
+    readyStreak.current = 0;
     setCapturing(true);
     try {
-      const photo = await cameraRef.current.takePhoto({ flash: 'off' });
+      const photo = await cameraRef.current.takePhoto({
+        flash: 'off',
+        enableShutterSound: false,
+      });
       const uri = `file://${photo.path}`;
       setCapturing(false);
       setUploading(true);
@@ -175,6 +218,45 @@ const FaceScanScreen = ({ navigation, route }) => {
     } finally {
       setUploading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [capturing, uploading]);
+
+  const quality = deriveQuality(qualityIssues);
+  const ready = quality.status === 'ready';
+
+  // ── Auto-capture: after a stable "ready" streak, count down and shoot ───────
+  useEffect(() => {
+    if (!autoCapture || uploading || capturing) return;
+    if (ready) {
+      readyStreak.current += 1;
+      if (readyStreak.current >= AUTO_CAPTURE_READY_STREAK && countdown == null) {
+        setCountdown(AUTO_CAPTURE_COUNTDOWN_START);
+      }
+    } else {
+      readyStreak.current = 0;
+      if (countdown != null) setCountdown(null); // quality dropped — abort
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qualityIssues, autoCapture, uploading, capturing]);
+
+  useEffect(() => {
+    if (countdown == null) return;
+    if (countdown <= 0) {
+      handleCapture();
+      return;
+    }
+    const t = setTimeout(() => {
+      setCountdown(c => (c == null ? null : c - 1));
+    }, 900);
+    return () => clearTimeout(t);
+  }, [countdown, handleCapture]);
+
+  const toggleAutoCapture = () => {
+    setAutoCapture(v => {
+      if (v) setCountdown(null);
+      readyStreak.current = 0;
+      return !v;
+    });
   };
 
   // Once the user has denied the permission, Android stops showing the request
@@ -197,6 +279,7 @@ const FaceScanScreen = ({ navigation, route }) => {
 
   const handleGallery = async () => {
     if (uploading) return;
+    setCountdown(null);
     setUploading(true);
     let uri = null;
     try {
@@ -238,9 +321,6 @@ const FaceScanScreen = ({ navigation, route }) => {
           <TouchableOpacity style={styles.permBtn} onPress={handleGrantPermission}>
             <Text style={styles.permBtnText}>Grant Camera Access</Text>
           </TouchableOpacity>
-          {/* <TouchableOpacity style={styles.permBtnOutline} onPress={() => Linking.openSettings()}>
-            <Text style={styles.permBtnOutlineText}>Open Settings</Text>
-          </TouchableOpacity> */}
           <TouchableOpacity style={[styles.permBtnOutline, { marginTop: 4 }]} onPress={handleGallery}>
             <MCIcon name="image-multiple" size={16} color={ACCENT} />
             <Text style={[styles.permBtnOutlineText, { marginLeft: 6 }]}>Use Gallery Instead</Text>
@@ -275,9 +355,6 @@ const FaceScanScreen = ({ navigation, route }) => {
   }
 
   // ── Camera view ──────────────────────────────────────────────────────────────
-  const quality = deriveQuality(qualityIssues);
-  const ready = quality.status === 'ready';
-
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
@@ -286,9 +363,11 @@ const FaceScanScreen = ({ navigation, route }) => {
         ref={cameraRef}
         style={StyleSheet.absoluteFill}
         device={device}
+        format={format}
         isActive={cameraActive && !uploading}
         photo
-        photoQualityBalance="balanced"
+        photoQualityBalance="quality"
+        photoHdr={format?.supportsPhotoHdr}
       />
 
       <FaceOverlayGuide
@@ -296,6 +375,9 @@ const FaceScanScreen = ({ navigation, route }) => {
         status={quality.status}
         headerHeight={headerH}
         bottomBarHeight={140}
+        countdown={countdown}
+        checks={deriveChecks(qualityIssues)}
+        onDevice={onDeviceChecks}
       />
 
       {/* Header */}
@@ -339,8 +421,21 @@ const FaceScanScreen = ({ navigation, route }) => {
           )}
         </TouchableOpacity>
 
-        {/* Spacer keeps the capture button centred (mirrors the Gallery button width). */}
-        <View style={styles.sideBtn} />
+        <TouchableOpacity
+          style={styles.sideBtn}
+          onPress={toggleAutoCapture}
+          disabled={uploading || capturing}
+          activeOpacity={0.7}
+        >
+          <MCIcon
+            name={autoCapture ? 'timer-outline' : 'timer-off-outline'}
+            size={26}
+            color={autoCapture ? '#4ade80' : 'rgba(255,255,255,0.6)'}
+          />
+          <Text style={[styles.sideBtnLabel, autoCapture && { color: '#bbf7d0' }]}>
+            {autoCapture ? 'Auto on' : 'Auto off'}
+          </Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
