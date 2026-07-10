@@ -208,27 +208,27 @@ const HomeScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
-        {/* ── Book a Consultation ── */}
-        <TouchableOpacity
-          style={styles.consultBanner}
-          activeOpacity={0.88}
-          onPress={() => navigation.navigate('ConsultTab')}
-        >
-          <View style={styles.consultLeft}>
-            <View style={styles.consultIconCircle}>
-              <MCIcon name="calendar-month-outline" size={20} color={colors.white} />
-            </View>
-            <View>
-              <Text style={styles.consultTitle}>{STRINGS.CONSULT_TITLE}</Text>
-              <Text style={styles.consultSub}>{STRINGS.CONSULT_SUB}</Text>
-            </View>
-          </View>
-          <View style={styles.consultArrowCircle}>
-            <MCIcon name="arrow-right" size={18} color={colors.white} />
-          </View>
-        </TouchableOpacity>
-
       </ScrollView>
+
+      {/* ── Book a Consultation — sticky above the tab bar ── */}
+      <TouchableOpacity
+        style={styles.consultBanner}
+        activeOpacity={0.88}
+        onPress={() => navigation.navigate('ConsultTab')}
+      >
+        <View style={styles.consultLeft}>
+          <View style={styles.consultIconCircle}>
+            <MCIcon name="calendar-month-outline" size={20} color={colors.white} />
+          </View>
+          <View>
+            <Text style={styles.consultTitle}>{STRINGS.CONSULT_TITLE}</Text>
+            <Text style={styles.consultSub}>{STRINGS.CONSULT_SUB}</Text>
+          </View>
+        </View>
+        <View style={styles.consultArrowCircle}>
+          <MCIcon name="arrow-right" size={18} color={colors.white} />
+        </View>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -399,17 +399,22 @@ const makeStyles = colors => StyleSheet.create({
     marginTop: 2,
   },
 
-  // Consult Banner
+  // Consult Banner — pinned footer, floats above the scroll content
   consultBanner: {
     backgroundColor: colors.primary,
     borderRadius: 18,
     marginHorizontal: 16,
-    marginTop: 24,
-    marginBottom: 8,
+    marginTop: 10,
+    marginBottom: 12,
     padding: 18,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    elevation: 6,
   },
   consultLeft: {
     flexDirection: 'row',

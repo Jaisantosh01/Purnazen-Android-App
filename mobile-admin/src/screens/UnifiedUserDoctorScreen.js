@@ -17,19 +17,20 @@ const UnifiedUserDoctorScreen = ({ navigation }) => {
       <ScreenHeader
         title="Users & Doctors"
         subtitle={activeTab === 'users' ? 'Manage app users and their roles' : 'Manage doctors and their profiles'}
+        showBack={false}
         right={activeTab === 'users' ? (
           <TouchableOpacity
             style={styles.manageBtn}
             onPress={() => navigation.navigate('ManageRoles', { title: 'Roles', endpoint: ENDPOINTS.ROLES })}
           >
-            <MCIcon name="account-cog" size={24} color={colors.primary} />
+            <MCIcon name="account-cog" size={24} color={colors.headerText} />
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
             style={styles.manageBtn}
             onPress={() => navigation.navigate('EditDoctor', { doctorId: null })}
           >
-            <MCIcon name="plus" size={24} color={colors.primary} />
+            <MCIcon name="plus" size={24} color={colors.headerText} />
           </TouchableOpacity>
         )}
       />

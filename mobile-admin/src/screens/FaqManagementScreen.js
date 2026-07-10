@@ -168,7 +168,7 @@ const FaqManagementScreen = ({ navigation }) => {
         onBack={() => navigation.goBack()}
         right={
           <TouchableOpacity onPress={openAddModal} style={{ padding: 4 }}>
-            <MCIcon name="plus" size={24} color={colors.primary} />
+            <MCIcon name="plus" size={24} color={colors.headerText} />
           </TouchableOpacity>
         }
       />

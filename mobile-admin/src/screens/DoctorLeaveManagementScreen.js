@@ -421,9 +421,10 @@ const DoctorLeaveManagementScreen = ({ navigation, route }) => {
         title="Doctor Leaves"
         subtitle="Review and manage leave requests"
         onBack={isTabInstance ? undefined : () => navigation.goBack()}
+        showBack={!isTabInstance}
         right={
           <TouchableOpacity onPress={openFilterModal} style={styles.filterBtn}>
-            <MCIcon name="filter-variant" size={22} color={hasActiveFilters ? colors.primary : colors.textSecondary} />
+            <MCIcon name="filter-variant" size={22} color={hasActiveFilters ? colors.headerText : 'rgba(255,255,255,0.7)'} />
           </TouchableOpacity>
         }
       />

@@ -305,12 +305,13 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
       <ScreenHeader
         title="Appointments"
         subtitle="All bookings across doctors"
+        showBack={false}
         right={
           <TouchableOpacity
             style={[styles.filterToggle, hasAppliedFilters && styles.filterToggleActive]}
             onPress={openFilterModal}
           >
-            <MCIcon name="filter-variant" size={20} color={hasAppliedFilters ? colors.white : colors.textSecondary} />
+            <MCIcon name="filter-variant" size={20} color={hasAppliedFilters ? colors.primary : colors.headerText} />
             {hasAppliedFilters && (
               <View style={styles.filterBadge}>
                 <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
@@ -731,8 +732,8 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
 
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  filterToggle: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surfaceMuted, justifyContent: 'center', alignItems: 'center' },
-  filterToggleActive: { backgroundColor: colors.primary },
+  filterToggle: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
+  filterToggleActive: { backgroundColor: colors.white },
   filterBadge: { position: 'absolute', top: -4, right: -4, width: 18, height: 18, borderRadius: 9, backgroundColor: colors.danger, justifyContent: 'center', alignItems: 'center' },
   filterBadgeText: { color: colors.white, fontSize: 10, fontWeight: '800' },
   searchSection: { backgroundColor: colors.card, paddingTop: 10, paddingBottom: 12 },

@@ -534,7 +534,7 @@ const ScheduleScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="My Schedule" subtitle="Availability & Leave" />
+      <ScreenHeader title="My Schedule" subtitle="Availability & Leave" showBack={false} />
       
       <View style={styles.segmentedWrapper}>
         {renderSegmentedControl()}

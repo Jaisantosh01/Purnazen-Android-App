@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  StatusBar,
   ScrollView,
 } from 'react-native';
 // @ts-ignore
@@ -13,11 +12,11 @@ import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { DoctorDetailSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
-import { useHeaderTopPadding } from '../components/ScreenHeader';
+import ScreenHeader from '../components/ScreenHeader';
 import { showAlert } from '../utils/alert';
 
 const InfoItem = ({ icon, label, value, isLast }) => {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
   <View style={[styles.infoItem, !isLast && styles.infoItemDivider]}>
@@ -33,8 +32,7 @@ const InfoItem = ({ icon, label, value, isLast }) => {
 };
 
 const DoctorDetailScreen = ({ route, navigation }) => {
-  const { colors, isDark } = useTheme();
-  const headerTop = useHeaderTopPadding();
+  const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { doctorId } = route.params;
   const [doctor, setDoctor] = useState(null);
@@ -73,14 +71,7 @@ const DoctorDetailScreen = ({ route, navigation }) => {
 
   if (loading) return (
     <View style={styles.root}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.card} />
-      <View style={[styles.header, { paddingTop: headerTop }]}>
-        <TouchableOpacity style={styles.headerButton}>
-          <MCIcon name="arrow-left" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Doctor Details</Text>
-        <View style={{ width: 44 }} />
-      </View>
+      <ScreenHeader title="Doctor Details" onBack={() => navigation.goBack()} />
       <DoctorDetailSkeleton />
     </View>
   );
@@ -88,16 +79,15 @@ const DoctorDetailScreen = ({ route, navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.card} />
-      <View style={[styles.header, { paddingTop: headerTop }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
-          <MCIcon name="arrow-left" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Doctor Details</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('EditDoctor', { doctorId })} style={styles.headerButton}>
-          <MCIcon name="pencil" size={24} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title="Doctor Details"
+        onBack={() => navigation.goBack()}
+        right={
+          <TouchableOpacity onPress={() => navigation.navigate('EditDoctor', { doctorId })} style={styles.headerButton}>
+            <MCIcon name="pencil" size={24} color={colors.headerText} />
+          </TouchableOpacity>
+        }
+      />
 
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.profileHeader}>
@@ -195,8 +185,6 @@ const DoctorDetailScreen = ({ route, navigation }) => {
 
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  header: { paddingHorizontal: 20, paddingBottom: 16, backgroundColor: colors.card, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
   headerButton: { padding: 4 },
   content: { padding: 20, paddingBottom: 40 },
   profileHeader: { alignItems: 'center', marginBottom: 25 },
