@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  StatusBar,
   ScrollView,
   TextInput,
 } from 'react-native';
@@ -12,6 +11,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import useTheme from '../hooks/useTheme';
+import ScreenHeader from '../components/ScreenHeader';
 import { showAlert } from '../utils/alert';
 
 const EditUserScreen = ({ route, navigation }) => {
@@ -46,14 +46,7 @@ const EditUserScreen = ({ route, navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-            <MCIcon name="arrow-left" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit User</Text>
-        <View style={{width: 24}} />
-      </View>
+      <ScreenHeader title="Edit User" onBack={() => navigation.goBack()} />
 
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.label}>Full Name</Text>
@@ -88,8 +81,6 @@ const EditUserScreen = ({ route, navigation }) => {
 
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  header: { paddingTop: 56, padding: 20, backgroundColor: colors.card, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: colors.border },
-  headerTitle: { fontSize: 20, fontWeight: '800', color: colors.textPrimary },
   content: { padding: 20 },
   label: { fontSize: 14, fontWeight: '600', color: colors.textSecondary, marginTop: 15 },
   input: { backgroundColor: colors.card, padding: 12, borderRadius: 8, borderWidth: 1, borderColor: colors.borderStrong, marginTop: 8 },

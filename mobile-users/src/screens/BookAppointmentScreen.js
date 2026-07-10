@@ -17,7 +17,18 @@ import ScreenHeader from '../components/ScreenHeader';
 import AppDialog from '../components/AppDialog';
 import {DAYS, MONTHS} from '../constants/strings';
 
+// Clinic visit always comes first, then home, then video.
+const VISIT_ORDER = { clinic: 0, home: 1, video: 2 };
+const sortVisitTypes = list =>
+  [...list].sort((a, b) => (VISIT_ORDER[a.id] ?? 9) - (VISIT_ORDER[b.id] ?? 9));
 
+// Fallback cards built from the doctor's consultation-type tags so the visit
+// type section always shows, even if the visit-types API call fails.
+const TAG_TO_VISIT_TYPE = {
+  'Clinic Visit': { id: 'clinic', title: 'Clinic Visit', subtitle: 'Meet at the clinic', icon: 'hospital-building' },
+  'Home Visit':   { id: 'home',   title: 'Home Visit',   subtitle: 'Doctor visits your home', icon: 'home-outline' },
+  'Video Call':   { id: 'video',  title: 'Video Consultation', subtitle: 'Consult from anywhere', icon: 'video-outline' },
+};
 
 const BookAppointmentScreen = ({ navigation, route }) => {
   const { colors } = useTheme();
@@ -27,7 +38,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
   const today = new Date();
   const [visitTypes, setVisitTypes]         = useState([]);
   const [timeSlots, setTimeSlots]           = useState([]);
-  const [selectedVisit, setSelectedVisit]   = useState('video');
+  const [selectedVisit, setSelectedVisit]   = useState('clinic');
   const [selectedTime, setSelectedTime]     = useState(null);
   const [currentMonth, setCurrentMonth]     = useState(today.getMonth());
   const [currentYear, setCurrentYear]       = useState(today.getFullYear());
@@ -41,6 +52,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [showAddressPicker, setShowAddressPicker] = useState(false);
   const [addressesLoading, setAddressesLoading] = useState(false);
+  const [slotsLoading, setSlotsLoading] = useState(false);
 
   // Load user addresses and auto-select the best one for home visit.
   const loadAddresses = useCallback(async () => {
@@ -82,15 +94,26 @@ const BookAppointmentScreen = ({ navigation, route }) => {
   const selectedVisitData = visitTypes.find(v => v.id === selectedVisit);
 
   useEffect(() => {
+    const applyVisitTypes = (list) => {
+      const sorted = sortVisitTypes(list);
+      setVisitTypes(sorted);
+      // Keep clinic as the default whenever the doctor offers it.
+      setSelectedVisit(prev => (sorted.some(v => v.id === prev) ? prev : sorted[0].id));
+    };
+    const applyFallback = () => {
+      const fallback = (doctor.tags || [])
+        .map(tag => TAG_TO_VISIT_TYPE[tag])
+        .filter(Boolean)
+        .map(v => ({ ...v, fee: doctor.minFee ?? doctor.fee }));
+      if (fallback.length) applyVisitTypes(fallback);
+    };
     consultService.getVisitTypes(doctor.id)
       .then(data => {
-        if (data?.length) {
-          setVisitTypes(data);
-          setSelectedVisit(prev => (data.some(v => v.id === prev) ? prev : data[0].id));
-        }
+        if (data?.length) applyVisitTypes(data);
+        else applyFallback();
       })
-      .catch(() => {});
-  }, [doctor.id]);
+      .catch(applyFallback);
+  }, [doctor.id, doctor.tags, doctor.minFee, doctor.fee]);
 
   useEffect(() => {
     if (selectedVisit !== 'clinic') {
@@ -103,14 +126,26 @@ const BookAppointmentScreen = ({ navigation, route }) => {
       .catch(() => setClinics([]));
   }, [doctor.id, selectedVisit]);
 
-  useEffect(() => {
+  const fetchTimeSlots = useCallback(() => {
     if (!selectedDate) return;
     setSelectedTime(null);
+    setTimeSlots([]);
+    setSlotsLoading(true);
     const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(selectedDate).padStart(2, '0')}`;
     consultService.getTimeSlots(doctor.id, dateStr)
       .then(data => { if (Array.isArray(data)) setTimeSlots(data); })
-      .catch(() => setTimeSlots([]));
+      .catch(() => setTimeSlots([]))
+      .finally(() => setSlotsLoading(false));
   }, [doctor.id, selectedDate, currentMonth, currentYear]);
+
+  useEffect(() => { fetchTimeSlots(); }, [fetchTimeSlots]);
+
+  // Re-fetch on focus so already-booked slots show as disabled after returning
+  // from BookingConfirmedScreen.
+  useEffect(() => {
+    const unsub = navigation.addListener('focus', () => { fetchTimeSlots(); });
+    return unsub;
+  }, [navigation, fetchTimeSlots]);
 
   const getDaysInMonth = (month, year) => new Date(year, month + 1, 0).getDate();
   const getFirstDayOfMonth = (month, year) => new Date(year, month, 1).getDay();
@@ -333,20 +368,45 @@ const BookAppointmentScreen = ({ navigation, route }) => {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Select Time</Text>
-          <View style={styles.timeGrid}>
-            {timeSlots.map(slot => (
-              <TouchableOpacity
-                key={slot.id}
-                style={[styles.timeSlot, selectedTime?.id === slot.id && styles.timeSlotActive]}
-                onPress={() => setSelectedTime(slot)}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.timeSlotText, selectedTime?.id === slot.id && styles.timeSlotTextActive]}>
-                  {slot.time} - {slot.end_time}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {slotsLoading ? (
+            <ActivityIndicator size="small" color={colors.primary} style={{ paddingVertical: 20 }} />
+          ) : timeSlots.length === 0 && selectedDate ? (
+            <View style={styles.noSlotsCard}>
+              <MCIcon name="clock-off-outline" size={28} color={colors.textMuted} />
+              <Text style={styles.noSlotsTitle}>No Slots Available</Text>
+              <Text style={styles.noSlotsText}>Please choose another date.</Text>
+            </View>
+          ) : timeSlots.length > 0 && timeSlots.every(s => s.booked) ? (
+            <View style={styles.noSlotsCard}>
+              <MCIcon name="clock-off-outline" size={28} color={colors.textMuted} />
+              <Text style={styles.noSlotsTitle}>All Slots Booked</Text>
+              <Text style={styles.noSlotsText}>All slots are booked for this date. Please choose another day.</Text>
+            </View>
+          ) : (
+            <View style={styles.timeGrid}>
+              {timeSlots.map(slot => (
+                <TouchableOpacity
+                  key={slot.id}
+                  style={[
+                    styles.timeSlot,
+                    slot.booked && styles.timeSlotBooked,
+                    !slot.booked && selectedTime?.id === slot.id && styles.timeSlotActive,
+                  ]}
+                  onPress={() => !slot.booked && setSelectedTime(slot)}
+                  activeOpacity={slot.booked ? 1 : 0.8}
+                  disabled={slot.booked}
+                >
+                  <Text style={[
+                    styles.timeSlotText,
+                    slot.booked && styles.timeSlotBookedText,
+                    !slot.booked && selectedTime?.id === slot.id && styles.timeSlotTextActive,
+                  ]}>
+                    {slot.time} - {slot.end_time}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </View>
 
         <View style={styles.section}>
@@ -439,6 +499,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
         subtitle="Choose the address for your home visit"
         confirmLabel="Close"
         onConfirm={() => setShowAddressPicker(false)}
+        showCancel={false}
         topSlot={(
           <TouchableOpacity
             style={styles.pickerAddBtn}
@@ -559,8 +620,16 @@ const makeStyles = colors => StyleSheet.create({
     borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, alignItems: 'center',
   },
   timeSlotActive:     { backgroundColor: colors.primary, borderColor: colors.primary },
+  timeSlotBooked:     { backgroundColor: colors.surfaceMuted, borderColor: colors.borderStrong, opacity: 0.45 },
   timeSlotText:       { fontSize: 12, fontWeight: '500', color: colors.textSecondary },
   timeSlotTextActive: { color: colors.white, fontWeight: '700' },
+  timeSlotBookedText:{ fontSize: 12, fontWeight: '500', color: colors.textMuted, textDecorationLine: 'line-through' },
+  noSlotsCard: {
+    alignItems: 'center', backgroundColor: colors.card, borderRadius: 14,
+    padding: 24, borderWidth: 1.5, borderColor: colors.border, gap: 8,
+  },
+  noSlotsTitle: { fontSize: 15, fontWeight: '700', color: colors.textMuted },
+  noSlotsText: { fontSize: 12, color: colors.textMuted, textAlign: 'center', lineHeight: 18 },
 
   descriptionInput: {
     backgroundColor: colors.card, borderRadius: 14, padding: 14,
@@ -593,8 +662,10 @@ const makeStyles = colors => StyleSheet.create({
 
   /* Address Picker Dialog */
   pickerAddBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingVertical: 12, paddingHorizontal: 4, marginBottom: 4,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    paddingVertical: 12, paddingHorizontal: 10, borderRadius: 12,
+    borderWidth: 1.5, borderColor: colors.primary + '55', borderStyle: 'dashed',
+    backgroundColor: colors.primaryFaint,
   },
   pickerAddBtnText: { fontSize: 14, fontWeight: '600', color: colors.primary },
   pickerEmptyText: { fontSize: 13, color: colors.textMuted, textAlign: 'center', paddingVertical: 20 },

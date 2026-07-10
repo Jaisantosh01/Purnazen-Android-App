@@ -8,7 +8,10 @@ falls back to the recalibrated classical-CV analyzers.
 
 Contract shared with ``backend/ml/`` (keep in sync):
   - Input  : 1×3×224×224 float32, RGB, aligned face crop, ImageNet-normalized.
-  - Output : 1×9 float32 in [0, 1] (sigmoid), in METRIC_ORDER, scaled ×100 here.
+  - Output : 1×8 float32 in [0, 1] (sigmoid), in METRIC_ORDER, scaled ×100 here.
+
+muscle_tone_score is not a model head (no dataset labels it) — the pipeline
+keeps the landmark-based CV analyzer for it.
 """
 import logging
 from pathlib import Path
@@ -17,7 +20,7 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-# Output head order — MUST match backend/ml/train.py.
+# Output head order — MUST match backend/ml/common.py.
 METRIC_ORDER = (
     "hydration_score",
     "oiliness_score",
@@ -26,7 +29,6 @@ METRIC_ORDER = (
     "dark_circle_score",
     "pore_score",
     "elasticity_score",
-    "muscle_tone_score",
     "inflammation_score",
 )
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, StatusBar, ActivityIndicator, Modal, TextInput, ScrollView, Pressable } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Modal, TextInput, ScrollView, Pressable } from 'react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
@@ -7,6 +7,7 @@ import { ENDPOINTS } from '../constants/apiEndpoints';
 import { ROLE_ICONS, WELLNESS_ICONS } from '../constants/icons';
 import { ListSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
+import ScreenHeader from '../components/ScreenHeader';
 import { showAlert } from '../utils/alert';
 
 const VideoManagementScreen = ({ navigation }) => {
@@ -184,14 +185,15 @@ const VideoManagementScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}><MCIcon name="arrow-left" size={24} color={colors.textPrimary} /></TouchableOpacity>
-        <Text style={styles.headerTitle}>Video Management</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={activeTab === 'sessions' ? openAddSessionModal : openAddGroupModal}>
-          <MCIcon name="plus" size={24} color={colors.white} />
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title="Video Management"
+        onBack={() => navigation.goBack()}
+        right={
+          <TouchableOpacity style={styles.addBtn} onPress={activeTab === 'sessions' ? openAddSessionModal : openAddGroupModal}>
+            <MCIcon name="plus" size={24} color={colors.headerText} />
+          </TouchableOpacity>
+        }
+      />
 
       {renderTabBar()}
 
@@ -362,15 +364,13 @@ const VideoManagementScreen = ({ navigation }) => {
 
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  header: { paddingTop: 56, padding: 20, backgroundColor: colors.card, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  headerTitle: { fontSize: 20, fontWeight: '800' },
   list: { padding: 16 },
   card: { backgroundColor: colors.card, padding: 16, borderRadius: 12, marginBottom: 12, flexDirection: 'row', alignItems: 'center', elevation: 2 },
   iconContainer: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center', marginRight: 15 },
   cardContent: { flex: 1 },
   groupTitle: { fontSize: 16, fontWeight: '700' },
   groupDescription: { color: colors.textSecondary, marginTop: 4 },
-  addBtn: { backgroundColor: colors.primary, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  addBtn: { backgroundColor: 'rgba(255,255,255,0.2)', width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   rowBack: { flexDirection: 'row', justifyContent: 'space-between', flex: 1, alignItems: 'center', marginBottom: 12, borderRadius: 12, overflow: 'hidden' },
   backBtn: { width: 75, height: '100%', justifyContent: 'center', alignItems: 'center' },
   editBack: { backgroundColor: colors.primary },

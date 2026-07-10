@@ -54,10 +54,16 @@ class Settings(BaseSettings):
     # How many recent versions to keep active per app (older ones are deactivated).
     RELEASE_KEEP_VERSIONS: int = 4
 
-    # Social auth — Google client ID for ID token verification (Sprint 5)
-    GOOGLE_CLIENT_ID: str = ""
-    # Apple app bundle ID for Sign In with Apple identity token verification (Sprint 5)
-    APPLE_APP_ID: str = ""
+    # Google Calendar / Meet integration — base64-encoded service account JSON key.
+    # When empty, video-consultation bookings skip Meet link creation.
+    GOOGLE_SERVICE_ACCOUNT_JSON: str = ""
+
+    # Firebase — base64-encoded service account JSON key for the Firebase
+    # project. Powers BOTH device push (FCM) and social sign-in token
+    # verification. When empty, push is skipped and social login is disabled.
+    FIREBASE_SERVICE_ACCOUNT_JSON: str = ""
+    # Optional override; normally derived from the service account JSON above.
+    FIREBASE_PROJECT_ID: str = ""
 
     # Scan upload limits
     SCAN_MAX_FILE_SIZE_MB: int = 15

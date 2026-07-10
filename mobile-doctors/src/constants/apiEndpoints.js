@@ -13,6 +13,10 @@ export { BASE_URL };
 export const ENDPOINTS = {
   // Auth (shared with patients; doctors log in with their own accounts)
   LOGIN: `${API_VERSION}/auth/login`,
+  SOCIAL_LOGIN: `${API_VERSION}/auth/social`,
+  SOCIAL_LINK: `${API_VERSION}/auth/social/link`,
+  SOCIAL_UNLINK: `${API_VERSION}/auth/social/unlink`,
+  CHANGE_EMAIL: `${API_VERSION}/auth/change-email`,
   LOGOUT: `${API_VERSION}/auth/logout`,
   REFRESH: `${API_VERSION}/auth/refresh`,
   ME: `${API_VERSION}/auth/me`,
@@ -26,6 +30,13 @@ export const ENDPOINTS = {
   // User preferences (user-scoped; the shared route serves any authenticated role)
   PREFERENCES: `${API_VERSION}/users/me/preferences`,
 
+  // Notifications
+  NOTIFICATIONS: `${API_VERSION}/notifications`,
+  NOTIFICATIONS_READ_ALL: `${API_VERSION}/notifications/read-all`,
+  NOTIFICATION_READ: id => `${API_VERSION}/notifications/${id}/read`,
+  DEVICE_TOKENS: `${API_VERSION}/notifications/device-tokens`,
+  DEVICE_TOKENS_REMOVE: `${API_VERSION}/notifications/device-tokens/remove`,
+
   // Doctor directory / profile
   DOCTORS: `${API_VERSION}/doctors`,
   DOCTOR_DETAIL: id => `${API_VERSION}/doctors/${id}`,
@@ -34,6 +45,12 @@ export const ENDPOINTS = {
   AVAILABILITY: `${API_VERSION}/doctor-availability`,
   AVAILABILITY_ITEM: id => `${API_VERSION}/doctor-availability/${id}`,
   SLOT_TIMINGS: `${API_VERSION}/slot-timings`,
+
+  // Self-service leave requests
+  LEAVE_REQUEST: `${API_VERSION}/doctor-leaves`,
+  LEAVE_HISTORY: `${API_VERSION}/doctor-leaves`,
+  LEAVE_ITEM: id => `${API_VERSION}/doctor-leaves/${id}`,
+  LEAVE_CANCEL: id => `${API_VERSION}/doctor-leaves/${id}`,
 
   // Appointments (backend: appointments.py)
   // NOTE: backend currently exposes booking from the patient side; a

@@ -15,6 +15,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import MetricScoreRow from '../components/scan/MetricScoreRow';
 import RecommendationCard from '../components/scan/RecommendationCard';
 import useTheme from '../hooks/useTheme';
+import { useHeaderTopPadding } from '../components/ScreenHeader';
 
 const METRIC_LABELS = {
   hydrationScore: 'Hydration',
@@ -24,7 +25,6 @@ const METRIC_LABELS = {
   darkCircleScore: 'Dark circles',
   poreScore: 'Pores',
   elasticityScore: 'Elasticity',
-  muscleToneScore: 'Muscle tone',
   inflammationScore: 'Inflammation',
   toxinIndicator: 'Toxin indicator',
 };
@@ -54,7 +54,6 @@ const FACE_METRIC_KEYS = [
   'darkCircleScore',
   'poreScore',
   'elasticityScore',
-  'muscleToneScore',
   'inflammationScore',
   'toxinIndicator',
 ];
@@ -67,6 +66,7 @@ function glowColor(score) {
 }
 
 const ScanResultsScreen = ({ navigation, route }) => {
+  const headerTop = useHeaderTopPadding();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { scan, imageUri } = route.params;
@@ -108,7 +108,7 @@ const ScanResultsScreen = ({ navigation, route }) => {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
 
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: headerTop }]}>
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
             <MCIcon name="arrow-left" size={22} color={colors.white} />
           </TouchableOpacity>
@@ -276,7 +276,6 @@ const makeStyles = colors => StyleSheet.create({
   },
   header: {
     backgroundColor: '#C850C0',
-    paddingTop: 52,
     paddingBottom: 24,
     paddingHorizontal: 20,
     flexDirection: 'row',

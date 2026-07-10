@@ -12,6 +12,7 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import scanService from '../services/scanService';
 import useTheme from '../hooks/useTheme';
+import { useHeaderTopPadding } from '../components/ScreenHeader';
 
 // metricKey → { label, higherIsBetter }
 const METRICS = {
@@ -19,7 +20,6 @@ const METRICS = {
   overallWellnessScore: { label: 'Wellness', higher: true },
   hydrationScore:       { label: 'Hydration', higher: true },
   elasticityScore:      { label: 'Elasticity', higher: true },
-  muscleToneScore:      { label: 'Muscle tone', higher: true },
   oilinessScore:        { label: 'Oiliness', higher: false },
   wrinkleScore:         { label: 'Fine lines', higher: false },
   pigmentationScore:    { label: 'Pigmentation', higher: false },
@@ -35,6 +35,7 @@ function fmtDate(iso) {
 }
 
 const ScanComparisonScreen = ({ navigation, route }) => {
+  const headerTop = useHeaderTopPadding();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { scanId } = route.params;
@@ -81,7 +82,7 @@ const ScanComparisonScreen = ({ navigation, route }) => {
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor="#C850C0" />
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: headerTop }]}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
           <MCIcon name="arrow-left" size={22} color={colors.white} />
         </TouchableOpacity>
@@ -118,7 +119,7 @@ const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   header: {
     backgroundColor: '#C850C0',
-    paddingTop: 52, paddingBottom: 20, paddingHorizontal: 20,
+    paddingBottom: 20, paddingHorizontal: 20,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     borderBottomLeftRadius: 28, borderBottomRightRadius: 28,
   },

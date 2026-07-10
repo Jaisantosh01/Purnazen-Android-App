@@ -5,6 +5,18 @@ Trains the multi-head CNN that scores face scans. The FastAPI backend runs the
 **train and export** it. Everything here runs *offline / on Colab* — it is not
 imported by the running server (the server only needs `onnxruntime`).
 
+> **Recommended path: `train_skin_model.ipynb`** — a self-contained notebook that
+> downloads the datasets, fuzzy-maps the label columns, crops faces, trains an
+> EfficientNet-B0 with masked multi-head loss + EMA, evaluates per-head
+> MAE/correlation, and exports the parity-checked ONNX straight to
+> `app/ai/models/skin_model.onnx`. The CLI scripts below remain as the scripted
+> alternative.
+
+> **Metric heads are now 8, not 9:** `muscle_tone_score` was removed from the
+> model (no public dataset labels facial muscle tone, so it can't be trained or
+> validated). The backend keeps its landmark-based CV estimate internally and the
+> app no longer displays it.
+
 > **Why this exists:** the original 9 analyzers were uncalibrated heuristics
 > (e.g. oily skin scored *low* oiliness). A model trained on labeled data and
 > validated on a held-out test set replaces them once it demonstrably beats the
@@ -32,11 +44,11 @@ pip install -r requirements-train.txt      # for CUDA, install torch from pytorc
 ### Primary dataset — Kaggle "Facial Skin Analysis & Type Classification" (killa92)
 
 This is the dataset `common.DEFAULT_COLUMN_MAP` is already wired for. It
-provides 0–5 severity labels for **6 of our 9 metric heads**: oiliness, pores,
-wrinkles, pigmentation, acne (inflammation proxy), and dark circles. The
-remaining 3 (`hydration_score`, `elasticity_score`, `muscle_tone_score`) will
-be masked out of the loss and continue using the CV analyzer until a dataset
-labels them.
+provides 0–5 severity labels covering **all 8 metric heads**: oiliness, pores,
+wrinkles, pigmentation, acne (inflammation proxy), dark circles, dehydration
+(inverted → hydration) and skin elasticity (inverted). Any head whose column is
+missing from your copy is masked out of the loss and falls back to the CV
+analyzer.
 
 ```
 https://www.kaggle.com/datasets/killa92/facial-skin-analysis-and-type-classification
@@ -143,6 +155,6 @@ the pipeline switches `scoring_method` from `"cv"` to `"model"`.
 ## Contract (keep in sync with `app/ai/skin_model.py`)
 
 - Input `1×3×224×224` float32, RGB, aligned face crop, ImageNet-normalized.
-- Output `1×9` float32 in `[0,1]`, in `common.METRIC_ORDER`.
+- Output `1×8` float32 in `[0,1]`, in `common.METRIC_ORDER`.
 - `export_onnx.py` bakes the final `sigmoid` into the graph; the backend does
   **not** re-apply it.

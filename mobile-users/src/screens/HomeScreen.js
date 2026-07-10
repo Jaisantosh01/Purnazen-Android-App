@@ -16,17 +16,30 @@ import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import wellnessService from '../services/wellnessService';
 import useTheme from '../hooks/useTheme';
+import notificationsService from '../services/notificationsService';
+import { useHeaderTopPadding } from '../components/ScreenHeader';
 
 const HOME_WELLNESS_ROWS = 3; 
 const HOME_QUICK_RELIEF_LIMIT = 3; 
 
 const HomeScreen = ({ navigation }) => {
+  const headerTop = useHeaderTopPadding(16);
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [quickRelief, setQuickRelief] = useState([]);
   const [wellness, setWellness] = useState([]);
   const [reliefLoading, setReliefLoading] = useState(true);
   const [wellnessLoading, setWellnessLoading] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Refresh the bell badge whenever Home regains focus
+  useEffect(() => {
+    const refreshBadge = () =>
+      notificationsService.unreadCount().then(setUnreadCount).catch(() => {});
+    refreshBadge();
+    const unsubscribe = navigation.addListener('focus', refreshBadge);
+    return unsubscribe;
+  }, [navigation]);
 
   useEffect(() => {
     apiClient
@@ -63,9 +76,27 @@ const HomeScreen = ({ navigation }) => {
         contentContainerStyle={{ paddingBottom: 24 }}
       >
         {/* ── Header ── */}
-        <View style={styles.header}>
-          <Text style={styles.title}>{STRINGS.HOME_TITLE}</Text>
-          <Text style={styles.subtitle}>{STRINGS.HOME_SUBTITLE}</Text>
+        <View style={[styles.header, { paddingTop: headerTop }]}>
+          <View style={styles.headerRow}>
+            <View style={styles.headerTextCol}>
+              <Text style={styles.title}>{STRINGS.HOME_TITLE}</Text>
+              <Text style={styles.subtitle}>{STRINGS.HOME_SUBTITLE}</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.bellBtn}
+              onPress={() => navigation.navigate('NotificationCenter')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <MCIcon name="bell-outline" size={24} color="#fff" />
+              {unreadCount > 0 && (
+                <View style={styles.bellBadge}>
+                  <Text style={styles.bellBadgeText}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* ── Quick Relief ── */}
@@ -177,27 +208,27 @@ const HomeScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
-        {/* ── Book a Consultation ── */}
-        <TouchableOpacity
-          style={styles.consultBanner}
-          activeOpacity={0.88}
-          onPress={() => navigation.navigate('ConsultTab')}
-        >
-          <View style={styles.consultLeft}>
-            <View style={styles.consultIconCircle}>
-              <MCIcon name="calendar-month-outline" size={20} color={colors.white} />
-            </View>
-            <View>
-              <Text style={styles.consultTitle}>{STRINGS.CONSULT_TITLE}</Text>
-              <Text style={styles.consultSub}>{STRINGS.CONSULT_SUB}</Text>
-            </View>
-          </View>
-          <View style={styles.consultArrowCircle}>
-            <MCIcon name="arrow-right" size={18} color={colors.white} />
-          </View>
-        </TouchableOpacity>
-
       </ScrollView>
+
+      {/* ── Book a Consultation — sticky above the tab bar ── */}
+      <TouchableOpacity
+        style={styles.consultBanner}
+        activeOpacity={0.88}
+        onPress={() => navigation.navigate('ConsultTab')}
+      >
+        <View style={styles.consultLeft}>
+          <View style={styles.consultIconCircle}>
+            <MCIcon name="calendar-month-outline" size={20} color={colors.white} />
+          </View>
+          <View>
+            <Text style={styles.consultTitle}>{STRINGS.CONSULT_TITLE}</Text>
+            <Text style={styles.consultSub}>{STRINGS.CONSULT_SUB}</Text>
+          </View>
+        </View>
+        <View style={styles.consultArrowCircle}>
+          <MCIcon name="arrow-right" size={18} color={colors.white} />
+        </View>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -216,12 +247,27 @@ const makeStyles = colors => StyleSheet.create({
   // Header
   header: {
     backgroundColor: colors.headerBg,
-    paddingTop: 56,
     paddingHorizontal: 20,
     paddingBottom: 28,
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
   },
+  headerRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  headerTextCol: { flex: 1 },
+  bellBtn: {
+    width: 42, height: 42, borderRadius: 21,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center', justifyContent: 'center',
+    marginTop: 2,
+  },
+  bellBadge: {
+    position: 'absolute', top: -4, right: -4,
+    minWidth: 18, height: 18, borderRadius: 9,
+    backgroundColor: '#EF4444',
+    alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  bellBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
   title: {
     fontSize: 26,
     color: colors.white,
@@ -353,17 +399,22 @@ const makeStyles = colors => StyleSheet.create({
     marginTop: 2,
   },
 
-  // Consult Banner
+  // Consult Banner — pinned footer, floats above the scroll content
   consultBanner: {
     backgroundColor: colors.primary,
     borderRadius: 18,
     marginHorizontal: 16,
-    marginTop: 24,
-    marginBottom: 8,
+    marginTop: 10,
+    marginBottom: 12,
     padding: 18,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    elevation: 6,
   },
   consultLeft: {
     flexDirection: 'row',

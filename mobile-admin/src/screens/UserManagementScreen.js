@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  StatusBar,
   TextInput,
   ScrollView,
   Modal,
@@ -78,13 +77,7 @@ const UserManagementScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>User Management</Text>
-        <TouchableOpacity style={styles.manageBtn} onPress={() => navigation.navigate('ManageRoles', { title: 'Roles', endpoint: ENDPOINTS.ROLES })}>
-            <MCIcon name="account-cog" size={24} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
+      {/* Header removed from here as it is now in UnifiedUserDoctorScreen */}
 
       {loading && filteredUsers.length === 0 ? (
         <View>
@@ -147,7 +140,11 @@ const UserManagementScreen = ({ navigation }) => {
         renderItem={({ item }) => {
           const roleData = roles.find(r => r.name.toLowerCase() === (item.role || '').toLowerCase());
           return (
-            <View style={styles.userCard}>
+            <TouchableOpacity
+              style={styles.userCard}
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate('EditUser', { user: item })}
+            >
               <View style={[styles.avatar, { backgroundColor: colors.primaryLight }]}>
                   <MCIcon name={roleData?.icon || 'account'} size={28} color={colors.primary} />
               </View>
@@ -179,7 +176,7 @@ const UserManagementScreen = ({ navigation }) => {
                   </View>
                 </TouchableOpacity>
               </Modal>
-            </View>
+            </TouchableOpacity>
           );
         }}
         contentContainerStyle={styles.listContainer}
@@ -194,7 +191,7 @@ const UserManagementScreen = ({ navigation }) => {
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   header: { 
-    paddingTop: 56, 
+    paddingTop: 12, 
     paddingHorizontal: 12, 
     paddingBottom: 16, 
     backgroundColor: colors.card, 

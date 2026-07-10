@@ -13,6 +13,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAuthStore } from '../store/authStore';
 import appointmentService from '../services/appointmentService';
+import notificationsService from '../services/notificationsService';
 import ScreenHeader from '../components/ScreenHeader';
 import { SPACING, RADIUS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
@@ -90,7 +91,12 @@ const DashboardScreen = ({ navigation }) => {
 
   // Refresh whenever the tab regains focus so status changes made on the
   // Appointments tab show here without a manual pull.
-  useFocusEffect(useCallback(() => { load(false); }, [load]));
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useFocusEffect(useCallback(() => {
+    load(false);
+    notificationsService.unreadCount().then(setUnreadCount).catch(() => {});
+  }, [load]));
 
   const onRefresh = () => { setRefreshing(true); load(false); };
 
@@ -110,13 +116,31 @@ const DashboardScreen = ({ navigation }) => {
 
   const openAppointment = item =>
     navigation.navigate('Appointments', {
-      screen: 'PatientDetails',
-      params: { userId: item.userId, appointment: item },
+      screen: 'AppointmentDetail',
+      params: { appointment: item },
     });
+
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title={`Hello, ${name}`} subtitle="Here's your day at a glance" />
+      <ScreenHeader
+        title={`Hello, ${name}`}
+        subtitle="Here's your day at a glance"
+        showBack={false}
+        right={
+          <TouchableOpacity
+            onPress={() => navigation.navigate('NotificationCenter')}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <MCIcon name="bell-outline" size={24} color={colors.white} />
+            {unreadCount > 0 && (
+              <View style={styles.bellBadge}>
+                <Text style={styles.bellBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        }
+      />
 
       {loading ? (
         <View style={styles.center}>
@@ -201,6 +225,14 @@ const DashboardScreen = ({ navigation }) => {
 export default DashboardScreen;
 
 const makeStyles = colors => StyleSheet.create({
+  bellBadge: {
+    position: 'absolute', top: -6, right: -6,
+    minWidth: 18, height: 18, borderRadius: 9,
+    backgroundColor: '#EF4444',
+    alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  bellBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
   root: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scroll: { padding: SPACING.lg, paddingBottom: 100 },

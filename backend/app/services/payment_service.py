@@ -5,6 +5,7 @@ from app.models.appointment import Appointment
 from app.models.user import User
 from app.repositories.payment_repository import PaymentRepository
 from app.schemas.payment import ProcessPaymentRequest, VerifyPaymentRequest
+from app.services.notification_service import NotificationService
 
 
 class PaymentService:
@@ -85,6 +86,13 @@ class PaymentService:
             if payment.appointment:
                 payment.appointment.payment_status = "unpaid"
             db.commit()
+            ref = payment.appointment.reference if payment.appointment else data.order_id
+            NotificationService.notify_safely(
+                db, user.id, category="payment", event="payment_failed",
+                title="Payment failed",
+                body=f"Your payment for {ref} could not be verified. Please try again.",
+                data={"orderId": data.order_id},
+            )
             return {
                 "success": False,
                 "message": "Payment verification failed",
@@ -96,6 +104,27 @@ class PaymentService:
             payment.appointment.payment_status = "paid"
         db.commit()
         db.refresh(payment)
+
+        appointment = payment.appointment
+        ref = appointment.reference if appointment else data.order_id
+        amount = f"₹{payment.amount}" if payment.amount is not None else ""
+        NotificationService.notify_safely(
+            db, user.id, category="payment", event="payment_paid",
+            title="Payment successful",
+            body=f"Payment {amount} for {ref} was received successfully.".replace("  ", " "),
+            data={
+                "orderId": data.order_id,
+                **({"appointmentId": str(appointment.id)} if appointment else {}),
+            },
+        )
+        # The doctor also learns the consultation is now paid for
+        if appointment and appointment.doctor:
+            NotificationService.notify_safely(
+                db, appointment.doctor.user_id, category="payment", event="payment_paid",
+                title="Consultation paid",
+                body=f"{appointment.user.full_name or 'The patient'} paid {amount} for {ref}.".replace("  ", " "),
+                data={"appointmentId": str(appointment.id)},
+            )
 
         return {
             "success": True,

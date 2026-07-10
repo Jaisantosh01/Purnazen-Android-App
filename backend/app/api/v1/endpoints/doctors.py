@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, get_current_user, require_role
-from app.services.doctor_service import DoctorService
+from app.services.doctor_service import DoctorService, VISIT_TYPE_ORDER
 from app.utils.responses import error_response, success_response
 from app.models.user import User
 
@@ -16,9 +16,19 @@ router = APIRouter(tags=["Doctors"])
 
 def doctor_card(doctor):
     """Card shape shared by the list and detail endpoints (frontend contract)."""
+    base_fee = float(doctor.consultation_fee)
+    # Cheapest option across the doctor's consultation types (per-type price
+    # falls back to the base consultation fee) — drives "Starts at ₹X" cards.
+    type_fees = [
+        float(link.price) if link.price else base_fee
+        for link in doctor.consultation_type_links
+    ]
     return {
         "id": str(doctor.id),
         "name": f"Dr. {doctor.user.full_name}",
+        "full_name": doctor.user.full_name,
+        "email": doctor.user.email,
+        "phone": doctor.user.phone,
         "specialties": [mapping.specialty.name for mapping in doctor.speciality_mappings],
         "specialty_ids": [mapping.speciality_id for mapping in doctor.speciality_mappings],
         # Image URL when set, else null — the app falls back to the doctor's
@@ -28,8 +38,12 @@ def doctor_card(doctor):
         "reviews": doctor.reviews_count,
         "experience": doctor.experience_years,
         "location": "",
-        "tags": [link.consultation_type.name for link in doctor.consultation_type_links],
-        "fee": float(doctor.consultation_fee),
+        "tags": sorted(
+            [link.consultation_type.name for link in doctor.consultation_type_links],
+            key=lambda name: VISIT_TYPE_ORDER.get(name, 9),
+        ),
+        "fee": base_fee,
+        "minFee": min(type_fees) if type_fees else base_fee,
         "availability": (
             "Available today" if doctor.is_available_today else "Not Available"
         ),
@@ -63,6 +77,7 @@ def doctor_card(doctor):
             }
             for clinic in doctor.clinics
         ],
+        "is_active": doctor.is_active,
     }
 
 
@@ -213,6 +228,23 @@ def update_doctor(
     if not updated_doctor:
         return error_response("Doctor not found", 404)
     return success_response("Doctor updated successfully", doctor_card(updated_doctor))
+
+
+@router.delete(
+    "/doctors/{doctor_id}",
+    summary="Deactivate a doctor",
+    description="Sets is_active=False on both the doctor and the linked user.",
+    dependencies=[Depends(require_role("admin"))],
+)
+def delete_doctor(
+    doctor_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not DoctorService.deactivate(db, doctor_id):
+        return error_response("Doctor not found", 404)
+
+    return success_response("Doctor deactivated successfully")
 
 
 @router.get(

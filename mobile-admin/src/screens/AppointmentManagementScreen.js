@@ -5,16 +5,18 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  StatusBar,
   Modal,
   ScrollView,
   TextInput,
+  Linking,
+  Platform,
 } from 'react-native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { ListSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
+import ScreenHeader from '../components/ScreenHeader';
 import { showAlert } from '../utils/alert';
 
 const STATUS_OPTIONS = ['pending', 'booked', 'completed', 'cancelled'];
@@ -26,6 +28,30 @@ const STATUS_COLORS = {
 };
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+const formatAddress = (addr) => {
+  if (!addr) return '';
+  const parts = [addr.area, addr.city, addr.state, addr.pincode].filter(Boolean);
+  return addr.houseName ? `${addr.houseName}, ${parts.join(', ')}` : parts.join(', ');
+};
+
+const openMap = (label, lat, lng) => {
+  if (lat && lng) {
+    const url = Platform.OS === 'ios'
+      ? `maps://maps.apple.com/?ll=${lat},${lng}&q=${encodeURIComponent(label)}`
+      : `geo:${lat},${lng}?q=${lat},${lng}(${encodeURIComponent(label)})`;
+    Linking.openURL(url).catch(() => {
+      Linking.openURL(`https://maps.google.com/?q=${lat},${lng}`);
+    });
+  } else {
+    const url = Platform.OS === 'ios'
+      ? `maps://maps.apple.com/?q=${encodeURIComponent(label)}`
+      : `geo:0,0?q=${encodeURIComponent(label)}`;
+    Linking.openURL(url).catch(() => {
+      Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(label)}`);
+    });
+  }
+};
 
 const CalendarPicker = ({ value, onSelect, onClose }) => {
   const { colors } = useTheme();
@@ -276,23 +302,24 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <Text style={styles.headerTitle}>Appointments</Text>
+      <ScreenHeader
+        title="Appointments"
+        subtitle="All bookings across doctors"
+        showBack={false}
+        right={
           <TouchableOpacity
             style={[styles.filterToggle, hasAppliedFilters && styles.filterToggleActive]}
             onPress={openFilterModal}
           >
-            <MCIcon name="filter-variant" size={20} color={hasAppliedFilters ? colors.white : colors.textSecondary} />
+            <MCIcon name="filter-variant" size={20} color={hasAppliedFilters ? colors.primary : colors.headerText} />
             {hasAppliedFilters && (
               <View style={styles.filterBadge}>
                 <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
               </View>
             )}
           </TouchableOpacity>
-        </View>
-      </View>
+        }
+      />
 
       <View style={styles.searchSection}>
         <View style={styles.searchRow}>
@@ -632,6 +659,50 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
                     </View>
                   </View>
 
+                  {selectedAppointment.consultationType?.toLowerCase().includes('clinic') && selectedAppointment.clinicName ? (
+                    <View style={styles.detailSection}>
+                      <Text style={styles.detailSectionTitle}>Clinic Address</Text>
+                      <TouchableOpacity
+                        style={styles.addressRow}
+                        onPress={() => openMap(
+                          selectedAppointment.clinicName + ', ' + (selectedAppointment.clinicAddress || ''),
+                          selectedAppointment.clinicLat,
+                          selectedAppointment.clinicLng,
+                        )}
+                        activeOpacity={0.7}
+                      >
+                        <MCIcon name="hospital-building" size={18} color={colors.primary} style={styles.detailIcon} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.detailValue}>{selectedAppointment.clinicName}</Text>
+                          <Text style={styles.addressText}>{selectedAppointment.clinicAddress}</Text>
+                        </View>
+                        <MCIcon name="map-marker-outline" size={20} color={colors.textMuted} />
+                      </TouchableOpacity>
+                    </View>
+                  ) : null}
+
+                  {selectedAppointment.consultationType?.toLowerCase().includes('home') && selectedAppointment.userAddress ? (
+                    <View style={styles.detailSection}>
+                      <Text style={styles.detailSectionTitle}>Home Address</Text>
+                      <TouchableOpacity
+                        style={styles.addressRow}
+                        onPress={() => openMap(
+                          formatAddress(selectedAppointment.userAddress),
+                          selectedAppointment.userAddress.lat,
+                          selectedAppointment.userAddress.lng,
+                        )}
+                        activeOpacity={0.7}
+                      >
+                        <MCIcon name="home-outline" size={18} color={colors.primary} style={styles.detailIcon} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.detailValue}>{selectedAppointment.userAddress.houseName || 'Home'}</Text>
+                          <Text style={styles.addressText}>{formatAddress(selectedAppointment.userAddress)}</Text>
+                        </View>
+                        <MCIcon name="map-marker-outline" size={20} color={colors.textMuted} />
+                      </TouchableOpacity>
+                    </View>
+                  ) : null}
+
                   {selectedAppointment.userDescription ? (
                     <View style={styles.detailSection}>
                       <Text style={styles.detailSectionTitle}>Patient Description</Text>
@@ -661,14 +732,11 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
 
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  header: { paddingTop: 56, padding: 20, backgroundColor: colors.card, paddingBottom: 4 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: colors.textPrimary },
-  filterToggle: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surfaceMuted, justifyContent: 'center', alignItems: 'center' },
-  filterToggleActive: { backgroundColor: colors.primary },
+  filterToggle: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
+  filterToggleActive: { backgroundColor: colors.white },
   filterBadge: { position: 'absolute', top: -4, right: -4, width: 18, height: 18, borderRadius: 9, backgroundColor: colors.danger, justifyContent: 'center', alignItems: 'center' },
   filterBadgeText: { color: colors.white, fontSize: 10, fontWeight: '800' },
-  searchSection: { backgroundColor: colors.card, paddingTop: 4, paddingBottom: 12 },
+  searchSection: { backgroundColor: colors.card, paddingTop: 10, paddingBottom: 12 },
   activeFilterChips: { paddingHorizontal: 16 },
   activeChip: { backgroundColor: colors.primaryLight, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginRight: 6 },
   activeChipText: { fontSize: 11, fontWeight: '600', color: colors.primary },
@@ -697,7 +765,7 @@ const makeStyles = colors => StyleSheet.create({
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 60 },
   emptyText: { marginTop: 12, fontSize: 15, color: colors.textMuted },
   filterModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  filterModalContainer: { backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%' },
+  filterModalContainer: { backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%', width: '100%', maxWidth: 640, alignSelf: 'center' },
   filterModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
   filterModalTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
   filterModalBody: { padding: 20 },
@@ -738,7 +806,7 @@ const makeStyles = colors => StyleSheet.create({
   applyActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, justifyContent: 'center', paddingVertical: 12, borderRadius: 10, backgroundColor: colors.primary },
   applyActionText: { fontSize: 14, fontWeight: '700', color: colors.white },
   calOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 30 },
-  calModal: { backgroundColor: colors.card, borderRadius: 16, padding: 20 },
+  calModal: { backgroundColor: colors.card, borderRadius: 16, padding: 20, width: '100%', maxWidth: 420, alignSelf: 'center' },
   calModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   calModalTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
   calendarContainer: {},
@@ -755,7 +823,7 @@ const makeStyles = colors => StyleSheet.create({
   calDayToday: { color: colors.primary, fontWeight: '700' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center' },
   modalScrollContent: { padding: 20, flexGrow: 1, justifyContent: 'center' },
-  modalCard: { backgroundColor: colors.card, borderRadius: 16, padding: 20 },
+  modalCard: { backgroundColor: colors.card, borderRadius: 16, padding: 20, width: '100%', maxWidth: 560, alignSelf: 'center' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   modalTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
   detailRefRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
@@ -770,6 +838,8 @@ const makeStyles = colors => StyleSheet.create({
   detailGridItem: { width: '46%' },
   detailLabel: { fontSize: 12, color: colors.textMuted, marginBottom: 2 },
   detailDesc: { fontSize: 14, color: colors.textSecondary, lineHeight: 20, marginTop: 4, backgroundColor: colors.surfaceMuted, padding: 10, borderRadius: 8 },
+  addressRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 4, borderRadius: 8, backgroundColor: colors.surfaceMuted },
+  addressText: { fontSize: 13, color: colors.textSecondary, marginTop: 2, lineHeight: 18 },
   closeBtn: { backgroundColor: colors.primary, padding: 14, borderRadius: 10, alignItems: 'center', marginTop: 8 },
   closeBtnText: { color: colors.white, fontWeight: '700', fontSize: 15 },
 });

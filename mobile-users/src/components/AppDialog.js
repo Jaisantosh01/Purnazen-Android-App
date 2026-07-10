@@ -55,6 +55,7 @@ export default function AppDialog({
   confirmDisabled = false,
   destructive = false,
   dismissOnBackdrop = true,
+  showCancel = true,
 }) {
   const { colors } = useTheme();
   const styles = makeStyles(colors);
@@ -88,7 +89,7 @@ export default function AppDialog({
             {title ? <Text style={styles.title}>{title}</Text> : null}
             {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
 
-            {topSlot ? <View style={{ paddingHorizontal: 8 }}>{topSlot}</View> : null}
+            {topSlot ? <View style={styles.topSlot}>{topSlot}</View> : null}
 
             {children ? (
               <ScrollView
@@ -101,7 +102,7 @@ export default function AppDialog({
             ) : null}
 
             <View style={styles.actions}>
-              {onClose ? (
+              {onClose && showCancel ? (
                 <TouchableOpacity
                   style={[styles.btn, styles.btnCancel]}
                   onPress={onClose}
@@ -181,6 +182,7 @@ const makeStyles = colors => StyleSheet.create({
     marginTop: 6,
     lineHeight: 19,
   },
+  topSlot: { marginTop: 16 },
   body: { marginTop: 18 },
   actions: {
     flexDirection: 'row',

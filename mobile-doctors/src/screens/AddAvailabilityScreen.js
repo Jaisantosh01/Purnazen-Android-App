@@ -54,15 +54,13 @@ const AddAvailabilityScreen = ({ route, navigation }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [allSlotsByDay, setAllSlotsByDay] = useState([]);
-  const [selectedSlots, setSelectedSlots] = useState([]); // Array of slot_timing_id
-  const [existingAvailabilities, setExistingAvailabilities] = useState([]); // All doctor availabilities
+  const [selectedSlots, setSelectedSlots] = useState([]);
+  const [existingAvailabilities, setExistingAvailabilities] = useState([]);
 
-  // 1. Resolve Doctor ID and Fetch Data
   useEffect(() => {
     const init = async () => {
       setLoading(true);
       try {
-        // Fetch all doctors and match currentUser
         const doctors = await availabilityService.getDoctors();
         const matchedDoctor = doctors.find(d => {
           const cleanD = cleanName(d.name);
@@ -71,28 +69,29 @@ const AddAvailabilityScreen = ({ route, navigation }) => {
         });
 
         if (!matchedDoctor) {
-          showError('Doctor profile not found.');
-          navigation.goBack();
+          showError("Doctor profile not found.");
           return;
         }
+
         setDoctorId(matchedDoctor.id);
 
-        // Fetch all slot timings grouped by day
         const slotData = await availabilityService.getSlots();
         setAllSlotsByDay(slotData);
 
-        // Fetch current availabilities to prevent duplicates / identify active
         const availList = await availabilityService.list();
-        const docAvails = availList.filter(a => a.doctor_id === matchedDoctor.id && a.is_active !== false);
+        const docAvails = availList.filter(
+          a =>
+            a.doctor_id === matchedDoctor.id &&
+            a.is_active !== false
+        );
         setExistingAvailabilities(docAvails);
 
-        // If editing a single slot, pre-select the timing
-        if (mode === 'edit' && currentSlotTimingId) {
+        if (mode === "edit" && currentSlotTimingId) {
           setSelectedSlots([currentSlotTimingId]);
         }
       } catch (err) {
-        console.warn('[AddAvailability] Initialization error:', err);
-        showError('Failed to load availability options.');
+        console.warn('[AddAvailability] init error:', err);
+        showError("Failed to load availability options.");
       } finally {
         setLoading(false);
       }
@@ -101,16 +100,13 @@ const AddAvailabilityScreen = ({ route, navigation }) => {
     init();
   }, [currentUser, currentSlotTimingId, mode, navigation]);
 
-  // Find slot timings for selected day
   const daySlotsData = allSlotsByDay.find(
     item => item.day.toLowerCase() === selectedDay.toLowerCase()
   );
   const availableSlots = daySlotsData ? [...daySlotsData.slots].sort((a, b) => a.start_time.localeCompare(b.start_time)) : [];
 
-  // Identify slot IDs that are already active for this doctor on the selected day (excluding currentSlotTimingId if editing)
   const activeSlotIdsOnDay = existingAvailabilities
     .filter(a => {
-      // Find the slot timing to see if it's on the selectedDay
       const stId = a.slot_timing_id;
       const isSameDay = allSlotsByDay.some(
         dGroup => dGroup.day.toLowerCase() === selectedDay.toLowerCase() &&
@@ -123,18 +119,14 @@ const AddAvailabilityScreen = ({ route, navigation }) => {
     })
     .map(a => a.slot_timing_id);
 
-  // Toggle slot selection
   const handleToggleSlot = (slotId) => {
     if (activeSlotIdsOnDay.includes(slotId)) {
-      // Already active, prevent duplicate add
       return;
     }
 
     if (mode === 'edit') {
-      // In edit mode, only one slot can be selected
       setSelectedSlots([slotId]);
     } else {
-      // In create mode, toggle multi-select
       if (selectedSlots.includes(slotId)) {
         setSelectedSlots(selectedSlots.filter(id => id !== slotId));
       } else {
@@ -157,12 +149,10 @@ const AddAvailabilityScreen = ({ route, navigation }) => {
     setSaving(true);
     try {
       if (mode === 'edit') {
-        // Edit mode: update existing DoctorAvailability record
         const slotTimingId = selectedSlots[0];
         await availabilityService.update(availabilityId, { slot_timing_id: slotTimingId });
         showSuccess('Availability updated successfully.');
       } else {
-        // Create mode: batch create availability records
         const promises = selectedSlots.map(slotTimingId =>
           availabilityService.create({
             doctor_id: doctorId,
@@ -181,49 +171,6 @@ const AddAvailabilityScreen = ({ route, navigation }) => {
     }
   };
 
-  const renderDaySelector = () => {
-    if (mode === 'edit') {
-      return (
-        <View style={styles.readOnlyDayWrap}>
-          <Text style={styles.readOnlyDayLabel}>Day of Week</Text>
-          <View style={styles.readOnlyDayPill}>
-            <Text style={styles.readOnlyDayText}>{selectedDay.toUpperCase()}</Text>
-          </View>
-        </View>
-      );
-    }
-
-    return (
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Select Day</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.dayScroll}
-        >
-          {DAYS.map(day => {
-            const isSelected = selectedDay.toLowerCase() === day.label.toLowerCase();
-            return (
-              <TouchableOpacity
-                key={day.label}
-                style={[styles.dayPill, isSelected && styles.dayPillActive]}
-                activeOpacity={0.8}
-                onPress={() => {
-                  setSelectedDay(day.label);
-                  setSelectedSlots([]); // Reset selected slots when changing day
-                }}
-              >
-                <Text style={[styles.dayPillText, isSelected && styles.dayPillTextActive]}>
-                  {day.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
-    );
-  };
-
   return (
     <View style={styles.root}>
       <ScreenHeader
@@ -237,11 +184,11 @@ const AddAvailabilityScreen = ({ route, navigation }) => {
         </View>
       ) : (
         <View style={styles.content}>
-          {renderDaySelector()}
+          <View style={styles.staticDayContainer}>
+            <Text style={styles.staticDayText}>{selectedDay}</Text>
+          </View>
 
-          <Text style={styles.sectionTitle}>
-            {mode === 'edit' ? 'Choose Slot Timing' : 'Select Slots'}
-          </Text>
+          <Text style={styles.sectionTitle}>Available Slot Timings</Text>
 
           {availableSlots.length === 0 ? (
             <View style={styles.emptyWrap}>
@@ -377,32 +324,22 @@ const makeStyles = colors => StyleSheet.create({
   dayPillTextActive: {
     color: colors.white,
   },
-  readOnlyDayWrap: {
-    backgroundColor: colors.card,
+  staticDayContainer: {
+    backgroundColor: '#EEF4FF',
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
     borderRadius: RADIUS.md,
-    padding: SPACING.md,
+    marginBottom: SPACING.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: SPACING.lg,
   },
-  readOnlyDayLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    marginBottom: SPACING.xs,
-  },
-  readOnlyDayPill: {
-    backgroundColor: colors.primaryFaint,
-    alignSelf: 'flex-start',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 6,
-    borderRadius: RADIUS.sm,
-  },
-  readOnlyDayText: {
-    fontSize: 14,
+  staticDayText: {
+    fontSize: 18,
     fontWeight: '800',
     color: colors.primary,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   slotsScroll: { flexGrow: 1, paddingBottom: SPACING.xl },
   slotsGrid: { gap: SPACING.md },

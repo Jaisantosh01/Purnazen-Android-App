@@ -1,0 +1,105 @@
+{
+  "project_info": {
+    "project_number": "735469806084",
+    "project_id": "purnazen-de70c",
+    "storage_bucket": "purnazen-de70c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:735469806084:android:0d8ce2ffdc5efc59030b51",
+        "android_client_info": {
+          "package_name": "com.purnazen"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "735469806084-rl2p8hat8lh11b5ojk8o15o7ke7v9afn.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.purnazen",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "735469806084-7j5or26eg9n0sclcphpvi6sie0r02a0b.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBiWKt8RD5jLVzLxyOdy64JInAZH2ls4Sk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "735469806084-7j5or26eg9n0sclcphpvi6sie0r02a0b.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:735469806084:android:af661527f7d91d19030b51",
+        "android_client_info": {
+          "package_name": "com.purnazen.admin"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "735469806084-7j5or26eg9n0sclcphpvi6sie0r02a0b.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBiWKt8RD5jLVzLxyOdy64JInAZH2ls4Sk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "735469806084-7j5or26eg9n0sclcphpvi6sie0r02a0b.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:735469806084:android:0d46cfc973d4d6cc030b51",
+        "android_client_info": {
+          "package_name": "com.purnazen.doctor"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "735469806084-7j5or26eg9n0sclcphpvi6sie0r02a0b.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBiWKt8RD5jLVzLxyOdy64JInAZH2ls4Sk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "735469806084-7j5or26eg9n0sclcphpvi6sie0r02a0b.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

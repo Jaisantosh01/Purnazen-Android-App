@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  StatusBar,
   TextInput,
   Modal,
   ScrollView,
@@ -16,6 +15,7 @@ import apiClient from '../api/client';
 import { ROLE_ICONS } from '../constants/icons';
 import { ListSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
+import ScreenHeader from '../components/ScreenHeader';
 import { showAlert } from '../utils/alert';
 
 const MetadataManagementScreen = ({ route, navigation }) => {
@@ -101,12 +101,16 @@ const MetadataManagementScreen = ({ route, navigation }) => {
   };
 
   const renderItem = ({ item }) => (
-    <View style={styles.itemCard}>
+    <TouchableOpacity
+      style={styles.itemCard}
+      activeOpacity={0.8}
+      onPress={() => startEdit(item)}
+    >
       <View style={{flexDirection: 'row', alignItems: 'center'}}>
         {isRole && item.icon && <MCIcon name={item.icon} size={20} color={colors.primary} style={{marginRight: 10}} />}
         <Text style={styles.itemName}>{item.name}</Text>
       </View>
-      <TouchableOpacity onPress={() => setMenuVisible(menuVisible === item.id ? null : item.id)}>
+      <TouchableOpacity onPress={() => setMenuVisible(menuVisible === item.id ? null : item.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
         <MCIcon name="dots-vertical" size={24} color={colors.textMuted} />
       </TouchableOpacity>
       
@@ -122,21 +126,20 @@ const MetadataManagementScreen = ({ route, navigation }) => {
           </TouchableOpacity>
         </View>
       )}
-    </View>
+    </TouchableOpacity>
   );
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <MCIcon name="arrow-left" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{title}</Text>
-        <TouchableOpacity onPress={openAddModal}>
-          <MCIcon name="plus" size={24} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title={title}
+        onBack={() => navigation.goBack()}
+        right={
+          <TouchableOpacity onPress={openAddModal}>
+            <MCIcon name="plus" size={24} color={colors.headerText} />
+          </TouchableOpacity>
+        }
+      />
 
       {loading && items.length === 0 ? (
         <ListSkeleton count={5} />
@@ -179,7 +182,7 @@ const MetadataManagementScreen = ({ route, navigation }) => {
                     </View>
                 )}
                 <View style={styles.modalButtons}>
-                    <TouchableOpacity style={[styles.btn, styles.cancelBtn]} onPress={() => setModalVisible(false)}><Text>Cancel</Text></TouchableOpacity>
+                    <TouchableOpacity style={[styles.btn, styles.cancelBtn]} onPress={() => setModalVisible(false)}><Text style={styles.cancelBtnText}>Cancel</Text></TouchableOpacity>
                     <TouchableOpacity style={[styles.btn, styles.saveBtn]} onPress={handleSave}><Text style={styles.saveBtnText}>Save</Text></TouchableOpacity>
                 </View>
             </View>
@@ -191,27 +194,26 @@ const MetadataManagementScreen = ({ route, navigation }) => {
 
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  header: { paddingTop: 56, paddingHorizontal: 20, paddingBottom: 16, backgroundColor: colors.card, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  headerTitle: { fontSize: 20, fontWeight: '800', color: colors.textPrimary },
   listContainer: { padding: 16 },
   itemCard: { backgroundColor: colors.card, padding: 16, borderRadius: 12, marginBottom: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', position: 'relative' },
-  itemName: { fontSize: 16, fontWeight: '600' },
+  itemName: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
   menu: { position: 'absolute', right: 40, top: 16, backgroundColor: colors.card, borderRadius: 8, padding: 8, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, zIndex: 10 },
   menuItem: { flexDirection: 'row', alignItems: 'center', padding: 8, gap: 8 },
-  menuItemText: { fontSize: 14, fontWeight: '500' },
+  menuItemText: { fontSize: 14, fontWeight: '500', color: colors.textPrimary },
   emptyText: { textAlign: 'center', marginTop: 20, color: colors.textMuted },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   modalContent: { backgroundColor: colors.card, borderRadius: 12, padding: 20 },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15 },
-  modalInput: { backgroundColor: colors.background, borderRadius: 8, paddingHorizontal: 12, height: 44, marginBottom: 15, borderWidth: 1, borderColor: colors.borderStrong },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, color: colors.textPrimary },
+  modalInput: { backgroundColor: colors.background, borderRadius: 8, paddingHorizontal: 12, height: 44, marginBottom: 15, borderWidth: 1, borderColor: colors.borderStrong, color: colors.textPrimary },
   iconPicker: { marginBottom: 15 },
-  label: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
+  label: { fontSize: 14, fontWeight: '600', marginBottom: 8, color: colors.textSecondary },
   iconOption: { padding: 10, borderRadius: 8, marginRight: 8, backgroundColor: colors.surfaceMuted },
   selectedIcon: { backgroundColor: colors.primaryLight, borderWidth: 1, borderColor: colors.primary },
   modalButtons: { flexDirection: 'row', gap: 10 },
   iconContainer: { flexDirection: 'row', flexWrap: 'wrap' },
   btn: { flex: 1, padding: 12, borderRadius: 8, alignItems: 'center' },
   cancelBtn: { backgroundColor: colors.surfaceMuted },
+  cancelBtnText: { color: colors.textSecondary, fontWeight: '600' },
   saveBtn: { backgroundColor: colors.primary },
   saveBtnText: { color: colors.white, fontWeight: 'bold' }
 });

@@ -9,7 +9,9 @@ import {
   RefreshControl,
   Modal,
   ScrollView,
+  Platform,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
@@ -35,6 +37,29 @@ const toApiDate = d => {
 };
 
 const todayApiDate = () => toApiDate(new Date());
+
+const isAppointmentOver = (dateStr, endTimeStr) => {
+  if (!dateStr) return false;
+  const [year, month, day] = dateStr.split('-').map(Number);
+  let hours = 0;
+  let minutes = 0;
+  if (endTimeStr) {
+    const match = endTimeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (match) {
+      hours = parseInt(match[1], 10);
+      minutes = parseInt(match[2], 10);
+      const ampm = match[3].toUpperCase();
+      if (ampm === 'PM' && hours < 12) {
+        hours += 12;
+      } else if (ampm === 'AM' && hours === 12) {
+        hours = 0;
+      }
+    }
+  }
+  const apptEnd = new Date(year, month - 1, day, hours, minutes);
+  const now = new Date();
+  return now >= apptEnd;
+};
 
 // Build an array of Date objects for the horizontal date picker (today ± 6 days)
 const buildDateRange = () => {
@@ -109,6 +134,9 @@ const AppointmentCard = ({ item, onAccept, onComplete, onCancel, onPress }) => {
       <View style={styles.cardTimeCol}>
         <Text style={styles.cardTime}>{item.time || '—'}</Text>
         <View style={[styles.timeLine, { backgroundColor: STATUS_CONFIG[item.status]?.dot ?? colors.primary }]} />
+        {item.endTime ? (
+          <Text style={styles.cardTime}>{item.endTime}</Text>
+        ) : null}
       </View>
 
       {/* Main Content */}
@@ -145,36 +173,50 @@ const AppointmentCard = ({ item, onAccept, onComplete, onCancel, onPress }) => {
             {isPending ? (
               <>
                 <TouchableOpacity
+                  style={[styles.actionBtn, styles.cancelBtn]}
+                  activeOpacity={0.85}
+                  onPress={() => onCancel(item)}>
+                  <MCIcon name="close-circle-outline" size={15} color={colors.danger} />
+                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
                   style={[styles.actionBtn, styles.acceptBtn]}
                   activeOpacity={0.85}
                   onPress={() => onAccept(item)}>
                   <MCIcon name="check-circle-outline" size={15} color={colors.white} />
                   <Text style={styles.acceptBtnText}>Accept</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.actionBtn, styles.cancelBtn]}
-                  activeOpacity={0.85}
-                  onPress={() => onCancel(item)}>
-                  <MCIcon name="close-circle-outline" size={15} color={colors.danger} />
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
-                </TouchableOpacity>
               </>
             ) : (
               <>
                 <TouchableOpacity
-                  style={[styles.actionBtn, styles.completeBtn]}
-                  activeOpacity={0.85}
-                  onPress={() => onComplete(item)}>
-                  <MCIcon name="checkbox-marked-circle-outline" size={15} color={colors.white} />
-                  <Text style={styles.completeBtnText}>Complete</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
                   style={[styles.actionBtn, styles.cancelBtn]}
                   activeOpacity={0.85}
                   onPress={() => onCancel(item)}>
                   <MCIcon name="close-circle-outline" size={15} color={colors.danger} />
                   <Text style={styles.cancelBtnText}>Cancel</Text>
                 </TouchableOpacity>
+                {(() => {
+                  const apptOver = isAppointmentOver(item.date, item.endTime || item.time);
+                  return (
+                    <TouchableOpacity
+                      style={[
+                        styles.actionBtn,
+                        styles.completeBtn,
+                        !apptOver && { backgroundColor: '#E5E7EB', borderColor: '#E5E7EB' }
+                      ]}
+                      disabled={!apptOver}
+                      activeOpacity={0.85}
+                      onPress={() => onComplete(item)}>
+                      <MCIcon
+                        name="checkbox-marked-circle-outline"
+                        size={15}
+                        color={apptOver ? colors.white : '#9CA3AF'}
+                      />
+                      <Text style={[styles.completeBtnText, !apptOver && { color: '#9CA3AF' }]}>Complete</Text>
+                    </TouchableOpacity>
+                  );
+                })()}
               </>
             )}
           </View>
@@ -260,6 +302,67 @@ const AppointmentsScreen = ({ navigation }) => {
   const [selectedTime, setSelectedTime] = useState('all');
   const [showStatusFilter, setShowStatusFilter] = useState(false);
 
+  // Calendar states
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const today = useRef(new Date()).current;
+  const [currentMonth, setCurrentMonth] = useState(today.getMonth());
+  const [currentYear, setCurrentYear] = useState(today.getFullYear());
+  const [allAppointmentDates, setAllAppointmentDates] = useState(new Set());
+
+  const fetchAllAppointmentDates = useCallback(async () => {
+    try {
+      const data = await appointmentService.getDoctorAppointments({});
+      const appointmentsList = data?.appointments ?? [];
+      const dates = new Set(
+        appointmentsList
+          .filter(a => a.date)
+          .map(a => typeof a.date === 'string' ? a.date.split('T')[0] : toApiDate(new Date(a.date)))
+      );
+      setAllAppointmentDates(dates);
+    } catch (err) {
+      console.warn('[AppointmentsScreen] fetchAllAppointmentDates error:', err?.message);
+    }
+  }, []);
+
+  const maxDate = useRef((() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 1);
+    return d;
+  })()).current;
+
+  const isDateSelectable = (dateStr) => {
+    const todayZero = new Date();
+    todayZero.setHours(0, 0, 0, 0);
+    const maxDateZero = new Date();
+    maxDateZero.setMonth(maxDateZero.getMonth() + 1);
+    maxDateZero.setHours(23, 59, 59, 999);
+    
+    const target = new Date(dateStr + 'T00:00:00');
+    return target >= todayZero && target <= maxDateZero;
+  };
+
+  const handlePrevMonth = () => {
+    if (currentYear > today.getFullYear() || (currentYear === today.getFullYear() && currentMonth > today.getMonth())) {
+      if (currentMonth === 0) {
+        setCurrentMonth(11);
+        setCurrentYear(y => y - 1);
+      } else {
+        setCurrentMonth(m => m - 1);
+      }
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (currentYear < maxDate.getFullYear() || (currentYear === maxDate.getFullYear() && currentMonth < maxDate.getMonth())) {
+      if (currentMonth === 11) {
+        setCurrentMonth(0);
+        setCurrentYear(y => y + 1);
+      } else {
+        setCurrentMonth(m => m + 1);
+      }
+    }
+  };
+
   const dateRange = useRef(buildDateRange()).current;
 
   // ── Fetch ───────────────────────────────────────────────────────────────────
@@ -281,19 +384,38 @@ const AppointmentsScreen = ({ navigation }) => {
     }
   }, [selectedDate, selectedStatus]);
 
-  useEffect(() => { fetchAppointments(); }, [fetchAppointments]);
+  // Show the full-screen loader only for the first load and filter changes;
+  // regaining focus (e.g. coming back from the detail screen after accepting)
+  // refreshes silently so the list is never stale.
+  const hasFetchedRef = useRef(false);
+  useEffect(() => {
+    hasFetchedRef.current = false;
+  }, [selectedDate, selectedStatus]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchAppointments(!hasFetchedRef.current);
+      hasFetchedRef.current = true;
+      fetchAllAppointmentDates();
+    }, [fetchAppointments, fetchAllAppointmentDates]),
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
     fetchAppointments(false);
+    fetchAllAppointmentDates();
   };
 
   // ── Status Action Helpers ───────────────────────────────────────────────────
   const updateAppointmentStatus = async (id, status) => {
+    // Optimistic: flip the card immediately, then sync with the server.
+    setAppointments(prev => prev.map(a => (a.id === id ? { ...a, status } : a)));
     try {
       await appointmentService.updateStatus(id, status);
       await fetchAppointments(false);
+      await fetchAllAppointmentDates();
     } catch (e) {
+      await fetchAppointments(false); // roll back to server truth
       showAlert('Error', e?.message || 'Could not update appointment status.');
     }
   };
@@ -331,10 +453,17 @@ const AppointmentsScreen = ({ navigation }) => {
     );
   };
 
-  // ── Card press ──────────────────────────────────────────────────────────────
   const handlePress = item => {
-    navigation.navigate('PatientDetails', { userId: item.userId, appointment: item });
+    navigation.navigate('AppointmentDetail', {
+      appointment: item,
+      onStatusUpdate: (updatedId, newStatus) => {
+        setAppointments(prev =>
+          prev.map(appt => (appt.id === updatedId ? { ...appt, status: newStatus } : appt))
+        );
+      },
+    });
   };
+
 
   // ── Derived display ─────────────────────────────────────────────────────────
   const todayLabel = (() => {
@@ -366,12 +495,102 @@ const AppointmentsScreen = ({ navigation }) => {
     return true;
   });
 
+  // ─── Calendar Renderer ──────────────────────────────────────────────────────
+  const getDaysInMonth = (month, year) => new Date(year, month + 1, 0).getDate();
+  const getFirstDayOfMonth = (month, year) => new Date(year, month, 1).getDay();
+
+  const handleDateSelect = (dateStr) => {
+    setSelectedDate(dateStr);
+    setShowCalendarModal(false);
+  };
+
+  const renderCalendar = () => {
+    const daysInMonth = getDaysInMonth(currentMonth, currentYear);
+    const firstDayIndex = getFirstDayOfMonth(currentMonth, currentYear);
+    const blanks = Array(firstDayIndex).fill(null);
+    const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+    const gridItems = [...blanks, ...days];
+
+    const MONTHS = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December',
+    ];
+    const WEEK_DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+    return (
+      <View style={styles.calendarContainer}>
+        <View style={styles.calendarHeader}>
+          <TouchableOpacity onPress={handlePrevMonth} style={styles.calNavBtn}>
+            <MCIcon name="chevron-left" size={24} color={colors.primary} />
+          </TouchableOpacity>
+          <Text style={styles.calendarMonthText}>{MONTHS[currentMonth]} {currentYear}</Text>
+          <TouchableOpacity onPress={handleNextMonth} style={styles.calNavBtn}>
+            <MCIcon name="chevron-right" size={24} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.weekDaysRow}>
+          {WEEK_DAYS.map((wd) => (
+            <Text key={wd} style={styles.weekDayText}>{wd}</Text>
+          ))}
+        </View>
+        <View style={styles.daysGrid}>
+          {gridItems.map((day, idx) => {
+            if (day === null) return <View key={`blank-${idx}`} style={styles.dayCell} />;
+
+            const itemDateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const isDisabled = !isDateSelectable(itemDateStr);
+            const isSelected = selectedDate === itemDateStr;
+            const isToday = itemDateStr === todayApiDate();
+            const hasAppt = allAppointmentDates.has(itemDateStr);
+
+            return (
+              <TouchableOpacity
+                key={`day-${day}`}
+                style={[
+                  styles.dayCell,
+                  isDisabled && styles.dayCellDisabled,
+                  isToday && styles.dayCellToday,
+                  isSelected && styles.dayCellActive,
+                ]}
+                onPress={isDisabled ? undefined : () => handleDateSelect(itemDateStr)}
+                disabled={isDisabled}
+                activeOpacity={isDisabled ? 1 : 0.7}
+              >
+                <View style={styles.dayCellContent}>
+                  <Text
+                    style={[
+                      styles.dayText,
+                      isDisabled && styles.dayTextDisabled,
+                      isSelected && styles.dayTextActive,
+                      isToday && !isSelected && styles.dayTextTodayText,
+                    ]}
+                  >
+                    {day}
+                  </Text>
+                  {hasAppt ? (
+                    <View style={[
+                      styles.apptDot,
+                      isSelected && styles.apptDotActive
+                    ]} />
+                  ) : (
+                    <View style={styles.apptDotPlaceholder} />
+                  )}
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+    );
+  };
+
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <View style={styles.root}>
       {/* Header */}
       <ScreenHeader
         title="Appointments"
+        showBack={false}
         right={
           <TouchableOpacity onPress={onRefresh}>
             <MCIcon name="refresh" size={22} color={colors.white} />
@@ -403,10 +622,18 @@ const AppointmentsScreen = ({ navigation }) => {
 
       {/* Filter row */}
       <View style={styles.filterRow}>
-        <View style={styles.filterLeft}>
+        <TouchableOpacity
+          style={styles.filterLeft}
+          activeOpacity={0.7}
+          onPress={() => {
+            const baseDate = selectedDate ? new Date(selectedDate + 'T00:00:00') : new Date();
+            setCurrentMonth(baseDate.getMonth());
+            setCurrentYear(baseDate.getFullYear());
+            setShowCalendarModal(true);
+          }}>
           <MCIcon name="calendar-range" size={14} color={colors.primary} />
           <Text style={styles.filterLabel}>{todayLabel}</Text>
-        </View>
+        </TouchableOpacity>
 
         {/* Status filter chip */}
         <TouchableOpacity
@@ -506,6 +733,55 @@ const AppointmentsScreen = ({ navigation }) => {
               );
             })}
           </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Calendar date picker modal */}
+      <Modal
+        visible={showCalendarModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCalendarModal(false)}>
+        <TouchableOpacity
+          style={styles.calModalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowCalendarModal(false)}>
+          <TouchableOpacity
+            activeOpacity={1}
+            style={styles.calModalContent}>
+            <View style={styles.calModalHeader}>
+              <Text style={styles.calModalTitle}>Select Date</Text>
+              <TouchableOpacity onPress={() => setShowCalendarModal(false)}>
+                <MCIcon name="close" size={24} color={colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+            
+            {renderCalendar()}
+
+            {/* Reset Buttons */}
+            <View style={styles.modalActionRow}>
+              <TouchableOpacity
+                style={[styles.modalActionBtn, styles.todayBtn]}
+                onPress={() => {
+                  const todayStr = todayApiDate();
+                  setSelectedDate(todayStr);
+                  setShowCalendarModal(false);
+                }}>
+                <MCIcon name="calendar-today" size={16} color={colors.primary} />
+                <Text style={styles.todayBtnText}>Today</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalActionBtn, styles.clearBtn]}
+                onPress={() => {
+                  setSelectedDate(null);
+                  setShowCalendarModal(false);
+                }}>
+                <MCIcon name="calendar-remove" size={16} color={colors.danger} />
+                <Text style={styles.clearBtnText}>Clear</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
     </View>
@@ -637,7 +913,7 @@ const makeStyles = colors => StyleSheet.create({
     shadowOpacity: 0.07,
     shadowRadius: 4,
   },
-  cardTimeCol: { width: 62, alignItems: 'center', paddingTop: 14, paddingBottom: 10, gap: 6, backgroundColor: colors.primaryFaint },
+  cardTimeCol: { width: 65, alignItems: 'center', paddingTop: 12, paddingBottom: 12, gap: 4, backgroundColor: colors.primaryFaint },
   cardTime: { fontSize: 11.5, fontWeight: '800', color: colors.primary, textAlign: 'center', lineHeight: 15 },
   timeLine: { flex: 1, width: 3, borderRadius: 2, minHeight: 20 },
   cardBody: { flex: 1, padding: SPACING.md, gap: SPACING.sm },
@@ -681,4 +957,162 @@ const makeStyles = colors => StyleSheet.create({
   modalOptionActive: { backgroundColor: colors.primary },
   modalOptionText: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
   statusDot: { width: 10, height: 10, borderRadius: 5 },
+
+  // Calendar Styles
+  calModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'flex-end',
+  },
+  calModalContent: {
+    width: '100%',
+    backgroundColor: colors.white,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: SPACING.lg,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    elevation: 10,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  calModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingBottom: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  calModalTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.textPrimary,
+  },
+  calendarContainer: { paddingVertical: SPACING.xs },
+  calendarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.md,
+  },
+  calendarMonthText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.textPrimary,
+  },
+  calNavBtn: { padding: 4 },
+  weekDaysRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 8,
+  },
+  weekDayText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.textMuted,
+    width: 32,
+    textAlign: 'center',
+  },
+  daysGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-around',
+  },
+  dayCell: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 2,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  dayCellActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  dayCellToday: {
+    borderColor: colors.primary,
+  },
+  dayCellDisabled: {
+    opacity: 0.3,
+  },
+  dayCellContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  dayText: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    lineHeight: 16,
+  },
+  dayTextActive: {
+    color: colors.white,
+    fontWeight: '800',
+  },
+  dayTextTodayText: {
+    color: colors.primary,
+    fontWeight: '800',
+  },
+  dayTextDisabled: {
+    color: colors.textMuted,
+  },
+  apptDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.primary,
+    marginTop: 1,
+  },
+  apptDotActive: {
+    backgroundColor: colors.white,
+  },
+  apptDotPlaceholder: {
+    width: 4,
+    height: 4,
+    backgroundColor: 'transparent',
+    marginTop: 1,
+  },
+
+  // Reset Actions Row
+  modalActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: SPACING.md,
+    gap: SPACING.md,
+  },
+  modalActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: RADIUS.md,
+    borderWidth: 1.5,
+    gap: 6,
+  },
+  todayBtn: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryFaint,
+  },
+  todayBtnText: {
+    color: colors.primary,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  clearBtn: {
+    borderColor: colors.danger,
+    backgroundColor: '#FEF2F2',
+  },
+  clearBtnText: {
+    color: colors.danger,
+    fontWeight: '700',
+    fontSize: 14,
+  },
 });

@@ -16,6 +16,7 @@ import therapyService from '../services/therapyService';
 import { StatsSkeleton } from '../components/SkeletonLoader';
 import { COLORS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
+import { useHeaderTopPadding } from '../components/ScreenHeader';
 
 // Icon backgrounds are a translucent wash of the icon hue so the tint reads
 // correctly over both light and dark cards (matches Settings/Notifications).
@@ -32,6 +33,7 @@ const MENU_ITEMS = [
 ];
 
 const ProfileScreen = ({ navigation }) => {
+  const headerTop = useHeaderTopPadding(16);
   const user = useAuthStore(state => state.user);
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -85,7 +87,7 @@ const ProfileScreen = ({ navigation }) => {
         contentContainerStyle={{ paddingBottom: 24 }}
       >
         {/* ── Header ── */}
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: headerTop }]}>
           <View style={styles.profileRow}>
             <View style={styles.avatar}>
               <Text style={styles.avatarLetter}>{avatarLetter}</Text>
@@ -165,7 +167,6 @@ const makeStyles = colors => StyleSheet.create({
 
   header: {
     backgroundColor: colors.headerBg,
-    paddingTop: 56,
     paddingHorizontal: 20,
     paddingBottom: 24,
     borderBottomLeftRadius: 28,

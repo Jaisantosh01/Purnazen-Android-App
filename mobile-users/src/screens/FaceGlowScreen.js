@@ -14,6 +14,7 @@ import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { RoutineCardSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
+import { useHeaderTopPadding } from '../components/ScreenHeader';
 
 // FaceGlow brand hero colour — a fixed magenta banner in both light and dark.
 const GLOW = '#C850C0';
@@ -30,6 +31,7 @@ const BENEFITS = [
 ];
 
 const FaceGlowScreen = ({ navigation }) => {
+  const headerTop = useHeaderTopPadding(16);
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [routines, setRoutines] = useState([]);
@@ -52,7 +54,7 @@ const FaceGlowScreen = ({ navigation }) => {
         contentContainerStyle={{ paddingBottom: 36 }}
       >
         {/* ── Header ── */}
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: headerTop }]}>
           <View style={styles.headerTopRow}>
             <TouchableOpacity
               style={styles.backBtn}
@@ -210,7 +212,6 @@ const makeStyles = colors => StyleSheet.create({
   // Header
   header: {
     backgroundColor: GLOW,
-    paddingTop: 56,
     paddingHorizontal: 20,
     paddingBottom: 30,
     borderBottomLeftRadius: 28,

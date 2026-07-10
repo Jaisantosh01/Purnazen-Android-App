@@ -126,3 +126,18 @@ def get_consultation_types(
 ):
     types = db.query(ConsultationType).filter(ConsultationType.is_active == True).all()
     return success_response("Consultation types fetched", [t.name for t in types])
+
+
+@router.get(
+    "/{appointment_id}",
+    summary="Get appointment details",
+)
+def get_appointment_detail(
+    appointment_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    appointment = db.query(Appointment).filter(Appointment.id == appointment_id).first()
+    if not appointment:
+        return error_response("Appointment not found", 404)
+    return success_response("Appointment details fetched successfully", appointment.to_dict())

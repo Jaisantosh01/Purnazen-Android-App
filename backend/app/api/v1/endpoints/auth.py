@@ -13,9 +13,12 @@ from app.core.security import create_access_token
 from app.models.user import User
 from app.repositories.token_repository import TokenRepository
 from app.schemas.auth import (
+    ChangeEmailRequest,
     ChangePasswordRequest,
     LoginRequest,
     RegisterRequest,
+    SocialLinkRequest,
+    SocialLoginRequest,
     UpdateProfileRequest,
 )
 from app.services.auth_service import AuthService
@@ -61,6 +64,92 @@ def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)):
         },
         status_code,
     )
+
+
+@router.post(
+    "/social",
+    summary="Login or sign up with a social provider (Firebase Auth)",
+    description=(
+        "Verifies a Firebase Auth ID token server-side (any provider enabled "
+        "in the Firebase console), then signs the matching account in "
+        "(creating a patient account on first login). Rate-limited per client IP."
+    ),
+)
+@limiter.limit(settings.RATE_LIMIT_LOGIN)
+def social_login(request: Request, body: SocialLoginRequest, db: Session = Depends(get_db)):
+    response, status_code = AuthService.social_login(db, body.model_dump())
+
+    if not response["success"]:
+        return error_response(response["message"], status_code)
+
+    return success_response(
+        response["message"],
+        {
+            "access_token": response["access_token"],
+            "refresh_token": response["refresh_token"],
+            "user": response["user"],
+        },
+        status_code,
+    )
+
+
+@router.post(
+    "/social/link",
+    summary="Link a social account to the logged-in user",
+    description=(
+        "Verifies a Firebase Auth ID token and binds that identity to the "
+        "authenticated account (any role). Afterwards the social button signs "
+        "into this account even if the provider email differs."
+    ),
+)
+def link_social(
+    body: SocialLinkRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    response, status_code = AuthService.link_social(db, user, body.model_dump())
+
+    if not response["success"]:
+        return error_response(response["message"], status_code)
+
+    return success_response(response["message"], {"user": response["user"]}, status_code)
+
+
+@router.post(
+    "/social/unlink",
+    summary="Unlink the social account from the logged-in user",
+)
+def unlink_social(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    response, status_code = AuthService.unlink_social(db, user)
+
+    if not response["success"]:
+        return error_response(response["message"], status_code)
+
+    return success_response(response["message"], {"user": response["user"]}, status_code)
+
+
+@router.post(
+    "/change-email",
+    summary="Change the login email",
+    description=(
+        "Password accounts must confirm the current password; social-created "
+        "accounts may omit it. The new email must be unused."
+    ),
+)
+def change_email(
+    body: ChangeEmailRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    response, status_code = AuthService.change_email(db, user, body.model_dump())
+
+    if not response["success"]:
+        return error_response(response["message"], status_code)
+
+    return success_response(response["message"], {"user": response["user"]}, status_code)
 
 
 @router.post(

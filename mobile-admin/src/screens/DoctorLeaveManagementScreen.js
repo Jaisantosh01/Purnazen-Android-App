@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  StatusBar,
   TextInput,
   Modal,
   ScrollView,
@@ -16,6 +15,7 @@ import { ENDPOINTS } from '../constants/apiEndpoints';
 import TimePickerModal from '../components/TimePickerModal';
 import SkeletonBox, { LeaveCardSkeleton, LeaveStatsSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
+import ScreenHeader from '../components/ScreenHeader';
 import { showAlert } from '../utils/alert';
 
 const STATUS_COLORS = {
@@ -86,12 +86,60 @@ const LeaveCard = ({ leave, onPress, onStatusUpdate }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const status = STATUS_COLORS[leave.status] || { bg: '#999', label: leave.status };
+
+  const renderLeaveInfo = () => {
+    if (leave.leaveType === 'single') {
+      return (
+        <>
+          {leave.startTime && leave.endTime ? (
+            <View style={styles.cardRow}>
+              <MCIcon name="clock-outline" size={16} color={colors.warning} />
+              <Text style={styles.cardLabel}>Time:</Text>
+              <Text style={styles.cardValue}>{leave.startTime} - {leave.endTime}</Text>
+            </View>
+          ) : (
+            <View style={styles.cardRow}>
+              <MCIcon name="calendar-remove" size={16} color={colors.textMuted} />
+              <Text style={styles.cardLabel}>Type:</Text>
+              <Text style={styles.cardValue}>Full Day</Text>
+            </View>
+          )}
+        </>
+      );
+    } else if (leave.leaveType === 'multiple') {
+      return (
+        <View style={styles.cardRow}>
+          <MCIcon name="calendar-range" size={16} color={colors.primary} />
+          <Text style={styles.cardLabel}>Range:</Text>
+          <Text style={styles.cardValue}>{leave.startDate || leave.leaveDate || '—'} to {leave.endDate || leave.startDate || '—'}</Text>
+        </View>
+      );
+    } else if (leave.leaveType === 'custom') {
+      return (
+        <>
+          {leave.slots?.map((slot, idx) => (
+            <View key={idx} style={styles.cardRow}>
+              <MCIcon name="clock-outline" size={16} color={colors.warning} />
+              <Text style={styles.cardLabel}>Slot {idx + 1}:</Text>
+              <Text style={styles.cardValue}>{slot.start_time} - {slot.end_time}</Text>
+            </View>
+          ))}
+        </>
+      );
+    }
+    return null;
+  };
+
   return (
     <TouchableOpacity style={styles.card} onPress={() => onPress(leave)} activeOpacity={0.7}>
       <View style={styles.cardHeader}>
         <View style={styles.cardHeaderLeft}>
           <MCIcon name="calendar-remove" size={20} color={colors.primary} />
-          <Text style={styles.leaveDate}>{leave.leave_date}</Text>
+          <Text style={styles.leaveDate}>
+            {leave.leaveType === 'multiple'
+              ? (leave.startDate ? `${leave.startDate} - ${leave.endDate || ''}` : leave.leaveDate || leave.startDate || '—')
+              : leave.leaveDate || leave.startDate || '—'}
+          </Text>
         </View>
         <View style={[styles.statusBadge, { backgroundColor: status.bg + '20' }]}>
           <View style={[styles.statusDot, { backgroundColor: status.bg }]} />
@@ -103,28 +151,14 @@ const LeaveCard = ({ leave, onPress, onStatusUpdate }) => {
         <View style={styles.cardRow}>
           <MCIcon name="doctor" size={16} color={colors.primary} />
           <Text style={styles.cardLabel}>Doctor:</Text>
-          <Text style={styles.cardValue}>{leave.doctor_name || leave.doctor_id}</Text>
+          <Text style={styles.cardValue}>{leave.doctorName || leave.doctorId}</Text>
         </View>
-        {leave.slot_time ? (
-          <View style={styles.cardRow}>
-            <MCIcon name="clock-outline" size={16} color={colors.warning} />
-            <Text style={styles.cardLabel}>Slot:</Text>
-            <Text style={styles.cardValue}>
-              {leave.slot_time.start_time} - {leave.slot_time.end_time}
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.cardRow}>
-            <MCIcon name="calendar-remove" size={16} color={colors.textMuted} />
-            <Text style={styles.cardLabel}>Type:</Text>
-            <Text style={styles.cardValue}>Full Day</Text>
-          </View>
-        )}
-        {leave.doctor_reason && (
+        {renderLeaveInfo()}
+        {leave.reason && (
           <View style={styles.cardRow}>
             <MCIcon name="comment-text-outline" size={16} color={colors.textMuted} />
             <Text style={styles.cardLabel}>Reason:</Text>
-            <Text style={styles.cardValue} numberOfLines={1}>{leave.doctor_reason}</Text>
+            <Text style={styles.cardValue} numberOfLines={1}>{leave.reason}</Text>
           </View>
         )}
       </View>
@@ -151,7 +185,10 @@ const LeaveCard = ({ leave, onPress, onStatusUpdate }) => {
   );
 };
 
-const DoctorLeaveManagementScreen = ({ navigation }) => {
+const DoctorLeaveManagementScreen = ({ navigation, route }) => {
+  // Rendered both as the "Leaves" tab (route name LeaveCenter) and pushed from
+  // Home — only the pushed instance gets a back arrow.
+  const isTabInstance = route?.name === 'LeaveCenter';
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [leaves, setLeaves] = useState([]);
@@ -214,8 +251,8 @@ const DoctorLeaveManagementScreen = ({ navigation }) => {
   const fetchLeaves = useCallback(() => {
     setLoading(true);
     apiClient
-      .get(ENDPOINTS.DOCTOR_LEAVES, { params: buildParams() })
-      .then(res => setLeaves(res?.data || []))
+      .get(ENDPOINTS.DOCTOR_LEAVES + '/admin', { params: buildParams() })
+      .then(res => setLeaves(res?.data?.leaves || []))
       .catch(() => showAlert('Error', 'Failed to fetch leaves'))
       .finally(() => setLoading(false));
   }, [buildParams]);
@@ -370,7 +407,7 @@ const DoctorLeaveManagementScreen = ({ navigation }) => {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.activeChipRow}>
           {appliedFromDate ? <View style={styles.chip}><Text style={styles.chipText}>From: {appliedFromDate}</Text></View> : null}
           {appliedToDate ? <View style={styles.chip}><Text style={styles.chipText}>To: {appliedToDate}</Text></View> : null}
-          {appliedLeaveType ? <View style={styles.chip}><Text style={styles.chipText}>{appliedLeaveType === 'full_day' ? 'Full Day' : 'Partial'}</Text></View> : null}
+          {appliedLeaveType ? <View style={styles.chip}><Text style={styles.chipText}>{appliedLeaveType === 'single' ? 'Single Day' : appliedLeaveType === 'multiple' ? 'Multiple Days' : 'Partial Day'}</Text></View> : null}
           {appliedTimeFrom ? <View style={styles.chip}><Text style={styles.chipText}>From: {appliedTimeFrom}</Text></View> : null}
           {appliedTimeTo ? <View style={styles.chip}><Text style={styles.chipText}>To: {appliedTimeTo}</Text></View> : null}
         </ScrollView>
@@ -380,16 +417,17 @@ const DoctorLeaveManagementScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <MCIcon name="arrow-left" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Doctor Leaves</Text>
-        <TouchableOpacity onPress={openFilterModal} style={styles.filterBtn}>
-          <MCIcon name="filter-variant" size={22} color={hasActiveFilters ? colors.primary : colors.textSecondary} />
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title="Doctor Leaves"
+        subtitle="Review and manage leave requests"
+        onBack={isTabInstance ? undefined : () => navigation.goBack()}
+        showBack={!isTabInstance}
+        right={
+          <TouchableOpacity onPress={openFilterModal} style={styles.filterBtn}>
+            <MCIcon name="filter-variant" size={22} color={hasActiveFilters ? colors.headerText : 'rgba(255,255,255,0.7)'} />
+          </TouchableOpacity>
+        }
+      />
 
       <View style={styles.searchContainer}>
         <MCIcon name="magnify" size={20} color={colors.textMuted} />
@@ -448,7 +486,11 @@ const DoctorLeaveManagementScreen = ({ navigation }) => {
                     <MCIcon name={statusIcon} size={28} color="#fff" />
                     <View style={styles.detailStatusHeaderText}>
                       <Text style={styles.detailStatusHeaderLabel}>{sc.label}</Text>
-                      <Text style={styles.detailStatusHeaderDate}>{detailLeave.leave_date}</Text>
+                      <Text style={styles.detailStatusHeaderDate}>
+                        {detailLeave.leaveType === 'multiple'
+                          ? `${detailLeave.startDate || detailLeave.leaveDate || '—'} - ${detailLeave.endDate || detailLeave.startDate || '—'}`
+                          : detailLeave.leaveDate || detailLeave.startDate || '—'}
+                      </Text>
                     </View>
                   </View>
 
@@ -459,7 +501,7 @@ const DoctorLeaveManagementScreen = ({ navigation }) => {
                       </View>
                       <View style={styles.detailCol}>
                         <Text style={styles.detailFieldLabel}>Doctor</Text>
-                        <Text style={styles.detailFieldValue}>{detailLeave.doctor_name || detailLeave.doctor_id}</Text>
+                        <Text style={styles.detailFieldValue}>{detailLeave.doctorName || detailLeave.doctorId}</Text>
                       </View>
                     </View>
 
@@ -471,7 +513,20 @@ const DoctorLeaveManagementScreen = ({ navigation }) => {
                       </View>
                       <View style={styles.detailCol}>
                         <Text style={styles.detailFieldLabel}>Leave Date</Text>
-                        <Text style={styles.detailFieldValue}>{detailLeave.leave_date}</Text>
+                        {detailLeave.leaveType === 'multiple' ? (
+                          <Text style={styles.detailFieldValue}>{detailLeave.startDate || detailLeave.leaveDate || '—'} - {detailLeave.endDate || detailLeave.startDate || '—'}</Text>
+                        ) : detailLeave.leaveType === 'custom' ? (
+                          <>
+                            <Text style={styles.detailFieldValue}>{detailLeave.leaveDate || detailLeave.startDate || '—'}</Text>
+                            {detailLeave.slots?.map((slot, idx) => (
+                              <Text key={idx} style={styles.detailSlotText}>
+                                Slot {idx + 1}: {slot.start_time} - {slot.end_time}
+                              </Text>
+                            ))}
+                          </>
+                        ) : (
+                          <Text style={styles.detailFieldValue}>{detailLeave.leaveDate || detailLeave.startDate || '—'}</Text>
+                        )}
                       </View>
                     </View>
 
@@ -484,14 +539,63 @@ const DoctorLeaveManagementScreen = ({ navigation }) => {
                       <View style={styles.detailCol}>
                         <Text style={styles.detailFieldLabel}>Leave Type</Text>
                         <Text style={styles.detailFieldValue}>
-                          {detailLeave.slot_time
-                            ? `${detailLeave.slot_time.start_time} - ${detailLeave.slot_time.end_time}`
-                            : 'Full Day'}
+                          {detailLeave.leaveType === 'single'
+                            ? 'Single Day'
+                            : detailLeave.leaveType === 'multiple'
+                            ? 'Multiple Days'
+                            : 'Partial Day'}
                         </Text>
                       </View>
                     </View>
 
-                    {detailLeave.doctor_reason && (
+                    {detailLeave.leaveType === 'single' && detailLeave.startTime && detailLeave.endTime && (
+                      <>
+                        <View style={styles.detailDivider} />
+                        <View style={styles.detailRow}>
+                          <View style={styles.detailIconCircle}>
+                            <MCIcon name="clock" size={20} color={colors.warning} />
+                          </View>
+                          <View style={styles.detailCol}>
+                            <Text style={styles.detailFieldLabel}>Time</Text>
+                            <Text style={styles.detailFieldValue}>{detailLeave.startTime} - {detailLeave.endTime}</Text>
+                          </View>
+                        </View>
+                      </>
+                    )}
+
+                    {detailLeave.leaveType === 'multiple' && (
+                      <>
+                        <View style={styles.detailDivider} />
+                        <View style={styles.detailRow}>
+                          <View style={styles.detailIconCircle}>
+                            <MCIcon name="calendar-range" size={20} color={colors.primary} />
+                          </View>
+                          <View style={styles.detailCol}>
+                            <Text style={styles.detailFieldLabel}>Date Range</Text>
+                            <Text style={styles.detailFieldValue}>{detailLeave.startDate} to {detailLeave.endDate}</Text>
+                          </View>
+                        </View>
+                      </>
+                    )}
+
+                    {detailLeave.leaveType === 'custom' && detailLeave.slots?.length > 0 && (
+                      <>
+                        <View style={styles.detailDivider} />
+                        {detailLeave.slots.map((slot, idx) => (
+                          <View key={idx} style={styles.detailRow}>
+                            <View style={styles.detailIconCircle}>
+                              <MCIcon name="clock-outline" size={20} color={colors.warning} />
+                            </View>
+                            <View style={styles.detailCol}>
+                              <Text style={styles.detailFieldLabel}>Slot {idx + 1}</Text>
+                              <Text style={styles.detailFieldValue}>{slot.start_time} - {slot.end_time}</Text>
+                            </View>
+                          </View>
+                        ))}
+                      </>
+                    )}
+
+                    {detailLeave.reason && (
                       <>
                         <View style={styles.detailDivider} />
                         <View style={styles.detailRow}>
@@ -500,13 +604,13 @@ const DoctorLeaveManagementScreen = ({ navigation }) => {
                           </View>
                           <View style={styles.detailCol}>
                             <Text style={styles.detailFieldLabel}>Doctor Reason</Text>
-                            <Text style={styles.detailReasonText}>{detailLeave.doctor_reason}</Text>
+                            <Text style={styles.detailReasonText}>{detailLeave.reason}</Text>
                           </View>
                         </View>
                       </>
                     )}
 
-                    {detailLeave.admin_reason && (
+                    {detailLeave.adminReason && (
                       <>
                         <View style={styles.detailDivider} />
                         <View style={styles.detailRow}>
@@ -515,7 +619,7 @@ const DoctorLeaveManagementScreen = ({ navigation }) => {
                           </View>
                           <View style={styles.detailCol}>
                             <Text style={styles.detailFieldLabel}>Admin Reason</Text>
-                            <Text style={styles.detailReasonText}>{detailLeave.admin_reason}</Text>
+                            <Text style={styles.detailReasonText}>{detailLeave.adminReason}</Text>
                           </View>
                         </View>
                       </>
@@ -538,11 +642,11 @@ const DoctorLeaveManagementScreen = ({ navigation }) => {
             <Text style={styles.modalTitle}>{newStatus === 'approved' ? 'Approve' : 'Reject'} Leave</Text>
             {selectedLeave && (
               <Text style={styles.modalSubtitle}>
-                {selectedLeave.doctor_name || selectedLeave.doctor_id} - {selectedLeave.leave_date}
+                {selectedLeave.doctorName || selectedLeave.doctorId} - {selectedLeave.leaveDate || selectedLeave.startDate || '—'}
               </Text>
             )}
-            {selectedLeave?.doctor_reason && (
-              <Text style={styles.modalReason}>Doctor reason: {selectedLeave.doctor_reason}</Text>
+            {selectedLeave?.reason && (
+              <Text style={styles.modalReason}>Doctor reason: {selectedLeave.reason}</Text>
             )}
             <Text style={styles.inputLabel}>Admin Reason (optional)</Text>
             <TextInput
@@ -615,8 +719,9 @@ const DoctorLeaveManagementScreen = ({ navigation }) => {
               <View style={styles.leaveTypeRow}>
                 {[
                   { value: '', label: 'All' },
-                  { value: 'full_day', label: 'Full Day' },
-                  { value: 'partial', label: 'Partial' },
+                  { value: 'single', label: 'Single Day' },
+                  { value: 'multiple', label: 'Multiple Days' },
+                  { value: 'custom', label: 'Partial Day' },
                 ].map(opt => (
                   <TouchableOpacity
                     key={opt.value}
@@ -630,7 +735,7 @@ const DoctorLeaveManagementScreen = ({ navigation }) => {
                 ))}
               </View>
 
-              {draftLeaveType === 'partial' && (
+              {draftLeaveType === 'custom' && (
                 <View style={styles.timeRangeSection}>
                   <Text style={styles.filterSectionLabel}>Time Range</Text>
                   <View style={styles.filterDateRow}>
@@ -713,12 +818,6 @@ const DoctorLeaveManagementScreen = ({ navigation }) => {
 
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  header: {
-    paddingTop: 56, paddingHorizontal: 12, paddingBottom: 12, backgroundColor: colors.card,
-    flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: colors.border,
-  },
-  backBtn: { padding: 4, marginRight: 8 },
-  headerTitle: { fontSize: 20, fontWeight: '800', color: colors.textPrimary, flex: 1 },
   filterBtn: { padding: 6 },
   searchContainer: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card,
@@ -762,7 +861,7 @@ const makeStyles = colors => StyleSheet.create({
 
   // Filter Modal
   filterModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  filterModalContainer: { backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%' },
+  filterModalContainer: { backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%', width: '100%', maxWidth: 640, alignSelf: 'center' },
   filterModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
   filterModalTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
   filterModalBody: { padding: 20 },
@@ -807,7 +906,7 @@ const makeStyles = colors => StyleSheet.create({
 
   // Detail Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 20 },
-  modalContainer: { backgroundColor: colors.card, borderRadius: 16, overflow: 'hidden' },
+  modalContainer: { backgroundColor: colors.card, borderRadius: 16, overflow: 'hidden', width: '100%', maxWidth: 560, alignSelf: 'center' },
   modalTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary, marginBottom: 4, paddingHorizontal: 20 },
   modalSubtitle: { fontSize: 14, color: colors.textSecondary, marginBottom: 8, paddingHorizontal: 20 },
   modalReason: { fontSize: 13, color: colors.textMuted, marginBottom: 16, fontStyle: 'italic', paddingHorizontal: 20 },
@@ -831,6 +930,7 @@ const makeStyles = colors => StyleSheet.create({
   detailCol: { flex: 1 },
   detailFieldLabel: { fontSize: 11, fontWeight: '600', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
   detailFieldValue: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
+  detailSlotText: { fontSize: 13, color: colors.textSecondary, marginTop: 2, fontWeight: '500' },
   detailReasonText: { fontSize: 14, color: colors.textPrimary, lineHeight: 20, marginTop: 2 },
   detailDivider: { height: 1, backgroundColor: colors.surfaceMuted, marginVertical: 12 },
   closeDetailBtn: { backgroundColor: colors.primary, padding: 14, borderRadius: 10, alignItems: 'center', marginHorizontal: 20, marginBottom: 20 },

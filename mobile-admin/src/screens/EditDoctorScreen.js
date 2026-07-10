@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  StatusBar,
   ScrollView,
   TextInput,
   Modal,
@@ -16,6 +15,7 @@ import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { EditFormSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
+import ScreenHeader from '../components/ScreenHeader';
 import { showAlert } from '../utils/alert';
 
 const SelectionModal = ({ visible, onClose, title, data, selectedIds, onToggle }) => {
@@ -63,7 +63,10 @@ const EditDoctorScreen = ({ route, navigation }) => {
   useEffect(() => {
     if (!doctorId) {
       setEditedDoctor({
-        name: 'New Doctor',
+        name: '',
+        email: '',
+        password: '',
+        phone: '',
         about: '',
         education: '',
         experience: 0,
@@ -118,16 +121,23 @@ const EditDoctorScreen = ({ route, navigation }) => {
 
   const handleSave = () => {
     setLoading(true);
+
+    if (!doctorId && (!editedDoctor.email || !editedDoctor.password || !editedDoctor.name)) {
+        showAlert('Validation Error', 'Full Name, Email, and Password are required');
+        setLoading(false);
+        return;
+    }
+
     const payload = {
         ...editedDoctor,
         specialty_ids: editedDoctor.specialty_ids || [],
         slot_timing_ids: selectedSlotIds
     };
-    
-    const request = doctorId 
+
+    const request = doctorId
         ? apiClient.put(ENDPOINTS.DOCTOR_DETAIL(doctorId), payload)
-        : apiClient.post(ENDPOINTS.DOCTORS, payload); // Assumes creation endpoint exists
-    
+        : apiClient.post(ENDPOINTS.DOCTORS, payload);
+
     request
       .then((res) => {
         showAlert('Success', `Doctor ${doctorId ? 'updated' : 'created'} successfully`);
@@ -203,33 +213,41 @@ const EditDoctorScreen = ({ route, navigation }) => {
 
   if (loading) return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
-      <View style={styles.header}>
-        <TouchableOpacity><MCIcon name="arrow-left" size={24} color={colors.textPrimary} /></TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit Doctor Details</Text>
-        <View style={{ width: 24 }} />
-      </View>
+      <ScreenHeader title="Edit Doctor Details" onBack={() => navigation.goBack()} />
       <EditFormSkeleton />
     </View>
   );
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}><MCIcon name="arrow-left" size={24} color={colors.textPrimary} /></TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit Doctor Details</Text>
-        <View style={{ width: 24 }} />
-      </View>
+      <ScreenHeader title="Edit Doctor Details" onBack={() => navigation.goBack()} />
 
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.label}>Full Name</Text>
-        <TextInput style={[styles.input, styles.disabled]} value={editedDoctor.name} editable={false} />
-        
-        {!doctorId && (
+        {doctorId ? (
             <>
-                <Text style={styles.label}>User ID (To link doctor profile)</Text>
-                <TextInput style={styles.input} value={String(editedDoctor.user_id || '')} onChangeText={(val) => setEditedDoctor({...editedDoctor, user_id: parseInt(val) || 0})} placeholder="User ID" keyboardType="numeric" />
+                <Text style={styles.sectionLabel}>Account Details</Text>
+                <Text style={styles.label}>Full Name</Text>
+                <TextInput style={styles.input} value={editedDoctor.full_name} onChangeText={(val) => setEditedDoctor({...editedDoctor, full_name: val})} placeholder="Enter full name" />
+
+                <Text style={styles.label}>Email</Text>
+                <TextInput style={styles.input} value={editedDoctor.email} onChangeText={(val) => setEditedDoctor({...editedDoctor, email: val})} placeholder="email@example.com" keyboardType="email-address" autoCapitalize="none" />
+
+                <Text style={styles.label}>Phone</Text>
+                <TextInput style={styles.input} value={editedDoctor.phone} onChangeText={(val) => setEditedDoctor({...editedDoctor, phone: val})} placeholder="+91-9876543210" keyboardType="phone-pad" />
+            </>
+        ) : (
+            <>
+                <Text style={styles.label}>Full Name</Text>
+                <TextInput style={styles.input} value={editedDoctor.name} onChangeText={(val) => setEditedDoctor({...editedDoctor, name: val})} placeholder="Enter full name" />
+
+                <Text style={styles.label}>Email</Text>
+                <TextInput style={styles.input} value={editedDoctor.email} onChangeText={(val) => setEditedDoctor({...editedDoctor, email: val})} placeholder="email@example.com" keyboardType="email-address" autoCapitalize="none" />
+
+                <Text style={styles.label}>Password</Text>
+                <TextInput style={styles.input} value={editedDoctor.password} onChangeText={(val) => setEditedDoctor({...editedDoctor, password: val})} placeholder="Enter password" secureTextEntry />
+
+                <Text style={styles.label}>Phone (optional)</Text>
+                <TextInput style={styles.input} value={editedDoctor.phone} onChangeText={(val) => setEditedDoctor({...editedDoctor, phone: val})} placeholder="+91-9876543210" keyboardType="phone-pad" />
             </>
         )}
 
@@ -391,8 +409,6 @@ const EditDoctorScreen = ({ route, navigation }) => {
 
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  header: { paddingTop: 56, paddingHorizontal: 20, paddingBottom: 16, backgroundColor: colors.card, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  headerTitle: { fontSize: 20, fontWeight: '800', color: colors.textPrimary },
   content: { padding: 20 },
   sectionLabel: { fontSize: 16, fontWeight: '700', color: colors.textPrimary, marginTop: 20, marginBottom: 8 },
   label: { fontSize: 14, fontWeight: '600', color: colors.textSecondary, marginBottom: 8, marginTop: 12 },

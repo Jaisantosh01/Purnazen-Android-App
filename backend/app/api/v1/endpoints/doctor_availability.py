@@ -3,8 +3,9 @@ import uuid
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_current_user, get_db, require_role
 from app.models.user import User
+from app.models.doctor import Doctor
 from app.schemas.doctor_availability import (
     DoctorAvailabilityCreate,
     DoctorAvailabilityUpdate,
@@ -28,13 +29,18 @@ router = APIRouter(
     summary="Get all doctor availability records",
 )
 def get_availability(
+    user: User = Depends(require_role("doctor")),
     db: Session = Depends(get_db),
 ):
+    doctor = db.query(Doctor).filter(Doctor.user_id == user.id).first()
+    if not doctor:
+        return error_response("Doctor profile not found for this user", 404)
+
     return success_response(
         "Doctor availability fetched successfully",
         [
             availability.to_dict()
-            for availability in DoctorAvailabilityService.get_all(db)
+            for availability in DoctorAvailabilityService.get_all(db, doctor_id=doctor.id)
         ],
     )
 

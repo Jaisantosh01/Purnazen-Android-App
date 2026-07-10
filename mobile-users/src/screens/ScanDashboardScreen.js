@@ -14,6 +14,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import scanService from '../services/scanService';
 import TrendChart from '../components/scan/TrendChart';
 import useTheme from '../hooks/useTheme';
+import { useHeaderTopPadding } from '../components/ScreenHeader';
 
 const METRICS = [
   { key: 'glow_score', label: 'Glow' },
@@ -30,6 +31,7 @@ function glowColor(score, muted = '#9CA3AF') {
 }
 
 const ScanDashboardScreen = ({ navigation }) => {
+  const headerTop = useHeaderTopPadding();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [dash, setDash] = useState(null);
@@ -75,7 +77,7 @@ const ScanDashboardScreen = ({ navigation }) => {
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor="#C850C0" />
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: headerTop }]}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
           <MCIcon name="arrow-left" size={22} color={colors.white} />
         </TouchableOpacity>
@@ -162,7 +164,7 @@ const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   header: {
     backgroundColor: '#C850C0',
-    paddingTop: 52, paddingBottom: 20, paddingHorizontal: 20,
+    paddingBottom: 20, paddingHorizontal: 20,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     borderBottomLeftRadius: 28, borderBottomRightRadius: 28,
   },
