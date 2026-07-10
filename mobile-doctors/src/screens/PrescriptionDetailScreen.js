@@ -5,8 +5,8 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
+import { showAlert } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
@@ -69,7 +69,7 @@ const PrescriptionDetailScreen = ({ route, navigation }) => {
   const statusCfg = STATUS_CONFIG[activePrescription.status] || STATUS_CONFIG.Completed;
 
   const handleDownload = () => {
-    Alert.alert(
+    showAlert(
       'Download Prescription',
       `Prescription ${activePrescription.prescriptionNumber} has been downloaded successfully as a PDF.`,
       [{ text: 'OK' }]

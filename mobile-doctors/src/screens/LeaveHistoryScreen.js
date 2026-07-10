@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   TextInput,
   ScrollView,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
 import { COLORS, SPACING, RADIUS } from '../constants/theme';
@@ -148,9 +149,13 @@ const LeaveHistoryScreen = ({ route, navigation }) => {
   const routeFilter = route?.params?.filter || route?.params?.initialFilter || 'all';
   const [selectedStatus, setSelectedStatus] = useState(routeFilter.toLowerCase());
 
-  useEffect(() => {
-    fetchLeaves();
-  }, []);
+  // Refetch every time the screen regains focus (e.g. after applying or
+  // cancelling a leave) so the list is never stale.
+  useFocusEffect(
+    useCallback(() => {
+      fetchLeaves();
+    }, [fetchLeaves]),
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);

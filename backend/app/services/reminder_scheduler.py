@@ -16,6 +16,7 @@ from datetime import date, datetime, timedelta
 
 from app.db.session import SessionLocal
 from app.models.appointment import Appointment
+from app.models.broadcast import Broadcast
 from app.services.notification_service import NotificationService
 
 logger = logging.getLogger(__name__)
@@ -91,6 +92,34 @@ def send_due_reminders(now: datetime | None = None) -> int:
         db.close()
 
 
+def send_due_broadcasts(now: datetime | None = None) -> int:
+    """Dispatch admin broadcasts whose scheduled time has arrived.
+
+    Returns the number of broadcasts sent (for tests/logging).
+    """
+    now = now or datetime.now()
+    db = SessionLocal()
+    try:
+        due = (
+            db.query(Broadcast)
+            .filter(Broadcast.status == "scheduled", Broadcast.scheduled_at <= now)
+            .order_by(Broadcast.scheduled_at)
+            .all()
+        )
+        for row in due:
+            try:
+                count = NotificationService.send_broadcast(db, row)
+                logger.info(
+                    "Scheduled broadcast %s sent to %s recipient(s).", row.id, count
+                )
+            except Exception as exc:
+                logger.warning("Scheduled broadcast %s failed: %s", row.id, exc)
+                db.rollback()
+        return len(due)
+    finally:
+        db.close()
+
+
 async def reminder_loop() -> None:
     logger.info("Appointment reminder scheduler started (every %ss).", _INTERVAL_SECONDS)
     while True:
@@ -100,4 +129,8 @@ async def reminder_loop() -> None:
                 logger.info("Dispatched %s appointment reminder(s).", count)
         except Exception as exc:
             logger.warning("Reminder scheduler tick failed: %s", exc)
+        try:
+            await asyncio.to_thread(send_due_broadcasts)
+        except Exception as exc:
+            logger.warning("Broadcast scheduler tick failed: %s", exc)
         await asyncio.sleep(_INTERVAL_SECONDS)

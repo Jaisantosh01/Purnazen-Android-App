@@ -7,8 +7,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  Alert,
 } from 'react-native';
+import { showAlert } from '../utils/alert';
 import { useFocusEffect } from '@react-navigation/native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
@@ -131,7 +131,7 @@ const DayAvailabilityScreen = ({ route, navigation }) => {
   };
 
   const handleDelete = (availabilityId, timeLabel) => {
-    Alert.alert(
+    showAlert(
       'Delete Availability',
       `Are you sure you want to remove the slot ${timeLabel} on ${day}?`,
       [

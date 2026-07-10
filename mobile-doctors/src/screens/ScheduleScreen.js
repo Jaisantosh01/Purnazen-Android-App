@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  Alert,
   Animated,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';

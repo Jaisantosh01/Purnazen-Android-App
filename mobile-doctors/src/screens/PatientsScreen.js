@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
@@ -87,9 +88,15 @@ const PatientsScreen = ({ navigation }) => {
     }
   };
 
-  useEffect(() => {
-    fetchPatients();
-  }, []);
+  // First focus shows the loader; later focuses refresh silently so the list
+  // stays fresh without flashing when coming back from a patient detail.
+  const hasFetchedRef = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      fetchPatients(!hasFetchedRef.current);
+      hasFetchedRef.current = true;
+    }, []),
+  );
 
   const onRefresh = () => {
     setRefreshing(true);

@@ -125,7 +125,7 @@ const EditDoctorScreen = ({ route, navigation }) => {
     setLoading(true);
 
     if (!doctorId && (!editedDoctor.email || !editedDoctor.password || !editedDoctor.name)) {
-        Alert.alert('Validation Error', 'Full Name, Email, and Password are required');
+        showAlert('Validation Error', 'Full Name, Email, and Password are required');
         setLoading(false);
         return;
     }

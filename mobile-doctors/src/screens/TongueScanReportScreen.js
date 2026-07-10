@@ -5,9 +5,9 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
+import { showAlert } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
@@ -95,7 +95,7 @@ const TongueScanReportScreen = ({ route, navigation }) => {
   const recList = report.recommendations || ['No recommendations specified.'];
 
   const handleDownload = () => {
-    Alert.alert(
+    showAlert(
       'Download Report',
       `Full Tongue Scan Report for ${patientName} has been downloaded successfully as a PDF.`,
       [{ text: 'OK' }]
@@ -103,7 +103,7 @@ const TongueScanReportScreen = ({ route, navigation }) => {
   };
 
   const handleShare = () => {
-    Alert.alert(
+    showAlert(
       'Share Report',
       `Full Tongue Scan Report for ${patientName} is ready to be shared.`,
       [{ text: 'OK' }]

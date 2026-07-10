@@ -11,6 +11,7 @@ import {
   ScrollView,
   Platform,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
@@ -343,10 +344,21 @@ const AppointmentsScreen = ({ navigation }) => {
     }
   }, [selectedDate, selectedStatus]);
 
+  // Show the full-screen loader only for the first load and filter changes;
+  // regaining focus (e.g. coming back from the detail screen after accepting)
+  // refreshes silently so the list is never stale.
+  const hasFetchedRef = useRef(false);
   useEffect(() => {
-    fetchAppointments();
-    fetchAllAppointmentDates();
-  }, [fetchAppointments, fetchAllAppointmentDates]);
+    hasFetchedRef.current = false;
+  }, [selectedDate, selectedStatus]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchAppointments(!hasFetchedRef.current);
+      hasFetchedRef.current = true;
+      fetchAllAppointmentDates();
+    }, [fetchAppointments, fetchAllAppointmentDates]),
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -356,11 +368,14 @@ const AppointmentsScreen = ({ navigation }) => {
 
   // ── Status Action Helpers ───────────────────────────────────────────────────
   const updateAppointmentStatus = async (id, status) => {
+    // Optimistic: flip the card immediately, then sync with the server.
+    setAppointments(prev => prev.map(a => (a.id === id ? { ...a, status } : a)));
     try {
       await appointmentService.updateStatus(id, status);
       await fetchAppointments(false);
       await fetchAllAppointmentDates();
     } catch (e) {
+      await fetchAppointments(false); // roll back to server truth
       showAlert('Error', e?.message || 'Could not update appointment status.');
     }
   };

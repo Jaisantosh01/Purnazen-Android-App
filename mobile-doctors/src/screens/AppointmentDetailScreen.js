@@ -6,13 +6,13 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   ScrollView,
-  Alert,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
 import { COLORS, SPACING, RADIUS } from '../constants/theme';
 import appointmentService from '../services/appointmentService';
+import { showAlert } from '../utils/alert';
 
 // ─── Status config (mirrors AppointmentsScreen) ────────────────────────────────
 const STATUS_CONFIG = {
@@ -72,45 +72,50 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
   const [loading, setLoading] = useState(!initialAppointment);
   const [error, setError] = useState(null);
 
-  const fetchAppointmentDetails = useCallback(async () => {
-    if (initialAppointment) {
-        return;
-    }
+  // `silent` refreshes without blanking the screen — used when we already have
+  // data (opened from the list, or right after a status change).
+  const fetchAppointmentDetails = useCallback(async (silent = false) => {
     if (!id) {
       setError('No appointment ID provided.');
       setLoading(false);
       return;
     }
-    setLoading(true);
-    setError(null);
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const data = await appointmentService.detail(id);
-      setAppointment(data || null);
+      if (data) setAppointment(data);
+      else if (!silent) setAppointment(null);
     } catch (err) {
-      setError(err?.message || 'Failed to load appointment details.');
+      if (!silent) setError(err?.message || 'Failed to load appointment details.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [id]);
 
   useEffect(() => {
-    if (!initialAppointment) {
-        fetchAppointmentDetails();
-    }
+    // Always refetch, even when opened with a prefetched appointment, so a
+    // status changed elsewhere is reflected here.
+    fetchAppointmentDetails(!!initialAppointment);
   }, [fetchAppointmentDetails, initialAppointment]);
 
   // ── Status Action Helpers ───────────────────────────────────────────────────
   const handleUpdateStatus = async (status) => {
+    // Optimistic: reflect the new status immediately, then sync with server.
+    setAppointment(prev => (prev ? { ...prev, status } : prev));
     try {
       await appointmentService.updateStatus(id, status);
-      await fetchAppointmentDetails();
+      await fetchAppointmentDetails(true);
     } catch (e) {
-      Alert.alert('Error', e?.message || 'Could not update appointment status.');
+      await fetchAppointmentDetails(true); // roll back to server truth
+      showAlert('Error', e?.message || 'Could not update appointment status.');
     }
   };
 
   const handleAccept = () => {
-    Alert.alert(
+    showAlert(
       'Accept Appointment',
       `Accept appointment for ${appointment?.userName}?`,
       [
@@ -121,7 +126,7 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
   };
 
   const handleComplete = () => {
-    Alert.alert(
+    showAlert(
       'Complete Appointment',
       `Mark appointment for ${appointment?.userName} as completed?`,
       [
@@ -132,7 +137,7 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
   };
 
   const handleCancel = () => {
-    Alert.alert(
+    showAlert(
       'Cancel Appointment',
       `Cancel appointment for ${appointment?.userName}?`,
       [

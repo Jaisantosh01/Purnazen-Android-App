@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -34,3 +35,7 @@ class BroadcastRequest(BaseModel):
     body: str = Field(min_length=1, max_length=1000)
     audience: Literal["all", "users", "doctors"] = "all"
     category: Literal["promo", "system"] = "promo"
+    # Personalized-offer targeting; {name} in title/body is replaced per recipient.
+    segment: Literal["everyone", "new_users", "inactive_users"] = "everyone"
+    # When set (future), the broadcast is stored and dispatched by the scheduler.
+    scheduled_at: Optional[datetime] = Field(alias="scheduledAt", default=None)

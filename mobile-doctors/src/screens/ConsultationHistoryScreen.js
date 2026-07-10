@@ -5,10 +5,10 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import { showAlert } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
@@ -135,7 +135,7 @@ const ConsultationHistoryScreen = ({ route, navigation }) => {
 
   const handleDiagnosisPress = (consultation) => {
     // TODO: Diagnosis field is currently not supported by the backend DB schema.
-    Alert.alert(
+    showAlert(
       'Diagnosis',
       consultation.diagnosis && consultation.diagnosis !== 'N/A'
         ? consultation.diagnosis
@@ -145,7 +145,7 @@ const ConsultationHistoryScreen = ({ route, navigation }) => {
 
   const handlePrescriptionPress = (consultation) => {
     // TODO: Prescription field is currently not supported by the backend DB schema.
-    Alert.alert(
+    showAlert(
       'Prescription',
       consultation.prescription && consultation.prescription !== 'N/A'
         ? consultation.prescription

@@ -1,9 +1,11 @@
 import uuid
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db, require_role
+from app.models.broadcast import Broadcast
 from app.models.notification import Notification
 from app.models.user import User
 from app.schemas.notification import (
@@ -71,6 +73,24 @@ def mark_all_read(
 
 
 @router.post(
+    "/clear",
+    summary="Bulk-delete my notifications",
+    description="scope=read deletes only already-read notifications; scope=all deletes everything.",
+)
+def clear_notifications(
+    scope: str = Query("read", pattern="^(read|all)$"),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    query = db.query(Notification).filter(Notification.user_id == user.id)
+    if scope == "read":
+        query = query.filter(Notification.is_read == True)  # noqa: E712
+    deleted = query.delete(synchronize_session=False)
+    db.commit()
+    return success_response(f"{deleted} notification(s) cleared", {"deleted": deleted})
+
+
+@router.post(
     "/device-tokens",
     summary="Register this device for push notifications",
     description="Upserts the FCM registration token for the logged-in user.",
@@ -134,11 +154,15 @@ def update_admin_settings(
 
 @router.post(
     "/admin/broadcast",
-    summary="Broadcast a promotional / important notification (admin)",
+    summary="Send or schedule a broadcast notification (admin)",
     description=(
-        "Sends to every active user in the audience (all | users | doctors). "
-        "Promotional broadcasts respect each user's offers opt-out; system "
-        "broadcasts ignore user toggles."
+        "Sends to every active user in the audience (all | users | doctors), "
+        "optionally narrowed by segment (everyone | new_users | inactive_users). "
+        "`{name}` in the title/body is replaced with each recipient's first "
+        "name. With a future `scheduledAt`, the broadcast is stored and "
+        "dispatched by the scheduler instead of immediately. Promotional "
+        "broadcasts respect each user's offers opt-out; system broadcasts "
+        "ignore user toggles."
     ),
 )
 def broadcast(
@@ -146,18 +170,78 @@ def broadcast(
     user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
-    count = NotificationService.broadcast(
-        db,
-        audience=body.audience,
-        category=body.category,
-        event="admin_broadcast",
+    scheduled_at = body.scheduled_at
+    if scheduled_at is not None and scheduled_at.tzinfo is not None:
+        # Scheduler compares against naive server-local time.
+        scheduled_at = scheduled_at.astimezone().replace(tzinfo=None)
+
+    row = Broadcast(
         title=body.title,
         body=body.body,
-        data={"sentBy": str(user.id)},
+        audience=body.audience,
+        segment=body.segment,
+        category=body.category,
+        created_by=user.id,
+    )
+
+    if scheduled_at is not None and scheduled_at > datetime.now():
+        row.status = "scheduled"
+        row.scheduled_at = scheduled_at
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+        return success_response(
+            f"Broadcast scheduled for {scheduled_at.strftime('%d %b %Y, %I:%M %p')}",
+            row.to_dict(),
+        )
+
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    count = NotificationService.send_broadcast(db, row)
+    return success_response(
+        f"Broadcast delivered to {count} recipient(s)", row.to_dict()
+    )
+
+
+@router.get(
+    "/admin/broadcasts",
+    summary="Recent broadcasts (admin)",
+    description="Newest first — sent, scheduled and cancelled broadcasts.",
+)
+def list_broadcasts(
+    limit: int = Query(30, ge=1, le=100),
+    user: User = Depends(require_role("admin")),
+    db: Session = Depends(get_db),
+):
+    rows = (
+        db.query(Broadcast)
+        .order_by(Broadcast.created_at.desc())
+        .limit(limit)
+        .all()
     )
     return success_response(
-        f"Broadcast delivered to {count} recipient(s)", {"recipients": count}
+        "Broadcasts fetched", {"broadcasts": [b.to_dict() for b in rows]}
     )
+
+
+@router.delete(
+    "/admin/broadcasts/{broadcast_id}",
+    summary="Cancel a scheduled broadcast (admin)",
+)
+def cancel_broadcast(
+    broadcast_id: uuid.UUID,
+    user: User = Depends(require_role("admin")),
+    db: Session = Depends(get_db),
+):
+    row = db.get(Broadcast, broadcast_id)
+    if not row:
+        return error_response("Broadcast not found", 404)
+    if row.status != "scheduled":
+        return error_response("Only scheduled broadcasts can be cancelled", 400)
+    row.status = "cancelled"
+    db.commit()
+    return success_response("Broadcast cancelled", row.to_dict())
 
 
 # ── Parameterized routes LAST ────────────────────────────────────────────────
