@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, ScrollView } from 'react-native';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
@@ -9,10 +8,10 @@ import { ITEM_HEIGHT } from '../constants/slots';
 import ScreenHeader from '../components/ScreenHeader';
 import { ListSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
-import ScreenHeader from '../components/ScreenHeader';
+// import ScreenHeader from '../components/ScreenHeader';
 import { showAlert } from '../utils/alert';
 
-const ITEM_HEIGHT = 40;
+// const ITEM_HEIGHT = 40;
 const SLOT_CARD_HEIGHT = 58;
 
 const TimePickerColumn = ({ data, value, onChange }) => {
