@@ -12,20 +12,13 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
+import { LEAVE_STATUS_COLORS as STATUS_COLORS, DAY_NAMES, MONTH_NAMES } from '../constants/appointments';
 import TimePickerModal from '../components/TimePickerModal';
 import SkeletonBox, { LeaveCardSkeleton, LeaveStatsSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 import { showAlert } from '../utils/alert';
 
-const STATUS_COLORS = {
-  pending: { bg: '#F59E0B', label: 'Pending' },
-  approved: { bg: '#10B981', label: 'Approved' },
-  rejected: { bg: '#EF4444', label: 'Rejected' },
-};
-
-const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const CalendarPicker = ({ value, onSelect }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -186,9 +179,6 @@ const LeaveCard = ({ leave, onPress, onStatusUpdate }) => {
 };
 
 const DoctorLeaveManagementScreen = ({ navigation, route }) => {
-  // Rendered both as the "Leaves" tab (route name LeaveCenter) and pushed from
-  // Home — only the pushed instance gets a back arrow.
-  const isTabInstance = route?.name === 'LeaveCenter';
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [leaves, setLeaves] = useState([]);
@@ -420,8 +410,7 @@ const DoctorLeaveManagementScreen = ({ navigation, route }) => {
       <ScreenHeader
         title="Doctor Leaves"
         subtitle="Review and manage leave requests"
-        onBack={isTabInstance ? undefined : () => navigation.goBack()}
-        showBack={!isTabInstance}
+        onBack={() => navigation.goBack()}
         right={
           <TouchableOpacity onPress={openFilterModal} style={styles.filterBtn}>
             <MCIcon name="filter-variant" size={22} color={hasActiveFilters ? colors.headerText : 'rgba(255,255,255,0.7)'} />

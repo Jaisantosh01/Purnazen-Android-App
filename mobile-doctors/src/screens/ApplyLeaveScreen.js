@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,8 @@ import {
 } from 'react-native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { SPACING, RADIUS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 import { useLeaveStore } from '../store/useLeaveStore';
 import { showSuccess, showError } from '../utils/toast';
 import availabilityService from '../services/availabilityService';
@@ -71,6 +72,8 @@ const dateNotAfter = (a, b) => {
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 const ApplyLeaveScreen = ({ navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const addLeave = useLeaveStore((s) => s.addLeave);
 
   // Loading & Submission states
@@ -400,11 +403,11 @@ const ApplyLeaveScreen = ({ navigation }) => {
       <View style={styles.calendarContainer}>
         <View style={styles.calendarHeader}>
           <TouchableOpacity onPress={handlePrevMonth} style={styles.calNavBtn}>
-            <MCIcon name="chevron-left" size={24} color={COLORS.primary} />
+            <MCIcon name="chevron-left" size={24} color={colors.primary} />
           </TouchableOpacity>
           <Text style={styles.calendarMonthText}>{MONTHS[currentMonth]} {currentYear}</Text>
           <TouchableOpacity onPress={handleNextMonth} style={styles.calNavBtn}>
-            <MCIcon name="chevron-right" size={24} color={COLORS.primary} />
+            <MCIcon name="chevron-right" size={24} color={colors.primary} />
           </TouchableOpacity>
         </View>
         <View style={weekDaysRowStyle}>
@@ -473,9 +476,9 @@ const ApplyLeaveScreen = ({ navigation }) => {
         onPress={() => setShowReasonPicker(true)}
         style={[styles.inputContainer, showReasonPicker && styles.inputFocused]}
       >
-        <MCIcon name="alert-circle-outline" size={20} color={COLORS.primary} style={styles.inputIcon} />
+        <MCIcon name="alert-circle-outline" size={20} color={colors.primary} style={styles.inputIcon} />
         <Text style={styles.inputText}>{reason}</Text>
-        <MCIcon name="menu-down" size={24} color={COLORS.textMuted} />
+        <MCIcon name="menu-down" size={24} color={colors.textMuted} />
       </Pressable>
     </>
   );
@@ -484,11 +487,11 @@ const ApplyLeaveScreen = ({ navigation }) => {
     <>
       <Text style={styles.label}>Notes</Text>
       <View style={[styles.inputContainer, styles.textAreaContainer]}>
-        <MCIcon name="pencil-outline" size={20} color={COLORS.textMuted} style={[styles.inputIcon, { marginTop: 10 }]} />
+        <MCIcon name="pencil-outline" size={20} color={colors.textMuted} style={[styles.inputIcon, { marginTop: 10 }]} />
         <TextInput
           style={[styles.input, styles.textArea]}
           placeholder="Enter additional leave notes..."
-          placeholderTextColor={COLORS.textMuted}
+          placeholderTextColor={colors.textMuted}
           value={notes}
           onChangeText={setNotes}
           multiline
@@ -514,7 +517,7 @@ const ApplyLeaveScreen = ({ navigation }) => {
           disabled={isDisabled}
         >
           {submitting ? (
-            <ActivityIndicator size="small" color={COLORS.white} />
+            <ActivityIndicator size="small" color={colors.white} />
           ) : (
             <Text style={[styles.submitBtnText, isDisabled && styles.submitBtnTextDisabled]}>
               Submit Leave
@@ -537,11 +540,11 @@ const ApplyLeaveScreen = ({ navigation }) => {
           ]}
           disabled={submitting}
         >
-          <MCIcon name="calendar-start" size={20} color={COLORS.primary} style={styles.inputIcon} />
+          <MCIcon name="calendar-start" size={20} color={colors.primary} style={styles.inputIcon} />
           <Text style={[styles.inputText, !startDate && styles.inputPlaceholder]}>
             {startDate ? formatDateStr(startDate) : 'Start Date'}
           </Text>
-          <MCIcon name="menu-down" size={22} color={COLORS.textMuted} />
+          <MCIcon name="menu-down" size={22} color={colors.textMuted} />
         </Pressable>
       </View>
       <View style={styles.dateRangeItem}>
@@ -554,11 +557,11 @@ const ApplyLeaveScreen = ({ navigation }) => {
           ]}
           disabled={submitting}
         >
-          <MCIcon name="calendar-end" size={20} color={COLORS.primary} style={styles.inputIcon} />
+          <MCIcon name="calendar-end" size={20} color={colors.primary} style={styles.inputIcon} />
           <Text style={[styles.inputText, !endDate && styles.inputPlaceholder]}>
             {endDate ? formatDateStr(endDate) : 'End Date'}
           </Text>
-          <MCIcon name="menu-down" size={22} color={COLORS.textMuted} />
+          <MCIcon name="menu-down" size={22} color={colors.textMuted} />
         </Pressable>
       </View>
     </View>
@@ -578,7 +581,7 @@ const ApplyLeaveScreen = ({ navigation }) => {
           <MCIcon
             name={isPartialDay ? 'checkbox-marked' : 'checkbox-blank-outline'}
             size={24}
-            color={isPartialDay ? COLORS.primary : COLORS.textSecondary}
+            color={isPartialDay ? colors.primary : colors.textSecondary}
           />
           <Text style={styles.checkboxLabel}>
             Apply for Partial Day Leave
@@ -594,7 +597,7 @@ const ApplyLeaveScreen = ({ navigation }) => {
     if (loadingSlots) {
       return (
         <View style={styles.slotsLoader}>
-          <ActivityIndicator size="small" color={COLORS.primary} />
+          <ActivityIndicator size="small" color={colors.primary} />
           <Text style={styles.slotsLoaderText}>Loading slot timings...</Text>
         </View>
       );
@@ -655,7 +658,7 @@ const ApplyLeaveScreen = ({ navigation }) => {
 
         <View style={styles.activeDayPanel}>
           <View style={styles.activeDayPanelHeader}>
-            <MCIcon name="calendar-clock" size={16} color={COLORS.primary} />
+            <MCIcon name="calendar-clock" size={16} color={colors.primary} />
             <Text style={styles.activeDayPanelTitle}>
               Available Slots for {formatDateStr(currentActiveDay)}
             </Text>
@@ -664,7 +667,7 @@ const ApplyLeaveScreen = ({ navigation }) => {
 
           {getSlotsForDate(currentActiveDay).length === 0 ? (
             <View style={styles.noSlotsRow}>
-              <MCIcon name="calendar-remove" size={20} color={COLORS.textMuted} />
+              <MCIcon name="calendar-remove" size={20} color={colors.textMuted} />
               <Text style={styles.noSlotsText}>No slots configured for this day.</Text>
             </View>
           ) : (
@@ -689,7 +692,7 @@ const ApplyLeaveScreen = ({ navigation }) => {
                     <MCIcon
                       name={isSlotActive ? 'check-circle' : 'clock-outline'}
                       size={18}
-                      color={isSlotActive ? COLORS.white : COLORS.primary}
+                      color={isSlotActive ? colors.white : colors.primary}
                     />
                     <Text style={[styles.slotText, isSlotActive && styles.slotTextActive]}>
                       {timeLabel}
@@ -747,7 +750,7 @@ const ApplyLeaveScreen = ({ navigation }) => {
                 {datePickerTarget === 'end' ? 'Select End Date' : datePickerTarget === 'start' ? 'Select Start Date' : 'Select Date'}
               </Text>
               <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                <MCIcon name="close" size={24} color={COLORS.textPrimary} />
+                <MCIcon name="close" size={24} color={colors.textPrimary} />
               </TouchableOpacity>
             </View>
             {renderCalendar()}
@@ -770,7 +773,7 @@ const ApplyLeaveScreen = ({ navigation }) => {
                 {timePickerTarget === 'from' ? 'Select Start Time' : 'Select End Time'}
               </Text>
               <TouchableOpacity onPress={() => setShowTimePicker(false)}>
-                <MCIcon name="close" size={24} color={COLORS.textPrimary} />
+                <MCIcon name="close" size={24} color={colors.textPrimary} />
               </TouchableOpacity>
             </View>
 
@@ -835,7 +838,7 @@ const ApplyLeaveScreen = ({ navigation }) => {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Reason</Text>
               <TouchableOpacity onPress={() => setShowReasonPicker(false)}>
-                <MCIcon name="close" size={24} color={COLORS.textPrimary} />
+                <MCIcon name="close" size={24} color={colors.textPrimary} />
               </TouchableOpacity>
             </View>
             <View style={{ paddingVertical: SPACING.md }}>
@@ -853,7 +856,7 @@ const ApplyLeaveScreen = ({ navigation }) => {
                     <Text style={[styles.reasonOptionText, isSelected && styles.reasonOptionTextActive]}>
                       {r}
                     </Text>
-                    {isSelected && <MCIcon name="check" size={22} color={COLORS.primary} />}
+                    {isSelected && <MCIcon name="check" size={22} color={colors.primary} />}
                   </TouchableOpacity>
                 );
               })}
@@ -928,14 +931,15 @@ const weekDaysRowStyle = {
   marginBottom: 8,
 };
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors =>
+  StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   scroll: { padding: SPACING.lg, paddingBottom: 60 },
 
   label: {
     fontSize: 12.5,
     fontWeight: '800',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginBottom: 8,
     marginTop: SPACING.md,
     textTransform: 'uppercase',
@@ -944,11 +948,11 @@ const styles = StyleSheet.create({
 
   segmentedContainer: {
     flexDirection: 'row',
-    backgroundColor: '#EEF4FF',
+    backgroundColor: colors.primaryLight,
     borderRadius: RADIUS.md,
     padding: 4,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     marginBottom: SPACING.sm,
   },
   segmentButton: {
@@ -959,15 +963,15 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.md - 2,
   },
   segmentButtonActive: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
   },
   segmentText: {
     fontSize: 13.5,
     fontWeight: '600',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   segmentTextActive: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '800',
   },
 
@@ -976,18 +980,18 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     paddingHorizontal: SPACING.md,
     height: 48,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     justifyContent: 'space-between',
   },
   inputFocused: {
-    borderColor: COLORS.primary,
+    borderColor: colors.primary,
     elevation: 1,
-    shadowColor: COLORS.primary,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -995,18 +999,18 @@ const styles = StyleSheet.create({
   inputIcon: { marginRight: SPACING.sm },
   inputText: {
     flex: 1,
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     fontSize: 14.5,
     fontWeight: '700',
   },
   inputPlaceholder: {
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontWeight: '500',
   },
   input: {
     flex: 1,
     height: '100%',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     fontSize: 14.5,
     fontWeight: '600',
     paddingVertical: 0,
@@ -1032,7 +1036,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#EEF4FF',
+    backgroundColor: colors.primaryLight,
     borderRadius: RADIUS.md,
     paddingHorizontal: SPACING.md,
     paddingVertical: 8,
@@ -1042,7 +1046,7 @@ const styles = StyleSheet.create({
   dateRangeSummaryText: {
     fontSize: 12.5,
     fontWeight: '700',
-    color: COLORS.primary,
+    color: colors.primary,
     flex: 1,
   },
 
@@ -1059,42 +1063,42 @@ const styles = StyleSheet.create({
     width: 82,
     paddingVertical: 10,
     paddingHorizontal: 8,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1.5,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
     elevation: 1,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 2,
   },
   dayCardActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
     elevation: 3,
     shadowOpacity: 0.18,
   },
   dayCardDayText: {
     fontSize: 13,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   dayCardDateText: {
     fontSize: 11.5,
     fontWeight: '600',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   dayCardTextActive: {
-    color: COLORS.white,
+    color: colors.white,
   },
   dayCardBadge: {
     fontSize: 10,
     fontWeight: '700',
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginTop: 2,
     textAlign: 'center',
   },
@@ -1102,21 +1106,21 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.85)',
   },
   dayCardBadgeSelected: {
-    color: COLORS.primary,
+    color: colors.primary,
   },
   dayCardBadgeFull: {
-    color: COLORS.success,
+    color: colors.success,
   },
   // Active day slots panel
   activeDayPanel: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.md,
     marginTop: SPACING.md,
     elevation: 1,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 2,
@@ -1130,11 +1134,11 @@ const styles = StyleSheet.create({
   activeDayPanelTitle: {
     fontSize: 13.5,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   activeDayDivider: {
     height: 1,
-    backgroundColor: COLORS.border,
+    backgroundColor: colors.border,
     marginBottom: SPACING.md,
   },
   noSlotsRow: {
@@ -1145,7 +1149,7 @@ const styles = StyleSheet.create({
   },
   noSlotsText: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontStyle: 'italic',
   },
   // Two-column slot grid
@@ -1160,9 +1164,9 @@ const styles = StyleSheet.create({
     // Each card occupies exactly half the row minus half the gutter
     width: '48.5%',
     marginBottom: SPACING.sm,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderWidth: 1.5,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: RADIUS.md,
     paddingVertical: 10,
     paddingHorizontal: 10,
@@ -1172,16 +1176,16 @@ const styles = StyleSheet.create({
     marginLeft: '3%',
   },
   slotCardActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   slotText: {
     fontSize: 13,
     fontWeight: '700',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   slotTextActive: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '800',
   },
   selectedSlotsChips: {
@@ -1191,14 +1195,14 @@ const styles = StyleSheet.create({
   selectedSlotsHint: {
     fontSize: 12,
     fontWeight: '700',
-    color: COLORS.primary,
+    color: colors.primary,
     marginTop: 2,
   },
   slotsCardPlaceholder: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.lg,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1207,7 +1211,7 @@ const styles = StyleSheet.create({
   },
   slotsPlaceholderText: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     textAlign: 'center',
     lineHeight: 18,
   },
@@ -1220,19 +1224,19 @@ const styles = StyleSheet.create({
   },
   slotsLoaderText: {
     fontSize: 13.5,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '600',
   },
 
   submitBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: RADIUS.md,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: SPACING.xl,
     elevation: 2,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
@@ -1243,7 +1247,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0,
   },
   submitBtnText: {
-    color: COLORS.white,
+    color: colors.white,
     fontSize: 15.5,
     fontWeight: '800',
   },
@@ -1254,7 +1258,7 @@ const styles = StyleSheet.create({
   // ── Invalid Date Alert Dialog ───────────────────────────────────────────────
   alertDialogContent: {
     width: '85%',
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     padding: SPACING.lg,
     alignItems: 'center',
@@ -1279,21 +1283,21 @@ const styles = StyleSheet.create({
   },
   alertDialogMessage: {
     fontSize: 14,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 21,
     marginBottom: SPACING.lg,
     fontWeight: '500',
   },
   alertDialogBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: RADIUS.md,
     paddingVertical: 11,
     paddingHorizontal: 48,
     alignItems: 'center',
   },
   alertDialogBtnText: {
-    color: COLORS.white,
+    color: colors.white,
     fontSize: 15,
     fontWeight: '800',
   },
@@ -1307,11 +1311,11 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: '100%',
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     padding: SPACING.lg,
     elevation: 5,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 6,
@@ -1321,14 +1325,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: colors.border,
     paddingBottom: SPACING.md,
     marginBottom: SPACING.sm,
   },
   modalTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
 
   calendarContainer: { paddingVertical: SPACING.xs },
@@ -1341,7 +1345,7 @@ const styles = StyleSheet.create({
   calendarMonthText: {
     fontSize: 15,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   calNavBtn: { padding: 4 },
   weekDaysRow: {
@@ -1352,7 +1356,7 @@ const styles = StyleSheet.create({
   weekDayText: {
     fontSize: 12,
     fontWeight: '800',
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     width: 32,
     textAlign: 'center',
   },
@@ -1370,7 +1374,7 @@ const styles = StyleSheet.create({
     marginVertical: 2,
   },
   dayCellActive: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
   },
   dayCellInRange: {
     backgroundColor: '#D0E4FF',
@@ -1383,24 +1387,24 @@ const styles = StyleSheet.create({
   dayText: {
     fontSize: 13.5,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   dayTextActive: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '800',
   },
   dayTextInRange: {
-    color: COLORS.primary,
+    color: colors.primary,
   },
   dayTextDisabled: {
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
 
   timePickerGridContainer: { marginVertical: SPACING.md },
   timeSelectLabel: {
     fontSize: 11,
     fontWeight: '800',
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     textTransform: 'uppercase',
     marginBottom: 8,
   },
@@ -1415,22 +1419,22 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.surfaceMuted,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     marginBottom: 4,
   },
   hourItemActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   hourText: {
     fontSize: 13.5,
     fontWeight: '700',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   hourTextActive: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '800',
   },
   minuteRow: {
@@ -1443,21 +1447,21 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.surfaceMuted,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
   },
   minuteItemActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   minuteText: {
     fontSize: 13.5,
     fontWeight: '700',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   minuteTextActive: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '800',
   },
   periodRow: {
@@ -1470,32 +1474,32 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.surfaceMuted,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
   },
   periodItemActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   periodText: {
     fontSize: 13.5,
     fontWeight: '700',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   periodTextActive: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '800',
   },
   confirmTimeBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: RADIUS.md,
     paddingVertical: 12,
     alignItems: 'center',
     marginTop: SPACING.lg,
   },
   confirmTimeText: {
-    color: COLORS.white,
+    color: colors.white,
     fontSize: 15,
     fontWeight: '800',
   },
@@ -1507,15 +1511,15 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: colors.border,
   },
   reasonOptionText: {
     fontSize: 14.5,
     fontWeight: '700',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   reasonOptionTextActive: {
-    color: COLORS.primary,
+    color: colors.primary,
     fontWeight: '800',
   },
 
@@ -1536,14 +1540,14 @@ const styles = StyleSheet.create({
   checkboxLabel: {
     fontSize: 14.5,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   checkboxLabelDisabled: {
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   checkboxHelperText: {
     fontSize: 12,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontStyle: 'italic',
     marginTop: 4,
     paddingLeft: 32,

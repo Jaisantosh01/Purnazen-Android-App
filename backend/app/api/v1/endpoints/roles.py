@@ -11,7 +11,7 @@ router = APIRouter(prefix="/roles", tags=["Roles"])
 
 @router.get("", summary="Get all active roles")
 def get_all_roles(db: Session = Depends(get_db)):
-    roles = RoleService.get_all(db)
+    roles = RoleService.get_all(db, include_inactive=True)
     return success_response("Roles fetched successfully", [r.to_dict() for r in roles])
 
 @router.post("", summary="Create a new role", dependencies=[Depends(require_role("admin"))])

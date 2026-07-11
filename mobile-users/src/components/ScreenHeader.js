@@ -140,7 +140,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   backSpacer: { width: 4 },
-  titleWrap: { flex: 1 },
+  // minHeight reserves the two-line (title + subtitle) footprint even when a
+  // screen has no subtitle, so every header renders at the same height.
+  titleWrap: { flex: 1, minHeight: 46, justifyContent: 'center' },
   title: { fontSize: 22, fontWeight: '700' },
   subtitle: { fontSize: 13, marginTop: 2 },
   rightWrap: { minWidth: 4, alignItems: 'flex-end', justifyContent: 'center' },

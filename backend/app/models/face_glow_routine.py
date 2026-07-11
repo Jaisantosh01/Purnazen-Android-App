@@ -1,6 +1,4 @@
-import uuid
 from sqlalchemy import JSON, Boolean, Column, DateTime, Integer, String, func
-from app.db.types import GUID
 
 from app.db.base_class import Base
 
@@ -21,7 +19,9 @@ FACE_GLOW_ICON_FALLBACK = "face-woman-shimmer"
 class FaceGlowRoutine(Base):
     __tablename__ = "face_glow_routines"
 
-    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    # The migration (b2c3d4e5f6a7) created this column as Integer; the model
+    # must match or GUID's result processor crashes on the int values.
+    id = Column(Integer, primary_key=True, autoincrement=True)
     key = Column(String(80), nullable=False, unique=True)
     icon = Column(String(10), nullable=False)
     title = Column(String(150), nullable=False)
