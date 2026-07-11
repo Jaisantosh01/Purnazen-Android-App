@@ -196,6 +196,16 @@ const HomeScreen = ({ navigation }) => {
               </View>
               <MCIcon name="chevron-right" size={22} color={colors.textMuted} />
             </TouchableOpacity>
+            <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('ContentManagement')} activeOpacity={0.7}>
+              <View style={[styles.mgmtIconCircle, { backgroundColor: colors.primaryLight }]}>
+                <MCIcon name="file-document-edit-outline" size={24} color={colors.primary} />
+              </View>
+              <View style={styles.mgmtTextCol}>
+                <Text style={styles.mgmtTitle}>Content Management</Text>
+                <Text style={styles.mgmtSub}>Terms & conditions, privacy policy</Text>
+              </View>
+              <MCIcon name="chevron-right" size={22} color={colors.textMuted} />
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
