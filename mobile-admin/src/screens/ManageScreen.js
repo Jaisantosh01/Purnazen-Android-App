@@ -64,6 +64,12 @@ const GROUPS = [
         subtitle: 'Broadcasts, switches & reminders',
         screen: 'NotificationAdmin',
       },
+      {
+        icon: 'file-document-edit-outline',
+        title: 'Content Pages',
+        subtitle: 'Edit in-app pages and policies',
+        screen: 'ContentManagement',
+      },
     ],
   },
 ];

@@ -7,7 +7,6 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // @ts-ignore
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { Text, TouchableOpacity, StyleSheet } from 'react-native';
 // @ts-ignore
 import authService from './src/services/authService';
 // @ts-ignore
@@ -35,11 +34,9 @@ import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import UnifiedUserDoctorScreen from './src/screens/UnifiedUserDoctorScreen';
-import DoctorManagementScreen from './src/screens/DoctorManagementScreen';
 import DoctorDetailScreen from './src/screens/DoctorDetailScreen';
 import EditDoctorScreen from './src/screens/EditDoctorScreen';
 import MetadataManagementScreen from './src/screens/MetadataManagementScreen';
-import UserManagementScreen from './src/screens/UserManagementScreen';
 import EditUserScreen from './src/screens/EditUserScreen';
 import ManageRolesScreen from './src/screens/ManageRolesScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
@@ -52,9 +49,9 @@ import VideoGroupDetailScreen from './src/screens/VideoGroupDetailScreen';
 import UploadVideoScreen from './src/screens/UploadVideoScreen';
 import FaqManagementScreen from './src/screens/FaqManagementScreen';
 import NotificationAdminScreen from './src/screens/NotificationAdminScreen';
+import ContentManagementScreen from './src/screens/ContentManagementScreen';
+import ContentDetailScreen from './src/screens/ContentDetailScreen';
 import ManageScreen from './src/screens/ManageScreen';
-
-
 
 const RootStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -71,6 +68,8 @@ const TAB_ICONS: Record<string, { active: string; inactive: string }> = {
 function HomeStackNavigator() {
   return (
     <HomeStack.Navigator screenOptions={{ headerShown: false }}>
+      {/* Dashboard cards deep-link into the Manage tab, so only the dashboard
+          itself lives in this stack. */}
       <HomeStack.Screen name="HomeMain" component={HomeScreen} />
     </HomeStack.Navigator>
   );
@@ -102,6 +101,8 @@ function ManageStackNavigator() {
       <ManageStack.Screen name="UploadVideo" component={UploadVideoScreen} />
       <ManageStack.Screen name="FaqManagement" component={FaqManagementScreen} />
       <ManageStack.Screen name="NotificationAdmin" component={NotificationAdminScreen} />
+      <ManageStack.Screen name="ContentManagement" component={ContentManagementScreen} />
+      <ManageStack.Screen name="ContentDetail" component={ContentDetailScreen} />
     </ManageStack.Navigator>
   );
 }
@@ -159,8 +160,6 @@ function MainTabs() {
     </Tab.Navigator>
   );
 }
-
-const styles = StyleSheet.create({});
 
 // ── Minimal splash shown while bootstrap is in-flight ─────────────────────────
 function SplashScreen() {

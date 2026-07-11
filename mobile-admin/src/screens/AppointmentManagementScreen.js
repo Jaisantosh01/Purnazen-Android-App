@@ -14,20 +14,11 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
+import { STATUS_OPTIONS, APPOINTMENT_STATUS_COLORS as STATUS_COLORS, DAY_NAMES, MONTH_NAMES } from '../constants/appointments';
 import { ListSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 import { showAlert } from '../utils/alert';
-
-const STATUS_OPTIONS = ['pending', 'booked', 'completed', 'cancelled'];
-const STATUS_COLORS = {
-  pending: '#F59E0B',
-  booked: '#3B82F6',
-  completed: '#10B981',
-  cancelled: '#EF4444',
-};
-const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 const formatAddress = (addr) => {
   if (!addr) return '';

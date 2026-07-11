@@ -4,12 +4,14 @@ import { SwipeListView } from 'react-native-swipe-list-view';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
+import { ITEM_HEIGHT } from '../constants/slots';
+import ScreenHeader from '../components/ScreenHeader';
 import { ListSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
-import ScreenHeader from '../components/ScreenHeader';
+// import ScreenHeader from '../components/ScreenHeader';
 import { showAlert } from '../utils/alert';
 
-const ITEM_HEIGHT = 40;
+// const ITEM_HEIGHT = 40;
 const SLOT_CARD_HEIGHT = 58;
 
 const TimePickerColumn = ({ data, value, onChange }) => {
@@ -255,8 +257,6 @@ const makeStyles = colors => StyleSheet.create({
   flex: 1,
   flexDirection: 'row',
   backgroundColor: colors.card,
-  borderTopLeftRadius: 24,
-  borderTopRightRadius: 24,
   overflow: 'hidden',
 },
   sidebar: {
@@ -283,7 +283,6 @@ selectedDayText: {
   color: colors.primary,
   fontWeight: '700',
 },
-  activeIndicator: { position: 'absolute', left: 0, top: 20, bottom: 20, width: 4, backgroundColor: colors.primary, borderTopRightRadius: 2, borderBottomRightRadius: 2 },
   mainContent: {
   flex: 1,
   paddingHorizontal: 18,
