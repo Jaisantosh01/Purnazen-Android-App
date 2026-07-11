@@ -113,7 +113,7 @@ const HomeScreen = ({ navigation }) => {
                   title="Active Doctors"
                   value={stats?.total_active_doctors}
                   icon="doctor"
-                  onPress={() => navigation.navigate('Doctors', { screen: 'DoctorsMain' })}
+                  onPress={() => navigation.navigate('Users', { screen: 'UsersAndDoctorsMain', params: { initialTab: 'doctors' } })}
                 />
                 <KpiCard
                   title="Active Users"
@@ -193,6 +193,16 @@ const HomeScreen = ({ navigation }) => {
               <View style={styles.mgmtTextCol}>
                 <Text style={styles.mgmtTitle}>FAQ Management</Text>
                 <Text style={styles.mgmtSub}>Configure FAQ content</Text>
+              </View>
+              <MCIcon name="chevron-right" size={22} color={colors.textMuted} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('ContentManagement')} activeOpacity={0.7}>
+              <View style={[styles.mgmtIconCircle, { backgroundColor: colors.primaryLight }]}>
+                <MCIcon name="file-document-edit-outline" size={24} color={colors.primary} />
+              </View>
+              <View style={styles.mgmtTextCol}>
+                <Text style={styles.mgmtTitle}>Content Management</Text>
+                <Text style={styles.mgmtSub}>Terms & conditions, privacy policy</Text>
               </View>
               <MCIcon name="chevron-right" size={22} color={colors.textMuted} />
             </TouchableOpacity>

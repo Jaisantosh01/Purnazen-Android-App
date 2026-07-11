@@ -7,10 +7,10 @@ import { ENDPOINTS } from '../constants/apiEndpoints';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 
-const UnifiedUserDoctorScreen = ({ navigation }) => {
+const UnifiedUserDoctorScreen = ({ navigation, route }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const [activeTab, setActiveTab] = useState('users');
+  const [activeTab, setActiveTab] = useState(route?.params?.initialTab || 'users');
 
   return (
     <View style={styles.root}>
