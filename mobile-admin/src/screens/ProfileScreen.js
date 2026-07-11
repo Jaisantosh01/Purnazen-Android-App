@@ -6,20 +6,21 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
+  Linking,
 } from 'react-native';
 import { showAlert } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAuthStore } from '../store/authStore';
 import authService from '../services/authService';
+import { checkForUpdate, FORCE_MARKER } from '../services/updateService';
+import { APP_VERSION } from '../config';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { StatsSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
 import { useHeaderTopPadding } from '../components/ScreenHeader';
 
-// Icon backgrounds are a translucent wash of the icon hue so the tint reads
-// correctly over both light and dark cards (matches the users app).
 const soft = hex => `${hex}22`;
 
 const SUPPORT_EMAIL = 'support@purnazen.com';
@@ -31,9 +32,8 @@ const ProfileScreen = ({ navigation }) => {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [stats, setStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [updateChecking, setUpdateChecking] = useState(false);
 
-  // Profile trackers reuse the admin platform-stats endpoint that powers the
-  // Home dashboard, so they stay consistent without a second source of truth.
   useEffect(() => {
     apiClient
       .get(ENDPOINTS.ADMIN_STATS)
@@ -54,14 +54,49 @@ const ProfileScreen = ({ navigation }) => {
           onPress: async () => {
             try {
               await authService.logout();
-              // Auth-state flip swaps the root navigator back to Login (App.tsx).
-            } catch {
-              // logout clears local state even if the server call fails
-            }
+            } catch {}
           },
         },
       ],
     );
+  };
+
+  const handleCheckForUpdate = async () => {
+    if (updateChecking) return;
+    setUpdateChecking(true);
+    try {
+      const u = await checkForUpdate({ force: true });
+      if (!u) {
+        showAlert('Up to date', `You're on the latest version (v${APP_VERSION}).`);
+        return;
+      }
+      const openApk = () => { Linking.openURL(u.apkUrl).catch(() => {}); };
+      const notes = (u.notes || '')
+        .split('\n')
+        .filter(l => !l.includes(FORCE_MARKER))
+        .join('\n')
+        .trim();
+      const body =
+        `Version ${u.version} is available${u.current ? ` (you have v${u.current})` : ''}.` +
+        (u.forced ? '\n\nThis is a critical update and is required to continue.' : '') +
+        (notes ? `\n\n${notes}` : '');
+      const buttons = u.forced
+        ? [{ text: 'Update now', onPress: openApk }]
+        : [
+            { text: 'Later', style: 'cancel' },
+            { text: 'Update now', onPress: openApk },
+          ];
+      showAlert(
+        u.forced ? 'Update required' : 'Update available',
+        body,
+        buttons,
+        { cancelable: !u.forced },
+      );
+    } catch {
+      showAlert('Check for Updates', 'Could not check for updates. Please try again later.');
+    } finally {
+      setUpdateChecking(false);
+    }
   };
 
   const openSupport = () =>
@@ -71,8 +106,12 @@ const ProfileScreen = ({ navigation }) => {
     );
 
   const MENU_ITEMS = [
-    { icon: 'cog-outline',         iconColor: '#6B7280', title: 'Settings',       subtitle: 'App preferences', onPress: () => navigation.navigate('Settings') },
-    { icon: 'help-circle-outline', iconColor: '#0284c7', title: 'Help & Support', subtitle: 'Get assistance',  onPress: openSupport },
+    { icon: 'cog-outline',         iconColor: '#6B7280', title: 'Settings',          subtitle: 'App preferences',     onPress: () => navigation.navigate('Settings') },
+    { icon: 'cloud-download-outline', iconColor: '#0284C7', title: 'Check for Updates', subtitle: updateChecking ? 'Checking\u2026' : `v${APP_VERSION}`, onPress: handleCheckForUpdate },
+    { icon: 'help-circle-outline', iconColor: '#0284C7', title: 'Help & Support',    subtitle: 'Get assistance',      onPress: openSupport },
+    { icon: 'frequently-asked-questions', iconColor: '#7C3AED', title: 'FAQ',          subtitle: 'Frequently asked questions', onPress: () => navigation.navigate('ContentViewer', { type: 'faq' }) },
+    { icon: 'file-document-outline', iconColor: '#F59E0B', title: 'Terms & Conditions', subtitle: 'Terms of service',  onPress: () => navigation.navigate('ContentViewer', { type: 'terms' }) },
+    { icon: 'shield-lock-outline', iconColor: '#10B981', title: 'Privacy Policy',     subtitle: 'Data privacy notice', onPress: () => navigation.navigate('ContentViewer', { type: 'privacy' }) },
   ];
 
   const displayName = user?.full_name ?? 'Admin';
@@ -104,21 +143,20 @@ const ProfileScreen = ({ navigation }) => {
             </View>
           </View>
 
-          {/* ── Trackers ── */}
           {statsLoading ? (
             <StatsSkeleton />
           ) : (
             <View style={styles.statsRow}>
               <View style={[styles.statBox, styles.statBorder]}>
-                <Text style={styles.statValue}>{stats?.total_active_doctors ?? '—'}</Text>
+                <Text style={styles.statValue}>{stats?.total_active_doctors ?? '\u2014'}</Text>
                 <Text style={styles.statLabel}>Doctors</Text>
               </View>
               <View style={[styles.statBox, styles.statBorder]}>
-                <Text style={styles.statValue}>{stats?.total_active_users ?? '—'}</Text>
+                <Text style={styles.statValue}>{stats?.total_active_users ?? '\u2014'}</Text>
                 <Text style={styles.statLabel}>Users</Text>
               </View>
               <View style={styles.statBox}>
-                <Text style={styles.statValue}>{stats?.today_appointments ?? '—'}</Text>
+                <Text style={styles.statValue}>{stats?.today_appointments ?? '\u2014'}</Text>
                 <Text style={styles.statLabel}>Appts Today</Text>
               </View>
             </View>
