@@ -140,7 +140,11 @@ const UserManagementScreen = ({ navigation }) => {
         renderItem={({ item }) => {
           const roleData = roles.find(r => r.name.toLowerCase() === (item.role || '').toLowerCase());
           return (
-            <View style={styles.userCard}>
+            <TouchableOpacity
+              style={styles.userCard}
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate('EditUser', { user: item })}
+            >
               <View style={[styles.avatar, { backgroundColor: colors.primaryLight }]}>
                   <MCIcon name={roleData?.icon || 'account'} size={28} color={colors.primary} />
               </View>
@@ -172,7 +176,7 @@ const UserManagementScreen = ({ navigation }) => {
                   </View>
                 </TouchableOpacity>
               </Modal>
-            </View>
+            </TouchableOpacity>
           );
         }}
         contentContainerStyle={styles.listContainer}

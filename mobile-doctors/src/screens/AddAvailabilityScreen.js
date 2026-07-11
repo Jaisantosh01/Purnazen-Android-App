@@ -325,7 +325,7 @@ const makeStyles = colors => StyleSheet.create({
     color: colors.white,
   },
   staticDayContainer: {
-    backgroundColor: '#EEF4FF',
+    backgroundColor: colors.primaryLight,
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.lg,
     borderRadius: RADIUS.md,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,8 @@ import {
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { SPACING, RADIUS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 import patientService from '../services/patientService';
 
 const STATUS_CONFIG = {
@@ -20,10 +21,16 @@ const STATUS_CONFIG = {
 };
 
 // ─── Separation Component ────────────────────────────────────────────────────
-const PrescriptionSeparator = () => <View style={styles.separator} />;
+const PrescriptionSeparator = () => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return <View style={styles.separator} />;
+};
 
 // ─── Timeline Item Component ──────────────────────────────────────────────────
 const TimelineItem = ({ item, isFirst, isLast, onPress }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const normalizedStatus = item.status && item.status.toLowerCase() === 'active' ? 'Active' : 'Completed';
   const statusCfg = STATUS_CONFIG[normalizedStatus] || STATUS_CONFIG.Completed;
   const medicinesCount = item.medicines ? item.medicines.length : 0;
@@ -64,11 +71,11 @@ const TimelineItem = ({ item, isFirst, isLast, onPress }) => {
 
           {/* Row showing medicines count */}
           <View style={styles.medsCountRow}>
-            <MCIcon name="pill" size={16} color={COLORS.primary} style={styles.medsIcon} />
+            <MCIcon name="pill" size={16} color={colors.primary} style={styles.medsIcon} />
             <Text style={styles.medsCountText}>
               {medicinesCount} Medicine{medicinesCount > 1 ? 's' : ''} Prescribed
             </Text>
-            <MCIcon name="chevron-right" size={20} color={COLORS.textMuted} style={styles.chevronIcon} />
+            <MCIcon name="chevron-right" size={20} color={colors.textMuted} style={styles.chevronIcon} />
           </View>
         </TouchableOpacity>
       </View>
@@ -78,6 +85,8 @@ const TimelineItem = ({ item, isFirst, isLast, onPress }) => {
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 const PrescriptionHistoryScreen = ({ route, navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { patientId } = route.params || {};
   const [patientName, setPatientName] = useState('Patient');
   const [history, setHistory] = useState([]);
@@ -134,11 +143,11 @@ const PrescriptionHistoryScreen = ({ route, navigation }) => {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : error ? (
         <View style={styles.center}>
-          <MCIcon name="alert-circle-outline" size={48} color={COLORS.danger} style={{ marginBottom: 12 }} />
+          <MCIcon name="alert-circle-outline" size={48} color={colors.danger} style={{ marginBottom: 12 }} />
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={() => fetchHistory()}>
             <Text style={styles.retryText}>Retry</Text>
@@ -160,11 +169,11 @@ const PrescriptionHistoryScreen = ({ route, navigation }) => {
           showsVerticalScrollIndicator={false}
           ItemSeparatorComponent={PrescriptionSeparator}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
           }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <MCIcon name="file-document-outline" size={60} color={COLORS.borderStrong} />
+              <MCIcon name="file-document-outline" size={60} color={colors.borderStrong} />
               <Text style={styles.emptyTitle}>No Prescriptions</Text>
               <Text style={styles.emptySubtitle}>
                 This patient has no recorded prescriptions.
@@ -184,8 +193,9 @@ const PrescriptionHistoryScreen = ({ route, navigation }) => {
 export default PrescriptionHistoryScreen;
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors =>
+  StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   list: { padding: SPACING.lg, paddingBottom: 40 },
 
   // Timeline Row Layout
@@ -199,7 +209,7 @@ const styles = StyleSheet.create({
   line: {
     flex: 1,
     width: 2,
-    backgroundColor: COLORS.borderStrong,
+    backgroundColor: colors.borderStrong,
   },
   invisibleLine: {
     backgroundColor: 'transparent',
@@ -208,7 +218,7 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
     marginVertical: 4,
@@ -217,7 +227,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
   },
   cardCol: {
     flex: 1,
@@ -227,10 +237,10 @@ const styles = StyleSheet.create({
 
   // Card Styling
   card: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.md,
     elevation: 2,
     shadowColor: '#000',
@@ -247,23 +257,23 @@ const styles = StyleSheet.create({
   cardDate: {
     fontSize: 12.5,
     fontWeight: '700',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   rxNumber: {
     fontSize: 16,
     fontWeight: '800',
-    color: COLORS.primary,
+    color: colors.primary,
     marginBottom: 4,
   },
   cardTitle: {
     fontSize: 13.5,
     fontWeight: '600',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginBottom: SPACING.sm,
   },
   divider: {
     height: 1,
-    backgroundColor: COLORS.border,
+    backgroundColor: colors.border,
     marginBottom: SPACING.sm,
   },
 
@@ -298,7 +308,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   chevronIcon: {
     marginLeft: 4,
@@ -319,17 +329,17 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginTop: SPACING.sm,
   },
   emptySubtitle: {
     fontSize: 13,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   todoStubText: {
     fontSize: 11.5,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontWeight: '600',
     textAlign: 'center',
     marginTop: 4,
@@ -342,19 +352,19 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 14.5,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: SPACING.md,
     fontWeight: '500',
   },
   retryBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingHorizontal: 18,
     paddingVertical: 8,
     borderRadius: RADIUS.md,
   },
   retryText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '700',
     fontSize: 13.5,
   },

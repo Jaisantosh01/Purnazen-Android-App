@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,9 +10,11 @@ import {
   TextInput,
   ScrollView,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { SPACING, RADIUS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 import { useLeaveStore } from '../store/useLeaveStore';
 
 const LEAVE_STATUS_CHIPS = {
@@ -95,8 +97,8 @@ const getStatusDateText = (item) => {
 };
 
 const getLeaveCardDate = (item) => {
-  const start = formatDateStr(item.start_date || item.startDate);
-  const end = formatDateStr(item.end_date || item.endDate);
+  const start = formatDateStr(item.start_date || item.startDate || item.leaveDate);
+  const end = formatDateStr(item.end_date || item.endDate || item.leaveDate);
   if (!start) return '';
   if (!end || start === end) return start;
   return `${start} - ${end}`;
@@ -106,24 +108,27 @@ const getLeaveDurationText = (item) => {
   const type = item.leaveType || item.leave_type || item.type;
   const startT = item.startTime || item.start_time;
   const endT = item.endTime || item.end_time;
+  const start = formatDateStr(item.start_date || item.startDate || item.leaveDate);
+  const end = formatDateStr(item.end_date || item.endDate || item.leaveDate);
+  const dateRange = (!start || start === end) ? start : `${start} - ${end}`;
 
   if (type === 'single') {
     if (startT && endT) {
-      return `${formatTime(startT)} - ${formatTime(endT)}`;
+      return `${dateRange} ${formatTime(startT)} - ${formatTime(endT)}`;
     }
-    return 'Full Day';
+    return dateRange || 'Full Day';
   } else if (type === 'multiple') {
-    return 'Multiple Days';
+    return dateRange || 'Multiple Days';
   } else if (type === 'custom') {
-    if (item.slots && item.slots.length > 0) {
-      return `Partial Day (${item.slots.length} Slot${item.slots.length > 1 ? 's' : ''})`;
-    }
-    return 'Partial Day';
+    const slotCount = item.slots?.length || 0;
+    return `${dateRange} (${slotCount} Slot${slotCount !== 1 ? 's' : ''})`;
   }
-  return 'Full Day';
+  return dateRange || 'Full Day';
 };
 
 const StatusBadge = ({ status }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const label = getStatusLabel(status);
   const cfg = STATUS_CHIP_CONFIG[label] || STATUS_CHIP_CONFIG.Pending;
   return (
@@ -136,6 +141,8 @@ const StatusBadge = ({ status }) => {
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 const LeaveHistoryScreen = ({ route, navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const leaves = useLeaveStore((s) => s.leaves);
   const loading = useLeaveStore((s) => s.loading);
   const error = useLeaveStore((s) => s.error);
@@ -147,9 +154,13 @@ const LeaveHistoryScreen = ({ route, navigation }) => {
   const routeFilter = route?.params?.filter || route?.params?.initialFilter || 'all';
   const [selectedStatus, setSelectedStatus] = useState(routeFilter.toLowerCase());
 
-  useEffect(() => {
-    fetchLeaves();
-  }, []);
+  // Refetch every time the screen regains focus (e.g. after applying or
+  // cancelling a leave) so the list is never stale.
+  useFocusEffect(
+    useCallback(() => {
+      fetchLeaves();
+    }, [fetchLeaves]),
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -169,7 +180,7 @@ const LeaveHistoryScreen = ({ route, navigation }) => {
   }, [leaves]);
 
   const filteredLeaves = useMemo(() => {
-    return (leaves || []).filter(l => {
+    const result = (leaves || []).filter(l => {
       // 1. Status Filter
       const matchStatus = selectedStatus === 'all' || (l.status || '').toLowerCase() === selectedStatus;
       if (!matchStatus) return false;
@@ -184,6 +195,13 @@ const LeaveHistoryScreen = ({ route, navigation }) => {
       }
 
       return true;
+    });
+
+    // Default sort by Newest Applied First
+    return [...result].sort((a, b) => {
+      const dateA = new Date(a.appliedAt || a.applied_at || 0);
+      const dateB = new Date(b.appliedAt || b.applied_at || 0);
+      return dateB - dateA;
     });
   }, [leaves, selectedStatus, searchQuery]);
 
@@ -205,7 +223,7 @@ const LeaveHistoryScreen = ({ route, navigation }) => {
     }
 
     if (isSelected) {
-      iconColor = COLORS.white;
+      iconColor = colors.white;
       bgCircleColor = 'rgba(255, 255, 255, 0.2)';
     }
 
@@ -230,12 +248,12 @@ const LeaveHistoryScreen = ({ route, navigation }) => {
           <Text style={styles.historyCardReason}>{item.reason || 'Leave'}</Text>
           
           <View style={styles.historyCardMetaRow}>
-            <MCIcon name="calendar-outline" size={14} color={COLORS.textSecondary} style={styles.metaIcon} />
+            <MCIcon name="calendar-outline" size={14} color={colors.textSecondary} style={styles.metaIcon} />
             <Text style={styles.historyCardMetaText}>{getLeaveCardDate(item)}</Text>
           </View>
           
           <View style={styles.historyCardMetaRow}>
-            <MCIcon name="clock-outline" size={14} color={COLORS.textSecondary} style={styles.metaIcon} />
+            <MCIcon name="clock-outline" size={14} color={colors.textSecondary} style={styles.metaIcon} />
             <Text style={styles.historyCardMetaText}>{getLeaveDurationText(item)}</Text>
           </View>
 
@@ -258,7 +276,7 @@ const LeaveHistoryScreen = ({ route, navigation }) => {
               {getStatusLabelText(item.status)}
             </Text>
           </View>
-          <MCIcon name="chevron-right" size={20} color={COLORS.textSecondary} style={styles.chevronIcon} />
+          <MCIcon name="chevron-right" size={20} color={colors.textSecondary} style={styles.chevronIcon} />
         </View>
       </TouchableOpacity>
     );
@@ -269,20 +287,15 @@ const LeaveHistoryScreen = ({ route, navigation }) => {
       <ScreenHeader 
         title="Leave History" 
         onBack={() => navigation.goBack()} 
-        right={
-          <TouchableOpacity activeOpacity={0.7}>
-            <MCIcon name="filter-variant" size={24} color={COLORS.white} />
-          </TouchableOpacity>
-        }
       />
 
       {loading && leaves.length === 0 ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : error && leaves.length === 0 ? (
         <View style={styles.center}>
-          <MCIcon name="alert-circle-outline" size={48} color={COLORS.danger} />
+          <MCIcon name="alert-circle-outline" size={48} color={colors.danger} />
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={fetchLeaves}>
             <Text style={styles.retryBtnText}>Retry</Text>
@@ -312,7 +325,7 @@ const LeaveHistoryScreen = ({ route, navigation }) => {
                   <Text
                     style={[
                       styles.statusCardTitle,
-                      { color: isSelected ? COLORS.white : colorCfg.primary }
+                      { color: isSelected ? colors.white : colorCfg.primary }
                     ]}
                   >
                     {title}
@@ -320,7 +333,7 @@ const LeaveHistoryScreen = ({ route, navigation }) => {
                   <Text
                     style={[
                       styles.statusCardCount,
-                      { color: isSelected ? COLORS.white : colorCfg.primary }
+                      { color: isSelected ? colors.white : colorCfg.primary }
                     ]}
                   >
                     {count}
@@ -330,22 +343,18 @@ const LeaveHistoryScreen = ({ route, navigation }) => {
             })}
           </View>
 
-          {/* Search Bar & Filter Row */}
+          {/* Search Bar Row */}
           <View style={styles.searchRow}>
             <View style={styles.searchBar}>
-              <MCIcon name="magnify" size={20} color={COLORS.textSecondary} style={styles.searchIcon} />
+              <MCIcon name="magnify" size={20} color={colors.textSecondary} style={styles.searchIcon} />
               <TextInput
                 style={styles.searchInput}
                 placeholder="Search leave reason"
-                placeholderTextColor={COLORS.textMuted}
+                placeholderTextColor={colors.textMuted}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
               />
             </View>
-            <TouchableOpacity style={styles.filterBtn} activeOpacity={0.8}>
-              <MCIcon name="tune" size={18} color={COLORS.primary} />
-              <Text style={styles.filterBtnText}>Filter</Text>
-            </TouchableOpacity>
           </View>
 
           {/* Filtered History List */}
@@ -356,11 +365,11 @@ const LeaveHistoryScreen = ({ route, navigation }) => {
             contentContainerStyle={styles.list}
             showsVerticalScrollIndicator={false}
             refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
             }
             ListEmptyComponent={
               <View style={styles.emptyStateContainer}>
-                <MCIcon name="calendar-blank-outline" size={48} color={COLORS.textMuted} style={styles.emptyStateIcon} />
+                <MCIcon name="calendar-blank-outline" size={48} color={colors.textMuted} style={styles.emptyStateIcon} />
                 <Text style={styles.emptyStateTitle}>No {getStatusTitle(selectedStatus)} Leave Requests</Text>
                 <Text style={styles.emptyStateSubtitle}>Tap "Apply Leave" to create a new request.</Text>
               </View>
@@ -376,14 +385,15 @@ export default LeaveHistoryScreen;
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors =>
+  StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1 },
   list: { paddingHorizontal: SPACING.lg, paddingBottom: 40 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: SPACING.md },
-  errorText: { fontSize: 14.5, color: COLORS.textSecondary, textAlign: 'center', paddingHorizontal: SPACING.xl },
-  retryBtn: { backgroundColor: COLORS.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: RADIUS.md },
-  retryBtnText: { color: COLORS.white, fontWeight: '800', fontSize: 14 },
+  errorText: { fontSize: 14.5, color: colors.textSecondary, textAlign: 'center', paddingHorizontal: SPACING.xl },
+  retryBtn: { backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: RADIUS.md },
+  retryBtnText: { color: colors.white, fontWeight: '800', fontSize: 14 },
 
   statusCardsRow: {
     flexDirection: 'row',
@@ -394,17 +404,17 @@ const styles = StyleSheet.create({
   },
   statusCard: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'space-between',
     marginHorizontal: 2,
     minHeight: 96,
     elevation: 2,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -443,10 +453,10 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     paddingHorizontal: SPACING.md,
     height: 44,
   },
@@ -456,40 +466,22 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 13.5,
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     fontWeight: '600',
     paddingVertical: 0,
   },
-  filterBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.white,
-    borderRadius: RADIUS.md,
-    borderWidth: 1.5,
-    borderColor: COLORS.primary,
-    paddingHorizontal: 12,
-    height: 44,
-    gap: 6,
-  },
-  filterBtnText: {
-    color: COLORS.primary,
-    fontSize: 13,
-    fontWeight: '800',
-  },
-
   historyCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: SPACING.sm,
     elevation: 2,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -501,7 +493,7 @@ const styles = StyleSheet.create({
   historyCardReason: {
     fontSize: 15,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 2,
   },
   historyCardMetaRow: {
@@ -516,18 +508,18 @@ const styles = StyleSheet.create({
   historyCardMetaText: {
     fontSize: 13,
     fontWeight: '600',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   historyCardAppliedText: {
     fontSize: 11.5,
     fontWeight: '600',
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginTop: 4,
   },
   historyCardDecisionText: {
     fontSize: 11.5,
     fontWeight: '600',
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   historyCardRight: {
     flexDirection: 'row',
@@ -563,12 +555,12 @@ const styles = StyleSheet.create({
   emptyStateTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     textAlign: 'center',
   },
   emptyStateSubtitle: {
     fontSize: 13.5,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
     paddingHorizontal: SPACING.xl,
   },

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,13 +6,14 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   ScrollView,
-  Alert,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { SPACING, RADIUS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 import appointmentService from '../services/appointmentService';
+import { showAlert } from '../utils/alert';
 
 // ─── Status config (mirrors AppointmentsScreen) ────────────────────────────────
 const STATUS_CONFIG = {
@@ -29,32 +30,65 @@ const formatDate = iso => {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
+const isAppointmentOver = (dateStr, endTimeStr) => {
+  if (!dateStr) return false;
+  const [year, month, day] = dateStr.split('-').map(Number);
+  let hours = 0;
+  let minutes = 0;
+  if (endTimeStr) {
+    const match = endTimeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (match) {
+      hours = parseInt(match[1], 10);
+      minutes = parseInt(match[2], 10);
+      const ampm = match[3].toUpperCase();
+      if (ampm === 'PM' && hours < 12) {
+        hours += 12;
+      } else if (ampm === 'AM' && hours === 12) {
+        hours = 0;
+      }
+    }
+  }
+  const apptEnd = new Date(year, month - 1, day, hours, minutes);
+  const now = new Date();
+  return now >= apptEnd;
+};
+
 // ─── Info Row Component ─────────────────────────────────────────────────────────
-const InfoRow = ({ icon, label, value }) => (
+const InfoRow = ({ icon, label, value }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
   <View style={styles.infoItem}>
     <View style={styles.infoIconWrap}>
-      <MCIcon name={icon} size={18} color={COLORS.primary} />
+      <MCIcon name={icon} size={18} color={colors.primary} />
     </View>
     <View style={styles.infoTextWrap}>
       <Text style={styles.infoLabel}>{label}</Text>
       <Text style={styles.infoValue}>{value || '—'}</Text>
     </View>
   </View>
-);
+  );
+};
 
 // ─── Section Card Component ─────────────────────────────────────────────────────
-const SectionCard = ({ title, icon, children }) => (
+const SectionCard = ({ title, icon, children }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
   <View style={styles.sectionCard}>
     <View style={styles.sectionHeader}>
-      <MCIcon name={icon} size={18} color={COLORS.primary} />
+      <MCIcon name={icon} size={18} color={colors.primary} />
       <Text style={styles.sectionTitle}>{title}</Text>
     </View>
     {children}
   </View>
-);
+  );
+};
 
 // ─── Status Badge ───────────────────────────────────────────────────────────────
 const StatusBadge = ({ status }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.booked;
   return (
     <View style={[styles.badge, { backgroundColor: cfg.bg }]}>
@@ -66,51 +100,58 @@ const StatusBadge = ({ status }) => {
 
 // ─── Main Screen ────────────────────────────────────────────────────────────────
 const AppointmentDetailScreen = ({ route, navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { appointment: initialAppointment } = route.params || {};
   const id = initialAppointment?.id;
   const [appointment, setAppointment] = useState(initialAppointment || null);
   const [loading, setLoading] = useState(!initialAppointment);
   const [error, setError] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const fetchAppointmentDetails = useCallback(async () => {
-    if (initialAppointment) {
-        return;
-    }
+  // `silent` refreshes without blanking the screen — used when we already have
+  // data (opened from the list, or right after a status change).
+  const fetchAppointmentDetails = useCallback(async (silent = false) => {
     if (!id) {
       setError('No appointment ID provided.');
       setLoading(false);
       return;
     }
-    setLoading(true);
-    setError(null);
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const data = await appointmentService.detail(id);
-      setAppointment(data || null);
+      if (data) setAppointment(data);
+      else if (!silent) setAppointment(null);
     } catch (err) {
-      setError(err?.message || 'Failed to load appointment details.');
+      if (!silent) setError(err?.message || 'Failed to load appointment details.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [id]);
 
   useEffect(() => {
-    if (!initialAppointment) {
-        fetchAppointmentDetails();
-    }
+    // Always refetch, even when opened with a prefetched appointment, so a
+    // status changed elsewhere is reflected here.
+    fetchAppointmentDetails(!!initialAppointment);
   }, [fetchAppointmentDetails, initialAppointment]);
 
-  // ── Status Action Helpers ───────────────────────────────────────────────────
   const handleUpdateStatus = async (status) => {
+    // Optimistic: reflect the new status immediately, then sync with server.
+    setAppointment(prev => (prev ? { ...prev, status } : prev));
     try {
       await appointmentService.updateStatus(id, status);
-      await fetchAppointmentDetails();
+      await fetchAppointmentDetails(true);
     } catch (e) {
-      Alert.alert('Error', e?.message || 'Could not update appointment status.');
+      await fetchAppointmentDetails(true); // roll back to server truth
+      showAlert('Error', e?.message || 'Could not update appointment status.');
     }
   };
 
   const handleAccept = () => {
-    Alert.alert(
+    showAlert(
       'Accept Appointment',
       `Accept appointment for ${appointment?.userName}?`,
       [
@@ -121,7 +162,7 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
   };
 
   const handleComplete = () => {
-    Alert.alert(
+    showAlert(
       'Complete Appointment',
       `Mark appointment for ${appointment?.userName} as completed?`,
       [
@@ -132,7 +173,7 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
   };
 
   const handleCancel = () => {
-    Alert.alert(
+    showAlert(
       'Cancel Appointment',
       `Cancel appointment for ${appointment?.userName}?`,
       [
@@ -156,7 +197,7 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
     if (loading) {
       return (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.stateText}>Loading appointment details…</Text>
         </View>
       );
@@ -165,7 +206,7 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
     if (error) {
       return (
         <View style={styles.center}>
-          <MCIcon name="alert-circle-outline" size={64} color={COLORS.danger} />
+          <MCIcon name="alert-circle-outline" size={64} color={colors.danger} />
           <Text style={styles.errorTitle}>Error Loading Details</Text>
           <Text style={styles.errorSubtitle}>{error}</Text>
           <TouchableOpacity style={styles.retryBtn} activeOpacity={0.8} onPress={fetchAppointmentDetails}>
@@ -178,7 +219,7 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
     if (!appointment) {
       return (
         <View style={styles.center}>
-          <MCIcon name="calendar-search" size={64} color={COLORS.textMuted} />
+          <MCIcon name="calendar-search" size={64} color={colors.textMuted} />
           <Text style={styles.emptyTitle}>No Details Found</Text>
           <Text style={styles.emptySubtitle}>We couldn't find details for this appointment.</Text>
           <TouchableOpacity style={styles.backBtn} activeOpacity={0.8} onPress={() => navigation.goBack()}>
@@ -193,103 +234,135 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
     const isBooked = apptStatus === 'booked';
 
     return (
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* ── Patient Profile Summary Card ── */}
-        <TouchableOpacity
-          style={styles.profileCard}
-          activeOpacity={0.85}
-          onPress={handlePatientPress}>
-          <View style={styles.profileTopRow}>
-            <View style={styles.avatarWrap}>
-              <MCIcon name="account" size={36} color={COLORS.primary} />
-            </View>
-            <View style={styles.profileInfo}>
-              <Text style={styles.patientName}>
-                {appointment.userName || 'Unknown Patient'}
-              </Text>
-              <View style={styles.profileMeta}>
-                <View style={styles.metaPill}>
-                  <MCIcon name="calendar-account" size={12} color={COLORS.textSecondary} />
-                  <Text style={styles.metaPillText}>
-                    {appointment.userAge ? `${appointment.userAge} yrs` : 'Age N/A'}
-                  </Text>
-                </View>
-                <View style={styles.metaPill}>
-                  <MCIcon name="gender-male-female" size={12} color={COLORS.textSecondary} />
-                  <Text style={styles.metaPillText}>
-                    {appointment.userGender || 'N/A'}
-                  </Text>
+      <View style={{ flex: 1 }}>
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
+        >
+          {/* ── Patient Profile Summary Card ── */}
+          <TouchableOpacity
+            style={styles.profileCard}
+            activeOpacity={0.85}
+            onPress={handlePatientPress}>
+            <View style={styles.profileTopRow}>
+              <View style={styles.avatarWrap}>
+                <MCIcon name="account" size={36} color={colors.primary} />
+              </View>
+              <View style={styles.profileInfo}>
+                <Text style={styles.patientName}>
+                  {appointment.userName || 'Unknown Patient'}
+                </Text>
+                <View style={styles.profileMeta}>
+                  <View style={styles.metaPill}>
+                    <MCIcon name="calendar-account" size={12} color={colors.textSecondary} />
+                    <Text style={styles.metaPillText}>
+                      {appointment.userAge ? `${appointment.userAge} yrs` : 'Age N/A'}
+                    </Text>
+                  </View>
+                  <View style={styles.metaPill}>
+                    <MCIcon name="gender-male-female" size={12} color={colors.textSecondary} />
+                    <Text style={styles.metaPillText}>
+                      {appointment.userGender || 'N/A'}
+                    </Text>
+                  </View>
                 </View>
               </View>
+              <StatusBadge status={apptStatus} />
             </View>
-            <StatusBadge status={apptStatus} />
-          </View>
 
-          <View style={styles.viewProfileRow}>
-            <Text style={styles.viewProfileText}>View Patient Profile & Medical History</Text>
-            <MCIcon name="chevron-right" size={16} color={COLORS.primary} />
-          </View>
-        </TouchableOpacity>
+            <View style={styles.viewProfileRow}>
+              <Text style={styles.viewProfileText}>View Patient Profile & Medical History</Text>
+              <MCIcon name="chevron-right" size={16} color={colors.primary} />
+            </View>
+          </TouchableOpacity>
 
-        {/* ── Appointment Information ── */}
-        <SectionCard title="Appointment Details" icon="calendar-text">
-          <InfoRow
-            icon="text-box-outline"
-            label="Reason for Visit"
-            value={appointment.userDescription || 'No reason provided'}
-          />
-          <InfoRow
-            icon="calendar-clock"
-            label="Date & Time"
-            value={`${formatDate(appointment.date)}  •  ${appointment.time || '—'}${appointment.endTime ? ` – ${appointment.endTime}` : ''}`}
-          />
-          <InfoRow
-            icon="stethoscope"
-            label="Consultation Type"
-            value={appointment.consultationType}
-          />
-          <InfoRow
-            icon="history"
-            label="Previous Visits"
-            value={appointment.previousVisitsCount != null ? String(appointment.previousVisitsCount) : '0'}
-          />
-        </SectionCard>
+          {/* ── Appointment Information ── */}
+          <SectionCard title="Appointment Details" icon="calendar-text">
+            <InfoRow
+              icon="text-box-outline"
+              label="Reason for Visit"
+              value={appointment.userDescription || 'No reason provided'}
+            />
+            <InfoRow
+              icon="calendar-clock"
+              label="Date & Time"
+              value={`${formatDate(appointment.date)}  •  ${appointment.time || '—'}${appointment.endTime ? ` – ${appointment.endTime}` : ''}`}
+            />
+            <InfoRow
+              icon="stethoscope"
+              label="Consultation Type"
+              value={appointment.consultationType}
+            />
+            <InfoRow
+              icon="history"
+              label="Previous Visits"
+              value={appointment.previousVisitsCount != null ? String(appointment.previousVisitsCount) : '0'}
+            />
+          </SectionCard>
 
-        {/* ── Status Actions ── */}
+          {appointment.location ? (
+            <LocationCard location={appointment.location} />
+          ) : null}
+
+          <View style={styles.bottomSpacer} />
+        </ScrollView>
+
+        {/* ── Status Actions (Fixed to Bottom) ── */}
         {(isPending || isBooked) && (
-          <View style={styles.actionBlock}>
+          <View style={styles.fixedActionBlock}>
             {isPending && (
               <TouchableOpacity
                 style={[styles.actionBtn, styles.acceptBtn]}
                 activeOpacity={0.8}
                 onPress={handleAccept}>
-                <MCIcon name="check" size={18} color={COLORS.white} style={{ marginRight: 6 }} />
+                <MCIcon name="check" size={18} color={colors.white} style={{ marginRight: 6 }} />
                 <Text style={styles.acceptBtnText}>Accept Appointment</Text>
               </TouchableOpacity>
             )}
 
-            {isBooked && (
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.completeBtn]}
-                activeOpacity={0.8}
-                onPress={handleComplete}>
-                <MCIcon name="check-decagram" size={18} color={COLORS.white} style={{ marginRight: 6 }} />
-                <Text style={styles.completeBtnText}>Mark as Completed</Text>
-              </TouchableOpacity>
-            )}
+            {isBooked && (() => {
+              const apptOver = isAppointmentOver(appointment.date, appointment.endTime || appointment.time);
+              return (
+                <TouchableOpacity
+                  style={[
+                    styles.actionBtn,
+                    styles.completeBtn,
+                    !apptOver && { backgroundColor: colors.borderStrong, borderColor: colors.borderStrong }
+                  ]}
+                  disabled={!apptOver}
+                  activeOpacity={0.8}
+                  onPress={handleComplete}>
+                  <MCIcon
+                    name="check-decagram"
+                    size={18}
+                    color={apptOver ? colors.white : '#9CA3AF'}
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text style={[styles.completeBtnText, !apptOver && { color: '#9CA3AF' }]}>
+                    Mark as Completed
+                  </Text>
+                </TouchableOpacity>
+              );
+            })()}
 
             <TouchableOpacity
               style={[styles.actionBtn, styles.cancelBtn]}
               activeOpacity={0.8}
               onPress={handleCancel}>
-              <MCIcon name="close-circle-outline" size={18} color={COLORS.danger} style={{ marginRight: 6 }} />
+              <MCIcon name="close-circle-outline" size={18} color={colors.danger} style={{ marginRight: 6 }} />
               <Text style={styles.cancelBtnText}>Cancel Appointment</Text>
             </TouchableOpacity>
           </View>
         )}
-
-        <View style={styles.bottomSpacer} />
-      </ScrollView>
+      </View>
     );
   };
 
@@ -308,19 +381,20 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
 export default AppointmentDetailScreen;
 
 // ─── Styles ─────────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors =>
+  StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   scroll: { padding: SPACING.lg, gap: SPACING.md },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SPACING.xl, gap: SPACING.md },
-  stateText: { fontSize: 14, color: COLORS.textSecondary, fontWeight: '500' },
-  bottomSpacer: { height: 40 },
+  stateText: { fontSize: 14, color: colors.textSecondary, fontWeight: '500' },
+  bottomSpacer: { height: 160 },
 
   // ── Profile Card ──
   profileCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.lg,
     elevation: 2,
     shadowColor: '#000',
@@ -337,23 +411,23 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: COLORS.primaryFaint,
+    backgroundColor: colors.primaryFaint,
     alignItems: 'center',
     justifyContent: 'center',
   },
   profileInfo: { flex: 1, gap: 4 },
-  patientName: { fontSize: 16.5, fontWeight: '800', color: COLORS.textPrimary },
+  patientName: { fontSize: 16.5, fontWeight: '800', color: colors.textPrimary },
   profileMeta: { flexDirection: 'row', gap: SPACING.sm },
   metaPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: COLORS.surfaceMuted,
+    backgroundColor: colors.surfaceMuted,
     borderRadius: RADIUS.pill,
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
-  metaPillText: { fontSize: 11, color: COLORS.textSecondary, fontWeight: '600' },
+  metaPillText: { fontSize: 11, color: colors.textSecondary, fontWeight: '600' },
   viewProfileRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -361,11 +435,11 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
     paddingTop: SPACING.md,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: colors.border,
   },
   viewProfileText: {
     fontSize: 13,
-    color: COLORS.primary,
+    color: colors.primary,
     fontWeight: '700',
   },
 
@@ -383,10 +457,10 @@ const styles = StyleSheet.create({
 
   // ── Section Card ──
   sectionCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.lg,
     elevation: 1,
     shadowColor: '#000',
@@ -401,9 +475,9 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
     paddingBottom: SPACING.sm,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: colors.border,
   },
-  sectionTitle: { fontSize: 15, fontWeight: '800', color: COLORS.textPrimary },
+  sectionTitle: { fontSize: 15, fontWeight: '800', color: colors.textPrimary },
 
   // ── Info Items ──
   infoItem: {
@@ -416,18 +490,22 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: COLORS.primaryFaint,
+    backgroundColor: colors.primaryFaint,
     alignItems: 'center',
     justifyContent: 'center',
   },
   infoTextWrap: { flex: 1 },
-  infoLabel: { fontSize: 11, fontWeight: '600', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
-  infoValue: { fontSize: 14, fontWeight: '600', color: COLORS.textPrimary, marginTop: 2 },
+  infoLabel: { fontSize: 11, fontWeight: '600', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  infoValue: { fontSize: 14, fontWeight: '600', color: colors.textPrimary, marginTop: 2 },
 
   // ── Action Buttons Block ──
-  actionBlock: {
+  fixedActionBlock: {
+    backgroundColor: colors.card,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
     gap: SPACING.md,
-    marginTop: SPACING.sm,
   },
   actionBtn: {
     flexDirection: 'row',
@@ -438,40 +516,40 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   acceptBtn: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   acceptBtnText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '700',
     fontSize: 15,
   },
   completeBtn: {
-    backgroundColor: COLORS.success,
-    borderColor: COLORS.success,
+    backgroundColor: colors.success,
+    borderColor: colors.success,
   },
   completeBtnText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '700',
     fontSize: 15,
   },
   cancelBtn: {
     backgroundColor: 'transparent',
-    borderColor: COLORS.danger,
+    borderColor: colors.danger,
   },
   cancelBtnText: {
-    color: COLORS.danger,
+    color: colors.danger,
     fontWeight: '700',
     fontSize: 15,
   },
 
   // ── Error/Empty States ──
-  errorTitle: { fontSize: 18, fontWeight: '800', color: COLORS.textPrimary },
-  errorSubtitle: { fontSize: 13.5, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: SPACING.sm },
-  retryBtn: { paddingHorizontal: SPACING.xl, paddingVertical: 12, backgroundColor: COLORS.primary, borderRadius: RADIUS.pill },
-  retryBtnText: { color: COLORS.white, fontWeight: '700', fontSize: 14 },
-  emptyTitle: { fontSize: 18, fontWeight: '800', color: COLORS.textPrimary },
-  emptySubtitle: { fontSize: 13.5, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: SPACING.sm },
-  backBtn: { paddingHorizontal: SPACING.xl, paddingVertical: 12, backgroundColor: COLORS.primary, borderRadius: RADIUS.pill },
-  backBtnText: { color: COLORS.white, fontWeight: '700', fontSize: 14 },
+  errorTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
+  errorSubtitle: { fontSize: 13.5, color: colors.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: SPACING.sm },
+  retryBtn: { paddingHorizontal: SPACING.xl, paddingVertical: 12, backgroundColor: colors.primary, borderRadius: RADIUS.pill },
+  retryBtnText: { color: colors.white, fontWeight: '700', fontSize: 14 },
+  emptyTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
+  emptySubtitle: { fontSize: 13.5, color: colors.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: SPACING.sm },
+  backBtn: { paddingHorizontal: SPACING.xl, paddingVertical: 12, backgroundColor: colors.primary, borderRadius: RADIUS.pill },
+  backBtnText: { color: colors.white, fontWeight: '700', fontSize: 14 },
 });

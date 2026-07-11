@@ -89,10 +89,13 @@ export const ENDPOINTS = {
   ROLES: `${API_VERSION}/roles`,
   SLOT_TIMINGS: `${API_VERSION}/slot-timings`,
   SUPPORT_FAQS: `${API_VERSION}/support-faqs`,
+  CONTENT_PAGES: `${API_VERSION}/content-pages`,
 
   // Notifications (admin)
   NOTIFICATION_SETTINGS: `${API_VERSION}/notifications/admin/settings`,
   NOTIFICATION_BROADCAST: `${API_VERSION}/notifications/admin/broadcast`,
+  NOTIFICATION_BROADCASTS: `${API_VERSION}/notifications/admin/broadcasts`,
+  NOTIFICATION_BROADCAST_CANCEL: (id) => `${API_VERSION}/notifications/admin/broadcasts/${id}`,
   DOCTOR_LEAVES: `${API_VERSION}/doctor-leaves`,
   DOCTOR_LEAVES_STATS: `${API_VERSION}/doctor-leaves/stats`,
   DOCTOR_LEAVES_UPDATE_STATUS: (id) => `${API_VERSION}/doctor-leaves/${id}/status`,

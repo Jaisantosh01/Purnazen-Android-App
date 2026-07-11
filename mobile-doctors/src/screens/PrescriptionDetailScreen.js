@@ -1,22 +1,26 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
+import { showAlert } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { SPACING, RADIUS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 
-const MedicineCard = ({ medicine }) => (
+const MedicineCard = ({ medicine }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
   <View style={styles.medCard}>
     <View style={styles.medHeader}>
       <View style={styles.medIconWrap}>
-        <MCIcon name="pill" size={18} color={COLORS.primary} />
+        <MCIcon name="pill" size={18} color={colors.primary} />
       </View>
       <Text style={styles.medName}>{medicine.name || 'N/A'}</Text>
     </View>
@@ -45,7 +49,8 @@ const MedicineCard = ({ medicine }) => (
       <Text style={styles.instructionsContent}>{medicine.instructions || 'N/A'}</Text>
     </View>
   </View>
-);
+  );
+};
 
 const STATUS_CONFIG = {
   Active: { bg: '#ECFDF5', text: '#065F46', dot: '#10B981' },
@@ -53,6 +58,8 @@ const STATUS_CONFIG = {
 };
 
 const PrescriptionDetailScreen = ({ route, navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { prescription, patientName } = route.params || {};
 
   // TODO: Prescriptions table or model is not implemented in the backend database.
@@ -69,7 +76,7 @@ const PrescriptionDetailScreen = ({ route, navigation }) => {
   const statusCfg = STATUS_CONFIG[activePrescription.status] || STATUS_CONFIG.Completed;
 
   const handleDownload = () => {
-    Alert.alert(
+    showAlert(
       'Download Prescription',
       `Prescription ${activePrescription.prescriptionNumber} has been downloaded successfully as a PDF.`,
       [{ text: 'OK' }]
@@ -103,11 +110,11 @@ const PrescriptionDetailScreen = ({ route, navigation }) => {
 
           <View style={styles.metaRow}>
             <View style={styles.metaItem}>
-              <MCIcon name="calendar-outline" size={16} color={COLORS.textSecondary} style={styles.metaIcon} />
+              <MCIcon name="calendar-outline" size={16} color={colors.textSecondary} style={styles.metaIcon} />
               <Text style={styles.metaText}>{activePrescription.date}</Text>
             </View>
             <View style={styles.metaItem}>
-              <MCIcon name="clipboard-pulse-outline" size={16} color={COLORS.textSecondary} style={styles.metaIcon} />
+              <MCIcon name="clipboard-pulse-outline" size={16} color={colors.textSecondary} style={styles.metaIcon} />
               <Text style={styles.metaText}>{activePrescription.consultationName}</Text>
             </View>
           </View>
@@ -130,7 +137,7 @@ const PrescriptionDetailScreen = ({ route, navigation }) => {
         {/* Doctor Notes Section Card */}
         <View style={styles.notesCard}>
           <View style={styles.notesHeader}>
-            <MCIcon name="note-text-outline" size={18} color={COLORS.primary} style={styles.notesIcon} />
+            <MCIcon name="note-text-outline" size={18} color={colors.primary} style={styles.notesIcon} />
             <Text style={styles.notesTitle}>Doctor Notes</Text>
           </View>
           <View style={styles.notesDivider} />
@@ -144,7 +151,7 @@ const PrescriptionDetailScreen = ({ route, navigation }) => {
           style={styles.downloadBtn}
           activeOpacity={0.85}
           onPress={handleDownload}>
-          <MCIcon name="download" size={18} color={COLORS.white} style={styles.downloadIcon} />
+          <MCIcon name="download" size={18} color={colors.white} style={styles.downloadIcon} />
           <Text style={styles.downloadBtnText}>Download Prescription</Text>
         </TouchableOpacity>
       </View>
@@ -155,17 +162,18 @@ const PrescriptionDetailScreen = ({ route, navigation }) => {
 export default PrescriptionDetailScreen;
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors =>
+  StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   scrollContent: { padding: SPACING.lg, gap: SPACING.md, paddingBottom: 100 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
   // Summary Card
   summaryCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.md,
     elevation: 2,
     shadowColor: '#000',
@@ -181,7 +189,7 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 10,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -189,12 +197,12 @@ const styles = StyleSheet.create({
   summaryValue: {
     fontSize: 16,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginTop: 2,
   },
   summaryDivider: {
     height: 1,
-    backgroundColor: COLORS.border,
+    backgroundColor: colors.border,
     marginVertical: 2,
   },
   metaRow: {
@@ -212,7 +220,7 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 13,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
 
@@ -239,17 +247,17 @@ const styles = StyleSheet.create({
   sectionHeader: {
     fontSize: 14.5,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginTop: SPACING.sm,
     marginBottom: 2,
   },
 
   // Med Card
   medCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.md,
     elevation: 2,
     shadowColor: '#000',
@@ -266,7 +274,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: SPACING.md,
@@ -274,11 +282,11 @@ const styles = StyleSheet.create({
   medName: {
     fontSize: 15,
     fontWeight: '800',
-    color: COLORS.primary,
+    color: colors.primary,
   },
   medDivider: {
     height: 1,
-    backgroundColor: COLORS.border,
+    backgroundColor: colors.border,
   },
   medGrid: {
     flexDirection: 'row',
@@ -287,38 +295,38 @@ const styles = StyleSheet.create({
   },
   gridItem: {
     flex: 1,
-    backgroundColor: COLORS.surfaceMuted,
+    backgroundColor: colors.surfaceMuted,
     borderRadius: RADIUS.sm,
     padding: SPACING.sm,
   },
   gridLabel: {
     fontSize: 10,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '600',
     textTransform: 'uppercase',
   },
   gridValue: {
     fontSize: 12.5,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginTop: 1,
   },
   instructionsContainer: {
-    backgroundColor: COLORS.primaryFaint,
+    backgroundColor: colors.primaryFaint,
     borderRadius: RADIUS.sm,
     padding: SPACING.sm,
     borderLeftWidth: 3,
-    borderLeftColor: COLORS.primary,
+    borderLeftColor: colors.primary,
   },
   instructionsLabel: {
     fontSize: 10.5,
     fontWeight: '700',
-    color: COLORS.primary,
+    color: colors.primary,
     textTransform: 'uppercase',
   },
   instructionsContent: {
     fontSize: 13,
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginTop: 2,
     fontWeight: '500',
     lineHeight: 18,
@@ -326,10 +334,10 @@ const styles = StyleSheet.create({
 
   // Notes Card
   notesCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.md,
     elevation: 2,
     shadowColor: '#000',
@@ -347,16 +355,16 @@ const styles = StyleSheet.create({
   notesTitle: {
     fontSize: 14,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   notesDivider: {
     height: 1,
-    backgroundColor: COLORS.border,
+    backgroundColor: colors.border,
     marginVertical: SPACING.sm,
   },
   notesContent: {
     fontSize: 13,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     lineHeight: 19,
     fontWeight: '500',
   },
@@ -367,14 +375,14 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     padding: SPACING.md,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: colors.border,
   },
   downloadBtn: {
     flexDirection: 'row',
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: RADIUS.md,
     paddingVertical: 12,
     alignItems: 'center',
@@ -384,15 +392,15 @@ const styles = StyleSheet.create({
     marginRight: SPACING.sm,
   },
   downloadBtnText: {
-    color: COLORS.white,
+    color: colors.white,
     fontSize: 14.5,
     fontWeight: '700',
   },
   noMedsCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.md,
     elevation: 2,
     shadowColor: '#000',
@@ -403,7 +411,7 @@ const styles = StyleSheet.create({
   },
   noMedsText: {
     fontSize: 13.5,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
 });

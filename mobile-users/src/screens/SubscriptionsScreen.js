@@ -14,13 +14,13 @@ import { useAuthStore } from '../store/authStore';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 
-const PLANS = [
+const getPlans = (isDark) => [
   {
     id: 'free',
     name: 'Free',
     price: '₹0',
     period: 'Forever',
-    color: '#6B7280',
+    color: isDark ? '#94A3B8' : '#6B7280',
     bg: 'rgba(148,163,184,0.10)',
     border: 'rgba(148,163,184,0.35)',
     features: [
@@ -70,10 +70,11 @@ const PLANS = [
 ];
 
 const SubscriptionsScreen = ({ navigation }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const user = useAuthStore(state => state.user);
   const currentPlan = user?.plan ?? 'free';
+  const plans = useMemo(() => getPlans(isDark), [isDark]);
 
   return (
     <View style={styles.root}>
@@ -86,12 +87,12 @@ const SubscriptionsScreen = ({ navigation }) => {
           <Text style={styles.currentBannerText}>
             You're on the{' '}
             <Text style={{ fontWeight: '700', color: colors.primary }}>
-              {PLANS.find(p => p.id === currentPlan)?.name ?? 'Free'} Plan
+              {plans.find(p => p.id === currentPlan)?.name ?? 'Free'} Plan
             </Text>
           </Text>
         </View>
 
-        {PLANS.map(plan => (
+        {plans.map(plan => (
           <View
             key={plan.id}
             style={[styles.planCard, { borderColor: plan.border, backgroundColor: plan.bg },
@@ -199,7 +200,7 @@ const makeStyles = colors => StyleSheet.create({
     marginBottom: 4,
     gap: 8,
   },
-  currentBannerText: { fontSize: 13, color: '#374151' },
+  currentBannerText: { fontSize: 13, color: colors.textSecondary },
 
   planCard: {
     borderRadius: 18,
@@ -208,6 +209,7 @@ const makeStyles = colors => StyleSheet.create({
     marginTop: 16,
   },
   planCardActive: {
+    borderColor: colors.primary,
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
@@ -245,8 +247,8 @@ const makeStyles = colors => StyleSheet.create({
 
   featureList: { gap: 10, marginBottom: 16 },
   featureRow:  { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  featureText: { fontSize: 13, color: '#374151', flex: 1 },
-  featureTextDim: { color: colors.borderStrong },
+  featureText: { fontSize: 13, color: colors.textSecondary, flex: 1 },
+  featureTextDim: { color: colors.textMuted, textDecorationLine: 'line-through' },
 
   selectBtn: {
     borderRadius: 12,

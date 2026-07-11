@@ -196,24 +196,26 @@ class NotificationService:
 
     # ── broadcast (admin) ───────────────────────────────────────────────────
 
-    @staticmethod
-    def broadcast(
-        db: Session,
-        audience: str,  # all | users | doctors
-        category: str,  # promo | system
-        event: str,
-        title: str,
-        body: str,
-        data: Optional[dict] = None,
-    ) -> int:
-        """Fan a notification out to every active user in the audience.
+    #: days since signup for the "new_users" segment
+    NEW_USER_DAYS = 30
+    #: days without an appointment for the "inactive_users" segment
+    INACTIVE_DAYS = 60
 
-        Returns the number of recipients that actually received it (after
-        preference filtering).
+    @staticmethod
+    def _resolve_audience(db: Session, audience: str, segment: str = "everyone"):
+        """Return [(user_id, full_name), ...] for an audience + segment.
+
+        Segments (personalized-offer targeting):
+          * everyone       — no extra filtering
+          * new_users      — signed up within NEW_USER_DAYS
+          * inactive_users — no appointment in the last INACTIVE_DAYS
         """
+        from datetime import date, datetime, timedelta
+
+        from app.models.appointment import Appointment
         from app.models.doctor import Doctor
 
-        query = db.query(User.id).filter(User.is_active == True)  # noqa: E712
+        query = db.query(User.id, User.full_name).filter(User.is_active == True)  # noqa: E712
         doctor_user_ids = {row[0] for row in db.query(Doctor.user_id).all()}
         if audience == "doctors":
             query = query.filter(User.id.in_(doctor_user_ids))
@@ -221,8 +223,57 @@ class NotificationService:
             if doctor_user_ids:
                 query = query.filter(~User.id.in_(doctor_user_ids))
 
+        if segment == "new_users":
+            cutoff = datetime.now() - timedelta(days=NotificationService.NEW_USER_DAYS)
+            query = query.filter(User.created_at >= cutoff)
+        elif segment == "inactive_users":
+            cutoff = date.today() - timedelta(days=NotificationService.INACTIVE_DAYS)
+            recent_ids = {
+                row[0]
+                for row in db.query(Appointment.user_id)
+                .filter(Appointment.date >= cutoff)
+                .distinct()
+                .all()
+            }
+            if recent_ids:
+                query = query.filter(~User.id.in_(recent_ids))
+
+        return query.all()
+
+    @staticmethod
+    def _personalize(text: str, full_name: Optional[str]) -> str:
+        """Replace the {name} placeholder with the recipient's first name."""
+        first = (full_name or "").strip().split(" ")[0] or "there"
+        return text.replace("{name}", first)
+
+    @staticmethod
+    def send_broadcast(db: Session, broadcast) -> int:
+        """Fan a Broadcast row out to its audience and mark it sent.
+
+        Personalizes {name} per recipient. Returns the number of recipients
+        that actually received it (after preference filtering).
+        """
+        from datetime import datetime
+
+        recipients = NotificationService._resolve_audience(
+            db, broadcast.audience, broadcast.segment or "everyone"
+        )
         count = 0
-        for (uid,) in query.all():
-            if NotificationService.notify(db, uid, category, event, title, body, data):
+        for uid, full_name in recipients:
+            n = NotificationService.notify(
+                db,
+                uid,
+                broadcast.category,
+                "admin_broadcast",
+                NotificationService._personalize(broadcast.title, full_name),
+                NotificationService._personalize(broadcast.body, full_name),
+                {"broadcastId": str(broadcast.id)},
+            )
+            if n:
                 count += 1
+
+        broadcast.status = "sent"
+        broadcast.sent_at = datetime.now()
+        broadcast.recipients_count = count
+        db.commit()
         return count

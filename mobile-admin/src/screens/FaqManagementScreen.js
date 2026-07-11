@@ -5,12 +5,12 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  Alert,
   Modal,
   Switch,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { showAlert } from '../utils/alert';
 import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
@@ -63,7 +63,7 @@ const FaqManagementScreen = ({ navigation }) => {
         setModalVisible(false);
         fetchItems();
       })
-      .catch(() => Alert.alert('Error', 'Failed to save FAQ'));
+      .catch(() => showAlert('Error', 'Failed to save FAQ'));
   };
 
   const resetForm = () => {
@@ -87,7 +87,7 @@ const FaqManagementScreen = ({ navigation }) => {
   };
 
   const handleDelete = (id) => {
-    Alert.alert('Delete', 'Are you sure?', [
+    showAlert('Delete', 'Are you sure?', [
       { text: 'Cancel' },
       {
         text: 'Delete',
@@ -96,7 +96,7 @@ const FaqManagementScreen = ({ navigation }) => {
           apiClient
             .delete(`${ENDPOINTS.SUPPORT_FAQS}/${id}`)
             .then(fetchItems)
-            .catch(() => Alert.alert('Error', 'Failed to delete'));
+            .catch(() => showAlert('Error', 'Failed to delete'));
         },
       },
     ]);
@@ -115,7 +115,7 @@ const FaqManagementScreen = ({ navigation }) => {
     Promise.all(
       updates.map(u => apiClient.put(`${ENDPOINTS.SUPPORT_FAQS}/${u.id}`, { sort_order: u.sort_order }))
     ).catch(() => {
-      Alert.alert('Error', 'Failed to save order');
+      showAlert('Error', 'Failed to save order');
       fetchItems();
     });
   }, []);
@@ -168,7 +168,7 @@ const FaqManagementScreen = ({ navigation }) => {
         onBack={() => navigation.goBack()}
         right={
           <TouchableOpacity onPress={openAddModal} style={{ padding: 4 }}>
-            <MCIcon name="plus" size={24} color={colors.primary} />
+            <MCIcon name="plus" size={24} color={colors.headerText} />
           </TouchableOpacity>
         }
       />

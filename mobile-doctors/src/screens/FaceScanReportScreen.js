@@ -1,17 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
+import { showAlert } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { SPACING, RADIUS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 import patientService from '../services/patientService';
 
 const STATUS_CONFIG = {
@@ -21,20 +22,30 @@ const STATUS_CONFIG = {
 };
 
 // ─── Metric Row Component ────────────────────────────────────────────────────
-const MetricRow = ({ icon, label, value }) => (
+const MetricRow = ({ icon, label, value }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
   <View style={styles.metricRow}>
     <View style={styles.metricLabelWrap}>
-      <MCIcon name={icon} size={18} color={COLORS.primary} style={styles.metricIcon} />
+      <MCIcon name={icon} size={18} color={colors.primary} style={styles.metricIcon} />
       <Text style={styles.metricLabel}>{label}</Text>
     </View>
     <Text style={styles.metricValue}>{value}</Text>
   </View>
-);
+  );
+};
 
-const MetricDivider = () => <View style={styles.metricDivider} />;
+const MetricDivider = () => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return <View style={styles.metricDivider} />;
+};
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 const FaceScanReportScreen = ({ route, navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { patientId, scanId } = route.params || {};
   const [patientName, setPatientName] = useState('Patient');
   const [report, setReport] = useState(null);
@@ -69,7 +80,7 @@ const FaceScanReportScreen = ({ route, navigation }) => {
       <View style={styles.root}>
         <ScreenHeader title="Face Scan Report" onBack={() => navigation.goBack()} />
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </View>
     );
@@ -80,7 +91,7 @@ const FaceScanReportScreen = ({ route, navigation }) => {
       <View style={styles.root}>
         <ScreenHeader title="Face Scan Report" onBack={() => navigation.goBack()} />
         <View style={styles.center}>
-          <MCIcon name="alert-circle-outline" size={48} color={COLORS.danger} style={{ marginBottom: 12 }} />
+          <MCIcon name="alert-circle-outline" size={48} color={colors.danger} style={{ marginBottom: 12 }} />
           <Text style={styles.errorText}>{error || 'Report not found.'}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={fetchReport}>
             <Text style={styles.retryText}>Retry</Text>
@@ -94,7 +105,7 @@ const FaceScanReportScreen = ({ route, navigation }) => {
   const recList = report.recommendations || ['No recommendations specified.'];
 
   const handleDownload = () => {
-    Alert.alert(
+    showAlert(
       'Download Report',
       `Full Face Scan Report for ${patientName} has been downloaded successfully as a PDF.`,
       [{ text: 'OK' }]
@@ -102,7 +113,7 @@ const FaceScanReportScreen = ({ route, navigation }) => {
   };
 
   const handleShare = () => {
-    Alert.alert(
+    showAlert(
       'Share Report',
       `Full Face Scan Report for ${patientName} is ready to be shared.`,
       [{ text: 'OK' }]
@@ -159,14 +170,14 @@ const FaceScanReportScreen = ({ route, navigation }) => {
         {/* Recommendations Section */}
         <View style={styles.sectionCard}>
           <View style={styles.recommendationsHeader}>
-            <MCIcon name="lightbulb-on-outline" size={20} color={COLORS.primary} style={styles.recIcon} />
+            <MCIcon name="lightbulb-on-outline" size={20} color={colors.primary} style={styles.recIcon} />
             <Text style={styles.sectionTitle}>Treatment Recommendations</Text>
           </View>
           <View style={styles.sectionDivider} />
 
           {recList.map((rec, index) => (
             <View key={index} style={styles.recRow}>
-              <MCIcon name="check-circle" size={16} color={COLORS.success} style={styles.recCheck} />
+              <MCIcon name="check-circle" size={16} color={colors.success} style={styles.recCheck} />
               <Text style={styles.recText}>{rec}</Text>
             </View>
           ))}
@@ -195,20 +206,21 @@ const FaceScanReportScreen = ({ route, navigation }) => {
 export default FaceScanReportScreen;
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors =>
+  StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   scrollContent: { padding: SPACING.lg, gap: SPACING.md, paddingBottom: 110 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SPACING.xl },
-  errorText: { fontSize: 14.5, color: COLORS.textSecondary, fontWeight: '500', textAlign: 'center', marginBottom: SPACING.md },
-  retryBtn: { backgroundColor: COLORS.primary, paddingHorizontal: 18, paddingVertical: 8, borderRadius: RADIUS.md },
-  retryText: { color: COLORS.white, fontWeight: '700', fontSize: 13.5 },
+  errorText: { fontSize: 14.5, color: colors.textSecondary, fontWeight: '500', textAlign: 'center', marginBottom: SPACING.md },
+  retryBtn: { backgroundColor: colors.primary, paddingHorizontal: 18, paddingVertical: 8, borderRadius: RADIUS.md },
+  retryText: { color: colors.white, fontWeight: '700', fontSize: 13.5 },
 
   // Summary Card (Top Section)
   summaryCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.md,
     elevation: 2,
     shadowColor: '#000',
@@ -226,8 +238,8 @@ const styles = StyleSheet.create({
     height: 72,
     borderRadius: 36,
     borderWidth: 4,
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.primaryFaint,
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryFaint,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -235,11 +247,11 @@ const styles = StyleSheet.create({
   overallScoreText: {
     fontSize: 22,
     fontWeight: '800',
-    color: COLORS.primary,
+    color: colors.primary,
   },
   scoreMaxText: {
     fontSize: 10.5,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '700',
     marginTop: 6,
   },
@@ -250,7 +262,7 @@ const styles = StyleSheet.create({
   overallLabel: {
     fontSize: 14.5,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
 
   // Badge Styling
@@ -275,10 +287,10 @@ const styles = StyleSheet.create({
 
   // Metrics Section Cards
   sectionCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.md,
     elevation: 2,
     shadowColor: '#000',
@@ -289,11 +301,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14.5,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   sectionDivider: {
     height: 1,
-    backgroundColor: COLORS.border,
+    backgroundColor: colors.border,
     marginVertical: SPACING.md,
   },
 
@@ -314,16 +326,16 @@ const styles = StyleSheet.create({
   metricLabel: {
     fontSize: 13.5,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   metricValue: {
     fontSize: 13.5,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   metricDivider: {
     height: 1,
-    backgroundColor: COLORS.surfaceMuted,
+    backgroundColor: colors.surfaceMuted,
     marginVertical: SPACING.sm,
   },
 
@@ -348,7 +360,7 @@ const styles = StyleSheet.create({
   recText: {
     flex: 1,
     fontSize: 13,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     lineHeight: 18,
     fontWeight: '500',
   },
@@ -359,38 +371,38 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     padding: SPACING.md,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: colors.border,
     flexDirection: 'row',
     gap: SPACING.md,
   },
   downloadBtn: {
     flex: 1,
     borderWidth: 1.5,
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.white,
+    borderColor: colors.primary,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   downloadBtnText: {
-    color: COLORS.primary,
+    color: colors.primary,
     fontSize: 14,
     fontWeight: '700',
   },
   shareBtn: {
     flex: 1,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: RADIUS.md,
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   shareBtnText: {
-    color: COLORS.white,
+    color: colors.white,
     fontSize: 14,
     fontWeight: '700',
   },

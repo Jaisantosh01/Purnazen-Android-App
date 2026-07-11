@@ -13,6 +13,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import notificationsService from '../services/notificationsService';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
+import { showAlert, showConfirm } from '../utils/alert';
 
 // category → icon + hue. Backend categories: appointment | payment | promo |
 // reminder | system.
@@ -41,6 +42,7 @@ const NotificationCenterScreen = ({ navigation }) => {
   const [items, setItems] = useState([]);
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all'); // all | unread
 
   const fetchList = useCallback(() => {
     notificationsService
@@ -78,6 +80,46 @@ const NotificationCenterScreen = ({ navigation }) => {
     notificationsService.markAllRead().catch(() => {});
   };
 
+  const deleteItem = item => {
+    setItems(prev => prev.filter(n => n.id !== item.id));
+    if (!item.isRead) setUnread(u => Math.max(0, u - 1));
+    notificationsService.remove(item.id).catch(() => fetchList());
+  };
+
+  const clearRead = () => {
+    const readCount = items.filter(n => n.isRead).length;
+    if (!readCount) {
+      showAlert('Nothing to clear', 'You have no read notifications.');
+      return;
+    }
+    setItems(prev => prev.filter(n => !n.isRead));
+    notificationsService.clear('read').catch(() => fetchList());
+  };
+
+  const clearAll = () => {
+    showConfirm(
+      'Clear all notifications?',
+      'This permanently removes every notification, including unread ones.',
+      () => {
+        setItems([]);
+        setUnread(0);
+        notificationsService.clear('all').catch(() => fetchList());
+      },
+      { confirmLabel: 'Clear all', destructive: true },
+    );
+  };
+
+  const openMenu = () => {
+    showAlert('Manage notifications', 'Tidy up your notification center.', [
+      { text: 'Mark all as read', onPress: markAll },
+      { text: 'Clear read notifications', onPress: clearRead },
+      { text: 'Clear all', style: 'destructive', onPress: clearAll },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const visibleItems = filter === 'unread' ? items.filter(n => !n.isRead) : items;
+
   const renderItem = ({ item }) => {
     const meta = CATEGORY_META[item.category] || CATEGORY_META.system;
     return (
@@ -99,6 +141,13 @@ const NotificationCenterScreen = ({ navigation }) => {
           <Text style={styles.body} numberOfLines={2}>{item.body}</Text>
           <Text style={styles.time}>{timeAgo(item.createdAt)}</Text>
         </View>
+        <TouchableOpacity
+          style={styles.deleteBtn}
+          onPress={() => deleteItem(item)}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <MCIcon name="trash-can-outline" size={18} color={colors.textMuted} />
+        </TouchableOpacity>
       </TouchableOpacity>
     );
   };
@@ -109,13 +158,32 @@ const NotificationCenterScreen = ({ navigation }) => {
         title="Notifications"
         subtitle={unread ? `${unread} unread` : 'You are all caught up'}
         right={
-          unread ? (
-            <TouchableOpacity onPress={markAll} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={styles.markAll}>Mark all read</Text>
+          items.length ? (
+            <TouchableOpacity onPress={openMenu} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <MCIcon name="dots-vertical" size={22} color="#fff" />
             </TouchableOpacity>
           ) : null
         }
       />
+
+      {/* Filter chips */}
+      <View style={styles.filterRow}>
+        {[
+          { key: 'all', label: `All (${items.length})` },
+          { key: 'unread', label: `Unread (${unread})` },
+        ].map(f => (
+          <TouchableOpacity
+            key={f.key}
+            style={[styles.filterChip, filter === f.key && styles.filterChipActive]}
+            onPress={() => setFilter(f.key)}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.filterChipText, filter === f.key && styles.filterChipTextActive]}>
+              {f.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       {loading ? (
         <View style={styles.center}>
@@ -123,7 +191,7 @@ const NotificationCenterScreen = ({ navigation }) => {
         </View>
       ) : (
         <FlatList
-          data={items}
+          data={visibleItems}
           keyExtractor={item => item.id}
           renderItem={renderItem}
           contentContainerStyle={styles.list}
@@ -131,10 +199,18 @@ const NotificationCenterScreen = ({ navigation }) => {
           onRefresh={fetchList}
           ListEmptyComponent={
             <View style={styles.center}>
-              <MCIcon name="bell-off-outline" size={52} color={colors.textMuted} />
-              <Text style={styles.emptyText}>No notifications yet</Text>
+              <MCIcon
+                name={filter === 'unread' ? 'check-all' : 'bell-off-outline'}
+                size={52}
+                color={colors.textMuted}
+              />
+              <Text style={styles.emptyText}>
+                {filter === 'unread' ? 'No unread notifications' : 'No notifications yet'}
+              </Text>
               <Text style={styles.emptySub}>
-                Appointment updates, payment receipts and offers will appear here.
+                {filter === 'unread'
+                  ? 'You are all caught up.'
+                  : 'Appointment updates, payment receipts and offers will appear here.'}
               </Text>
             </View>
           }
@@ -148,7 +224,24 @@ const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   list: { padding: 16, paddingBottom: 32, flexGrow: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, paddingVertical: 60 },
-  markAll: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  filterRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 2,
+  },
+  filterChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 18,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  filterChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  filterChipText: { fontSize: 12.5, fontWeight: '700', color: colors.textSecondary },
+  filterChipTextActive: { color: colors.white },
   card: {
     flexDirection: 'row',
     backgroundColor: colors.card,
@@ -171,6 +264,7 @@ const makeStyles = colors => StyleSheet.create({
   unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary },
   body: { fontSize: 13, color: colors.textSecondary, marginTop: 2, lineHeight: 18 },
   time: { fontSize: 11.5, color: colors.textMuted, marginTop: 6, fontWeight: '500' },
+  deleteBtn: { alignSelf: 'flex-start', padding: 2 },
   emptyText: { marginTop: 14, fontSize: 16, fontWeight: '700', color: colors.textPrimary },
   emptySub: { marginTop: 6, fontSize: 13, color: colors.textMuted, textAlign: 'center', lineHeight: 19 },
 });

@@ -65,6 +65,35 @@ class Appointment(Base):
     def to_dict(self):
         clinic = self.clinic
         user_addr = self.user_address
+
+        # Build unified location object
+        location = None
+        is_clinic = (self.visit_type == "clinic" or (self.consultation_type and self.consultation_type.name == "Clinic Visit"))
+        is_home = (self.visit_type == "home" or (self.consultation_type and self.consultation_type.name == "Home Visit"))
+
+        if is_clinic and clinic:
+            location = {
+                "type": "clinic",
+                "name": clinic.name,
+                "address": f"{clinic.address}, {clinic.city}" if clinic.city else clinic.address,
+                "latitude": clinic.latitude,
+                "longitude": clinic.longitude
+            }
+        elif is_home and user_addr:
+            addr_parts = []
+            if user_addr.house_name:
+                addr_parts.append(user_addr.house_name)
+            rest_parts = [user_addr.area, user_addr.city, user_addr.state, user_addr.pincode]
+            addr_parts.extend([p for p in rest_parts if p])
+            address_str = ", ".join(addr_parts)
+            location = {
+                "type": "home",
+                "name": "Patient Home",
+                "address": address_str,
+                "latitude": user_addr.latitude,
+                "longitude": user_addr.longitude
+            }
+
         return {
             "id": self.id,
             "reference": self.reference,
@@ -86,6 +115,7 @@ class Appointment(Base):
             "clinicAddress": f"{clinic.address}, {clinic.city}" if clinic else None,
             "userAddressId": str(self.user_address_id) if self.user_address_id else None,
             "userAddress": user_addr.to_dict() if user_addr else None,
+            "location": location,
             "meetingLink": self.meeting_link,
             "fee": float(self.fee) if self.fee is not None else None,
             "status": self.status,

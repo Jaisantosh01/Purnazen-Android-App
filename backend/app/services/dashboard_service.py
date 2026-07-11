@@ -18,9 +18,11 @@ class DashboardService:
             DoctorLeave.start_date <= date.today(),
             DoctorLeave.end_date >= date.today(),
             DoctorLeave.is_active == True,
+            DoctorLeave.status.in_(["approved", "pending"]),
         ).count()
         total_doctor_leaves = db.query(DoctorLeave).filter(
             DoctorLeave.is_active == True,
+            DoctorLeave.status.in_(["approved", "pending"]),
         ).count()
 
         return {

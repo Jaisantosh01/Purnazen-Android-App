@@ -9,10 +9,15 @@ import useTheme from '../hooks/useTheme';
 /**
  * ScreenHeader — the single source of truth for the top "header card".
  *
+ * IMPORTANT: this file is intentionally byte-identical across mobile-users,
+ * mobile-doctors and mobile-admin (per-app branding comes from each app's
+ * theme tokens: headerBg / headerText / surface / …). If you change it here,
+ * copy the change to the other two apps.
+ *
  * Solves three long-standing inconsistencies:
- *   1. Back button — shown automatically whenever the stack can go back, with a
- *      safe `canGoBack()` guard so it never dead-taps. Override with
- *      `showBack` / `onBack`.
+ *   1. Back button — shown automatically whenever the stack can go back (or a
+ *      custom `onBack` is supplied), with a safe `canGoBack()` guard so it
+ *      never dead-taps. Override with `showBack` / `onBack`.
  *   2. Height — derived from the device safe-area inset (not hardcoded 50–60px
  *      per screen), so every header lines up.
  *   3. Theming — colors come from useTheme(), so headers follow dark mode.
@@ -55,7 +60,9 @@ export default function ScreenHeader({
   const { colors, isDark } = useTheme();
 
   const canGoBack = !!navigation?.canGoBack?.();
-  const backVisible = showBack === undefined ? canGoBack : showBack;
+  // An explicit onBack (e.g. a screen-internal mode switch) always earns a
+  // back button, even when the navigation stack itself can't go back.
+  const backVisible = showBack === undefined ? !!onBack || canGoBack : showBack;
 
   const handleBack = () => {
     if (onBack) return onBack();
@@ -133,7 +140,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   backSpacer: { width: 4 },
-  titleWrap: { flex: 1 },
+  // minHeight reserves the two-line (title + subtitle) footprint even when a
+  // screen has no subtitle, so every header renders at the same height.
+  titleWrap: { flex: 1, minHeight: 46, justifyContent: 'center' },
   title: { fontSize: 22, fontWeight: '700' },
   subtitle: { fontSize: 13, marginTop: 2 },
   rightWrap: { minWidth: 4, alignItems: 'flex-end', justifyContent: 'center' },

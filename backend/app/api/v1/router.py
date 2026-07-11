@@ -31,6 +31,7 @@ from app.api.v1.endpoints import app_releases
 from app.api.v1.endpoints import patients
 from app.api.v1.endpoints import user_addresses
 from app.api.v1.endpoints import notifications
+from app.api.v1.endpoints import content_pages
 
 api_router = APIRouter()
 
@@ -65,4 +66,5 @@ from app.api.v1.endpoints import support_faqs
 api_router.include_router(patients.router)
 api_router.include_router(user_addresses.router)
 api_router.include_router(notifications.router)
+api_router.include_router(content_pages.router)
 api_router.include_router(support_faqs.router, prefix="/support-faqs", tags=["Support FAQs"])

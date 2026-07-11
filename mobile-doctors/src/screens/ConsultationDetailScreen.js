@@ -1,29 +1,34 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
+import { showAlert } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { SPACING, RADIUS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 import appointmentService from '../services/appointmentService';
 
-const DetailSection = ({ icon, title, content }) => (
+const DetailSection = ({ icon, title, content }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
   <View style={styles.sectionCard}>
     <View style={styles.sectionHeader}>
-      <MCIcon name={icon} size={18} color={COLORS.primary} style={styles.sectionIcon} />
+      <MCIcon name={icon} size={18} color={colors.primary} style={styles.sectionIcon} />
       <Text style={styles.sectionTitle}>{title}</Text>
     </View>
     <View style={styles.sectionDivider} />
     <Text style={styles.sectionContent}>{content || 'No records entered.'}</Text>
   </View>
-);
+  );
+};
 
 const STATUS_CONFIG = {
   Completed: { bg: '#ECFDF5', text: '#065F46', dot: '#10B981' },
@@ -31,6 +36,8 @@ const STATUS_CONFIG = {
 };
 
 const ConsultationDetailScreen = ({ route, navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { consultationId, patientName } = route.params || {};
   const [consultation, setConsultation] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -60,7 +67,7 @@ const ConsultationDetailScreen = ({ route, navigation }) => {
       <View style={styles.root}>
         <ScreenHeader title="Consultation Details" onBack={() => navigation.goBack()} />
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </View>
     );
@@ -71,7 +78,7 @@ const ConsultationDetailScreen = ({ route, navigation }) => {
       <View style={styles.root}>
         <ScreenHeader title="Consultation Details" onBack={() => navigation.goBack()} />
         <View style={styles.center}>
-          <MCIcon name="alert-circle-outline" size={48} color={COLORS.danger} style={{ marginBottom: 12 }} />
+          <MCIcon name="alert-circle-outline" size={48} color={colors.danger} style={{ marginBottom: 12 }} />
           <Text style={styles.errorText}>{error || 'No consultation data found.'}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={fetchDetail}>
             <Text style={styles.retryText}>Retry</Text>
@@ -89,7 +96,7 @@ const ConsultationDetailScreen = ({ route, navigation }) => {
   const statusCfg = STATUS_CONFIG[statusKey] || STATUS_CONFIG.Pending;
 
   const handleAttachmentsPress = () => {
-    Alert.alert(
+    showAlert(
       'Attachments',
       `This consultation has ${attachments.length} attachment(s).`
     );
@@ -123,14 +130,14 @@ const ConsultationDetailScreen = ({ route, navigation }) => {
           {/* Quick Meta Data Grid */}
           <View style={styles.gridRow}>
             <View style={styles.gridItem}>
-              <MCIcon name="calendar-outline" size={16} color={COLORS.textSecondary} style={styles.metaIcon} />
+              <MCIcon name="calendar-outline" size={16} color={colors.textSecondary} style={styles.metaIcon} />
               <View>
                 <Text style={styles.gridLabel}>Date</Text>
                 <Text style={styles.gridValue}>{consultation.date}</Text>
               </View>
             </View>
             <View style={styles.gridItem}>
-              <MCIcon name="clock-outline" size={16} color={COLORS.textSecondary} style={styles.metaIcon} />
+              <MCIcon name="clock-outline" size={16} color={colors.textSecondary} style={styles.metaIcon} />
               <View>
                 <Text style={styles.gridLabel}>Time</Text>
                 <Text style={styles.gridValue}>{time}</Text>
@@ -140,14 +147,14 @@ const ConsultationDetailScreen = ({ route, navigation }) => {
 
           <View style={styles.gridRow}>
             <View style={styles.gridItem}>
-              <MCIcon name="hospital-building" size={16} color={COLORS.textSecondary} style={styles.metaIcon} />
+              <MCIcon name="hospital-building" size={16} color={colors.textSecondary} style={styles.metaIcon} />
               <View>
                 <Text style={styles.gridLabel}>Visit Type</Text>
                 <Text style={styles.gridValue}>{visitType}</Text>
               </View>
             </View>
             <View style={styles.gridItem}>
-              <MCIcon name="clipboard-text-outline" size={16} color={COLORS.textSecondary} style={styles.metaIcon} />
+              <MCIcon name="clipboard-text-outline" size={16} color={colors.textSecondary} style={styles.metaIcon} />
               <View>
                 <Text style={styles.gridLabel}>Consultation</Text>
                 <Text style={styles.gridValue} numberOfLines={1}>{consultation.reference}</Text>
@@ -190,7 +197,7 @@ const ConsultationDetailScreen = ({ route, navigation }) => {
             style={styles.attachmentsBtn}
             activeOpacity={0.85}
             onPress={handleAttachmentsPress}>
-            <MCIcon name="paperclip" size={18} color={COLORS.primary} style={styles.attachmentsIcon} />
+            <MCIcon name="paperclip" size={18} color={colors.primary} style={styles.attachmentsIcon} />
             <Text style={styles.attachmentsBtnText}>
               View Attachments ({attachments.length})
             </Text>
@@ -204,20 +211,21 @@ const ConsultationDetailScreen = ({ route, navigation }) => {
 export default ConsultationDetailScreen;
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors =>
+  StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   scrollContent: { padding: SPACING.lg, gap: SPACING.md, paddingBottom: 40 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SPACING.xl },
-  errorText: { fontSize: 14.5, color: COLORS.textSecondary, fontWeight: '500', textAlign: 'center', marginBottom: SPACING.md },
-  retryBtn: { backgroundColor: COLORS.primary, paddingHorizontal: 18, paddingVertical: 8, borderRadius: RADIUS.md },
-  retryText: { color: COLORS.white, fontWeight: '700', fontSize: 13.5 },
+  errorText: { fontSize: 14.5, color: colors.textSecondary, fontWeight: '500', textAlign: 'center', marginBottom: SPACING.md },
+  retryBtn: { backgroundColor: colors.primary, paddingHorizontal: 18, paddingVertical: 8, borderRadius: RADIUS.md },
+  retryText: { color: colors.white, fontWeight: '700', fontSize: 13.5 },
 
   // Info Card
   infoCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.md,
     elevation: 2,
     shadowColor: '#000',
@@ -233,7 +241,7 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 10,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -241,12 +249,12 @@ const styles = StyleSheet.create({
   infoValue: {
     fontSize: 16,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginTop: 2,
   },
   infoDivider: {
     height: 1,
-    backgroundColor: COLORS.border,
+    backgroundColor: colors.border,
     marginVertical: 2,
   },
 
@@ -260,20 +268,20 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: RADIUS.sm,
     padding: SPACING.sm,
   },
   gridLabel: {
     fontSize: 9.5,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '600',
     textTransform: 'uppercase',
   },
   gridValue: {
     fontSize: 12.5,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginTop: 1,
   },
   metaIcon: {
@@ -301,10 +309,10 @@ const styles = StyleSheet.create({
 
   // Section Cards
   sectionCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.md,
     elevation: 2,
     shadowColor: '#000',
@@ -322,16 +330,16 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   sectionDivider: {
     height: 1,
-    backgroundColor: COLORS.border,
+    backgroundColor: colors.border,
     marginVertical: SPACING.sm,
   },
   sectionContent: {
     fontSize: 13,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     lineHeight: 19,
     fontWeight: '500',
   },
@@ -339,9 +347,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderWidth: 1.5,
-    borderColor: COLORS.primary,
+    borderColor: colors.primary,
     borderRadius: RADIUS.md,
     paddingVertical: 12,
     marginTop: SPACING.sm,
@@ -350,7 +358,7 @@ const styles = StyleSheet.create({
     marginRight: SPACING.sm,
   },
   attachmentsBtnText: {
-    color: COLORS.primary,
+    color: colors.primary,
     fontSize: 14,
     fontWeight: '700',
   },

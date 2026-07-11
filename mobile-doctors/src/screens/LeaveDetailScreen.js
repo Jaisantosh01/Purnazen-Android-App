@@ -1,16 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
+import { showAlert } from '../utils/alert';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { SPACING, RADIUS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 import { useLeaveStore } from '../store/useLeaveStore';
 import { showSuccess, showError } from '../utils/toast';
 import leaveService from '../services/leaveService';
@@ -51,23 +52,33 @@ const formatDateTime = (dtStr) => {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-const DetailRow = ({ icon, label, value, valueStyle }) => (
+const DetailRow = ({ icon, label, value, valueStyle }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
   <View style={styles.detailRow}>
     <View style={styles.detailIconWrap}>
-      <MCIcon name={icon} size={18} color={COLORS.primary} />
+      <MCIcon name={icon} size={18} color={colors.primary} />
     </View>
     <View style={styles.detailContent}>
       <Text style={styles.detailLabel}>{label}</Text>
       <Text style={[styles.detailValue, valueStyle]}>{value || '—'}</Text>
     </View>
   </View>
-);
+  );
+};
 
-const SectionDivider = () => <View style={styles.divider} />;
+const SectionDivider = () => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return <View style={styles.divider} />;
+};
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 const LeaveDetailScreen = ({ navigation, route }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { leaveId } = route.params;
   const leaves = useLeaveStore((s) => s.leaves);
   const cancelLeave = useLeaveStore((s) => s.cancelLeave);
@@ -119,7 +130,7 @@ const LeaveDetailScreen = ({ navigation, route }) => {
       <View style={styles.root}>
         <ScreenHeader title="Leave Details" onBack={() => navigation.goBack()} />
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </View>
     );
@@ -130,7 +141,7 @@ const LeaveDetailScreen = ({ navigation, route }) => {
       <View style={styles.root}>
         <ScreenHeader title="Leave Details" onBack={() => navigation.goBack()} />
         <View style={styles.notFound}>
-          <MCIcon name="alert-circle-outline" size={48} color={COLORS.border} />
+          <MCIcon name="alert-circle-outline" size={48} color={colors.border} />
           <Text style={styles.notFoundText}>Leave record not found.</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={loadDetail}>
             <Text style={styles.retryBtnText}>Retry</Text>
@@ -144,8 +155,8 @@ const LeaveDetailScreen = ({ navigation, route }) => {
   const statusCfg = STATUS_CONFIG[statusLabel] || STATUS_CONFIG.Pending;
 
   const leaveType = detail.leaveType || detail.leave_type || detail.type;
-  const startDate = detail.startDate || detail.start_date;
-  const endDate = detail.endDate || detail.end_date;
+  const startDate = detail.startDate || detail.start_date || detail.leaveDate;
+  const endDate = detail.endDate || detail.end_date || detail.leaveDate;
   const startTime = detail.startTime || detail.start_time;
   const endTime = detail.endTime || detail.end_time;
   const appliedAt = detail.appliedAt || detail.applied_at || detail.created_at;
@@ -154,7 +165,7 @@ const LeaveDetailScreen = ({ navigation, route }) => {
   const adminReason = detail.adminReason || detail.admin_reason;
 
   const handleCancelPress = () => {
-    Alert.alert(
+    showAlert(
       'Cancel Leave Request',
       'Are you sure you want to cancel this leave request? This cannot be undone.',
       [
@@ -265,7 +276,7 @@ const LeaveDetailScreen = ({ navigation, route }) => {
             <MCIcon
               name={slotsExpanded ? 'chevron-up' : 'chevron-down'}
               size={16}
-              color={COLORS.primary}
+              color={colors.primary}
             />
           </TouchableOpacity>
         )}
@@ -279,7 +290,7 @@ const LeaveDetailScreen = ({ navigation, route }) => {
     if (loadingSlots) {
       return (
         <View style={styles.slotsLoadingWrap}>
-          <ActivityIndicator size="small" color={COLORS.primary} />
+          <ActivityIndicator size="small" color={colors.primary} />
           <Text style={styles.slotsLoadingText}>Loading slots grid...</Text>
         </View>
       );
@@ -447,10 +458,10 @@ const LeaveDetailScreen = ({ navigation, route }) => {
             disabled={cancelling}
           >
             {cancelling ? (
-              <ActivityIndicator size="small" color={COLORS.danger} />
+              <ActivityIndicator size="small" color={colors.danger} />
             ) : (
               <>
-                <MCIcon name="cancel" size={18} color={COLORS.danger} />
+                <MCIcon name="cancel" size={18} color={colors.danger} />
                 <Text style={styles.cancelBtnText}>Cancel Request</Text>
               </>
             )}
@@ -465,8 +476,9 @@ export default LeaveDetailScreen;
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors =>
+  StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   scroll: { padding: SPACING.lg, paddingBottom: 60 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
@@ -487,14 +499,14 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.lg,
     marginBottom: SPACING.md,
     elevation: 1,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
@@ -508,7 +520,7 @@ const styles = StyleSheet.create({
   cardSectionTitle: {
     fontSize: 12,
     fontWeight: '800',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
     marginBottom: SPACING.md,
@@ -537,7 +549,7 @@ const styles = StyleSheet.create({
   detailLabel: {
     fontSize: 11.5,
     fontWeight: '700',
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.3,
     marginBottom: 3,
@@ -545,12 +557,12 @@ const styles = StyleSheet.create({
   detailValue: {
     fontSize: 14,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     lineHeight: 20,
   },
   divider: {
     height: 1,
-    backgroundColor: COLORS.border,
+    backgroundColor: colors.border,
   },
 
   slotsLoadingWrap: {
@@ -562,7 +574,7 @@ const styles = StyleSheet.create({
   },
   slotsLoadingText: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontWeight: '700',
   },
   gridContainer: {
@@ -577,14 +589,14 @@ const styles = StyleSheet.create({
   gridTitle: {
     fontSize: 12,
     fontWeight: '800',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
   gridSummaryText: {
     fontSize: 12,
     fontWeight: '700',
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   slotsGridWrap: {
     flexDirection: 'row',
@@ -604,27 +616,27 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   gridCellSelected: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
     elevation: 2,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.15,
     shadowRadius: 1.5,
   },
   gridCellUnselected: {
-    backgroundColor: '#F3F4F6',
-    borderColor: COLORS.border,
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.border,
   },
   gridCellText: {
     fontSize: 11.5,
     fontWeight: '800',
   },
   gridCellTextSelected: {
-    color: COLORS.white,
+    color: colors.white,
   },
   gridCellTextUnselected: {
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
 
   toggleGridBtn: {
@@ -635,14 +647,14 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
     paddingVertical: 8,
     borderRadius: RADIUS.sm,
-    backgroundColor: COLORS.primaryFaint,
+    backgroundColor: colors.primaryFaint,
     borderWidth: 1,
-    borderColor: COLORS.primaryLight,
+    borderColor: colors.primaryLight,
   },
   toggleGridBtnText: {
     fontSize: 12.5,
     fontWeight: '800',
-    color: COLORS.primary,
+    color: colors.primary,
   },
 
   cancelBtn: {
@@ -650,20 +662,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: SPACING.sm,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderWidth: 1.5,
-    borderColor: COLORS.danger,
+    borderColor: colors.danger,
     borderRadius: RADIUS.md,
     paddingVertical: 14,
     marginTop: SPACING.xs,
   },
   cancelBtnDisabled: {
-    borderColor: COLORS.textMuted,
+    borderColor: colors.textMuted,
   },
   cancelBtnText: {
     fontSize: 15,
     fontWeight: '800',
-    color: COLORS.danger,
+    color: colors.danger,
   },
 
   notFound: {
@@ -675,18 +687,18 @@ const styles = StyleSheet.create({
   },
   notFoundText: {
     fontSize: 15,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   retryBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: RADIUS.md,
     marginTop: SPACING.md,
   },
   retryBtnText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '800',
     fontSize: 14,
   },

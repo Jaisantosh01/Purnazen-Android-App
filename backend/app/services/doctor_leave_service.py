@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.models.doctor import Doctor
 from app.models.user import User
+from app.models.doctor_leave import DoctorLeave
 from app.repositories.doctor_leave_repository import DoctorLeaveRepository
 from app.schemas.doctor_leave import (
     DoctorLeaveCreate,
@@ -37,12 +38,25 @@ def _leave_to_dict(leave) -> dict:
     Serialize a DoctorLeave ORM object to a plain dict that mirrors the
     camelCase convention used everywhere else in the project.
     """
+    if leave.leave_type == "multiple" and leave.start_date and leave.end_date:
+        if leave.start_date == leave.end_date:
+            date_str = leave.start_date.isoformat()
+        else:
+            date_str = f"{leave.start_date.isoformat()} to {leave.end_date.isoformat()}"
+    elif leave.start_date:
+        date_str = leave.start_date.isoformat()
+    elif leave.leave_date:
+        date_str = leave.leave_date.isoformat()
+    else:
+        date_str = None
+
     return {
         "id": str(leave.id),
         "doctorId": str(leave.doctor_id),
         "leaveType": leave.leave_type,
-        "startDate": leave.start_date.isoformat() if leave.start_date else None,
-        "endDate": leave.end_date.isoformat() if leave.end_date else None,
+        "startDate": leave.start_date.isoformat() if leave.start_date else (leave.leave_date.isoformat() if leave.leave_date else None),
+        "endDate": leave.end_date.isoformat() if leave.end_date else (leave.leave_date.isoformat() if leave.leave_date else None),
+        "leaveDate": date_str,
         "startTime": leave.start_time.isoformat() if leave.start_time else None,
         "endTime": leave.end_time.isoformat() if leave.end_time else None,
         "reason": leave.reason,
@@ -90,6 +104,22 @@ class DoctorLeaveService:
             return {
                 "success": False,
                 "message": "End date cannot be earlier than start date",
+            }, 400
+
+        # Overlapping active leave guard
+        overlapping = db.query(DoctorLeave).filter(
+            DoctorLeave.doctor_id == doctor.id,
+            DoctorLeave.is_active == True,
+            DoctorLeave.status.in_(["pending", "approved"]),
+            DoctorLeave.start_date <= data.end_date,
+            DoctorLeave.end_date >= data.start_date,
+        ).first()
+
+        if overlapping:
+            status_str = "pending approval" if overlapping.status == "pending" else "approved"
+            return {
+                "success": False,
+                "message": f"You already have a {status_str} leave request overlapping this date range.",
             }, 400
 
         # Leave type guard

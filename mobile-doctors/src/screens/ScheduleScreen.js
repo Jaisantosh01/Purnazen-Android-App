@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  Alert,
   Animated,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -52,8 +51,8 @@ const getStatusLabelText = (status) => {
 };
 
 const getLeaveCardDate = (item) => {
-  const start = formatDateStr(item.start_date || item.startDate);
-  const end = formatDateStr(item.end_date || item.endDate);
+  const start = formatDateStr(item.start_date || item.startDate || item.leaveDate);
+  const end = formatDateStr(item.end_date || item.endDate || item.leaveDate);
   if (!start) return '';
   if (!end || start === end) return start;
   return `${start} - ${end}`;
@@ -63,21 +62,22 @@ const getLeaveDurationText = (item) => {
   const type = item.leaveType || item.leave_type || item.type;
   const startT = item.startTime || item.start_time;
   const endT = item.endTime || item.end_time;
+  const start = formatDateStr(item.start_date || item.startDate || item.leaveDate);
+  const end = formatDateStr(item.end_date || item.endDate || item.leaveDate);
+  const dateRange = (!start || start === end) ? start : `${start} - ${end}`;
 
   if (type === 'single') {
     if (startT && endT) {
-      return `${startT} - ${endT}`;
+      return `${dateRange} ${startT} - ${endT}`;
     }
-    return 'Full Day';
+    return dateRange || 'Full Day';
   } else if (type === 'multiple') {
-    return 'Multiple Days';
+    return dateRange || 'Multiple Days';
   } else if (type === 'custom') {
-    if (item.slots && item.slots.length > 0) {
-      return `Partial Day (${item.slots.length} Slot${item.slots.length > 1 ? 's' : ''})`;
-    }
-    return 'Partial Day';
+    const slotCount = item.slots?.length || 0;
+    return `${dateRange} (${slotCount} Slot${slotCount !== 1 ? 's' : ''})`;
   }
-  return 'Full Day';
+  return dateRange || 'Full Day';
 };
 
 const getStatusLabel = (status) => {
@@ -107,8 +107,8 @@ const formatDateStr = (dStr) => {
 
 const getFormattedDates = (item) => {
   if (item.dates) return item.dates;
-  const start = formatDateStr(item.start_date || item.startDate);
-  const end = formatDateStr(item.end_date || item.endDate);
+  const start = formatDateStr(item.start_date || item.startDate || item.leaveDate);
+  const end = formatDateStr(item.end_date || item.endDate || item.leaveDate);
   const type = item.leaveType || item.leave_type || item.type;
   const startT = item.startTime || item.start_time;
   const endT = item.endTime || item.end_time;
@@ -198,15 +198,15 @@ const ScheduleScreen = ({ navigation }) => {
     now.setHours(0, 0, 0, 0);
 
     const upcoming = leaves.filter(l => {
-      const dateStr = l.end_date || l.endDate;
+      const dateStr = l.end_date || l.endDate || l.leaveDate;
       if (!dateStr) return false;
       const end = parseDateSafe(dateStr);
       return end >= now;
     });
 
     upcoming.sort((a, b) => {
-      const aStart = parseDateSafe(a.start_date || a.startDate);
-      const bStart = parseDateSafe(b.start_date || b.startDate);
+      const aStart = parseDateSafe(a.start_date || a.startDate || a.leaveDate);
+      const bStart = parseDateSafe(b.start_date || b.startDate || b.leaveDate);
       return aStart - bStart;
     });
 
@@ -223,7 +223,7 @@ const ScheduleScreen = ({ navigation }) => {
     now.setHours(0, 0, 0, 0);
 
     const upcoming = leaves.filter(l => {
-      const dateStr = l.end_date || l.endDate;
+      const dateStr = l.end_date || l.endDate || l.leaveDate;
       if (!dateStr) return false;
       const end = parseDateSafe(dateStr);
       return end >= now;
@@ -253,7 +253,7 @@ const ScheduleScreen = ({ navigation }) => {
     now.setHours(0, 0, 0, 0);
 
     const upcoming = (leaves || []).filter(l => {
-      const dateStr = l.endDate || l.end_date;
+      const dateStr = l.endDate || l.end_date || l.leaveDate;
       if (!dateStr) return false;
       const end = parseDateSafe(dateStr);
       const statusNormalized = l.status ? l.status.toLowerCase() : '';
@@ -262,7 +262,7 @@ const ScheduleScreen = ({ navigation }) => {
 
     if (upcoming.length === 0) return null;
 
-    upcoming.sort((a, b) => parseDateSafe(a.startDate || a.start_date) - parseDateSafe(b.startDate || b.start_date));
+    upcoming.sort((a, b) => parseDateSafe(a.startDate || a.start_date || a.leaveDate) - parseDateSafe(b.startDate || b.start_date || b.leaveDate));
     return upcoming[0];
   }, [leaves]);
 
@@ -534,7 +534,7 @@ const ScheduleScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="My Schedule" subtitle="Availability & Leave" />
+      <ScreenHeader title="My Schedule" subtitle="Availability & Leave" showBack={false} />
       
       <View style={styles.segmentedWrapper}>
         {renderSegmentedControl()}
@@ -622,7 +622,7 @@ const makeStyles = colors => StyleSheet.create({
     paddingLeft: SPACING.xs,
   },
   emptyAvailabilityCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: colors.border,
@@ -661,7 +661,7 @@ const makeStyles = colors => StyleSheet.create({
   },
   segmentedContainer: {
     flexDirection: 'row',
-    backgroundColor: '#EEF4FF',
+    backgroundColor: colors.primaryLight,
     borderRadius: RADIUS.md,
     padding: 4,
     borderWidth: 1,
@@ -697,7 +697,7 @@ const makeStyles = colors => StyleSheet.create({
 
   // Weekdays List Card Styles
   daysListCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: colors.border,
@@ -772,7 +772,7 @@ const makeStyles = colors => StyleSheet.create({
 
   // Leave Styles
   upcomingLeaveCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: colors.border,
@@ -796,7 +796,7 @@ const makeStyles = colors => StyleSheet.create({
     color: colors.textSecondary,
   },
   emptyLeaveCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: colors.border,
@@ -814,7 +814,7 @@ const makeStyles = colors => StyleSheet.create({
     textAlign: 'center',
   },
   leaveActionsCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: colors.border,
@@ -850,7 +850,7 @@ const makeStyles = colors => StyleSheet.create({
     marginBottom: SPACING.lg,
   },
   applyLeaveRowCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: colors.border,
@@ -867,7 +867,7 @@ const makeStyles = colors => StyleSheet.create({
     shadowRadius: 2,
   },
   leaveHistoryRowCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: colors.border,
@@ -890,7 +890,7 @@ const makeStyles = colors => StyleSheet.create({
     flex: 1,
   },
   applyLeaveCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: colors.border,
@@ -915,7 +915,7 @@ const makeStyles = colors => StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: RADIUS.sm,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -938,7 +938,7 @@ const makeStyles = colors => StyleSheet.create({
   },
   statusCard: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: colors.border,
@@ -1011,7 +1011,7 @@ const makeStyles = colors => StyleSheet.create({
     gap: SPACING.md,
   },
   historyCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: colors.border,
