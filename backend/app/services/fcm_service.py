@@ -68,9 +68,21 @@ def _access_token() -> str:
     return creds.token
 
 
-def send_to_token(token: str, title: str, body: str, data: dict | None = None) -> bool:
+def send_to_token(
+    token: str,
+    title: str,
+    body: str,
+    data: dict | None = None,
+    channel_id: str = "general",
+) -> bool:
     """Send one push. Returns False when the token is dead (caller should
-    delete it) and True otherwise (including when FCM is disabled)."""
+    delete it) and True otherwise (including when FCM is disabled).
+
+    ``channel_id`` must be one of the Android notification channels the apps
+    create at startup (MainApplication.kt): appointments, payments, reminders,
+    offers, general. Android 8+ drops notifications aimed at a channel the app
+    never created, so never send an id outside that set.
+    """
     if not is_enabled():
         return True
 
@@ -80,7 +92,7 @@ def send_to_token(token: str, title: str, body: str, data: dict | None = None) -
             "notification": {"title": title, "body": body},
             # FCM requires string values in data
             "data": {k: str(v) for k, v in (data or {}).items()},
-            "android": {"priority": "HIGH", "notification": {"channel_id": "default"}},
+            "android": {"priority": "HIGH", "notification": {"channel_id": channel_id}},
         }
     }
 

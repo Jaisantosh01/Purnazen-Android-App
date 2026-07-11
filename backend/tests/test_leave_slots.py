@@ -236,3 +236,67 @@ def test_get_availability_response_format(client, db_session):
 
     # Clear overrides
     app.dependency_overrides.clear()
+
+
+def test_duplicate_leave_prevention(client, db_session):
+    # Setup roles
+    doctor_role = db_session.query(Role).filter_by(name="doctor").first()
+
+    # Create doctor user
+    doctor_user = User(
+        email="doctor_dup@test.com",
+        full_name="Dr. Dup",
+        role_id=doctor_role.id,
+        password="hashed_password",
+    )
+    db_session.add(doctor_user)
+    db_session.commit()
+
+    # Create specialty
+    specialty = Specialty(name="General")
+    db_session.add(specialty)
+    db_session.commit()
+
+    # Create doctor profile
+    doctor = Doctor(
+        user_id=doctor_user.id,
+        specialty_id=specialty.id,
+        experience_years=5,
+        consultation_fee=100,
+    )
+    db_session.add(doctor)
+    db_session.commit()
+
+    def override_get_current_user():
+        return doctor_user
+
+    app.dependency_overrides[get_current_user] = override_get_current_user
+
+    test_date = date(2026, 7, 20)
+
+    # 1. Apply for leave first time (pending) -> Should succeed
+    leave_payload = {
+        "doctor_id": str(doctor.id),
+        "leave_type": "single",
+        "start_date": test_date.isoformat(),
+        "end_date": test_date.isoformat(),
+        "reason": "Vacation",
+    }
+    response = client.post("/api/v1/doctor-leaves", json=leave_payload)
+    assert response.status_code == 201
+    leave_id = response.json()["data"]["id"]
+
+    # 2. Try applying for the same date again (when status is pending) -> Should fail
+    response = client.post("/api/v1/doctor-leaves", json=leave_payload)
+    assert response.status_code == 400
+    assert "overlapping" in response.json()["message"]
+
+    # 3. Cancel the leave
+    response = client.delete(f"/api/v1/doctor-leaves/{leave_id}")
+    assert response.status_code == 200
+
+    # 4. Now that it is cancelled, applying again for the same date should succeed
+    response = client.post("/api/v1/doctor-leaves", json=leave_payload)
+    assert response.status_code == 201
+
+    app.dependency_overrides.clear()

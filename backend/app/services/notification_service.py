@@ -10,8 +10,8 @@ Every notification flows through ``NotificationService.notify``:
 Delivery rules:
   * Transactional categories (appointment / payment / reminder / system) always
     create the in-app row; user preferences only mute the device push.
-  * Promotional ("promo") notifications respect the user's opt-out fully —
-    neither a row nor a push is created when the user disabled offers.
+  * Promotional ("promo") notifications are ON by default (opt-out): a user who
+    explicitly disabled the offers toggle gets neither a row nor a push.
   * A disabled global admin switch drops the notification entirely.
 
 All hooks call this best-effort: a notification failure must never break the
@@ -52,6 +52,16 @@ _PREF_KEY = {
     # "system" ignores user toggles
 }
 
+# category → Android notification channel id (created in each app's
+# MainApplication.kt; ids must stay in sync or Android drops the push)
+_CHANNEL = {
+    "appointment": "appointments",
+    "payment": "payments",
+    "promo": "offers",
+    "reminder": "reminders",
+    "system": "general",
+}
+
 
 class NotificationService:
 
@@ -73,16 +83,16 @@ class NotificationService:
     def _user_allows_push(db: Session, user_id, category: str) -> bool:
         pref = db.query(UserPreference).filter(UserPreference.user_id == user_id).first()
         if pref is None:
-            # No prefs row yet: default everything on except promos opt-in
-            return category != "promo"
+            # No prefs row yet: everything defaults ON (offers included —
+            # allowing notifications means all categories; each is opt-out).
+            return True
         if not pref.push_enabled:
             return False
         key = _PREF_KEY.get(category)
         if key is None:  # system
             return True
         toggles = pref.notifications or {}
-        default = category != "promo"  # offers default OFF, rest default ON
-        return bool(toggles.get(key, default))
+        return bool(toggles.get(key, True))  # every category defaults ON
 
     # ── core ────────────────────────────────────────────────────────────────
 
@@ -123,11 +133,18 @@ class NotificationService:
         db.refresh(notification)
 
         if allows_push:
-            NotificationService._push_to_user(db, user_id, title, body, {
-                "category": category,
-                "event": event,
-                **{k: str(v) for k, v in (data or {}).items()},
-            })
+            NotificationService._push_to_user(
+                db,
+                user_id,
+                title,
+                body,
+                {
+                    "category": category,
+                    "event": event,
+                    **{k: str(v) for k, v in (data or {}).items()},
+                },
+                channel_id=_CHANNEL.get(category, "general"),
+            )
 
         return notification
 
@@ -144,13 +161,15 @@ class NotificationService:
                 pass
 
     @staticmethod
-    def _push_to_user(db: Session, user_id, title: str, body: str, data: dict) -> None:
+    def _push_to_user(
+        db, user_id, title: str, body: str, data: dict, channel_id: str = "general"
+    ) -> None:
         if not fcm_service.is_enabled():
             return
         tokens = db.query(DeviceToken).filter(DeviceToken.user_id == user_id).all()
         dead = []
         for t in tokens:
-            if not fcm_service.send_to_token(t.token, title, body, data):
+            if not fcm_service.send_to_token(t.token, title, body, data, channel_id):
                 dead.append(t)
         for t in dead:
             db.delete(t)
@@ -177,24 +196,26 @@ class NotificationService:
 
     # ── broadcast (admin) ───────────────────────────────────────────────────
 
-    @staticmethod
-    def broadcast(
-        db: Session,
-        audience: str,  # all | users | doctors
-        category: str,  # promo | system
-        event: str,
-        title: str,
-        body: str,
-        data: Optional[dict] = None,
-    ) -> int:
-        """Fan a notification out to every active user in the audience.
+    #: days since signup for the "new_users" segment
+    NEW_USER_DAYS = 30
+    #: days without an appointment for the "inactive_users" segment
+    INACTIVE_DAYS = 60
 
-        Returns the number of recipients that actually received it (after
-        preference filtering).
+    @staticmethod
+    def _resolve_audience(db: Session, audience: str, segment: str = "everyone"):
+        """Return [(user_id, full_name), ...] for an audience + segment.
+
+        Segments (personalized-offer targeting):
+          * everyone       — no extra filtering
+          * new_users      — signed up within NEW_USER_DAYS
+          * inactive_users — no appointment in the last INACTIVE_DAYS
         """
+        from datetime import date, datetime, timedelta
+
+        from app.models.appointment import Appointment
         from app.models.doctor import Doctor
 
-        query = db.query(User.id).filter(User.is_active == True)  # noqa: E712
+        query = db.query(User.id, User.full_name).filter(User.is_active == True)  # noqa: E712
         doctor_user_ids = {row[0] for row in db.query(Doctor.user_id).all()}
         if audience == "doctors":
             query = query.filter(User.id.in_(doctor_user_ids))
@@ -202,8 +223,57 @@ class NotificationService:
             if doctor_user_ids:
                 query = query.filter(~User.id.in_(doctor_user_ids))
 
+        if segment == "new_users":
+            cutoff = datetime.now() - timedelta(days=NotificationService.NEW_USER_DAYS)
+            query = query.filter(User.created_at >= cutoff)
+        elif segment == "inactive_users":
+            cutoff = date.today() - timedelta(days=NotificationService.INACTIVE_DAYS)
+            recent_ids = {
+                row[0]
+                for row in db.query(Appointment.user_id)
+                .filter(Appointment.date >= cutoff)
+                .distinct()
+                .all()
+            }
+            if recent_ids:
+                query = query.filter(~User.id.in_(recent_ids))
+
+        return query.all()
+
+    @staticmethod
+    def _personalize(text: str, full_name: Optional[str]) -> str:
+        """Replace the {name} placeholder with the recipient's first name."""
+        first = (full_name or "").strip().split(" ")[0] or "there"
+        return text.replace("{name}", first)
+
+    @staticmethod
+    def send_broadcast(db: Session, broadcast) -> int:
+        """Fan a Broadcast row out to its audience and mark it sent.
+
+        Personalizes {name} per recipient. Returns the number of recipients
+        that actually received it (after preference filtering).
+        """
+        from datetime import datetime
+
+        recipients = NotificationService._resolve_audience(
+            db, broadcast.audience, broadcast.segment or "everyone"
+        )
         count = 0
-        for (uid,) in query.all():
-            if NotificationService.notify(db, uid, category, event, title, body, data):
+        for uid, full_name in recipients:
+            n = NotificationService.notify(
+                db,
+                uid,
+                broadcast.category,
+                "admin_broadcast",
+                NotificationService._personalize(broadcast.title, full_name),
+                NotificationService._personalize(broadcast.body, full_name),
+                {"broadcastId": str(broadcast.id)},
+            )
+            if n:
                 count += 1
+
+        broadcast.status = "sent"
+        broadcast.sent_at = datetime.now()
+        broadcast.recipients_count = count
+        db.commit()
         return count

@@ -34,6 +34,12 @@ class NotificationsService {
     return apiClient.delete(`${ENDPOINTS.NOTIFICATIONS}/${id}`);
   }
 
+  /** Bulk delete: scope 'read' removes already-read items, 'all' removes everything. */
+  async clear(scope = 'read') {
+    const json = await apiClient.post(`${ENDPOINTS.NOTIFICATIONS}/clear?scope=${scope}`, {});
+    return json?.data;
+  }
+
   /** Register this device's FCM token (called by pushService after login). */
   async registerDeviceToken(token, { platform = 'android', app = 'users' } = {}) {
     return apiClient.post(ENDPOINTS.DEVICE_TOKENS, { token, platform, app });

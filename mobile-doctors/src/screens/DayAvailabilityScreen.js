@@ -7,8 +7,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  Alert,
 } from 'react-native';
+import { showAlert } from '../utils/alert';
 import { useFocusEffect } from '@react-navigation/native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
@@ -131,7 +131,7 @@ const DayAvailabilityScreen = ({ route, navigation }) => {
   };
 
   const handleDelete = (availabilityId, timeLabel) => {
-    Alert.alert(
+    showAlert(
       'Delete Availability',
       `Are you sure you want to remove the slot ${timeLabel} on ${day}?`,
       [
@@ -203,7 +203,6 @@ const DayAvailabilityScreen = ({ route, navigation }) => {
                         onPress={() => handleEdit(item)}
                       >
                         <MCIcon name="pencil-outline" size={16} color={COLORS.textSecondary} />
-                        <Text style={styles.actionText}>Edit</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={styles.actionBtn}
@@ -211,7 +210,6 @@ const DayAvailabilityScreen = ({ route, navigation }) => {
                         onPress={() => handleDelete(item.id, timeLabel)}
                       >
                         <MCIcon name="delete-outline" size={16} color={COLORS.danger} />
-                        <Text style={[styles.actionText, { color: COLORS.danger }]}>Delete</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -267,20 +265,14 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   actionBtn: {
-    flexDirection: 'row',
+    width: 36,
+    height: 36,
     alignItems: 'center',
-    gap: 4,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    justifyContent: 'center',
     borderRadius: RADIUS.sm,
     borderWidth: 1,
     borderColor: COLORS.border,
     backgroundColor: COLORS.surfaceMuted,
-  },
-  actionText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: COLORS.textSecondary,
   },
   emptyAvailabilityCard: {
     backgroundColor: COLORS.white,

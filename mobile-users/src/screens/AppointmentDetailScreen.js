@@ -15,17 +15,13 @@ import { APPOINTMENT_DETAIL_STATUS_COLORS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
 import { APPOINTMENT_HISTORY_STATUS_LABELS, APPOINTMENT_PAYMENT_LABELS } from '../constants/strings';
 import { useHeaderTopPadding } from '../components/ScreenHeader';
+import LocationCard from '../components/LocationCard';
 
 
 const STATUS_COLORS = APPOINTMENT_DETAIL_STATUS_COLORS;
 const STATUS_LABELS = APPOINTMENT_HISTORY_STATUS_LABELS;
 const PAYMENT_LABELS = APPOINTMENT_PAYMENT_LABELS;
 
-const formatAddress = (addr) => {
-  if (!addr) return '';
-  const parts = [addr.area, addr.city, addr.state, addr.pincode].filter(Boolean);
-  return addr.houseName ? `${addr.houseName}, ${parts.join(', ')}` : parts.join(', ');
-};
 
 const getInitials = (name) => {
   if (!name) return 'D';
@@ -127,27 +123,6 @@ const AppointmentDetailScreen = ({ navigation, route }) => {
             <DetailRow label="Time" value={`${appointment.time} - ${appointment.endTime}`} />
             <DetailRow label="Consultation Type" value={appointment.consultationType} />
 
-            {appointment.consultationType?.toLowerCase().includes('clinic') && appointment.clinicName ? (
-              <View style={styles.addressSection}>
-                <MCIcon name="hospital-building" size={16} color={colors.primary} style={styles.addressIcon} />
-                <View style={styles.addressContent}>
-                  <Text style={styles.addressTitle}>{appointment.clinicName}</Text>
-                  <Text style={styles.addressText}>{appointment.clinicAddress}</Text>
-                </View>
-              </View>
-            ) : null}
-
-            {appointment.consultationType?.toLowerCase().includes('home') && appointment.userAddress ? (
-              <View style={styles.addressSection}>
-                <MCIcon name="home-outline" size={16} color={colors.primary} style={styles.addressIcon} />
-                <View style={styles.addressContent}>
-                  <Text style={styles.addressTitle}>
-                    {appointment.userAddress.houseName || 'Address'}
-                  </Text>
-                  <Text style={styles.addressText}>{formatAddress(appointment.userAddress)}</Text>
-                </View>
-              </View>
-            ) : null}
 
             {appointment.consultationType?.toLowerCase().includes('video') && appointment.meetingLink ? (
               <View style={styles.meetingSection}>
@@ -180,6 +155,10 @@ const AppointmentDetailScreen = ({ navigation, route }) => {
             <DetailRow label="Fee" value={`₹${appointment.fee}`} highlight />
           </View>
         </View>
+
+        {appointment.location ? (
+          <LocationCard location={appointment.location} />
+        ) : null}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Payment & Status</Text>

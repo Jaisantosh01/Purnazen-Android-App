@@ -5,9 +5,9 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
+import { showAlert } from '../utils/alert';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
 import { COLORS, SPACING, RADIUS } from '../constants/theme';
@@ -154,7 +154,7 @@ const LeaveDetailScreen = ({ navigation, route }) => {
   const adminReason = detail.adminReason || detail.admin_reason;
 
   const handleCancelPress = () => {
-    Alert.alert(
+    showAlert(
       'Cancel Leave Request',
       'Are you sure you want to cancel this leave request? This cannot be undone.',
       [

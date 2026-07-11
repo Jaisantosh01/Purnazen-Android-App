@@ -8,8 +8,8 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
-  Alert,
 } from 'react-native';
+import { showAlert } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
@@ -63,7 +63,7 @@ const DoctorManagementScreen = ({ navigation }) => {
   };
 
   const handleDelete = (item) => {
-    Alert.alert(
+    showAlert(
       'Deactivate Doctor',
       `Are you sure you want to deactivate ${item.name}?`,
       [
@@ -74,11 +74,11 @@ const DoctorManagementScreen = ({ navigation }) => {
           onPress: () => {
             apiClient.delete(ENDPOINTS.DOCTOR_DETAIL(item.id))
               .then(() => {
-                Alert.alert('Success', `${item.name} has been deactivated`);
+                showAlert('Success', `${item.name} has been deactivated`);
                 fetchData();
               })
               .catch((err) => {
-                Alert.alert('Error', err.message || 'Failed to deactivate doctor');
+                showAlert('Error', err.message || 'Failed to deactivate doctor');
               });
           },
         },

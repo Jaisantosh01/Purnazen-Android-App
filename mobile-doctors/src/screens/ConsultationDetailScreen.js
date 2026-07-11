@@ -5,9 +5,9 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
+import { showAlert } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
@@ -89,7 +89,7 @@ const ConsultationDetailScreen = ({ route, navigation }) => {
   const statusCfg = STATUS_CONFIG[statusKey] || STATUS_CONFIG.Pending;
 
   const handleAttachmentsPress = () => {
-    Alert.alert(
+    showAlert(
       'Attachments',
       `This consultation has ${attachments.length} attachment(s).`
     );
