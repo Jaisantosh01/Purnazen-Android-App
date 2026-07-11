@@ -389,7 +389,7 @@ const makeStyles = colors => StyleSheet.create({
   modalBtn: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 8, backgroundColor: colors.surfaceMuted },
   saveBtn: { backgroundColor: colors.primary },
   iconOption: { padding: 10, borderRadius: 8, backgroundColor: colors.surfaceMuted, margin: 4 },
-  tabBar: { flexDirection: 'row', backgroundColor: colors.card, paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
+  tabBar: { flexDirection: 'row', backgroundColor: colors.card, paddingHorizontal: 16, paddingBottom: 12, paddingTop:10 ,borderBottomWidth: 1, borderBottomColor: colors.border },
   tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8, marginHorizontal: 4 },
   activeTab: { backgroundColor: colors.primary },
   tabText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },

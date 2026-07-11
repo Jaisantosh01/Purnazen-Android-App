@@ -108,7 +108,7 @@ const DoctorManagementScreen = ({ navigation }) => {
           <View style={styles.cardHeader}>
             <View style={styles.doctorInfo}>
               <View style={[styles.avatarPlaceholder, isInactive && styles.avatarInactive]}>
-                <MCIcon name="account" size={32} color={isInactive ? colors.textMuted : colors.primary} />
+                <MCIcon name="account-cancel" size={28} color={isInactive ? colors.white : colors.primary} />
               </View>
               <View style={styles.details}>
                 <View style={styles.nameRow}>
@@ -186,33 +186,6 @@ const DoctorManagementScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {/* ── Management Options (Horizontal) ── */}
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          style={styles.manageOptions}
-          contentContainerStyle={styles.manageOptionsContent}
-        >
-          <TouchableOpacity 
-            style={styles.optionBtn} 
-            onPress={() => navigation.navigate('ManageExpertise', { title: 'Expertise', endpoint: ENDPOINTS.EXPERTISES })}
-          >
-            <Text style={styles.optionText}>Expertise</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.optionBtn} 
-            onPress={() => navigation.navigate('ManageLanguages', { title: 'Languages', endpoint: ENDPOINTS.LANGUAGES })}
-          >
-            <Text style={styles.optionText}>Languages</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.optionBtn} 
-            onPress={() => navigation.navigate('ManageSpecialties', { title: 'Specialties', endpoint: ENDPOINTS.SPECIALTIES })}
-          >
-            <Text style={styles.optionText}>Specialties</Text>
-          </TouchableOpacity>
-        </ScrollView>
-
         {/* ── Search ── */}
         <View style={styles.searchContainer}>
           <MCIcon name="magnify" size={20} color={colors.textMuted} style={styles.searchIcon} />
@@ -270,10 +243,6 @@ const makeStyles = colors => StyleSheet.create({
   searchContainer: { marginHorizontal: 16, marginBottom: 16, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: 12, paddingHorizontal: 12, height: 44, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
   searchIcon: { marginRight: 8 },
   searchInput: { flex: 1, fontSize: 14, color: colors.textPrimary },
-  manageOptions: { marginBottom: 16 },
-  manageOptionsContent: { paddingHorizontal: 16, gap: 8 },
-  optionBtn: { backgroundColor: colors.card, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: colors.primary },
-  optionText: { color: colors.primary, fontWeight: '600' },
   listContainer: { paddingHorizontal: 16 },
   doctorCard: { backgroundColor: colors.card, borderRadius: 16, padding: 16, marginBottom: 12, overflow: 'visible', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
   doctorInfo: { flex: 1, flexDirection: 'row', alignItems: 'center' },
@@ -286,11 +255,12 @@ const makeStyles = colors => StyleSheet.create({
   expertiseText: { fontSize: 11, color: colors.textSecondary, fontWeight: '500' },
 
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start' },
-  doctorCardInactive: { opacity: 0.6, backgroundColor: colors.surfaceMuted },
-  avatarInactive: { backgroundColor: colors.borderStrong },
+  doctorCardInactive: { backgroundColor: '#FEF2F2', overflow: 'hidden' },
+
+  avatarInactive: { backgroundColor: '#FCA5A5' },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  textInactive: { color: colors.textMuted },
-  tagInactive: { backgroundColor: colors.borderStrong },
+  textInactive: { color: '#9CA3AF' },
+  tagInactive: { backgroundColor: '#FEE2E2' },
   inactiveBadge: {
     backgroundColor: colors.danger,
     paddingHorizontal: 6,
