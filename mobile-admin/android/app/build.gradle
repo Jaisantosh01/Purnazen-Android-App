@@ -95,7 +95,7 @@ android {
     if (System.getProperty('os.name').toLowerCase().contains('windows')) {
         externalNativeBuild {
             cmake {
-                version "3.31.4"
+                version "3.31.6"
             }
         }
     }

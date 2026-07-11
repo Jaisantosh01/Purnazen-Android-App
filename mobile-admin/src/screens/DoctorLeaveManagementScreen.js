@@ -179,9 +179,6 @@ const LeaveCard = ({ leave, onPress, onStatusUpdate }) => {
 };
 
 const DoctorLeaveManagementScreen = ({ navigation, route }) => {
-  // Rendered both as the "Leaves" tab (route name LeaveCenter) and pushed from
-  // Home — only the pushed instance gets a back arrow.
-  const isTabInstance = route?.name === 'LeaveCenter';
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [leaves, setLeaves] = useState([]);
@@ -413,8 +410,7 @@ const DoctorLeaveManagementScreen = ({ navigation, route }) => {
       <ScreenHeader
         title="Doctor Leaves"
         subtitle="Review and manage leave requests"
-        onBack={isTabInstance ? undefined : () => navigation.goBack()}
-        showBack={!isTabInstance}
+        onBack={() => navigation.goBack()}
         right={
           <TouchableOpacity onPress={openFilterModal} style={styles.filterBtn}>
             <MCIcon name="filter-variant" size={22} color={hasActiveFilters ? colors.headerText : 'rgba(255,255,255,0.7)'} />

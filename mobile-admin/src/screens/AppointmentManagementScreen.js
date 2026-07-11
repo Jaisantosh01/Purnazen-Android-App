@@ -296,7 +296,6 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
       <ScreenHeader
         title="Appointments"
         subtitle="All bookings across doctors"
-        showBack={false}
         right={
           <TouchableOpacity
             style={[styles.filterToggle, hasAppliedFilters && styles.filterToggleActive]}
