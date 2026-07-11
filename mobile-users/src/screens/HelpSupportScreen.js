@@ -19,8 +19,8 @@ import supportService from '../services/supportService';
 // App-meta links (Terms/Privacy/Rate/Share). These aren't content — they stay
 // in the app and show a "coming soon" notice until they're wired up.
 const QUICK_LINKS = [
-  { icon: 'file-document-outline', title: 'Terms & Conditions', color: '#6B7280' },
-  { icon: 'shield-check-outline',  title: 'Privacy Policy',     color: '#6B7280' },
+  { icon: 'file-document-outline', title: 'Terms & Conditions', color: '#6B7280', screen: 'ContentViewer', params: { type: 'terms' } },
+  { icon: 'shield-check-outline',  title: 'Privacy Policy',     color: '#6B7280', screen: 'ContentViewer', params: { type: 'privacy' } },
   { icon: 'star-outline',          title: 'Rate the App',       color: '#F59E0B' },
   { icon: 'share-variant-outline', title: 'Share with Friends', color: '#1FA77A' },
 ];
@@ -166,7 +166,7 @@ const HelpSupportScreen = ({ navigation }) => {
                     key={index}
                     style={[styles.quickLinkRow, index < QUICK_LINKS.length - 1 && styles.quickLinkBorder]}
                     activeOpacity={0.7}
-                    onPress={() => comingSoon(link.title)}
+                    onPress={() => link.screen ? navigation.navigate(link.screen, link.params) : comingSoon(link.title)}
                   >
                     <View style={styles.quickLinkLeft}>
                       <MCIcon name={link.icon} size={20} color={link.color} />
