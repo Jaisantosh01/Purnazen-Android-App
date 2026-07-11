@@ -10,7 +10,6 @@ const METRIC_LABELS = {
   darkCircleScore:   { label: 'Dark Circles',  higherIsBetter: false },
   poreScore:         { label: 'Pore Size',     higherIsBetter: false },
   elasticityScore:   { label: 'Elasticity',    higherIsBetter: true  },
-  muscleToneScore:   { label: 'Muscle Tone',   higherIsBetter: true  },
   inflammationScore: { label: 'Inflammation',  higherIsBetter: false },
   glowScore:         { label: 'Glow Score',    higherIsBetter: true  },
   toxinIndicator:    { label: 'Toxin Load',    higherIsBetter: false },

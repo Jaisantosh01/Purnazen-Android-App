@@ -292,7 +292,17 @@ def _run_face_pipeline(db, scan, img: "np.ndarray") -> dict:
         logger.warning("Skin model inference unavailable (%s); using CV", exc)
 
     if model_scores:
-        partial_scores = {k: round(float(model_scores[k]), 2) for k in _METRIC_KEYS}
+        partial_scores = {k: round(float(v), 2) for k, v in model_scores.items()}
+        # muscle_tone has no labeled dataset, so the model doesn't predict it —
+        # keep the landmark-based CV analyzer for that head.
+        if "muscle_tone_score" not in partial_scores:
+            try:
+                partial_scores["muscle_tone_score"] = (
+                    round(muscle_tone_analyzer.analyze(landmarks, img.shape[0], img.shape[1]), 2)
+                    if landmarks else 60.0
+                )
+            except Exception:
+                partial_scores["muscle_tone_score"] = 60.0
         scoring_method = "model"
     else:
         # Run CV analyzers in parallel (up to 4 workers)

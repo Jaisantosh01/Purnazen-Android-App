@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
@@ -8,7 +9,11 @@ import { ITEM_HEIGHT } from '../constants/slots';
 import ScreenHeader from '../components/ScreenHeader';
 import { ListSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
+import ScreenHeader from '../components/ScreenHeader';
 import { showAlert } from '../utils/alert';
+
+const ITEM_HEIGHT = 40;
+const SLOT_CARD_HEIGHT = 58;
 
 const TimePickerColumn = ({ data, value, onChange }) => {
   const { colors, isDark } = useTheme();
@@ -156,11 +161,10 @@ const SlotManagementScreen = ({ navigation }) => {
     <View style={styles.root}>
       <ScreenHeader
         title="Schedule Manager"
-        subtitle="Manage slot timings"
         onBack={() => navigation.goBack()}
         right={
-          <TouchableOpacity onPress={() => { setTargetDay(selectedDay); setModalVisible(true); }} style={{ padding: 4 }}>
-            <MCIcon name="plus" size={24} color={colors.primary} />
+          <TouchableOpacity style={styles.addBtn} onPress={() => { setIsEditing(false); setEditingSlot(null); setTargetDay(selectedDay); setModalVisible(true); }}>
+            <MCIcon name="plus" size={24} color={colors.headerText} />
           </TouchableOpacity>
         }
       />
@@ -190,10 +194,17 @@ const SlotManagementScreen = ({ navigation }) => {
             data={selectedDay?.slots || []}
             keyExtractor={slot => slot.id}
             renderItem={({ item }) => (
-              <View style={[styles.slotCard, !item.is_active && styles.inactiveCard]}>
-                <Text style={styles.timeText}>{item.start_time.slice(0, 5)} - {item.end_time.slice(0, 5)}</Text>
+              <TouchableOpacity
+                style={[styles.slotCard, !item.is_active && styles.inactiveCard]}
+                activeOpacity={0.85}
+                onPress={() => openEditModal(item)}
+              >
+                <View style={styles.slotTimeWrap}>
+                  <MCIcon name="clock-outline" size={18} color={colors.primary} />
+                  <Text style={styles.timeText}>{item.start_time.slice(0, 5)} - {item.end_time.slice(0, 5)}</Text>
+                </View>
                 <MCIcon name="drag-horizontal" size={20} color={colors.textMuted} />
-              </View>
+              </TouchableOpacity>
             )}
             renderHiddenItem={renderHiddenItem}
             leftOpenValue={75}
@@ -212,7 +223,7 @@ const SlotManagementScreen = ({ navigation }) => {
                 <ScrollView horizontal style={styles.daySelector} showsHorizontalScrollIndicator={false}>
                     {days.map(d => (
                         <TouchableOpacity key={d.day} style={[styles.dayChip, targetDay?.day === d.day && styles.selectedChip]} onPress={() => setTargetDay(d)}>
-                            <Text style={targetDay?.day === d.day && styles.selectedChipText}>{d.day.slice(0, 3)}</Text>
+                            <Text style={[styles.chipText, targetDay?.day === d.day && styles.selectedChipText]}>{d.day.slice(0, 3)}</Text>
                         </TouchableOpacity>
                     ))}
                 </ScrollView>
@@ -223,8 +234,8 @@ const SlotManagementScreen = ({ navigation }) => {
                 <TimeSelector value={end} onChange={setEnd} />
                 
                 <View style={styles.modalActions}>
-                    <TouchableOpacity style={styles.modalBtn} onPress={() => setModalVisible(false)}><Text>Cancel</Text></TouchableOpacity>
-                    <TouchableOpacity style={[styles.modalBtn, styles.saveBtn]} onPress={handleSaveSlot}><Text style={{color: colors.white}}>{isEditing ? 'Save Changes' : 'Add Slot'}</Text></TouchableOpacity>
+                    <TouchableOpacity style={styles.modalBtn} onPress={() => { setModalVisible(false); setIsEditing(false); setEditingSlot(null); }}><Text style={styles.cancelBtnText}>Cancel</Text></TouchableOpacity>
+                    <TouchableOpacity style={[styles.modalBtn, styles.saveBtn]} onPress={handleSaveSlot}><Text style={styles.saveBtnText}>{isEditing ? 'Save Changes' : 'Add Slot'}</Text></TouchableOpacity>
                 </View>
             </View>
         </View>
@@ -234,7 +245,15 @@ const SlotManagementScreen = ({ navigation }) => {
 };
 
 const makeStyles = colors => StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
+  root: { flex: 1, backgroundColor: colors.surfaceMuted },
+  addBtn: {
+  width: 40,
+  height: 40,
+  borderRadius: 20,
+  backgroundColor: 'rgba(255,255,255,0.2)',
+  justifyContent: 'center',
+  alignItems: 'center',
+},
   content: {
   flex: 1,
   flexDirection: 'row',
@@ -253,7 +272,7 @@ const makeStyles = colors => StyleSheet.create({
   alignItems: 'center',
 },
 selectedDayItem: {
-  backgroundColor: '#10B98114',
+  backgroundColor: colors.primaryFaint,
 },
   dayText: {
   fontSize: 16,
@@ -262,7 +281,7 @@ selectedDayItem: {
 },
 
 selectedDayText: {
-  color: '#1FA97A',
+  color: colors.primary,
   fontWeight: '700',
 },
   mainContent: {
@@ -277,9 +296,11 @@ selectedDayText: {
   marginBottom: 16,
 },
   slotsList: { gap: 12 },
+  // NOTE: slotCard and rowBack must stay the same height (SLOT_CARD_HEIGHT)
+  // so the swipe-revealed edit/delete actions line up behind the card.
   slotCard: {
-  backgroundColor: colors.card,
-  paddingVertical: 18,
+  backgroundColor: colors.surfaceMuted,
+  height: SLOT_CARD_HEIGHT,
   paddingHorizontal: 16,
   borderRadius: 14,
   flexDirection: 'row',
@@ -289,26 +310,31 @@ selectedDayText: {
   borderWidth: 1,
   borderColor: colors.border,
 },
+inactiveCard: { opacity: 0.5 },
+slotTimeWrap: { flexDirection: 'row', alignItems: 'center', gap: 10 },
 timeText: {
-  fontSize: 18,
+  fontSize: 17,
   fontWeight: '600',
   color: colors.textPrimary,
 },
-  rowBack: { flexDirection: 'row', justifyContent: 'space-between', flex: 1, alignItems: 'center', marginBottom: 12, height: 54, borderRadius: 14, overflow: 'hidden' },
+  rowBack: { flexDirection: 'row', justifyContent: 'space-between', flex: 1, alignItems: 'center', marginBottom: 12, height: SLOT_CARD_HEIGHT, borderRadius: 14, overflow: 'hidden' },
   backBtn: { width: 75, height: '100%', justifyContent: 'center', alignItems: 'center' },
   editBack: { backgroundColor: colors.primary },
   deleteBack: { backgroundColor: colors.danger },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', padding: 20 },
   modalCard: { backgroundColor: colors.card, padding: 20, borderRadius: 16, maxHeight: '80%' },
-  modalTitle: { fontSize: 18, fontWeight: '800', marginBottom: 16 },
+  modalTitle: { fontSize: 18, fontWeight: '800', marginBottom: 16, color: colors.textPrimary },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 10 },
   modalBtn: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 8, backgroundColor: colors.surfaceMuted },
   saveBtn: { backgroundColor: colors.primary },
   daySelector: { flexDirection: 'row', marginBottom: 16 },
   dayChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, backgroundColor: colors.surfaceMuted, marginRight: 8 },
   selectedChip: { backgroundColor: colors.primary },
+  chipText: { color: colors.textSecondary, fontWeight: '600' },
   selectedChipText: { color: colors.white },
-  label: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
+  cancelBtnText: { color: colors.textSecondary, fontWeight: '600' },
+  saveBtnText: { color: colors.white, fontWeight: '700' },
+  label: { fontSize: 14, fontWeight: '600', marginBottom: 8, color: colors.textSecondary },
   timeSelector: { flexDirection: 'row', height: 100, alignItems: 'center', backgroundColor: colors.surfaceMuted, borderRadius: 8, marginBottom: 16 },
   timeCol: { flex: 1 },
   timeOption: { paddingVertical: 10, alignItems: 'center' },

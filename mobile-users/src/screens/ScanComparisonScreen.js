@@ -20,7 +20,6 @@ const METRICS = {
   overallWellnessScore: { label: 'Wellness', higher: true },
   hydrationScore:       { label: 'Hydration', higher: true },
   elasticityScore:      { label: 'Elasticity', higher: true },
-  muscleToneScore:      { label: 'Muscle tone', higher: true },
   oilinessScore:        { label: 'Oiliness', higher: false },
   wrinkleScore:         { label: 'Fine lines', higher: false },
   pigmentationScore:    { label: 'Pigmentation', higher: false },

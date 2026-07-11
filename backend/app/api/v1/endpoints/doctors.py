@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, get_current_user, require_role
-from app.services.doctor_service import DoctorService
+from app.services.doctor_service import DoctorService, VISIT_TYPE_ORDER
 from app.utils.responses import error_response, success_response
 from app.models.user import User
 
@@ -16,6 +16,13 @@ router = APIRouter(tags=["Doctors"])
 
 def doctor_card(doctor):
     """Card shape shared by the list and detail endpoints (frontend contract)."""
+    base_fee = float(doctor.consultation_fee)
+    # Cheapest option across the doctor's consultation types (per-type price
+    # falls back to the base consultation fee) — drives "Starts at ₹X" cards.
+    type_fees = [
+        float(link.price) if link.price else base_fee
+        for link in doctor.consultation_type_links
+    ]
     return {
         "id": str(doctor.id),
         "name": f"Dr. {doctor.user.full_name}",
@@ -31,8 +38,12 @@ def doctor_card(doctor):
         "reviews": doctor.reviews_count,
         "experience": doctor.experience_years,
         "location": "",
-        "tags": [link.consultation_type.name for link in doctor.consultation_type_links],
-        "fee": float(doctor.consultation_fee),
+        "tags": sorted(
+            [link.consultation_type.name for link in doctor.consultation_type_links],
+            key=lambda name: VISIT_TYPE_ORDER.get(name, 9),
+        ),
+        "fee": base_fee,
+        "minFee": min(type_fees) if type_fees else base_fee,
         "availability": (
             "Available today" if doctor.is_available_today else "Not Available"
         ),

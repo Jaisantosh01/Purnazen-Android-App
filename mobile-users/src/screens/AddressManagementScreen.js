@@ -617,7 +617,7 @@ const AddressManagementScreen = ({ navigation }) => {
           )
         }
         renderItem={({ item }) => (
-          <View style={styles.addressCard}>
+          <TouchableOpacity style={styles.addressCard} activeOpacity={0.8} onPress={() => openEdit(item)}>
             <View style={styles.addressCardTop}>
               <View style={styles.addressIconCircle}>
                 <MCIcon
@@ -653,7 +653,7 @@ const AddressManagementScreen = ({ navigation }) => {
                 </View>
               </View>
             </View>
-          </View>
+          </TouchableOpacity>
         )}
       />
     </View>

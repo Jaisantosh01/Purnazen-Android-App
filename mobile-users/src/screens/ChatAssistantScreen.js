@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  StatusBar,
   ActivityIndicator,
   TextInput,
 } from 'react-native';
@@ -15,9 +14,10 @@ import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import useTheme from '../hooks/useTheme';
 import AppDialog from '../components/AppDialog';
+import ScreenHeader from '../components/ScreenHeader';
 
 const ChatAssistantScreen = ({ route, navigation }) => {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { startQuestionId, reliefTitle } = route.params;
@@ -181,26 +181,17 @@ const ChatAssistantScreen = ({ route, navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.card} />
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 8 }]}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backBtn}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          activeOpacity={0.7}
-        >
-          <MCIcon name="arrow-left" size={22} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <View style={styles.headerTitleContainer}>
+      <ScreenHeader
+        title="M-Heal Assistant"
+        subtitle="Always here to help"
+        variant="light"
+        onBack={() => navigation.goBack()}
+        right={
           <View style={styles.headerIcon}>
             <MCIcon name="robot-outline" size={20} color={colors.primary} />
           </View>
-          <View>
-            <Text style={styles.headerTitle}>M-Heal Assistant</Text>
-            <Text style={styles.headerSub}>Always here to help</Text>
-          </View>
-        </View>
-      </View>
+        }
+      />
 
       <ScrollView
         ref={scrollViewRef}
@@ -294,24 +285,6 @@ const makeStyles = colors => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  backBtn: {
-    padding: 8,
-    marginRight: 8,
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: 20,
-  },
-  headerTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
   headerIcon: {
     width: 40,
     height: 40,
@@ -319,16 +292,6 @@ const makeStyles = colors => StyleSheet.create({
     backgroundColor: colors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  headerSub: {
-    fontSize: 12,
-    color: colors.textMuted,
   },
   chatContainer: {
     flex: 1,

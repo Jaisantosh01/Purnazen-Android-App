@@ -126,6 +126,7 @@ const DashboardScreen = ({ navigation }) => {
       <ScreenHeader
         title={`Hello, ${name}`}
         subtitle="Here's your day at a glance"
+        showBack={false}
         right={
           <TouchableOpacity
             onPress={() => navigation.navigate('NotificationCenter')}
