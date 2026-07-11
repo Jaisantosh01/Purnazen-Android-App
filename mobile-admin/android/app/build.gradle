@@ -87,6 +87,19 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
+    // Windows only: react-native-gesture-handler 3.x codegen object paths exceed
+    // MAX_PATH (260), and the ninja bundled with the default cmake 3.22.1 (ninja
+    // 1.10.2) ignores the Windows LongPathsEnabled opt-in — the build dies with
+    // "Filename longer than 260 characters". cmake 3.31.6 ships ninja 1.12.1,
+    // which honors it. Linux/macOS (incl. CI) keep the AGP default.
+    if (System.getProperty('os.name').toLowerCase().contains('windows')) {
+        externalNativeBuild {
+            cmake {
+                version "3.31.6"
+            }
+        }
+    }
+
     namespace "com.purnazen.admin"
     defaultConfig {
         applicationId "com.purnazen.admin"
