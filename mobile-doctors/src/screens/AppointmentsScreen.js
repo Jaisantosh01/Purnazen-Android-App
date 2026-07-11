@@ -203,7 +203,7 @@ const AppointmentCard = ({ item, onAccept, onComplete, onCancel, onPress }) => {
                       style={[
                         styles.actionBtn,
                         styles.completeBtn,
-                        !apptOver && { backgroundColor: '#E5E7EB', borderColor: '#E5E7EB' }
+                        !apptOver && { backgroundColor: colors.borderStrong, borderColor: colors.borderStrong }
                       ]}
                       disabled={!apptOver}
                       activeOpacity={0.85}
@@ -966,7 +966,7 @@ const makeStyles = colors => StyleSheet.create({
   },
   calModalContent: {
     width: '100%',
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: SPACING.lg,

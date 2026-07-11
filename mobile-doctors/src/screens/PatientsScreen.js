@@ -14,13 +14,16 @@ import { useFocusEffect } from '@react-navigation/native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { SPACING, RADIUS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 import patientService from '../services/patientService';
 
 const FILTER_CHIPS = ['All', 'Male', 'Female', 'Others', 'Recent'];
 
 // ─── Patient Card Component ───────────────────────────────────────────────────
 const PatientCard = ({ item, onPress }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const initials = item.name
     ? item.name
         .split(' ')
@@ -56,17 +59,23 @@ const PatientCard = ({ item, onPress }) => {
 
       {/* Right chevron icon */}
       <View style={styles.chevronWrap}>
-        <MCIcon name="chevron-right" size={24} color={COLORS.textMuted} />
+        <MCIcon name="chevron-right" size={24} color={colors.textMuted} />
       </View>
 
     </TouchableOpacity>
   );
 };
 
-const PatientSeparator = () => <View style={styles.separator} />;
+const PatientSeparator = () => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return <View style={styles.separator} />;
+};
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 const PatientsScreen = ({ navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -136,11 +145,11 @@ const PatientsScreen = ({ navigation }) => {
       {/* Search Bar */}
       <View style={styles.searchBarContainer}>
         <View style={styles.searchBar}>
-          <MCIcon name="magnify" size={20} color={COLORS.textSecondary} style={styles.searchIcon} />
+          <MCIcon name="magnify" size={20} color={colors.textSecondary} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search patients..."
-            placeholderTextColor={COLORS.textMuted}
+            placeholderTextColor={colors.textMuted}
             value={searchQuery}
             onChangeText={setSearchQuery}
             autoCapitalize="none"
@@ -151,7 +160,7 @@ const PatientsScreen = ({ navigation }) => {
               onPress={() => setSearchQuery('')}
               style={styles.clearBtn}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <MCIcon name="close-circle" size={18} color={COLORS.textMuted} />
+              <MCIcon name="close-circle" size={18} color={colors.textMuted} />
             </TouchableOpacity>
           )}
         </View>
@@ -184,11 +193,11 @@ const PatientsScreen = ({ navigation }) => {
       {/* List content states */}
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : error ? (
         <View style={styles.center}>
-          <MCIcon name="alert-circle-outline" size={48} color={COLORS.danger} style={{ marginBottom: 12 }} />
+          <MCIcon name="alert-circle-outline" size={48} color={colors.danger} style={{ marginBottom: 12 }} />
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={() => fetchPatients()}>
             <Text style={styles.retryText}>Retry</Text>
@@ -205,11 +214,11 @@ const PatientsScreen = ({ navigation }) => {
           showsVerticalScrollIndicator={false}
           ItemSeparatorComponent={PatientSeparator}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
           }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <MCIcon name="account-search-outline" size={60} color={COLORS.borderStrong} />
+              <MCIcon name="account-search-outline" size={60} color={colors.borderStrong} />
               <Text style={styles.emptyTitle}>No Patients Found</Text>
               <Text style={styles.emptySubtitle}>
                 Try adjusting your search query or filters.
@@ -225,21 +234,22 @@ const PatientsScreen = ({ navigation }) => {
 export default PatientsScreen;
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors =>
+  StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
 
   // Search Bar
   searchBarContainer: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.sm,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: colors.border,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surfaceMuted,
+    backgroundColor: colors.surfaceMuted,
     borderRadius: RADIUS.md,
     paddingHorizontal: SPACING.md,
     height: 42,
@@ -247,7 +257,7 @@ const styles = StyleSheet.create({
   searchIcon: { marginRight: SPACING.xs },
   searchInput: {
     flex: 1,
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     fontSize: 14,
     paddingVertical: 0,
     fontWeight: '500',
@@ -256,9 +266,9 @@ const styles = StyleSheet.create({
 
   // Filter Chips
   filterStrip: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: colors.border,
   },
   filterScroll: {
     paddingHorizontal: SPACING.lg,
@@ -269,20 +279,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: RADIUS.pill,
-    backgroundColor: COLORS.surfaceMuted,
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
     borderColor: 'transparent',
   },
   chipActive: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
   },
   chipText: {
     fontSize: 12.5,
     fontWeight: '600',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   chipTextActive: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '700',
   },
 
@@ -290,10 +300,10 @@ const styles = StyleSheet.create({
   list: { padding: SPACING.lg, paddingBottom: 40 },
   card: {
     flexDirection: 'row',
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.md,
     alignItems: 'center',
     elevation: 2,
@@ -306,12 +316,12 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
-    color: COLORS.primary,
+    color: colors.primary,
     fontSize: 15,
     fontWeight: '700',
   },
@@ -323,16 +333,16 @@ const styles = StyleSheet.create({
   cardName: {
     fontSize: 15,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   cardMeta: {
     fontSize: 12.5,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   consultationsCount: {
     fontSize: 13,
     fontWeight: '700',
-    color: COLORS.primary,
+    color: colors.primary,
     marginTop: 4,
   },
   lastVisitSection: {
@@ -340,13 +350,13 @@ const styles = StyleSheet.create({
   },
   lastVisitLabel: {
     fontSize: 11,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontWeight: '600',
   },
   lastVisitValue: {
     fontSize: 13,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginTop: 1,
   },
   chevronWrap: {
@@ -364,12 +374,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginTop: SPACING.sm,
   },
   emptySubtitle: {
     fontSize: 13,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   separator: {
@@ -383,19 +393,19 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 14.5,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: SPACING.md,
     fontWeight: '500',
   },
   retryBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingHorizontal: 18,
     paddingVertical: 8,
     borderRadius: RADIUS.md,
   },
   retryText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '700',
     fontSize: 13.5,
   },

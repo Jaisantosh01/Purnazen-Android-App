@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,8 @@ import { showAlert } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { SPACING, RADIUS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 import patientService from '../services/patientService';
 
 const STATUS_CONFIG = {
@@ -29,6 +30,8 @@ const TimelineItem = ({
   onDiagnosisPress,
   onPrescriptionPress,
 }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   // Make status formatting case insensitive matching status config key
   const normalizedStatus = item.status && item.status.toLowerCase() === 'completed' ? 'Completed' : 'Pending';
   const statusCfg = STATUS_CONFIG[normalizedStatus] || STATUS_CONFIG.Pending;
@@ -68,7 +71,7 @@ const TimelineItem = ({
               style={styles.actionBtn}
               activeOpacity={0.7}
               onPress={() => onDiagnosisPress(item)}>
-              <MCIcon name="stethoscope" size={14} color={COLORS.primary} style={styles.actionIcon} />
+              <MCIcon name="stethoscope" size={14} color={colors.primary} style={styles.actionIcon} />
               <Text style={styles.actionBtnText}>Diagnosis</Text>
             </TouchableOpacity>
 
@@ -76,7 +79,7 @@ const TimelineItem = ({
               style={styles.actionBtn}
               activeOpacity={0.7}
               onPress={() => onPrescriptionPress(item)}>
-              <MCIcon name="pill" size={14} color={COLORS.primary} style={styles.actionIcon} />
+              <MCIcon name="pill" size={14} color={colors.primary} style={styles.actionIcon} />
               <Text style={styles.actionBtnText}>Prescription</Text>
             </TouchableOpacity>
           </View>
@@ -88,6 +91,8 @@ const TimelineItem = ({
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 const ConsultationHistoryScreen = ({ route, navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { patientId } = route.params || {};
   const [patientName, setPatientName] = useState('Patient');
   const [history, setHistory] = useState([]);
@@ -164,11 +169,11 @@ const ConsultationHistoryScreen = ({ route, navigation }) => {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : error ? (
         <View style={styles.center}>
-          <MCIcon name="alert-circle-outline" size={48} color={COLORS.danger} style={{ marginBottom: 12 }} />
+          <MCIcon name="alert-circle-outline" size={48} color={colors.danger} style={{ marginBottom: 12 }} />
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={() => fetchHistory()}>
             <Text style={styles.retryText}>Retry</Text>
@@ -191,11 +196,11 @@ const ConsultationHistoryScreen = ({ route, navigation }) => {
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
           }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <MCIcon name="clipboard-text-outline" size={60} color={COLORS.borderStrong} />
+              <MCIcon name="clipboard-text-outline" size={60} color={colors.borderStrong} />
               <Text style={styles.emptyTitle}>No History Available</Text>
               <Text style={styles.emptySubtitle}>
                 This patient has no recorded consultation history.
@@ -211,8 +216,9 @@ const ConsultationHistoryScreen = ({ route, navigation }) => {
 export default ConsultationHistoryScreen;
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors =>
+  StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   list: { padding: SPACING.lg, paddingBottom: 40 },
 
   // Timeline Row Layout
@@ -226,7 +232,7 @@ const styles = StyleSheet.create({
   line: {
     flex: 1,
     width: 2,
-    backgroundColor: COLORS.borderStrong,
+    backgroundColor: colors.borderStrong,
   },
   invisibleLine: {
     backgroundColor: 'transparent',
@@ -235,7 +241,7 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
     marginVertical: 4,
@@ -244,7 +250,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
   },
   cardCol: {
     flex: 1,
@@ -254,10 +260,10 @@ const styles = StyleSheet.create({
 
   // Card Styling
   card: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.md,
     elevation: 2,
     shadowColor: '#000',
@@ -274,12 +280,12 @@ const styles = StyleSheet.create({
   cardDate: {
     fontSize: 12.5,
     fontWeight: '700',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   cardTitle: {
     fontSize: 15,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: SPACING.md,
   },
 
@@ -307,7 +313,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: SPACING.sm,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: colors.border,
     paddingTop: SPACING.md,
   },
   actionBtn: {
@@ -315,7 +321,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.primaryFaint,
+    backgroundColor: colors.primaryFaint,
     borderRadius: RADIUS.sm,
     paddingVertical: 8,
   },
@@ -323,7 +329,7 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   actionBtnText: {
-    color: COLORS.primary,
+    color: colors.primary,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -339,12 +345,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginTop: SPACING.sm,
   },
   emptySubtitle: {
     fontSize: 13,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   center: {
@@ -355,19 +361,19 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 14.5,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: SPACING.md,
     fontWeight: '500',
   },
   retryBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingHorizontal: 18,
     paddingVertical: 8,
     borderRadius: RADIUS.md,
   },
   retryText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '700',
     fontSize: 13.5,
   },

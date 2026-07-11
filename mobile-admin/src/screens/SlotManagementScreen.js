@@ -242,7 +242,7 @@ const SlotManagementScreen = ({ navigation }) => {
 };
 
 const makeStyles = colors => StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.surfaceMuted },
+  root: { flex: 1, backgroundColor: colors.background },
   addBtn: {
   width: 40,
   height: 40,

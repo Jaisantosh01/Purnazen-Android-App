@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,8 @@ import {
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { SPACING, RADIUS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 import patientService from '../services/patientService';
 
 const STATUS_CONFIG = {
@@ -22,7 +23,10 @@ const STATUS_CONFIG = {
 };
 
 // ─── Scan Card Component ─────────────────────────────────────────────────────
-const ScanCard = ({ item, onPress }) => (
+const ScanCard = ({ item, onPress }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
   <TouchableOpacity
     style={styles.card}
     activeOpacity={0.85}
@@ -32,14 +36,21 @@ const ScanCard = ({ item, onPress }) => (
       <Text style={styles.cardResult}>Result: <Text style={styles.resultHighlight}>{item.result}</Text></Text>
       <Text style={styles.cardMoisture}>Moisture: <Text style={styles.moistureHighlight}>{item.moisture}</Text></Text>
     </View>
-    <MCIcon name="chevron-right" size={24} color={COLORS.textMuted} />
+    <MCIcon name="chevron-right" size={24} color={colors.textMuted} />
   </TouchableOpacity>
-);
+  );
+};
 
-const ScanSeparator = () => <View style={styles.separator} />;
+const ScanSeparator = () => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return <View style={styles.separator} />;
+};
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 const TongueScanHistoryScreen = ({ route, navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { patientId } = route.params || {};
   const [patientName, setPatientName] = useState('Patient');
   const [history, setHistory] = useState([]);
@@ -103,11 +114,11 @@ const TongueScanHistoryScreen = ({ route, navigation }) => {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : error ? (
         <View style={styles.center}>
-          <MCIcon name="alert-circle-outline" size={48} color={COLORS.danger} style={{ marginBottom: 12 }} />
+          <MCIcon name="alert-circle-outline" size={48} color={colors.danger} style={{ marginBottom: 12 }} />
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={() => fetchHistory()}>
             <Text style={styles.retryText}>Retry</Text>
@@ -122,7 +133,7 @@ const TongueScanHistoryScreen = ({ route, navigation }) => {
           showsVerticalScrollIndicator={false}
           ItemSeparatorComponent={ScanSeparator}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
           }
           ListHeaderComponent={
             hasScans ? (
@@ -130,7 +141,7 @@ const TongueScanHistoryScreen = ({ route, navigation }) => {
               <View style={styles.summaryCard}>
                 <View style={styles.scoreContainer}>
                   <View style={styles.avatarCircle}>
-                    <MCIcon name="camera-iris" size={32} color={COLORS.primary} />
+                    <MCIcon name="camera-iris" size={32} color={colors.primary} />
                   </View>
                   <View style={styles.summaryTextWrap}>
                     <Text style={styles.overallLabel}>Latest Tongue Scan</Text>
@@ -142,7 +153,7 @@ const TongueScanHistoryScreen = ({ route, navigation }) => {
                 </View>
                 <View style={styles.summaryDivider} />
                 <View style={styles.trendRow}>
-                  <MCIcon name="check-decagram" size={18} color={COLORS.primary} />
+                  <MCIcon name="check-decagram" size={18} color={colors.primary} />
                   <Text style={styles.trendText}>
                     Tongue diagnosis analysis loaded successfully from AI pipeline parameters.
                   </Text>
@@ -152,7 +163,7 @@ const TongueScanHistoryScreen = ({ route, navigation }) => {
           }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <MCIcon name="camera-iris" size={60} color={COLORS.borderStrong} />
+              <MCIcon name="camera-iris" size={60} color={colors.borderStrong} />
               <Text style={styles.emptyTitle}>No Tongue Scans</Text>
               <Text style={styles.emptySubtitle}>No scans found for this patient.</Text>
             </View>
@@ -178,16 +189,17 @@ const TongueScanHistoryScreen = ({ route, navigation }) => {
 export default TongueScanHistoryScreen;
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors =>
+  StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   list: { padding: SPACING.lg, paddingBottom: 100 },
 
   // Summary Card (Top Section)
   summaryCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.md,
     marginBottom: SPACING.lg,
     elevation: 2,
@@ -206,7 +218,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -217,11 +229,11 @@ const styles = StyleSheet.create({
   overallLabel: {
     fontSize: 14.5,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   summaryDivider: {
     height: 1,
-    backgroundColor: COLORS.border,
+    backgroundColor: colors.border,
   },
   trendRow: {
     flexDirection: 'row',
@@ -231,7 +243,7 @@ const styles = StyleSheet.create({
   trendText: {
     flex: 1,
     fontSize: 12.5,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
 
@@ -240,10 +252,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.md,
     elevation: 2,
     shadowColor: '#000',
@@ -258,23 +270,23 @@ const styles = StyleSheet.create({
   cardDate: {
     fontSize: 12.5,
     fontWeight: '700',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   cardResult: {
     fontSize: 15,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   resultHighlight: {
-    color: COLORS.primary,
+    color: colors.primary,
   },
   cardMoisture: {
     fontSize: 13,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   moistureHighlight: {
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     fontWeight: '700',
   },
 
@@ -304,19 +316,19 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     padding: SPACING.md,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: colors.border,
   },
   reportBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: RADIUS.md,
     paddingVertical: 12,
     alignItems: 'center',
   },
   reportBtnText: {
-    color: COLORS.white,
+    color: colors.white,
     fontSize: 14.5,
     fontWeight: '700',
   },
@@ -334,12 +346,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginTop: SPACING.sm,
   },
   emptySubtitle: {
     fontSize: 13,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   center: {
     flex: 1,
@@ -349,19 +361,19 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 14.5,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: SPACING.md,
     fontWeight: '500',
   },
   retryBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingHorizontal: 18,
     paddingVertical: 8,
     borderRadius: RADIUS.md,
   },
   retryText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '700',
     fontSize: 13.5,
   },

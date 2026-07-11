@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,8 @@ import { showAlert } from '../utils/alert';
 import { useFocusEffect } from '@react-navigation/native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { SPACING, RADIUS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 import availabilityService from '../services/availabilityService';
 import { useAuthStore } from '../store/authStore';
 import { showSuccess, showError } from '../utils/toast';
@@ -36,6 +37,8 @@ const cleanName = (name) => {
 };
 
 const DayAvailabilityScreen = ({ route, navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { day = 'Monday' } = route.params || {};
   const currentUser = useAuthStore(s => s.doctor);
 
@@ -167,20 +170,20 @@ const DayAvailabilityScreen = ({ route, navigation }) => {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
         <ScrollView
           contentContainerStyle={styles.scroll}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
           }
         >
           <Text style={styles.sectionTitle}>Working Time Slots</Text>
 
           {daySlots.length === 0 ? (
             <View style={styles.emptyAvailabilityCard}>
-              <MCIcon name="calendar-blank-outline" size={36} color={COLORS.border} style={styles.emptyIcon} />
+              <MCIcon name="calendar-blank-outline" size={36} color={colors.border} style={styles.emptyIcon} />
               <Text style={styles.emptyAvailabilityTitle}>No availability configured for {day}.</Text>
               <Text style={styles.emptyAvailabilityText}>
                 Tap the button below to add bookable weekly slots.
@@ -193,7 +196,7 @@ const DayAvailabilityScreen = ({ route, navigation }) => {
                 return (
                   <View key={item.id} style={styles.slotCard}>
                     <View style={styles.slotInfo}>
-                      <MCIcon name="clock-outline" size={18} color={COLORS.primary} />
+                      <MCIcon name="clock-outline" size={18} color={colors.primary} />
                       <Text style={styles.slotTimeText}>{timeLabel}</Text>
                     </View>
                     <View style={styles.actions}>
@@ -202,14 +205,14 @@ const DayAvailabilityScreen = ({ route, navigation }) => {
                         activeOpacity={0.7}
                         onPress={() => handleEdit(item)}
                       >
-                        <MCIcon name="pencil-outline" size={16} color={COLORS.textSecondary} />
+                        <MCIcon name="pencil-outline" size={16} color={colors.textSecondary} />
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={styles.actionBtn}
                         activeOpacity={0.7}
                         onPress={() => handleDelete(item.id, timeLabel)}
                       >
-                        <MCIcon name="delete-outline" size={16} color={COLORS.danger} />
+                        <MCIcon name="delete-outline" size={16} color={colors.danger} />
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -223,7 +226,7 @@ const DayAvailabilityScreen = ({ route, navigation }) => {
             activeOpacity={0.8}
             onPress={() => navigation.navigate('AddAvailability', { mode: 'create', day })}
           >
-            <MCIcon name="plus" size={22} color={COLORS.white} />
+            <MCIcon name="plus" size={22} color={colors.white} />
             <Text style={styles.addBtnText}>Add Availability</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -232,14 +235,15 @@ const DayAvailabilityScreen = ({ route, navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors =>
+  StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   scroll: { padding: SPACING.lg, paddingBottom: 100 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   sectionTitle: {
     fontSize: 12,
     fontWeight: '800',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
     marginBottom: SPACING.md,
@@ -247,10 +251,10 @@ const styles = StyleSheet.create({
   },
   cardsContainer: { gap: SPACING.sm },
   slotCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.lg,
     flexDirection: 'row',
@@ -258,7 +262,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   slotInfo: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  slotTimeText: { fontSize: 14.5, fontWeight: '700', color: COLORS.textPrimary },
+  slotTimeText: { fontSize: 14.5, fontWeight: '700', color: colors.textPrimary },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -271,14 +275,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: RADIUS.sm,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.surfaceMuted,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceMuted,
   },
   emptyAvailabilityCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.lg,
     alignItems: 'center',
     justifyContent: 'center',
@@ -288,18 +292,18 @@ const styles = StyleSheet.create({
   emptyAvailabilityTitle: {
     fontSize: 15,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   emptyAvailabilityText: {
     fontSize: 13.5,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   emptyIcon: {
     marginBottom: 4,
   },
   addBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: RADIUS.md,
     paddingVertical: 14,
     alignItems: 'center',
@@ -309,13 +313,13 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
     marginBottom: SPACING.xl,
     elevation: 2,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
   },
   addBtnText: {
-    color: COLORS.white,
+    color: colors.white,
     fontSize: 15,
     fontWeight: '800',
   },

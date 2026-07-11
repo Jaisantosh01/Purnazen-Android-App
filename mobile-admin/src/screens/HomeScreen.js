@@ -71,7 +71,7 @@ const HomeScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
+      <StatusBar barStyle="light-content" backgroundColor={colors.headerBg} />
 
       <ScrollView
         style={styles.container}
@@ -113,19 +113,19 @@ const HomeScreen = ({ navigation }) => {
                   title="Active Doctors"
                   value={stats?.total_active_doctors}
                   icon="doctor"
-                  onPress={() => navigation.navigate('Doctors', { screen: 'DoctorsMain' })}
+                  onPress={() => navigation.navigate('Manage', { screen: 'UsersAndDoctorsMain', params: { tab: 'doctors' } })}
                 />
                 <KpiCard
                   title="Active Users"
                   value={stats?.total_active_users}
                   icon="account-group"
-                  onPress={() => navigation.navigate('Users', { screen: 'UsersMain' })}
+                  onPress={() => navigation.navigate('Manage', { screen: 'UsersAndDoctorsMain', params: { tab: 'users' } })}
                 />
                 <KpiCard
                   title="Today's Appts"
                   value={stats?.today_appointments}
                   icon="calendar-today"
-                  onPress={() => navigation.navigate('Appointments', { screen: 'AppointmentsMain', params: { filterDate: todayStr } })}
+                  onPress={() => navigation.navigate('Manage', { screen: 'AppointmentsMain', params: { filterDate: todayStr } })}
                 />
                 <KpiCard
                   title="Scheduled Appts"
@@ -136,13 +136,13 @@ const HomeScreen = ({ navigation }) => {
                   title="Today Leaves"
                   value={stats?.today_doctor_leaves}
                   icon="beach"
-                  onPress={() => navigation.navigate('LeaveCenter')}
+                  onPress={() => navigation.navigate('Manage', { screen: 'DoctorLeaveManagement' })}
                 />
                 <KpiCard
                   title="Total Leaves"
                   value={stats?.total_doctor_leaves}
                   icon="calendar-remove"
-                  onPress={() => navigation.navigate('LeaveCenter')}
+                  onPress={() => navigation.navigate('Manage', { screen: 'DoctorLeaveManagement' })}
                 />
               </>
             )}
@@ -153,10 +153,10 @@ const HomeScreen = ({ navigation }) => {
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
             <MCIcon name="view-dashboard-outline" size={20} color={colors.textPrimary} />
-            <Text style={styles.sectionTitle}>Management</Text>
+            <Text style={styles.sectionTitle}>Quick Actions</Text>
           </View>
           <View style={{ gap: 10 }}>
-            <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('SlotManagement')} activeOpacity={0.7}>
+            <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('Manage', { screen: 'SlotManagement' })} activeOpacity={0.7}>
               <View style={[styles.mgmtIconCircle, { backgroundColor: colors.primaryLight }]}>
                 <MCIcon name="clock-outline" size={24} color={colors.primary} />
               </View>
@@ -166,7 +166,7 @@ const HomeScreen = ({ navigation }) => {
               </View>
               <MCIcon name="chevron-right" size={22} color={colors.textMuted} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('VideoManagement')} activeOpacity={0.7}>
+            <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('Manage', { screen: 'VideoManagement' })} activeOpacity={0.7}>
               <View style={[styles.mgmtIconCircle, { backgroundColor: colors.primaryLight }]}>
                 <MCIcon name="video-outline" size={24} color={colors.primary} />
               </View>
@@ -176,7 +176,7 @@ const HomeScreen = ({ navigation }) => {
               </View>
               <MCIcon name="chevron-right" size={22} color={colors.textMuted} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('NotificationAdmin')} activeOpacity={0.7}>
+            <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('Manage', { screen: 'NotificationAdmin' })} activeOpacity={0.7}>
               <View style={[styles.mgmtIconCircle, { backgroundColor: colors.primaryLight }]}>
                 <MCIcon name="bell-cog-outline" size={24} color={colors.primary} />
               </View>
@@ -186,7 +186,7 @@ const HomeScreen = ({ navigation }) => {
               </View>
               <MCIcon name="chevron-right" size={22} color={colors.textMuted} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('FaqManagement')} activeOpacity={0.7}>
+            <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('Manage', { screen: 'FaqManagement' })} activeOpacity={0.7}>
               <View style={[styles.mgmtIconCircle, { backgroundColor: colors.primaryLight }]}>
                 <MCIcon name="help-circle-outline" size={24} color={colors.primary} />
               </View>
@@ -209,9 +209,10 @@ const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1 },
 
-  // Header
+  // Header — headerBg (not primary) so the hero darkens with the scheme like
+  // every other screen's header card.
   header: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.headerBg,
     paddingHorizontal: 20,
     paddingBottom: 28,
     borderBottomLeftRadius: 28,
@@ -220,7 +221,7 @@ const makeStyles = colors => StyleSheet.create({
   headerTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   headerTextCol: { flex: 1 },
   greeting: { fontSize: 14, color: 'rgba(255,255,255,0.8)', fontWeight: '500' },
-  title: { fontSize: 26, color: colors.white, fontWeight: '800', letterSpacing: 0.2, marginTop: 2 },
+  title: { fontSize: 26, color: colors.headerText, fontWeight: '800', letterSpacing: 0.2, marginTop: 2 },
   dateChip: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 20,

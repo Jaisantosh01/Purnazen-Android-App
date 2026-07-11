@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,8 @@ import {
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { SPACING, RADIUS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 import patientService from '../services/patientService';
 
 const STATUS_CONFIG = {
@@ -21,7 +22,10 @@ const STATUS_CONFIG = {
 };
 
 // ─── Timeline Item / Card Component ───────────────────────────────────────────
-const ScanCard = ({ item, onPress }) => (
+const ScanCard = ({ item, onPress }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
   <TouchableOpacity
     style={styles.card}
     activeOpacity={0.85}
@@ -33,14 +37,21 @@ const ScanCard = ({ item, onPress }) => (
         Condition: <Text style={styles.conditionHighlight}>{item.condition || 'N/A'}</Text>
       </Text>
     </View>
-    <MCIcon name="chevron-right" size={24} color={COLORS.textMuted} />
+    <MCIcon name="chevron-right" size={24} color={colors.textMuted} />
   </TouchableOpacity>
-);
+  );
+};
 
-const ScanSeparator = () => <View style={styles.separator} />;
+const ScanSeparator = () => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return <View style={styles.separator} />;
+};
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 const FaceScanHistoryScreen = ({ route, navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { patientId } = route.params || {};
   const [patientName, setPatientName] = useState('Patient');
   const [history, setHistory] = useState([]);
@@ -105,11 +116,11 @@ const FaceScanHistoryScreen = ({ route, navigation }) => {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : error ? (
         <View style={styles.center}>
-          <MCIcon name="alert-circle-outline" size={48} color={COLORS.danger} style={{ marginBottom: 12 }} />
+          <MCIcon name="alert-circle-outline" size={48} color={colors.danger} style={{ marginBottom: 12 }} />
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={() => fetchHistory()}>
             <Text style={styles.retryText}>Retry</Text>
@@ -124,7 +135,7 @@ const FaceScanHistoryScreen = ({ route, navigation }) => {
           showsVerticalScrollIndicator={false}
           ItemSeparatorComponent={ScanSeparator}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
           }
           ListHeaderComponent={
             hasScans ? (
@@ -145,7 +156,7 @@ const FaceScanHistoryScreen = ({ route, navigation }) => {
                 </View>
                 <View style={styles.summaryDivider} />
                 <View style={styles.trendRow}>
-                  <MCIcon name="trending-up" size={18} color={COLORS.success} />
+                  <MCIcon name="trending-up" size={18} color={colors.success} />
                   <Text style={styles.trendText}>
                     Skin health score is loaded successfully from AI pipeline diagnostics.
                   </Text>
@@ -155,7 +166,7 @@ const FaceScanHistoryScreen = ({ route, navigation }) => {
           }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <MCIcon name="face-recognition" size={60} color={COLORS.borderStrong} />
+              <MCIcon name="face-recognition" size={60} color={colors.borderStrong} />
               <Text style={styles.emptyTitle}>No Face Scans</Text>
               <Text style={styles.emptySubtitle}>No scans found for this patient.</Text>
             </View>
@@ -181,16 +192,17 @@ const FaceScanHistoryScreen = ({ route, navigation }) => {
 export default FaceScanHistoryScreen;
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors =>
+  StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   list: { padding: SPACING.lg, paddingBottom: 100 },
 
   // Summary Card (Top Section)
   summaryCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.md,
     marginBottom: SPACING.lg,
     elevation: 2,
@@ -210,8 +222,8 @@ const styles = StyleSheet.create({
     height: 72,
     borderRadius: 36,
     borderWidth: 4,
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.primaryFaint,
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryFaint,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -219,11 +231,11 @@ const styles = StyleSheet.create({
   overallScoreText: {
     fontSize: 22,
     fontWeight: '800',
-    color: COLORS.primary,
+    color: colors.primary,
   },
   scoreMaxText: {
     fontSize: 10.5,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '700',
     marginTop: 6,
   },
@@ -234,11 +246,11 @@ const styles = StyleSheet.create({
   overallLabel: {
     fontSize: 14.5,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   summaryDivider: {
     height: 1,
-    backgroundColor: COLORS.border,
+    backgroundColor: colors.border,
   },
   trendRow: {
     flexDirection: 'row',
@@ -248,7 +260,7 @@ const styles = StyleSheet.create({
   trendText: {
     flex: 1,
     fontSize: 12.5,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
 
@@ -257,10 +269,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.md,
     elevation: 2,
     shadowColor: '#000',
@@ -275,23 +287,23 @@ const styles = StyleSheet.create({
   cardDate: {
     fontSize: 12.5,
     fontWeight: '700',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   cardScore: {
     fontSize: 15,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   scoreHighlight: {
-    color: COLORS.primary,
+    color: colors.primary,
   },
   cardCondition: {
     fontSize: 13,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   conditionHighlight: {
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     fontWeight: '700',
   },
 
@@ -321,19 +333,19 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     padding: SPACING.md,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: colors.border,
   },
   reportBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: RADIUS.md,
     paddingVertical: 12,
     alignItems: 'center',
   },
   reportBtnText: {
-    color: COLORS.white,
+    color: colors.white,
     fontSize: 14.5,
     fontWeight: '700',
   },
@@ -351,12 +363,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginTop: SPACING.sm,
   },
   emptySubtitle: {
     fontSize: 13,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   center: {
     flex: 1,
@@ -366,19 +378,19 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 14.5,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: SPACING.md,
     fontWeight: '500',
   },
   retryBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingHorizontal: 18,
     paddingVertical: 8,
     borderRadius: RADIUS.md,
   },
   retryText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '700',
     fontSize: 13.5,
   },
