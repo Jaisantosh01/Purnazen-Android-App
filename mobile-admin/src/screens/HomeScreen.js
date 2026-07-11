@@ -113,7 +113,7 @@ const HomeScreen = ({ navigation }) => {
                   title="Active Doctors"
                   value={stats?.total_active_doctors}
                   icon="doctor"
-                  onPress={() => navigation.navigate('Doctors', { screen: 'DoctorsMain' })}
+                  onPress={() => navigation.navigate('Users', { screen: 'UsersAndDoctorsMain', params: { initialTab: 'doctors' } })}
                 />
                 <KpiCard
                   title="Active Users"

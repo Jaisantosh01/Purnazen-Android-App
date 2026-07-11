@@ -1,15 +1,14 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar, Modal, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
+import { ITEM_HEIGHT } from '../constants/slots';
+import ScreenHeader from '../components/ScreenHeader';
 import { ListSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
-import { useHeaderTopPadding } from '../components/ScreenHeader';
 import { showAlert } from '../utils/alert';
-
-const ITEM_HEIGHT = 40;
 
 const TimePickerColumn = ({ data, value, onChange }) => {
   const { colors, isDark } = useTheme();
@@ -66,8 +65,7 @@ const TimeSelector = ({ value, onChange }) => {
 };
 
 const SlotManagementScreen = ({ navigation }) => {
-  const { colors, isDark } = useTheme();
-  const headerTop = useHeaderTopPadding(0);
+  const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [days, setDays] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -156,12 +154,16 @@ const SlotManagementScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.card} />
-      <View style={[styles.header, { height: undefined, paddingTop: headerTop, paddingBottom: 12 }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}><MCIcon name="arrow-left" size={24} color={colors.textPrimary} /></TouchableOpacity>
-        <Text style={styles.headerTitle}>Schedule Manager</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={() => { setTargetDay(selectedDay); setModalVisible(true); }}><MCIcon name="plus" size={24} color={colors.white} /></TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title="Schedule Manager"
+        subtitle="Manage slot timings"
+        onBack={() => navigation.goBack()}
+        right={
+          <TouchableOpacity onPress={() => { setTargetDay(selectedDay); setModalVisible(true); }} style={{ padding: 4 }}>
+            <MCIcon name="plus" size={24} color={colors.primary} />
+          </TouchableOpacity>
+        }
+      />
       
       {loading ? (
         <View style={styles.content}>
@@ -232,35 +234,11 @@ const SlotManagementScreen = ({ navigation }) => {
 };
 
 const makeStyles = colors => StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.surfaceMuted },
-  header: {
-  height: 80,
-  paddingHorizontal: 16,
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  backgroundColor: colors.surfaceMuted,
-},
-headerTitle: {
-  fontSize: 22,
-  fontWeight: '700',
-  color: colors.textPrimary,
-},
-  addBtn: {
-  width: 46,
-  height: 46,
-  borderRadius: 23,
-  backgroundColor: '#1FA97A',
-  justifyContent: 'center',
-  alignItems: 'center',
-  elevation: 3,
-},
+  root: { flex: 1, backgroundColor: colors.background },
   content: {
   flex: 1,
   flexDirection: 'row',
   backgroundColor: colors.card,
-  borderTopLeftRadius: 24,
-  borderTopRightRadius: 24,
   overflow: 'hidden',
 },
   sidebar: {
@@ -287,7 +265,6 @@ selectedDayText: {
   color: '#1FA97A',
   fontWeight: '700',
 },
-  activeIndicator: { position: 'absolute', left: 0, top: 20, bottom: 20, width: 4, backgroundColor: colors.primary, borderTopRightRadius: 2, borderBottomRightRadius: 2 },
   mainContent: {
   flex: 1,
   paddingHorizontal: 18,
