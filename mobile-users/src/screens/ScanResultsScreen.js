@@ -25,7 +25,6 @@ const METRIC_LABELS = {
   darkCircleScore: 'Dark circles',
   poreScore: 'Pores',
   elasticityScore: 'Elasticity',
-  muscleToneScore: 'Muscle tone',
   inflammationScore: 'Inflammation',
   toxinIndicator: 'Toxin indicator',
 };
@@ -55,7 +54,6 @@ const FACE_METRIC_KEYS = [
   'darkCircleScore',
   'poreScore',
   'elasticityScore',
-  'muscleToneScore',
   'inflammationScore',
   'toxinIndicator',
 ];

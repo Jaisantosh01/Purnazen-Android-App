@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  StatusBar,
   Switch,
   Linking,
   Modal,
@@ -23,7 +22,7 @@ import { checkForUpdate, FORCE_MARKER } from '../services/updateService';
 import { APP_VERSION } from '../config';
 import { useAuthStore } from '../store/authStore';
 import useTheme from '../hooks/useTheme';
-import { useHeaderTopPadding } from '../components/ScreenHeader';
+import ScreenHeader from '../components/ScreenHeader';
 
 // Shared toggle ids with the backend user_preferences.notifications dict.
 const PREF_KEYS = {
@@ -59,7 +58,6 @@ const languageLabel = code => (LANGUAGES.find(l => l.code === code) || LANGUAGES
 const SettingsScreen = ({ navigation }) => {
   const user = useAuthStore(state => state.user);
   const { colors, isDark, setMode } = useTheme();
-  const headerTop = useHeaderTopPadding(16);
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const tint = hue => hue || colors.primary;
@@ -402,18 +400,7 @@ const SettingsScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.headerBg} />
-
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: headerTop }]}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <MCIcon name="arrow-left" size={22} color={colors.white} />
-        </TouchableOpacity>
-        <View style={styles.headerText}>
-          <Text style={styles.headerTitle}>Settings</Text>
-          <Text style={styles.headerSubtitle}>Manage your preferences</Text>
-        </View>
-      </View>
+      <ScreenHeader title="Settings" subtitle="Manage your preferences" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
 
@@ -753,28 +740,6 @@ export default SettingsScreen;
 
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-
-  header: {
-    backgroundColor: colors.headerBg,
-    paddingHorizontal: 20,
-    paddingBottom: 24,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerText: { flex: 1 },
-  headerTitle: { fontSize: 22, fontWeight: '700', color: colors.white },
-  headerSubtitle: { fontSize: 13, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
 
   section: { paddingHorizontal: 16, marginTop: 22 },
   sectionHeader: {

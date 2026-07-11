@@ -46,6 +46,10 @@ VISIT_SLUG_TO_CONSULTATION_TYPE = {
     meta["id"]: name for name, meta in VISIT_TYPE_PRESENTATION.items()
 }
 
+# Display order for visit types / consultation-type tags: clinic first, then
+# home, then video (unknown types last, in their original order).
+VISIT_TYPE_ORDER = {"Clinic Visit": 0, "Home Visit": 1, "Video Call": 2}
+
 
 class DoctorService:
 
@@ -63,7 +67,11 @@ class DoctorService:
     def get_visit_types(doctor: Doctor) -> list[dict]:
         fee = float(doctor.consultation_fee)
         visit_types = []
-        for link in doctor.consultation_type_links:
+        links = sorted(
+            doctor.consultation_type_links,
+            key=lambda link: VISIT_TYPE_ORDER.get(link.consultation_type.name, 9),
+        )
+        for link in links:
             ct_name = link.consultation_type.name
             meta = VISIT_TYPE_PRESENTATION.get(
                 ct_name,

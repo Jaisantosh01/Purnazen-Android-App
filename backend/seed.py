@@ -1,14 +1,18 @@
 """Seed the database with development data.
 
 Usage:  python seed.py
-Creates tables if missing, then inserts idempotent reference + demo data.
+Brings the schema to the latest Alembic revision, then inserts idempotent
+reference + demo data.
 """
 
 from datetime import time
+from pathlib import Path
+
+from alembic import command as alembic_command
+from alembic.config import Config as AlembicConfig
 
 from app.core.security import hash_password
 from app.db.base import (
-    Base,
     Clinic,
     ConsultationType,
     Doctor,
@@ -34,10 +38,14 @@ from app.db.base import (
     SupportContact,
     SupportFaq,
 )
-from app.db.session import SessionLocal, engine
+from app.db.session import SessionLocal
 from seed_data import RELIEF_SESSIONS, VIDEO_GROUPS, VIDEOS, CHAT_FLOW, QUICK_RELIEFS, AWARDS, CLINICS, DOCTOR_LEAVES, DAYS_OF_WEEK, SLOT_TIMINGS, WELLNESS_SESSIONS_DATA, SUPPORT_CONTACTS, SUPPORT_FAQS
 
-Base.metadata.create_all(bind=engine)
+# Build/upgrade the schema through Alembic rather than create_all()
+_backend_dir = Path(__file__).resolve().parent
+_alembic_cfg = AlembicConfig(str(_backend_dir / "alembic.ini"))
+_alembic_cfg.set_main_option("script_location", str(_backend_dir / "alembic"))
+alembic_command.upgrade(_alembic_cfg, "head")
 
 db = SessionLocal()
 
@@ -589,7 +597,7 @@ try:
                     doctor_id=doctor.id, leave_date=leave_date
                 ).first()
                 if existing:
-                    existing.doctor_reason = leave_data.get("doctor_reason")
+                    existing.reason = leave_data.get("doctor_reason")
                     existing.admin_reason = leave_data.get("admin_reason")
                     existing.status = leave_data.get("status", "pending")
                 else:
@@ -597,7 +605,10 @@ try:
                         DoctorLeave(
                             doctor_id=doctor.id,
                             leave_date=leave_date,
-                            doctor_reason=leave_data.get("doctor_reason"),
+                            leave_type="single",
+                            start_date=leave_date,
+                            end_date=leave_date,
+                            reason=leave_data.get("doctor_reason"),
                             admin_reason=leave_data.get("admin_reason"),
                             status=leave_data.get("status", "pending"),
                             created_by=admin.id,

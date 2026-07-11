@@ -17,7 +17,18 @@ import ScreenHeader from '../components/ScreenHeader';
 import AppDialog from '../components/AppDialog';
 import {DAYS, MONTHS} from '../constants/strings';
 
+// Clinic visit always comes first, then home, then video.
+const VISIT_ORDER = { clinic: 0, home: 1, video: 2 };
+const sortVisitTypes = list =>
+  [...list].sort((a, b) => (VISIT_ORDER[a.id] ?? 9) - (VISIT_ORDER[b.id] ?? 9));
 
+// Fallback cards built from the doctor's consultation-type tags so the visit
+// type section always shows, even if the visit-types API call fails.
+const TAG_TO_VISIT_TYPE = {
+  'Clinic Visit': { id: 'clinic', title: 'Clinic Visit', subtitle: 'Meet at the clinic', icon: 'hospital-building' },
+  'Home Visit':   { id: 'home',   title: 'Home Visit',   subtitle: 'Doctor visits your home', icon: 'home-outline' },
+  'Video Call':   { id: 'video',  title: 'Video Consultation', subtitle: 'Consult from anywhere', icon: 'video-outline' },
+};
 
 const BookAppointmentScreen = ({ navigation, route }) => {
   const { colors } = useTheme();
@@ -27,7 +38,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
   const today = new Date();
   const [visitTypes, setVisitTypes]         = useState([]);
   const [timeSlots, setTimeSlots]           = useState([]);
-  const [selectedVisit, setSelectedVisit]   = useState('video');
+  const [selectedVisit, setSelectedVisit]   = useState('clinic');
   const [selectedTime, setSelectedTime]     = useState(null);
   const [currentMonth, setCurrentMonth]     = useState(today.getMonth());
   const [currentYear, setCurrentYear]       = useState(today.getFullYear());
@@ -83,15 +94,26 @@ const BookAppointmentScreen = ({ navigation, route }) => {
   const selectedVisitData = visitTypes.find(v => v.id === selectedVisit);
 
   useEffect(() => {
+    const applyVisitTypes = (list) => {
+      const sorted = sortVisitTypes(list);
+      setVisitTypes(sorted);
+      // Keep clinic as the default whenever the doctor offers it.
+      setSelectedVisit(prev => (sorted.some(v => v.id === prev) ? prev : sorted[0].id));
+    };
+    const applyFallback = () => {
+      const fallback = (doctor.tags || [])
+        .map(tag => TAG_TO_VISIT_TYPE[tag])
+        .filter(Boolean)
+        .map(v => ({ ...v, fee: doctor.minFee ?? doctor.fee }));
+      if (fallback.length) applyVisitTypes(fallback);
+    };
     consultService.getVisitTypes(doctor.id)
       .then(data => {
-        if (data?.length) {
-          setVisitTypes(data);
-          setSelectedVisit(prev => (data.some(v => v.id === prev) ? prev : data[0].id));
-        }
+        if (data?.length) applyVisitTypes(data);
+        else applyFallback();
       })
-      .catch(() => {});
-  }, [doctor.id]);
+      .catch(applyFallback);
+  }, [doctor.id, doctor.tags, doctor.minFee, doctor.fee]);
 
   useEffect(() => {
     if (selectedVisit !== 'clinic') {
@@ -477,6 +499,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
         subtitle="Choose the address for your home visit"
         confirmLabel="Close"
         onConfirm={() => setShowAddressPicker(false)}
+        showCancel={false}
         topSlot={(
           <TouchableOpacity
             style={styles.pickerAddBtn}
@@ -639,8 +662,10 @@ const makeStyles = colors => StyleSheet.create({
 
   /* Address Picker Dialog */
   pickerAddBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingVertical: 12, paddingHorizontal: 4, marginBottom: 4,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    paddingVertical: 12, paddingHorizontal: 10, borderRadius: 12,
+    borderWidth: 1.5, borderColor: colors.primary + '55', borderStyle: 'dashed',
+    backgroundColor: colors.primaryFaint,
   },
   pickerAddBtnText: { fontSize: 14, fontWeight: '600', color: colors.primary },
   pickerEmptyText: { fontSize: 13, color: colors.textMuted, textAlign: 'center', paddingVertical: 20 },
