@@ -20,7 +20,12 @@ python-multipart>=0.0.9
 # Note: mediapipe/opencv/scikit-image wheels are only available for Python <=3.12.
 # On Python 3.14 install these in a Python 3.12 venv or use conda.
 # The server starts without them (AI scans will fail gracefully).
-opencv-python-headless>=4.10.0
+# <5: OpenCV 5.0 wheels no longer bundle the cv2/data haarcascades that the
+# face-scan pipeline loads (scan_pipeline_service, ai/enhance, ai/quality).
+# opencv-contrib-python comes in as mediapipe's dependency — constrain it too
+# or pip still resolves a 5.x cv2 through it.
+opencv-python-headless>=4.10.0,<5
+opencv-contrib-python>=4.10.0,<5
 mediapipe>=0.10.14
 Pillow>=10.4.0
 scikit-image>=0.24.0

@@ -33,6 +33,11 @@ on:
         required: false
         default: false
         type: boolean
+      upload_to_blob:
+        description: "Also upload the APK to the private releases container + register with the backend (CI principal needs Storage Blob Data Contributor on the storage account). Off: use the 'Upload Release to Blob (OTA)' workflow later."
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write          # create releases + tags
@@ -159,10 +164,11 @@ jobs:
 
       # ── OTA distribution: upload the signed APK to the PRIVATE releases
       # container and register the version with the backend, which serves the
-      # in-app updater (short-lived SAS). Skipped automatically until the
-      # AZURE_STORAGE_ACCOUNT repo variable is configured.
+      # in-app updater (short-lived SAS). Opt-in via the upload_to_blob input;
+      # releases published without it can be backfilled any time with the
+      # "Upload Release to Blob (OTA)" workflow.
       - name: Azure login (OIDC)
-        if: ${{ vars.AZURE_STORAGE_ACCOUNT != '' }}
+        if: ${{ inputs.upload_to_blob && vars.AZURE_STORAGE_ACCOUNT != '' }}
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -170,7 +176,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Upload APK to private releases container + register version
-        if: ${{ vars.AZURE_STORAGE_ACCOUNT != '' }}
+        if: ${{ inputs.upload_to_blob && vars.AZURE_STORAGE_ACCOUNT != '' }}
         env:
           STORAGE_ACCOUNT: ${{ vars.AZURE_STORAGE_ACCOUNT }}
           CONTAINER: ${{ vars.AZURE_RELEASES_CONTAINER }}

@@ -20,9 +20,14 @@ jest.mock('../../services/wellnessService', () => ({
   }),
 }));
 
+jest.mock('../../services/notificationsService', () => ({
+  unreadCount: jest.fn().mockResolvedValue(0),
+}));
+
 const navigation = {
   navigate: jest.fn(),
   goBack: jest.fn(),
+  // Home subscribes to 'focus' to refresh the notification badge
   addListener: jest.fn(() => jest.fn()),
 };
 
