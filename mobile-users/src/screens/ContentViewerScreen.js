@@ -94,7 +94,7 @@ const renderStyledContent = (html, colors) => {
     const formatted = parseInlineTags(displayText, colors);
     elements.push(
       <Text key={idx} style={[
-        { lineHeight: isH3 ? 28 : 22, marginBottom: 4 },
+        { color: colors.textPrimary, lineHeight: isH3 ? 28 : 22, marginBottom: 4 },
         isH3 && { fontSize: 18, fontWeight: '700', marginTop: 8 },
         isSmall && { fontSize: 11 },
       ]}>

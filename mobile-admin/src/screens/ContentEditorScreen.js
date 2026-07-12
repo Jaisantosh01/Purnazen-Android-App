@@ -21,7 +21,7 @@ import ScreenHeader from '../components/ScreenHeader';
 
 const renderFormatted = (html, colors) => {
   if (!html) return null;
-  const elements = [];
+  const raw = [];
   let remaining = html;
   let key = 0;
 
@@ -32,46 +32,91 @@ const renderFormatted = (html, colors) => {
       .sort((a, b) => a.idx - b.idx);
 
     if (tagMatches.length === 0) {
-      elements.push(<Text key={key++} style={{ color: colors.textPrimary }}>{remaining}</Text>);
+      raw.push({ type: 'text', el: <Text key={key++} style={{ color: colors.textPrimary }}>{remaining}</Text> });
       break;
     }
 
     const { tag, idx } = tagMatches[0];
-    if (idx > 0) elements.push(<Text key={key++} style={{ color: colors.textPrimary }}>{remaining.substring(0, idx)}</Text>);
+    if (idx > 0) raw.push({ type: 'text', el: <Text key={key++} style={{ color: colors.textPrimary }}>{remaining.substring(0, idx)}</Text> });
 
     remaining = remaining.substring(idx + tag.length);
 
     if (tag === '<b>') {
       const e = remaining.indexOf('</b>');
-      elements.push(<Text key={key++} style={{ fontWeight: '700', color: colors.textPrimary }}>{e === -1 ? remaining : remaining.substring(0, e)}</Text>);
+      raw.push({ type: 'text', el: <Text key={key++} style={{ fontWeight: '700', color: colors.textPrimary }}>{e === -1 ? remaining : remaining.substring(0, e)}</Text> });
       if (e !== -1) remaining = remaining.substring(e + 4);
     } else if (tag === '<i>') {
       const e = remaining.indexOf('</i>');
-      elements.push(<Text key={key++} style={{ fontStyle: 'italic', color: colors.textPrimary }}>{e === -1 ? remaining : remaining.substring(0, e)}</Text>);
+      raw.push({ type: 'text', el: <Text key={key++} style={{ fontStyle: 'italic', color: colors.textPrimary }}>{e === -1 ? remaining : remaining.substring(0, e)}</Text> });
       if (e !== -1) remaining = remaining.substring(e + 4);
     } else if (tag === '<h3>') {
       const e = remaining.indexOf('</h3>');
-      elements.push(<Text key={key++} style={{ fontSize: 18, fontWeight: '700', color: colors.textPrimary, lineHeight: 26 }}>{e === -1 ? remaining : remaining.substring(0, e)}</Text>);
+      raw.push({ type: 'text', el: <Text key={key++} style={{ fontSize: 18, fontWeight: '700', color: colors.textPrimary, lineHeight: 26 }}>{e === -1 ? remaining : remaining.substring(0, e)}</Text> });
       if (e !== -1) remaining = remaining.substring(e + 5);
     } else if (tag === '<small>') {
       const e = remaining.indexOf('</small>');
-      elements.push(<Text key={key++} style={{ fontSize: 11, color: colors.textPrimary }}>{e === -1 ? remaining : remaining.substring(0, e)}</Text>);
+      raw.push({ type: 'text', el: <Text key={key++} style={{ fontSize: 11, color: colors.textPrimary }}>{e === -1 ? remaining : remaining.substring(0, e)}</Text> });
       if (e !== -1) remaining = remaining.substring(e + 8);
     } else if (tag === '<br>' || tag === '<br/>' || tag === '<br />') {
-      elements.push(<Text key={key++}>{'\n'}</Text>);
+      raw.push({ type: 'text', el: <Text key={key++}>{'\n'}</Text> });
     } else if (tag === '<li>') {
       const e = remaining.indexOf('</li>');
-      elements.push(
-        <View key={key++} style={{ flexDirection: 'row' }}>
+      raw.push({ type: 'view', el:
+        <View key={key++} style={{ flexDirection: 'row', marginBottom: 4 }}>
           <Text style={{ color: colors.textPrimary, marginRight: 6 }}>{'\u2022'}</Text>
           <Text style={{ color: colors.textPrimary, flex: 1 }}>{e === -1 ? remaining : remaining.substring(0, e)}</Text>
         </View>
-      );
+      });
       if (e !== -1) remaining = remaining.substring(e + 5);
     }
   }
 
-  return elements;
+  if (raw.length === 0) return null;
+
+  const grouped = [];
+  let textBuffer = [];
+
+  for (const item of raw) {
+    if (item.type === 'text') {
+      textBuffer.push(item.el);
+    } else {
+      if (textBuffer.length > 0) {
+        grouped.push(<Text key={`g-${key++}`}>{textBuffer}</Text>);
+        textBuffer = [];
+      }
+      grouped.push(item.el);
+    }
+  }
+  if (textBuffer.length > 0) {
+    grouped.push(<Text key={`g-${key++}`}>{textBuffer}</Text>);
+  }
+
+  return grouped;
+};
+
+const htmlToPlain = (html) => html ? html.replace(/<[^>]*>/g, '') : '';
+
+const mapPos = (html, plainPos) => {
+  let p = 0;
+  for (let i = 0; i < html.length; i++) {
+    if (html[i] === '<') {
+      const close = html.indexOf('>', i);
+      if (close !== -1) { i = close; continue; }
+    }
+    if (p === plainPos) return i;
+    p++;
+  }
+  return html.length;
+};
+
+const stripEmptyTags = (html) => {
+  let prev;
+  let result = html;
+  do {
+    prev = result;
+    result = result.replace(/<(\w+)><\/\1>/g, '');
+  } while (result !== prev);
+  return result;
 };
 
 const ContentEditorScreen = ({ route, navigation }) => {
@@ -94,6 +139,7 @@ const ContentEditorScreen = ({ route, navigation }) => {
 
   const contentRef = useRef(null);
   const selRef = useRef({ start: 0, end: 0 });
+  const displayContent = useMemo(() => htmlToPlain(content), [content]);
 
   useEffect(() => {
     if (editingItem) {
@@ -124,12 +170,15 @@ const ContentEditorScreen = ({ route, navigation }) => {
   };
 
   const handleFormatPress = (actionKey) => {
+    const { start, end } = selRef.current;
+    const htmlStart = mapPos(content, start);
+    const htmlEnd = mapPos(content, end);
+
     if (actionKey === 'bullet') {
-      const { start, end } = selRef.current;
-      const selected = content.substring(start, end);
+      const selected = content.substring(htmlStart, htmlEnd);
       const tagOpen = '<li>', tagClose = '</li>';
       const insertion = tagOpen + (selected || 'item') + tagClose;
-      setContent(content.substring(0, start) + insertion + content.substring(end));
+      setContent(content.substring(0, htmlStart) + insertion + content.substring(htmlEnd));
       return;
     }
 
@@ -140,42 +189,45 @@ const ContentEditorScreen = ({ route, navigation }) => {
       return next;
     });
 
-    const { start, end } = selRef.current;
     if (start !== end) {
       const { open, close } = TAG_MAP[actionKey] || {};
       if (open && close) {
-        const selected = content.substring(start, end);
-        setContent(content.substring(0, start) + open + selected + close + content.substring(end));
+        const selected = content.substring(htmlStart, htmlEnd);
+        setContent(content.substring(0, htmlStart) + open + selected + close + content.substring(htmlEnd));
       }
     }
   };
 
-  const handleChangeText = (newText) => {
-    const activeKeys = Object.keys(activeFormats);
-    if (activeKeys.length === 0) { setContent(newText); return; }
+  const handleChangeText = (newPlain) => {
+    const oldPlain = htmlToPlain(content);
+    if (oldPlain === newPlain) return;
 
-    const addedLen = newText.length - content.length;
-    if (addedLen <= 0) { setContent(newText); return; }
-
-    let inserted = '';
-    let insPos = 0;
-    for (let i = 0; i < newText.length; i++) {
-      if (i >= content.length || newText[i] !== content[i]) {
-        insPos = i;
-        inserted = newText.substring(i);
-        break;
-      }
+    let diffStart = 0;
+    while (diffStart < oldPlain.length && diffStart < newPlain.length && oldPlain[diffStart] === newPlain[diffStart]) {
+      diffStart++;
     }
 
-    if (!inserted) { setContent(newText); return; }
+    let diffEndOld = oldPlain.length;
+    let diffEndNew = newPlain.length;
+    while (diffEndOld > diffStart && diffEndNew > diffStart && oldPlain[diffEndOld - 1] === newPlain[diffEndNew - 1]) {
+      diffEndOld--;
+      diffEndNew--;
+    }
 
+    const htmlStart = mapPos(content, diffStart);
+    const removedLen = diffEndOld - diffStart;
+    const htmlEnd = mapPos(content, diffStart + removedLen);
+    const inserted = newPlain.substring(diffStart, diffEndNew);
+
+    const activeKeys = Object.keys(activeFormats);
     let wrapped = inserted;
     activeKeys.forEach(k => {
       const t = TAG_MAP[k];
       if (t && k !== 'bullet') wrapped = t.open + wrapped + t.close;
     });
 
-    setContent(newText.substring(0, insPos) + wrapped);
+    const result = content.substring(0, htmlStart) + wrapped + content.substring(htmlEnd);
+    setContent(stripEmptyTags(result));
   };
 
   const canSave = title.trim().length > 0 && content.trim().length > 0 && (isAllSelected || selectedRoleIds.length > 0);
@@ -268,7 +320,7 @@ const ContentEditorScreen = ({ route, navigation }) => {
             <TextInput
               ref={contentRef}
               style={styles.editorInput}
-              value={content}
+              value={displayContent}
               onChangeText={handleChangeText}
               onSelectionChange={handleSelectionChange}
               multiline

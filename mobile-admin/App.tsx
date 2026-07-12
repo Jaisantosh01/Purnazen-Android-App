@@ -41,6 +41,7 @@ import EditUserScreen from './src/screens/EditUserScreen';
 import ManageRolesScreen from './src/screens/ManageRolesScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import HelpSupportScreen from './src/screens/HelpSupportScreen';
 import ContentViewerScreen from './src/screens/ContentViewerScreen';
 import AppointmentManagementScreen from './src/screens/AppointmentManagementScreen';
 import SlotManagementScreen from './src/screens/SlotManagementScreen';
@@ -145,6 +146,7 @@ function ProfileStackNavigator() {
     <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
       <ProfileStack.Screen name="ProfileMain"    component={ProfileScreen}        />
       <ProfileStack.Screen name="Settings"       component={SettingsScreen}       />
+      <ProfileStack.Screen name="HelpSupport"    component={HelpSupportScreen}    />
       <ProfileStack.Screen name="ContentViewer"  component={ContentViewerScreen}  />
     </ProfileStack.Navigator>
   );
