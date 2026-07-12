@@ -23,8 +23,6 @@ import { useHeaderTopPadding } from '../components/ScreenHeader';
 
 const soft = hex => `${hex}22`;
 
-const SUPPORT_EMAIL = 'support@purnazen.com';
-
 const ProfileScreen = ({ navigation }) => {
   const user = useAuthStore(state => state.user);
   const { colors } = useTheme();
@@ -99,19 +97,10 @@ const ProfileScreen = ({ navigation }) => {
     }
   };
 
-  const openSupport = () =>
-    showAlert(
-      'Help & Support',
-      `Reach the Purnazen team at ${SUPPORT_EMAIL} for help with the admin console.`,
-    );
-
   const MENU_ITEMS = [
     { icon: 'cog-outline',         iconColor: '#6B7280', title: 'Settings',          subtitle: 'App preferences',     onPress: () => navigation.navigate('Settings') },
     { icon: 'cloud-download-outline', iconColor: '#0284C7', title: 'Check for Updates', subtitle: updateChecking ? 'Checking\u2026' : `v${APP_VERSION}`, onPress: handleCheckForUpdate },
-    { icon: 'help-circle-outline', iconColor: '#0284C7', title: 'Help & Support',    subtitle: 'Get assistance',      onPress: openSupport },
-    { icon: 'frequently-asked-questions', iconColor: '#7C3AED', title: 'FAQ',          subtitle: 'Frequently asked questions', onPress: () => navigation.navigate('ContentViewer', { type: 'faq' }) },
-    { icon: 'file-document-outline', iconColor: '#F59E0B', title: 'Terms & Conditions', subtitle: 'Terms of service',  onPress: () => navigation.navigate('ContentViewer', { type: 'terms' }) },
-    { icon: 'shield-lock-outline', iconColor: '#10B981', title: 'Privacy Policy',     subtitle: 'Data privacy notice', onPress: () => navigation.navigate('ContentViewer', { type: 'privacy' }) },
+    { icon: 'help-circle-outline', iconColor: '#0284C7', title: 'Help & Support',    subtitle: 'FAQ, Terms & Policies', onPress: () => navigation.navigate('HelpSupport') },
   ];
 
   const displayName = user?.full_name ?? 'Admin';
