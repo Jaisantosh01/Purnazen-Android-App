@@ -13,6 +13,12 @@ import { ENDPOINTS } from '../constants/apiEndpoints';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 
+const CONTENT_TYPES = {
+  faq: { title: 'FAQ', icon: 'frequently-asked-questions', subtitle: 'Frequently asked questions' },
+  terms: { title: 'Terms & Conditions', icon: 'file-document-outline', subtitle: 'Terms of service' },
+  privacy: { title: 'Privacy Policy', icon: 'shield-lock-outline', subtitle: 'Data privacy notice' },
+};
+
 const parseInlineTags = (text, colors) => {
   const parts = [];
   let remaining = text;
@@ -102,12 +108,6 @@ const renderStyledContent = (html, colors) => {
   return elements;
 };
 
-const CONTENT_TYPES = {
-  faq: { title: 'FAQ', icon: 'frequently-asked-questions', subtitle: 'Frequently asked questions' },
-  terms: { title: 'Terms & Conditions', icon: 'file-document-outline', subtitle: 'Terms of service' },
-  privacy: { title: 'Privacy Policy', icon: 'shield-lock-outline', subtitle: 'Data privacy notice' },
-};
-
 const ContentViewerScreen = ({ route, navigation }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -129,12 +129,15 @@ const ContentViewerScreen = ({ route, navigation }) => {
       apiClient.get(ENDPOINTS.ROLES)
         .then(res => {
           const roles = Array.isArray(res?.data) ? res.data : [];
-          const adminRole = roles.find(r => r.name?.toLowerCase() === 'admin');
-          const params = { type, is_active: true };
-          if (adminRole?.id) params.role_id = adminRole.id;
-          return apiClient.get(ENDPOINTS.CONTENT_PAGES, { params });
+          const doctorRole = roles.find(r => r.name?.toLowerCase() === 'doctor');
+          const params = {};
+          if (doctorRole?.id) params.role_id = doctorRole.id;
+          return apiClient.get(`${ENDPOINTS.CONTENT_PAGES}/${type}`, { params });
         })
-        .then(res => setData(Array.isArray(res?.data) ? res.data : []))
+        .then(res => {
+          const item = res?.data;
+          setData(item ? [item] : []);
+        })
         .catch(() => setData([]))
         .finally(() => setLoading(false));
     }
@@ -192,11 +195,11 @@ const ContentViewerScreen = ({ route, navigation }) => {
             data.map((item) => (
               <View key={item.id} style={styles.contentCard}>
                 <Text style={styles.contentTitle}>{item.title || meta.title}</Text>
-                <View style={styles.contentVersion}>
-                  <Text style={styles.contentVersionText}>v{item.version || '1.0'}</Text>
-                  <View style={[styles.activeDot, { backgroundColor: item.isActive ? '#22C55E' : colors.textMuted }]} />
-                  <Text style={styles.contentStatus}>{item.isActive ? 'Active' : 'Inactive'}</Text>
-                </View>
+                {item.version && (
+                  <View style={styles.versionBadge}>
+                    <Text style={styles.versionText}>v{item.version}</Text>
+                  </View>
+                )}
                 {item.content && (
                   <View style={styles.contentBody}>
                     {renderStyledContent(item.content, colors)}
@@ -244,10 +247,8 @@ const makeStyles = colors => StyleSheet.create({
     borderColor: colors.border,
   },
   contentTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginBottom: 6 },
-  contentVersion: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
-  contentVersionText: { fontSize: 12, color: colors.textMuted },
-  activeDot: { width: 8, height: 8, borderRadius: 4 },
-  contentStatus: { fontSize: 12, color: colors.textMuted },
+  versionBadge: { alignSelf: 'flex-start', marginBottom: 12 },
+  versionText: { fontSize: 11, color: colors.textMuted, backgroundColor: colors.surfaceMuted, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, overflow: 'hidden' },
   contentBody: { marginTop: 4 },
 });
 

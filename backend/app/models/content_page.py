@@ -8,7 +8,7 @@ from app.db.base_class import Base
 from app.models.role import Role
 
 
-ALLOWED_CONTENT_TYPES = {"terms", "privacy"}
+ALLOWED_CONTENT_TYPES = {"terms", "privacy", "faq"}
 
 
 class ContentPage(Base):

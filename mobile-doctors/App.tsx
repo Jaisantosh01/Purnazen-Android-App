@@ -59,6 +59,10 @@ import SettingsScreen from './src/screens/SettingsScreen';
 // @ts-ignore
 import ApplyLeaveScreen from './src/screens/ApplyLeaveScreen';
 // @ts-ignore
+import HelpSupportScreen from './src/screens/HelpSupportScreen';
+// @ts-ignore
+import ContentViewerScreen from './src/screens/ContentViewerScreen';
+// @ts-ignore
 import LeaveHistoryScreen from './src/screens/LeaveHistoryScreen';
 // @ts-ignore
 import LeaveDetailScreen from './src/screens/LeaveDetailScreen';
@@ -134,6 +138,8 @@ function ProfileStackNavigator() {
     <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
       <ProfileStack.Screen name="ProfileMain" component={ProfileScreen} />
       <ProfileStack.Screen name="Settings" component={SettingsScreen} />
+      <ProfileStack.Screen name="HelpSupport" component={HelpSupportScreen} />
+      <ProfileStack.Screen name="ContentViewer" component={ContentViewerScreen} />
     </ProfileStack.Navigator>
   );
 }
