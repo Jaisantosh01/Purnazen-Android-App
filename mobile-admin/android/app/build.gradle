@@ -90,14 +90,38 @@ android {
     // Windows only: react-native-gesture-handler 3.x codegen object paths exceed
     // MAX_PATH (260), and the ninja bundled with the default cmake 3.22.1 (ninja
     // 1.10.2) ignores the Windows LongPathsEnabled opt-in — the build dies with
-    // "Filename longer than 260 characters". cmake 3.31.4 ships ninja 1.12.1,
+    // "Filename longer than 260 characters". cmake >= 3.25 ships ninja 1.12+,
     // which honors it. Linux/macOS (incl. CI) keep the AGP default.
+    //
+    // The version is resolved from whatever the SDK actually has installed
+    // rather than hard-pinned: the SDK manager replaces cmake point releases
+    // (3.31.4 -> 3.31.6), and a pin to a removed version fails every build
+    // with CXX1300 "CMake was not found in SDK".
     if (System.getProperty('os.name').toLowerCase().contains('windows')) {
-        externalNativeBuild {
-            cmake {
-                version "3.31.4"
+        def resolveSdkCmake = {
+            def props = new Properties()
+            def lp = rootProject.file('local.properties')
+            if (lp.exists()) lp.withInputStream { props.load(it) }
+            def sdkPath = props.getProperty('sdk.dir') ?: System.getenv('ANDROID_HOME') ?: System.getenv('ANDROID_SDK_ROOT')
+            if (sdkPath == null) return null
+            def versions = new File(sdkPath, 'cmake').listFiles()
+                ?.findAll { it.isDirectory() && it.name ==~ /\d+\.\d+\.\d+/ }
+                ?.collect { it.name.split('\\.').collect { p -> p.toInteger() } }
+                ?.findAll { it[0] > 3 || (it[0] == 3 && it[1] >= 25) }
+            if (!versions) return null
+            return versions.sort().last().join('.')
+        }
+        def sdkCmake = resolveSdkCmake()
+        if (sdkCmake != null) {
+            externalNativeBuild {
+                cmake {
+                    version sdkCmake
+                }
             }
         }
+        // No cmake >= 3.25 in the SDK: fall back to the AGP default (3.22.1)
+        // rather than failing configuration outright — long paths may still
+        // break the build, but short-path setups keep working.
     }
 
     namespace "com.purnazen.admin"

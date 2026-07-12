@@ -20,7 +20,11 @@ jest.mock('../../services/wellnessService', () => ({
   }),
 }));
 
-const navigation = { navigate: jest.fn(), goBack: jest.fn() };
+const navigation = {
+  navigate: jest.fn(),
+  goBack: jest.fn(),
+  addListener: jest.fn(() => jest.fn()),
+};
 
 describe('HomeScreen', () => {
   it('renders without crashing', async () => {

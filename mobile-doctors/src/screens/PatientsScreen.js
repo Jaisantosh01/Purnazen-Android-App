@@ -140,7 +140,7 @@ const PatientsScreen = ({ navigation }) => {
   return (
     <View style={styles.root}>
       {/* Header */}
-      <ScreenHeader title="Patients" showBack={false} />
+      <ScreenHeader title="Patients" showBack={false} underColor={colors.card} />
 
       {/* Search Bar */}
       <View style={styles.searchBarContainer}>

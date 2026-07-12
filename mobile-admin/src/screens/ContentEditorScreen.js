@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,108 +15,21 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
-import { CONTENT_TABS, FORMAT_ACTIONS, TAG_MAP } from '../constants/content';
+import { CONTENT_TABS, FORMAT_ACTIONS } from '../constants/content';
+import { renderRichText, normalizeHtml } from '../utils/richText';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 
-const renderFormatted = (html, colors) => {
-  if (!html) return null;
-  const raw = [];
-  let remaining = html;
-  let key = 0;
-
-  while (remaining.length > 0) {
-    const tagMatches = ['<b>', '<i>', '<h3>', '<small>', '<li>', '<br>', '<br/>', '<br />', '</b>', '</i>', '</h3>', '</small>', '</li>', '<ul>', '</ul>']
-      .map(t => ({ tag: t, idx: remaining.indexOf(t) }))
-      .filter(m => m.idx !== -1)
-      .sort((a, b) => a.idx - b.idx);
-
-    if (tagMatches.length === 0) {
-      raw.push({ type: 'text', el: <Text key={key++} style={{ color: colors.textPrimary }}>{remaining}</Text> });
-      break;
-    }
-
-    const { tag, idx } = tagMatches[0];
-    if (idx > 0) raw.push({ type: 'text', el: <Text key={key++} style={{ color: colors.textPrimary }}>{remaining.substring(0, idx)}</Text> });
-
-    remaining = remaining.substring(idx + tag.length);
-
-    if (tag === '<b>') {
-      const e = remaining.indexOf('</b>');
-      raw.push({ type: 'text', el: <Text key={key++} style={{ fontWeight: '700', color: colors.textPrimary }}>{e === -1 ? remaining : remaining.substring(0, e)}</Text> });
-      if (e !== -1) remaining = remaining.substring(e + 4);
-    } else if (tag === '<i>') {
-      const e = remaining.indexOf('</i>');
-      raw.push({ type: 'text', el: <Text key={key++} style={{ fontStyle: 'italic', color: colors.textPrimary }}>{e === -1 ? remaining : remaining.substring(0, e)}</Text> });
-      if (e !== -1) remaining = remaining.substring(e + 4);
-    } else if (tag === '<h3>') {
-      const e = remaining.indexOf('</h3>');
-      raw.push({ type: 'text', el: <Text key={key++} style={{ fontSize: 18, fontWeight: '700', color: colors.textPrimary, lineHeight: 26 }}>{e === -1 ? remaining : remaining.substring(0, e)}</Text> });
-      if (e !== -1) remaining = remaining.substring(e + 5);
-    } else if (tag === '<small>') {
-      const e = remaining.indexOf('</small>');
-      raw.push({ type: 'text', el: <Text key={key++} style={{ fontSize: 11, color: colors.textPrimary }}>{e === -1 ? remaining : remaining.substring(0, e)}</Text> });
-      if (e !== -1) remaining = remaining.substring(e + 8);
-    } else if (tag === '<br>' || tag === '<br/>' || tag === '<br />') {
-      raw.push({ type: 'text', el: <Text key={key++}>{'\n'}</Text> });
-    } else if (tag === '<li>') {
-      const e = remaining.indexOf('</li>');
-      raw.push({ type: 'view', el:
-        <View key={key++} style={{ flexDirection: 'row', marginBottom: 4 }}>
-          <Text style={{ color: colors.textPrimary, marginRight: 6 }}>{'\u2022'}</Text>
-          <Text style={{ color: colors.textPrimary, flex: 1 }}>{e === -1 ? remaining : remaining.substring(0, e)}</Text>
-        </View>
-      });
-      if (e !== -1) remaining = remaining.substring(e + 5);
-    }
-  }
-
-  if (raw.length === 0) return null;
-
-  const grouped = [];
-  let textBuffer = [];
-
-  for (const item of raw) {
-    if (item.type === 'text') {
-      textBuffer.push(item.el);
-    } else {
-      if (textBuffer.length > 0) {
-        grouped.push(<Text key={`g-${key++}`}>{textBuffer}</Text>);
-        textBuffer = [];
-      }
-      grouped.push(item.el);
-    }
-  }
-  if (textBuffer.length > 0) {
-    grouped.push(<Text key={`g-${key++}`}>{textBuffer}</Text>);
-  }
-
-  return grouped;
+// Inline styles wrap the selected text; line styles wrap whole lines.
+const INLINE_ACTIONS = {
+  bold: { open: '<b>', close: '</b>' },
+  italic: { open: '<i>', close: '</i>' },
 };
 
-const htmlToPlain = (html) => html ? html.replace(/<[^>]*>/g, '') : '';
-
-const mapPos = (html, plainPos) => {
-  let p = 0;
-  for (let i = 0; i < html.length; i++) {
-    if (html[i] === '<') {
-      const close = html.indexOf('>', i);
-      if (close !== -1) { i = close; continue; }
-    }
-    if (p === plainPos) return i;
-    p++;
-  }
-  return html.length;
-};
-
-const stripEmptyTags = (html) => {
-  let prev;
-  let result = html;
-  do {
-    prev = result;
-    result = result.replace(/<(\w+)><\/\1>/g, '');
-  } while (result !== prev);
-  return result;
+const LINE_ACTIONS = {
+  heading: { open: '<h3>', close: '</h3>' },
+  small: { open: '<small>', close: '</small>' },
+  bullet: { open: '<li>', close: '</li>' },
 };
 
 const ContentEditorScreen = ({ route, navigation }) => {
@@ -134,12 +47,10 @@ const ContentEditorScreen = ({ route, navigation }) => {
   const [roles, setRoles] = useState(allRoles || []);
   const [contentTypePicker, setContentTypePicker] = useState(false);
   const [rolePicker, setRolePicker] = useState(false);
-  const [activeFormats, setActiveFormats] = useState({});
+  const [editorTab, setEditorTab] = useState('write');
   const [saving, setSaving] = useState(false);
 
-  const contentRef = useRef(null);
   const selRef = useRef({ start: 0, end: 0 });
-  const displayContent = useMemo(() => htmlToPlain(content), [content]);
 
   useEffect(() => {
     if (editingItem) {
@@ -147,7 +58,7 @@ const ContentEditorScreen = ({ route, navigation }) => {
       setSelectedRoleIds(editingItem.roleId ? [editingItem.roleId] : []);
       setIsAllSelected(false);
       setTitle(editingItem.title);
-      setContent(editingItem.content);
+      setContent(normalizeHtml(editingItem.content));
       setVersion(editingItem.version || '1.0');
       setIsActive(editingItem.isActive ?? true);
     }
@@ -156,6 +67,7 @@ const ContentEditorScreen = ({ route, navigation }) => {
         .then(res => setRoles(Array.isArray(res?.data) ? res.data : []))
         .catch(() => {});
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const getRoleName = (roleId) => {
@@ -169,65 +81,66 @@ const ContentEditorScreen = ({ route, navigation }) => {
     setSelectedRoleIds(prev => prev.includes(roleId) ? prev.filter(r => r !== roleId) : [...prev, roleId]);
   };
 
-  const handleFormatPress = (actionKey) => {
+  const clampSelection = () => {
     const { start, end } = selRef.current;
-    const htmlStart = mapPos(content, start);
-    const htmlEnd = mapPos(content, end);
+    const s = Math.max(0, Math.min(start, content.length));
+    const e = Math.max(s, Math.min(end, content.length));
+    return { start: s, end: e };
+  };
 
-    if (actionKey === 'bullet') {
-      const selected = content.substring(htmlStart, htmlEnd);
-      const tagOpen = '<li>', tagClose = '</li>';
-      const insertion = tagOpen + (selected || 'item') + tagClose;
-      setContent(content.substring(0, htmlStart) + insertion + content.substring(htmlEnd));
+  // Wraps the selection in open/close, or unwraps if it is already wrapped.
+  const applyInline = ({ open, close }) => {
+    const { start, end } = clampSelection();
+    if (start === end) {
+      // No selection: insert a placeholder the user can overwrite.
+      const insertion = `${open}text${close}`;
+      setContent(content.substring(0, start) + insertion + content.substring(end));
       return;
     }
-
-    setActiveFormats(prev => {
-      const next = { ...prev };
-      if (next[actionKey]) delete next[actionKey];
-      else next[actionKey] = true;
-      return next;
-    });
-
-    if (start !== end) {
-      const { open, close } = TAG_MAP[actionKey] || {};
-      if (open && close) {
-        const selected = content.substring(htmlStart, htmlEnd);
-        setContent(content.substring(0, htmlStart) + open + selected + close + content.substring(htmlEnd));
-      }
+    const selected = content.substring(start, end);
+    if (selected.startsWith(open) && selected.endsWith(close)) {
+      setContent(content.substring(0, start) + selected.slice(open.length, selected.length - close.length) + content.substring(end));
+    } else if (
+      content.substring(Math.max(0, start - open.length), start) === open &&
+      content.substring(end, end + close.length) === close
+    ) {
+      setContent(content.substring(0, start - open.length) + selected + content.substring(end + close.length));
+    } else {
+      setContent(content.substring(0, start) + open + selected + close + content.substring(end));
     }
   };
 
-  const handleChangeText = (newPlain) => {
-    const oldPlain = htmlToPlain(content);
-    if (oldPlain === newPlain) return;
+  // Toggles a line-level style on every line touched by the selection.
+  const applyLine = ({ open, close }) => {
+    const { start, end } = clampSelection();
+    const lineStart = content.lastIndexOf('\n', Math.max(0, start - 1)) + 1;
+    let lineEnd = content.indexOf('\n', end);
+    if (lineEnd === -1) lineEnd = content.length;
 
-    let diffStart = 0;
-    while (diffStart < oldPlain.length && diffStart < newPlain.length && oldPlain[diffStart] === newPlain[diffStart]) {
-      diffStart++;
-    }
+    const lines = content.substring(lineStart, lineEnd).split('\n');
+    const nonEmpty = lines.filter(l => l.trim());
+    const allWrapped = nonEmpty.length > 0 &&
+      nonEmpty.every(l => l.trim().startsWith(open) && l.trim().endsWith(close));
 
-    let diffEndOld = oldPlain.length;
-    let diffEndNew = newPlain.length;
-    while (diffEndOld > diffStart && diffEndNew > diffStart && oldPlain[diffEndOld - 1] === newPlain[diffEndNew - 1]) {
-      diffEndOld--;
-      diffEndNew--;
-    }
-
-    const htmlStart = mapPos(content, diffStart);
-    const removedLen = diffEndOld - diffStart;
-    const htmlEnd = mapPos(content, diffStart + removedLen);
-    const inserted = newPlain.substring(diffStart, diffEndNew);
-
-    const activeKeys = Object.keys(activeFormats);
-    let wrapped = inserted;
-    activeKeys.forEach(k => {
-      const t = TAG_MAP[k];
-      if (t && k !== 'bullet') wrapped = t.open + wrapped + t.close;
+    const newLines = lines.map(l => {
+      const t = l.trim();
+      if (!t) return l;
+      const unwrapped = t.startsWith(open) && t.endsWith(close)
+        ? t.slice(open.length, t.length - close.length)
+        : t;
+      return allWrapped ? unwrapped : open + unwrapped + close;
     });
 
-    const result = content.substring(0, htmlStart) + wrapped + content.substring(htmlEnd);
-    setContent(stripEmptyTags(result));
+    setContent(content.substring(0, lineStart) + newLines.join('\n') + content.substring(lineEnd));
+  };
+
+  const handleFormatPress = (actionKey) => {
+    if (INLINE_ACTIONS[actionKey]) applyInline(INLINE_ACTIONS[actionKey]);
+    else if (LINE_ACTIONS[actionKey]) applyLine(LINE_ACTIONS[actionKey]);
+  };
+
+  const handleSelectionChange = (e) => {
+    selRef.current = e.nativeEvent.selection;
   };
 
   const canSave = title.trim().length > 0 && content.trim().length > 0 && (isAllSelected || selectedRoleIds.length > 0);
@@ -235,7 +148,13 @@ const ContentEditorScreen = ({ route, navigation }) => {
   const handleSave = () => {
     if (!canSave) return;
     setSaving(true);
-    const basePayload = { type: contentType, title: title.trim(), content: content.trim(), version: version || '1.0', is_active: isActive };
+    const basePayload = {
+      type: contentType,
+      title: title.trim(),
+      content: normalizeHtml(content).trim(),
+      version: version || '1.0',
+      is_active: isActive,
+    };
 
     if (editingItem) {
       const roleId = isAllSelected ? null : selectedRoleIds[0];
@@ -253,13 +172,10 @@ const ContentEditorScreen = ({ route, navigation }) => {
     }
   };
 
-  const formattedContent = useMemo(() => renderFormatted(content, colors), [content, colors]);
-  const formatIndicator = Object.keys(activeFormats).length > 0;
-
-  const handleSelectionChange = (e) => {
-    const s = e.nativeEvent.selection;
-    selRef.current = s;
-  };
+  const preview = useMemo(
+    () => (editorTab === 'preview' ? renderRichText(content, colors) : null),
+    [editorTab, content, colors],
+  );
 
   return (
     <View style={styles.root}>
@@ -291,43 +207,55 @@ const ContentEditorScreen = ({ route, navigation }) => {
           <TextInput style={[styles.input, { width: 120 }]} placeholder="1.0" placeholderTextColor={colors.textMuted} value={version} onChangeText={setVersion} />
 
           <Text style={styles.label}>Content <Text style={{ color: '#EF4444' }}>*</Text></Text>
-          <View style={styles.toolbar}>
-            {FORMAT_ACTIONS.map(action => {
-              const isOn = activeFormats[action.key];
-              return (
-                <TouchableOpacity key={action.key} style={[styles.toolbarBtn, isOn && styles.toolbarBtnOn]} onPress={() => handleFormatPress(action.key)}>
-                  <MCIcon name={action.icon} size={20} color={isOn ? '#fff' : colors.primary} />
-                </TouchableOpacity>
-              );
-            })}
-            {formatIndicator && (
-              <View style={{ flexDirection: 'row', marginLeft: 4, gap: 2 }}>
-                {Object.keys(activeFormats).map(k => (
-                  <View key={k} style={styles.formatPill}>
-                    <Text style={styles.formatPillText}>{k === 'bold' ? 'B' : k === 'italic' ? 'I' : k === 'heading' ? 'H' : k === 'small' ? 'S' : ''}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
+
+          <View style={styles.editorTabBar}>
+            {['write', 'preview'].map(tab => (
+              <TouchableOpacity
+                key={tab}
+                style={[styles.editorTab, editorTab === tab && styles.editorTabActive]}
+                onPress={() => setEditorTab(tab)}
+              >
+                <MCIcon name={tab === 'write' ? 'pencil-outline' : 'eye-outline'} size={15} color={editorTab === tab ? colors.primary : colors.textMuted} />
+                <Text style={[styles.editorTabText, editorTab === tab && styles.editorTabTextActive]}>
+                  {tab === 'write' ? 'Write' : 'Preview'}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
 
-          <View style={styles.editorContainer}>
-            <View style={styles.editorBackdrop} pointerEvents="none">
-              {formattedContent || (
-                <Text style={[styles.editorText, { color: colors.textMuted }]}>Write content here...</Text>
-              )}
+          {editorTab === 'write' ? (
+            <>
+              <View style={styles.toolbar}>
+                {FORMAT_ACTIONS.map(action => (
+                  <TouchableOpacity key={action.key} style={styles.toolbarBtn} onPress={() => handleFormatPress(action.key)}>
+                    <MCIcon name={action.icon} size={20} color={colors.primary} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <TextInput
+                style={styles.editorInput}
+                value={content}
+                onChangeText={setContent}
+                onSelectionChange={handleSelectionChange}
+                placeholder="Write content here..."
+                placeholderTextColor={colors.textMuted}
+                multiline
+                textAlignVertical="top"
+                cursorColor={colors.primary}
+                autoCapitalize="sentences"
+                autoCorrect={false}
+              />
+              <Text style={styles.editorHint}>
+                Select text, then tap a style. Use Preview to see the formatted result.
+              </Text>
+            </>
+          ) : (
+            <View style={styles.previewBox}>
+              {content.trim()
+                ? preview
+                : <Text style={{ color: colors.textMuted, fontSize: 14 }}>Nothing to preview yet.</Text>}
             </View>
-            <TextInput
-              ref={contentRef}
-              style={styles.editorInput}
-              value={displayContent}
-              onChangeText={handleChangeText}
-              onSelectionChange={handleSelectionChange}
-              multiline
-              textAlignVertical="top"
-              cursorColor={colors.primary}
-            />
-          </View>
+          )}
 
           <View style={styles.switchRow}>
             <Text style={styles.switchLabel}>Active</Text>
@@ -409,15 +337,19 @@ const makeStyles = colors => StyleSheet.create({
   input: { backgroundColor: colors.surfaceMuted, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: colors.textPrimary, borderWidth: 1, borderColor: colors.border },
   picker: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.surfaceMuted, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: colors.border },
   pickerText: { flex: 1, fontSize: 14, color: colors.textPrimary },
+
+  editorTabBar: { flexDirection: 'row', gap: 6, marginBottom: 8 },
+  editorTab: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
+  editorTabActive: { borderColor: colors.primary, backgroundColor: colors.primaryFaint },
+  editorTabText: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
+  editorTabTextActive: { color: colors.primary },
+
   toolbar: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.surfaceMuted, borderRadius: 8, padding: 4, marginBottom: 8, borderWidth: 1, borderColor: colors.border },
   toolbarBtn: { width: 36, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  toolbarBtnOn: { backgroundColor: colors.primary, borderRadius: 8 },
-  formatPill: { backgroundColor: colors.primaryLight, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 2 },
-  formatPillText: { fontSize: 10, fontWeight: '700', color: colors.primary },
-  editorContainer: { position: 'relative', minHeight: 180, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceMuted, overflow: 'hidden' },
-  editorBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, paddingHorizontal: 12, paddingVertical: 10 },
-  editorText: { fontSize: 14, lineHeight: 22 },
-  editorInput: { paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, lineHeight: 22, color: 'transparent', minHeight: 180, textAlignVertical: 'top' },
+  editorInput: { backgroundColor: colors.surfaceMuted, borderRadius: 8, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, lineHeight: 22, color: colors.textPrimary, minHeight: 180, textAlignVertical: 'top' },
+  editorHint: { fontSize: 11, color: colors.textMuted, marginTop: 6 },
+  previewBox: { backgroundColor: colors.surfaceMuted, borderRadius: 8, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 12, paddingVertical: 10, minHeight: 180 },
+
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 },
   switchLabel: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
   modalButtons: { flexDirection: 'row', gap: 10, marginTop: 20, marginBottom: 16 },
