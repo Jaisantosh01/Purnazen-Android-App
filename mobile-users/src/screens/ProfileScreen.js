@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
+  Linking,
 } from 'react-native';
 import { showAlert } from '../utils/alert';
 // @ts-ignore
@@ -17,6 +18,8 @@ import { StatsSkeleton } from '../components/SkeletonLoader';
 import { COLORS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
 import { useHeaderTopPadding } from '../components/ScreenHeader';
+import { checkForUpdate, FORCE_MARKER } from '../services/updateService';
+import { APP_VERSION } from '../config';
 
 // Icon backgrounds are a translucent wash of the icon hue so the tint reads
 // correctly over both light and dark cards (matches Settings/Notifications).
@@ -29,6 +32,7 @@ const MENU_ITEMS = [
   { icon: 'credit-card',         iconColor: COLORS.accent,       title: 'Subscriptions',   subtitle: 'Manage your plan',          screen: 'Subscriptions' },
   { icon: 'bell-outline',        iconColor: '#ea580c',           title: 'Notifications',   subtitle: 'Manage alerts',             screen: 'Notifications' },
   { icon: 'cog-outline',         iconColor: '#6B7280',           title: 'Settings',        subtitle: 'App preferences',           screen: 'Settings' },
+  { icon: 'cloud-download-outline', iconColor: '#0D9488',       title: 'Check for Updates', subtitle: null,     screen: null, onPressKey: 'checkUpdate' },
   { icon: 'help-circle-outline', iconColor: '#0284c7',           title: 'Help & Support',  subtitle: 'Get assistance',            screen: 'HelpSupport' },
 ];
 
@@ -47,6 +51,46 @@ const ProfileScreen = ({ navigation }) => {
       .catch(() => setStats(null))
       .finally(() => setStatsLoading(false));
   }, []);
+
+  const [updateChecking, setUpdateChecking] = useState(false);
+
+  const handleCheckForUpdate = async () => {
+    if (updateChecking) return;
+    setUpdateChecking(true);
+    try {
+      const u = await checkForUpdate({ force: true });
+      if (!u) {
+        showAlert('Up to date', `You're on the latest version (v${APP_VERSION}).`);
+        return;
+      }
+      const openApk = () => { Linking.openURL(u.apkUrl).catch(() => {}); };
+      const notes = (u.notes || '')
+        .split('\n')
+        .filter(l => !l.includes(FORCE_MARKER))
+        .join('\n')
+        .trim();
+      const body =
+        `Version ${u.version} is available${u.current ? ` (you have v${u.current})` : ''}.` +
+        (u.forced ? '\n\nThis is a critical update and is required to continue.' : '') +
+        (notes ? `\n\n${notes}` : '');
+      const buttons = u.forced
+        ? [{ text: 'Update now', onPress: openApk }]
+        : [
+            { text: 'Later', style: 'cancel' },
+            { text: 'Update now', onPress: openApk },
+          ];
+      showAlert(
+        u.forced ? 'Update required' : 'Update available',
+        body,
+        buttons,
+        { cancelable: !u.forced },
+      );
+    } catch {
+      showAlert('Check for Updates', 'Could not check for updates. Please try again later.');
+    } finally {
+      setUpdateChecking(false);
+    }
+  };
 
   const handleLogout = () => {
     showAlert(
@@ -127,17 +171,20 @@ const ProfileScreen = ({ navigation }) => {
         <View style={styles.menuSection}>
           {MENU_ITEMS.map((item) => (
             <TouchableOpacity
-              key={item.screen}
+              key={item.screen || item.title}
               style={styles.menuCard}
               activeOpacity={0.7}
-              onPress={() => navigation.navigate(item.screen)}
+              onPress={() => {
+                if (item.onPressKey === 'checkUpdate') return handleCheckForUpdate();
+                if (item.screen) navigation.navigate(item.screen);
+              }}
             >
               <View style={[styles.menuIconCircle, { backgroundColor: soft(item.iconColor) }]}>
                 <MCIcon name={item.icon} size={20} color={item.iconColor} />
               </View>
               <View style={styles.menuInfo}>
                 <Text style={styles.menuTitle}>{item.title}</Text>
-                <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+                <Text style={styles.menuSubtitle}>{item.subtitle || (item.onPressKey === 'checkUpdate' ? (updateChecking ? 'Checking\u2026' : `Current v${APP_VERSION}`) : '')}</Text>
               </View>
               <MCIcon name="chevron-right" size={20} color={colors.borderStrong} />
             </TouchableOpacity>

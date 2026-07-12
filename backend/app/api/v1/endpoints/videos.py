@@ -11,8 +11,7 @@ from app.schemas.video import VideoCreate, VideoGroupCreate, VideoGroupUpdate, V
 from app.services.video_service import VideoService
 from app.utils.azure_storage import (
     create_blob_directory,
-    list_blob_directories,
-    list_blob_subdirectories,
+    list_blob_children,
     upload_blob_file,
 )
 from app.utils.responses import error_response, success_response
@@ -33,15 +32,17 @@ class CreateDirectoryRequest(BaseModel):
 
 @router.get(
     "/storage/directories",
-    summary="List blob storage directories",
-    description="List top-level directories or subdirectories under a given parent path.",
+    summary="List blob storage directories and files",
+    description="List the directories and files directly under a given parent path.",
 )
 def list_directories(
     parent: str = Query(default="", description="Parent directory path (e.g. 'videos/')"),
     _user: User = Depends(require_role("admin")),
 ):
-    dirs = list_blob_subdirectories(parent) if parent else list_blob_directories()
-    return success_response("Directories fetched successfully", {"directories": dirs})
+    dirs, files = list_blob_children(parent)
+    return success_response(
+        "Directories fetched successfully", {"directories": dirs, "files": files}
+    )
 
 
 @router.post(
@@ -85,7 +86,9 @@ async def upload_video(
     if not file.filename:
         return error_response("No file provided", 400)
 
-    dir_path = directory if directory.endswith("/") else directory + "/"
+    dir_path = directory.strip().lstrip("/")
+    if dir_path and not dir_path.endswith("/"):
+        dir_path += "/"
     blob_path = f"{dir_path}{file.filename}"
 
     data = await file.read()

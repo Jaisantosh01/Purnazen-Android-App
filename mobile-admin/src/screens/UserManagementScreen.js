@@ -219,7 +219,7 @@ const makeStyles = colors => StyleSheet.create({
   searchIcon: { marginRight: 10 },
   searchInput: { flex: 1, fontSize: 14, color: colors.textPrimary },
   tabsContainer: { paddingHorizontal: 12, marginBottom: 16 },
-  tabsContent: { gap: 10 },
+  tabsContent: { gap: 10, paddingRight: 16 },
   tab: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, borderWidth: 1, backgroundColor: colors.surfaceMuted },
   tabText: { fontWeight: '600', color: colors.textSecondary },
   listContainer: { paddingHorizontal: 12, paddingBottom: 16 },

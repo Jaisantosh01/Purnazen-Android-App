@@ -1,0 +1,166 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
+import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
+import apiClient from '../api/client';
+import { ENDPOINTS } from '../constants/apiEndpoints';
+import { renderRichText } from '../utils/richText';
+import useTheme from '../hooks/useTheme';
+import ScreenHeader from '../components/ScreenHeader';
+
+const CONTENT_TYPES = {
+  faq: { title: 'FAQ', icon: 'frequently-asked-questions', subtitle: 'Frequently asked questions' },
+  terms: { title: 'Terms & Conditions', icon: 'file-document-outline', subtitle: 'Terms of service' },
+  privacy: { title: 'Privacy Policy', icon: 'shield-lock-outline', subtitle: 'Data privacy notice' },
+};
+
+const ContentViewerScreen = ({ route, navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const { type } = route.params;
+  const meta = CONTENT_TYPES[type] || CONTENT_TYPES.faq;
+
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [expandedIds, setExpandedIds] = useState({});
+
+  useEffect(() => {
+    setLoading(true);
+    if (type === 'faq') {
+      apiClient.get(ENDPOINTS.SUPPORT_FAQS)
+        .then(res => setData(Array.isArray(res) ? res : []))
+        .catch(() => setData([]))
+        .finally(() => setLoading(false));
+    } else {
+      apiClient.get(ENDPOINTS.ROLES)
+        .then(res => {
+          const roles = Array.isArray(res?.data) ? res.data : [];
+          const adminRole = roles.find(r => r.name?.toLowerCase() === 'admin');
+          const params = { type, is_active: true };
+          if (adminRole?.id) params.role_id = adminRole.id;
+          return apiClient.get(ENDPOINTS.CONTENT_PAGES, { params });
+        })
+        .then(res => setData(Array.isArray(res?.data) ? res.data : []))
+        .catch(() => setData([]))
+        .finally(() => setLoading(false));
+    }
+  }, [type]);
+
+  const toggleExpand = (id) => {
+    setExpandedIds(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  return (
+    <View style={styles.root}>
+      <ScreenHeader
+        title={meta.title}
+        subtitle={meta.subtitle}
+        onBack={() => navigation.goBack()}
+      />
+
+      {loading ? (
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : type === 'faq' ? (
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          {data.length === 0 ? (
+            <Text style={styles.emptyText}>No FAQs available</Text>
+          ) : (
+            data.map((item) => {
+              const isExpanded = expandedIds[item.id];
+              return (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.faqCard}
+                  activeOpacity={0.8}
+                  onPress={() => toggleExpand(item.id)}
+                >
+                  <View style={styles.faqHeader}>
+                    <Text style={styles.faqQuestion} numberOfLines={isExpanded ? undefined : 2}>{item.question}</Text>
+                    <MCIcon name={isExpanded ? 'chevron-up' : 'chevron-down'} size={20} color={colors.textMuted} />
+                  </View>
+                  {isExpanded && (
+                    <View style={styles.faqBody}>
+                      <Text style={styles.faqAnswer}>{item.answer}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })
+          )}
+        </ScrollView>
+      ) : (
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          {data.length === 0 ? (
+            <Text style={styles.emptyText}>No data</Text>
+          ) : (
+            data.map((item) => (
+              <View key={item.id} style={styles.contentCard}>
+                <Text style={styles.contentTitle}>{item.title || meta.title}</Text>
+                <View style={styles.contentVersion}>
+                  <Text style={styles.contentVersionText}>v{item.version || '1.0'}</Text>
+                  <View style={[styles.activeDot, { backgroundColor: item.isActive ? '#22C55E' : colors.textMuted }]} />
+                  <Text style={styles.contentStatus}>{item.isActive ? 'Active' : 'Inactive'}</Text>
+                </View>
+                {item.content && (
+                  <View style={styles.contentBody}>
+                    {renderRichText(item.content, colors)}
+                  </View>
+                )}
+              </View>
+            ))
+          )}
+        </ScrollView>
+      )}
+    </View>
+  );
+};
+
+const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
+  loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  content: { padding: 16, paddingBottom: 32 },
+  emptyText: { textAlign: 'center', marginTop: 40, fontSize: 15, color: colors.textMuted },
+
+  faqCard: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    marginBottom: 8,
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  faqHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    gap: 8,
+  },
+  faqQuestion: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.textPrimary, lineHeight: 20 },
+  faqBody: { paddingHorizontal: 14, paddingBottom: 14 },
+  faqAnswer: { fontSize: 13, color: colors.textSecondary, lineHeight: 20 },
+
+  contentCard: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  contentTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginBottom: 6 },
+  contentVersion: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
+  contentVersionText: { fontSize: 12, color: colors.textMuted },
+  activeDot: { width: 8, height: 8, borderRadius: 4 },
+  contentStatus: { fontSize: 12, color: colors.textMuted },
+  contentBody: { marginTop: 4 },
+});
+
+export default ContentViewerScreen;

@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 
 from azure.storage.blob import (
+    BlobPrefix,
     BlobServiceClient,
     BlobSasPermissions,
     ContentSettings,
@@ -113,23 +114,43 @@ def generate_video_sas_url(blob_name: str) -> str:
     return generate_sas_url(blob_name, expiry_minutes=settings.AZURE_VIDEO_SAS_EXPIRY_MINUTES)
 
 
-def list_blob_directories(prefix: str = "") -> list[str]:
-    """List virtual directories (prefixes) in the blob container.
+def list_blob_children(prefix: str = "") -> tuple[list[str], list[dict]]:
+    """List the virtual directories and files directly under *prefix*.
 
-    Uses a trailing ``/`` as the delimiter so only virtual directories at the
-    given prefix level are returned.
+    Uses ``walk_blobs`` with a ``/`` delimiter so only the immediate children
+    of the given prefix are returned (``list_blobs`` has no delimiter support).
+    Zero-length ``.../`` marker blobs that simulate directories are excluded
+    from the file list.
 
-    Returns a sorted list of directory paths (e.g. ``["videos/", "face_scans/"]``).
+    Returns ``(directories, files)`` where directories are full paths like
+    ``["videos/yoga/"]`` and files are dicts with ``name``, ``size`` and
+    ``lastModified``.
     """
     client = get_blob_service_client()
     if not client:
-        return []
+        return [], []
     container = client.get_container_client(settings.AZURE_BLOB_CONTAINER_NAME)
-    result = container.list_blobs(name_starts_with=prefix, delimiter="/")
-    dirs = []
-    for page in result.by_page():
-        dirs.extend(page.prefixes or [])
-    return sorted(dirs)
+    dirs: list[str] = []
+    files: list[dict] = []
+    for item in container.walk_blobs(name_starts_with=prefix, delimiter="/"):
+        if isinstance(item, BlobPrefix):
+            dirs.append(item.name)
+        elif item.name != prefix and not item.name.endswith("/"):
+            files.append({
+                "name": item.name,
+                "size": item.size or 0,
+                "lastModified": item.last_modified.isoformat() if item.last_modified else None,
+            })
+    return sorted(dirs), sorted(files, key=lambda f: f["name"])
+
+
+def list_blob_directories(prefix: str = "") -> list[str]:
+    """List virtual directories (prefixes) in the blob container.
+
+    Returns a sorted list of directory paths (e.g. ``["videos/", "face_scans/"]``).
+    """
+    dirs, _ = list_blob_children(prefix)
+    return dirs
 
 
 def list_blob_subdirectories(parent_path: str) -> list[str]:

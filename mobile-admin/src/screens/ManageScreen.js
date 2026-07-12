@@ -2,81 +2,99 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
+import { ENDPOINTS } from '../constants/apiEndpoints';
 import useTheme from '../hooks/useTheme';
-
-/**
- * ManageScreen — hub for every admin management area, grouped by domain.
- * Dashboard and Profile stay as tabs; everything else lives here.
- */
-const GROUPS = [
-  {
-    title: 'People',
-    items: [
-      {
-        icon: 'account-group-outline',
-        title: 'Users & Doctors',
-        subtitle: 'Manage users, doctors and roles',
-        screen: 'UsersAndDoctorsMain',
-      },
-    ],
-  },
-  {
-    title: 'Scheduling',
-    items: [
-      {
-        icon: 'calendar-clock-outline',
-        title: 'Appointments',
-        subtitle: 'View and manage appointments',
-        screen: 'AppointmentsMain',
-      },
-      {
-        icon: 'clock-outline',
-        title: 'Time Slots',
-        subtitle: 'Configure available time slots',
-        screen: 'SlotManagement',
-      },
-      {
-        icon: 'beach',
-        title: 'Doctor Leaves',
-        subtitle: 'Review and approve leave requests',
-        screen: 'DoctorLeaveManagement',
-      },
-    ],
-  },
-  {
-    title: 'Content',
-    items: [
-      {
-        icon: 'video-outline',
-        title: 'Wellness Videos',
-        subtitle: 'Manage wellness video content',
-        screen: 'VideoManagement',
-      },
-      {
-        icon: 'help-circle-outline',
-        title: 'FAQ Management',
-        subtitle: 'Configure FAQ content',
-        screen: 'FaqManagement',
-      },
-      {
-        icon: 'bell-cog-outline',
-        title: 'Notifications',
-        subtitle: 'Broadcasts, switches & reminders',
-        screen: 'NotificationAdmin',
-      },
-      {
-        icon: 'file-document-edit-outline',
-        title: 'Content Pages',
-        subtitle: 'Edit in-app pages and policies',
-        screen: 'ContentManagement',
-      },
-    ],
-  },
-];
 
 const ManageScreen = ({ navigation }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  const GROUPS = [
+    {
+      title: 'People',
+      items: [
+        {
+          icon: 'account-group-outline',
+          title: 'Users & Doctors',
+          subtitle: 'Manage users, doctors and roles',
+          screen: 'UsersAndDoctorsMain',
+        },
+        {
+          icon: 'star-outline',
+          title: 'Expertise',
+          subtitle: 'Manage doctor expertise areas',
+          screen: 'ManageExpertise',
+          params: { title: 'Expertise', endpoint: ENDPOINTS.EXPERTISES },
+        },
+        {
+          icon: 'translate',
+          title: 'Languages',
+          subtitle: 'Manage doctor languages',
+          screen: 'ManageLanguages',
+          params: { title: 'Languages', endpoint: ENDPOINTS.LANGUAGES },
+        },
+        {
+          icon: 'card-text-outline',
+          title: 'Specialties',
+          subtitle: 'Manage doctor specialties',
+          screen: 'ManageSpecialties',
+          params: { title: 'Specialties', endpoint: ENDPOINTS.SPECIALTIES },
+        },
+      ],
+    },
+    {
+      title: 'Scheduling',
+      items: [
+        {
+          icon: 'calendar-clock-outline',
+          title: 'Appointments',
+          subtitle: 'View and manage appointments',
+          screen: 'AppointmentsMain',
+        },
+        {
+          icon: 'clock-outline',
+          title: 'Time Slots',
+          subtitle: 'Configure available time slots',
+          screen: 'SlotManagement',
+        },
+        {
+          icon: 'beach',
+          title: 'Doctor Leaves',
+          subtitle: 'Review and approve leave requests',
+          screen: 'DoctorLeaveManagement',
+        },
+      ],
+    },
+    {
+      title: 'Content',
+      items: [
+        {
+          icon: 'video-outline',
+          title: 'Wellness Videos',
+          subtitle: 'Manage wellness video content',
+          screen: 'VideoManagement',
+        },
+        {
+          icon: 'help-circle-outline',
+          title: 'FAQ Management',
+          subtitle: 'Configure FAQ content',
+          screen: 'FaqManagement',
+        },
+        {
+          icon: 'bell-cog-outline',
+          title: 'Notifications',
+          subtitle: 'Broadcasts, switches & reminders',
+          screen: 'NotificationAdmin',
+        },
+        {
+          icon: 'file-document-edit-outline',
+          title: 'Content Pages',
+          subtitle: 'Edit in-app pages and policies',
+          screen: 'ContentManagement',
+        },
+      ],
+    },
+  ];
 
   return (
     <View style={styles.root}>
@@ -100,7 +118,7 @@ const ManageScreen = ({ navigation }) => {
                   <TouchableOpacity
                     style={styles.row}
                     activeOpacity={0.7}
-                    onPress={() => navigation.navigate(item.screen)}
+                    onPress={() => navigation.navigate(item.screen, item.params)}
                   >
                     <View style={styles.iconCircle}>
                       <MCIcon name={item.icon} size={24} color={colors.primary} />

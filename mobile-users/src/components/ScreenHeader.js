@@ -29,6 +29,10 @@ import useTheme from '../hooks/useTheme';
  *   showBack   force-show/hide the back button (defaults to canGoBack())
  *   onBack     custom back handler (defaults to navigation.goBack)
  *   right      node rendered on the trailing edge
+ *   underColor color painted BEHIND the curved bottom corners. Defaults to
+ *              colors.background (the standard page canvas); pass the screen's
+ *              canvas color if it differs (e.g. a chat screen on colors.card),
+ *              otherwise the corner cutouts flash a mismatched color in dark mode.
  */
 /**
  * useHeaderTopPadding — safe-area top padding for screens that keep a custom
@@ -48,6 +52,7 @@ export default function ScreenHeader({
   showBack,
   onBack,
   right = null,
+  underColor,
   navigation: navProp,
 }) {
   // Read navigation + safe-area from context directly (rather than the throwing
@@ -81,6 +86,10 @@ export default function ScreenHeader({
         barStyle={brand || isDark ? 'light-content' : 'dark-content'}
         backgroundColor={bg}
       />
+      {/* The wrapper paints the area BEHIND the curved bottom corners. Without
+          it the cutouts show each screen's root color (white on unthemed
+          roots), which flashes visibly against the dark canvas in dark mode. */}
+      <View style={{ backgroundColor: underColor || colors.background }}>
       <View
         style={[
           styles.header,
@@ -119,6 +128,7 @@ export default function ScreenHeader({
         </View>
 
         <View style={styles.rightWrap}>{right}</View>
+      </View>
       </View>
     </>
   );

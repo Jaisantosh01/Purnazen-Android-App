@@ -10,11 +10,3 @@ export const FORMAT_ACTIONS = [
   { key: 'small', icon: 'format-text', label: 'Smaller' },
   { key: 'bullet', icon: 'format-list-bulleted', label: 'Bullets' },
 ];
-
-export const TAG_MAP = {
-  bold: { open: '<b>', close: '</b>' },
-  italic: { open: '<i>', close: '</i>' },
-  heading: { open: '<h3>', close: '</h3>' },
-  small: { open: '<small>', close: '</small>' },
-  bullet: { open: '\n<li>', close: '</li>' },
-};

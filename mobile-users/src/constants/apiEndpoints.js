@@ -74,6 +74,10 @@ export const ENDPOINTS = {
   // Consent
   CONSENT: `${API_VERSION}/consent`,
 
+  // Content Pages (terms, privacy — admin-configured)
+  ROLES: `${API_VERSION}/roles`,
+  CONTENT_PAGES: `${API_VERSION}/content-pages`,
+
   // Help & Support (admin-configurable contacts + FAQs)
   SUPPORT_HELP: `${API_VERSION}/support/help`,
 

@@ -161,6 +161,7 @@ const SlotManagementScreen = ({ navigation }) => {
       <ScreenHeader
         title="Schedule Manager"
         onBack={() => navigation.goBack()}
+        underColor={colors.card}
         right={
           <TouchableOpacity style={styles.addBtn} onPress={() => { setIsEditing(false); setEditingSlot(null); setTargetDay(selectedDay); setModalVisible(true); }}>
             <MCIcon name="plus" size={24} color={colors.headerText} />

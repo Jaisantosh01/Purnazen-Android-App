@@ -122,7 +122,13 @@ const BookAppointmentScreen = ({ navigation, route }) => {
       return;
     }
     consultService.getDoctorClinics(doctor.id)
-      .then(data => { if (Array.isArray(data) && data.length) setClinics(data); })
+      .then(data => {
+        if (Array.isArray(data) && data.length) {
+          setClinics(data);
+          const primary = data.find(c => c.is_primary);
+          setSelectedClinic(primary || data[0]);
+        }
+      })
       .catch(() => setClinics([]));
   }, [doctor.id, selectedVisit]);
 

@@ -591,6 +591,7 @@ const AppointmentsScreen = ({ navigation }) => {
       <ScreenHeader
         title="Appointments"
         showBack={false}
+        underColor={colors.card}
         right={
           <TouchableOpacity onPress={onRefresh}>
             <MCIcon name="refresh" size={22} color={colors.white} />

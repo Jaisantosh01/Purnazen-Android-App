@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
-  Linking,
   Modal,
   TextInput,
   ActivityIndicator,
@@ -19,7 +18,6 @@ import socialAuthService from '../services/socialAuthService';
 import preferencesService from '../services/preferencesService';
 import biometricService from '../services/biometricService';
 import permissionsService from '../services/permissionsService';
-import { checkForUpdate, FORCE_MARKER } from '../services/updateService';
 import { APP_VERSION } from '../config';
 import { resetToLogin } from '../navigation/navigationRef';
 import { useAuthStore } from '../store/authStore';
@@ -233,7 +231,6 @@ const SettingsScreen = ({ navigation }) => {
   const [locationBusy, setLocationBusy]           = useState(false);
   const [language, setLanguage]                   = useState('en');
   const [address, setAddress]                     = useState('');
-  const [updateChecking, setUpdateChecking]       = useState(false);
 
   // Hydrate the toggles/values from the server (defaults kept offline)
   React.useEffect(() => {
@@ -502,62 +499,6 @@ const SettingsScreen = ({ navigation }) => {
     }
   };
 
-  // Manual "Check for Updates". Reuses the same GitHub-release check the launch
-  // prompt uses (force:true so it runs from dev builds too). A forced/critical
-  // release (notes contain the force marker) offers only "Update now"; otherwise
-  // the user can defer. "Up to date" is reported when no newer release exists.
-  const handleCheckForUpdate = async () => {
-    if (updateChecking) return;
-    setUpdateChecking(true);
-    try {
-      const u = await checkForUpdate({ force: true });
-      if (!u) {
-        showAlert('Up to date', `You're on the latest version (v${APP_VERSION}).`);
-        return;
-      }
-      const openApk = () => { Linking.openURL(u.apkUrl).catch(() => {}); };
-      const notes = (u.notes || '')
-        .split('\n')
-        .filter(l => !l.includes(FORCE_MARKER))
-        .join('\n')
-        .trim();
-      const body =
-        `Version ${u.version} is available${u.current ? ` (you have v${u.current})` : ''}.` +
-        (u.forced ? '\n\nThis is a critical update and is required to continue.' : '') +
-        (notes ? `\n\n${notes}` : '');
-      const buttons = u.forced
-        ? [{ text: 'Update now', onPress: openApk }]
-        : [
-            { text: 'Later', style: 'cancel' },
-            { text: 'Update now', onPress: openApk },
-          ];
-      showAlert(
-        u.forced ? 'Update required' : 'Update available',
-        body,
-        buttons,
-        { cancelable: !u.forced },
-      );
-    } catch {
-      showAlert('Check for Updates', 'Could not check for updates. Please try again later.');
-    } finally {
-      setUpdateChecking(false);
-    }
-  };
-
-  const handleLogout = () => {
-    showAlert('Logout', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: async () => {
-          await authService.logout();
-          resetToLogin();
-        },
-      },
-    ]);
-  };
-
   const handleDeleteAccount = () => {
     showAlert(
       'Delete Account',
@@ -757,32 +698,10 @@ const SettingsScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {/* About */}
-        <View style={styles.section}>
-          <SectionHeader title="About" />
-          <View style={styles.card}>
-            <ArrowRow
-              icon="cloud-download-outline"
-              hue={HUES.blue}
-              title="Check for Updates"
-              subtitle={updateChecking ? 'Checking…' : `Current version v${APP_VERSION}`}
-              valueText={updateChecking ? '…' : undefined}
-              onPress={handleCheckForUpdate}
-            />
-          </View>
-        </View>
-
         {/* Danger Zone */}
         <View style={styles.section}>
           <SectionHeader title="Danger Zone" />
           <View style={styles.card}>
-            <ArrowRow
-              icon="logout"
-              hue={colors.danger}
-              title="Logout"
-              onPress={handleLogout}
-            />
-            <View style={styles.rowDivider} />
             <ArrowRow
               icon="delete-outline"
               title="Delete Account"

@@ -69,6 +69,11 @@ export const ENDPOINTS = {
   // A patient's face-scan history (backend: face_glow history is user-scoped).
   PATIENT_SCANS: id => `${API_VERSION}/patients/${id}/face-glow/history`,
 
+  // Content Pages (terms, privacy, faq — admin-configured)
+  ROLES: `${API_VERSION}/roles`,
+  CONTENT_PAGES: `${API_VERSION}/content-pages`,
+  SUPPORT_FAQS: `${API_VERSION}/support-faqs`,
+
   // User details
   USER_DETAIL: id => `${API_VERSION}/users/${id}`,
 };
