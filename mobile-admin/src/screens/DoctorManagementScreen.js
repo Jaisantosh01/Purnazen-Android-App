@@ -1,14 +1,14 @@
-import React, { useCallback, useEffect, useState, useMemo } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   TextInput,
-  ScrollView,
+  Alert,
 } from 'react-native';
+import { SwipeListView } from 'react-native-swipe-list-view';
 import { showAlert } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -24,7 +24,6 @@ const DoctorManagementScreen = ({ navigation }) => {
   const [stats, setStats] = useState({ active_doctors: 0, inactive_doctors: 0 });
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [menuTarget, setMenuTarget] = useState(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -58,32 +57,21 @@ const DoctorManagementScreen = ({ navigation }) => {
     (doc.specialty || '').toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleEdit = (item) => {
+  const handleEdit = (item, rowMap) => {
+    if (rowMap?.[item.id]) rowMap[item.id].closeRow();
     navigation.navigate('EditDoctor', { doctorId: item.id });
   };
 
-  const handleDelete = (item) => {
-    showAlert(
-      'Deactivate Doctor',
-      `Are you sure you want to deactivate ${item.name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Deactivate',
-          style: 'destructive',
-          onPress: () => {
-            apiClient.delete(ENDPOINTS.DOCTOR_DETAIL(item.id))
-              .then(() => {
-                showAlert('Success', `${item.name} has been deactivated`);
-                fetchData();
-              })
-              .catch((err) => {
-                showAlert('Error', err.message || 'Failed to deactivate doctor');
-              });
-          },
-        },
-      ]
-    );
+  const handleDelete = (item, rowMap) => {
+    if (rowMap?.[item.id]) rowMap[item.id].closeRow();
+    Alert.alert('Deactivate Doctor', `Are you sure you want to deactivate ${item.name}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Deactivate', style: 'destructive', onPress: () => {
+        apiClient.delete(ENDPOINTS.DOCTOR_DETAIL(item.id))
+          .then(() => { showAlert('Success', `${item.name} has been deactivated`); fetchData(); })
+          .catch((err) => { showAlert('Error', err.message || 'Failed to deactivate doctor'); });
+      }},
+    ]);
   };
 
   const renderDoctorItem = ({ item }) => {
@@ -104,7 +92,7 @@ const DoctorManagementScreen = ({ navigation }) => {
           }
         }}
       >
-        <View style={[styles.doctorCard, isInactive && styles.doctorCardInactive, menuTarget?.id === item.id && { zIndex: 100 }]}>
+        <View style={[styles.doctorCard, isInactive && styles.doctorCardInactive]}>
           <View style={styles.cardHeader}>
             <View style={styles.doctorInfo}>
               <View style={[styles.avatarPlaceholder, isInactive && styles.avatarInactive]}>
@@ -136,85 +124,87 @@ const DoctorManagementScreen = ({ navigation }) => {
                 </View>
               </View>
             </View>
-            <View style={styles.actionBtns}>
-              <TouchableOpacity
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                onPress={() => setMenuTarget(menuTarget?.id === item.id ? null : item)}
-              >
-                <MCIcon name="dots-vertical" size={20} color={isInactive ? colors.textMuted : colors.textPrimary} />
-              </TouchableOpacity>
-              {menuTarget?.id === item.id && (
-                <View style={styles.cardDropdown}>
-                  <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuTarget(null); handleEdit(item); }}>
-                    <MCIcon name="pencil-outline" size={16} color={colors.textPrimary} />
-                    <Text style={styles.menuItemText}>Edit</Text>
-                  </TouchableOpacity>
-                  <View style={styles.menuDivider} />
-                  <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuTarget(null); handleDelete(item); }}>
-                    <MCIcon name="delete-outline" size={16} color={colors.danger} />
-                    <Text style={[styles.menuItemText, { color: colors.danger }]}>Delete</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
           </View>
         </View>
       </TouchableOpacity>
     );
   };
 
+  const renderHiddenItem = (data, rowMap) => (
+    <View style={styles.rowBack}>
+      <TouchableOpacity style={[styles.backBtn, styles.backDelete]} onPress={() => handleDelete(data.item, rowMap)}>
+        <MCIcon name="delete" size={22} color="#fff" />
+        <Text style={styles.backBtnText}>Delete</Text>
+      </TouchableOpacity>
+      <View style={{flex: 1}} />
+      <TouchableOpacity style={[styles.backBtn, styles.backEdit]} onPress={() => handleEdit(data.item, rowMap)}>
+        <MCIcon name="pencil" size={22} color="#fff" />
+        <Text style={styles.backBtnText}>Edit</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
   return (
     <View style={styles.root}>
-      
-      {/* Header removed as it is now in UnifiedUserDoctorScreen */}
-
-      <ScrollView 
-        contentContainerStyle={{ paddingBottom: 24 }}
-        showsVerticalScrollIndicator={false}
-        onScroll={() => menuTarget && setMenuTarget(null)}
-        scrollEventThrottle={16}
-      >
-        {/* ── Stats ── */}
-        <View style={styles.statsRow}>
-          <View style={[styles.statCard, { borderColor: colors.primary }]}>
-            <Text style={[styles.statValue, { color: colors.primary }]}>{stats.active_doctors}</Text>
-            <Text style={styles.statLabel}>Active</Text>
+      {loading && filteredDoctors.length === 0 ? (
+        <View>
+          <View style={styles.statsRow}>
+            <View style={[styles.statCard, { borderColor: colors.primary }]}><Text style={[styles.statValue, { color: colors.primary }]}>·</Text><Text style={styles.statLabel}>Active</Text></View>
+            <View style={[styles.statCard, { borderColor: colors.danger }]}><Text style={[styles.statValue, { color: colors.danger }]}>·</Text><Text style={styles.statLabel}>Inactive</Text></View>
           </View>
-          <View style={[styles.statCard, { borderColor: colors.danger }]}>
-            <Text style={[styles.statValue, { color: colors.danger }]}>{stats.inactive_doctors}</Text>
-            <Text style={styles.statLabel}>Inactive</Text>
+          <View style={styles.searchContainer}>
+            <MCIcon name="magnify" size={20} color={colors.textMuted} style={styles.searchIcon} />
+            <TextInput style={styles.searchInput} placeholder="Search by name or specialty..." placeholderTextColor={colors.textMuted} value={search} onChangeText={setSearch} />
           </View>
+          <ListSkeleton count={5} />
         </View>
-
-        {/* ── Search ── */}
-        <View style={styles.searchContainer}>
-          <MCIcon name="magnify" size={20} color={colors.textMuted} style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search by name or specialty..."
-            value={search}
-            onChangeText={setSearch}
-          />
-        </View>
-
-        {/* ── List ── */}
-        <View style={styles.listContainer}>
-          {loading ? (
-            <ListSkeleton count={5} />
-          ) : filteredDoctors.length > 0 ? (
-            filteredDoctors.map(item => (
-              <View key={item.id}>
-                {renderDoctorItem({ item })}
+      ) : (
+        <SwipeListView
+          data={filteredDoctors}
+          keyExtractor={item => item.id.toString()}
+          leftOpenValue={80}
+          rightOpenValue={-80}
+          disableRightSwipe={false}
+          ListHeaderComponent={
+            <>
+              <View style={styles.statsRow}>
+                <View style={[styles.statCard, { borderColor: colors.primary }]}>
+                  <Text style={[styles.statValue, { color: colors.primary }]}>{stats.active_doctors}</Text>
+                  <Text style={styles.statLabel}>Active</Text>
+                </View>
+                <View style={[styles.statCard, { borderColor: colors.danger }]}>
+                  <Text style={[styles.statValue, { color: colors.danger }]}>{stats.inactive_doctors}</Text>
+                  <Text style={styles.statLabel}>Inactive</Text>
+                </View>
               </View>
-            ))
-          ) : (
+              <View style={styles.searchContainer}>
+                <MCIcon name="magnify" size={20} color={colors.textMuted} style={styles.searchIcon} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search by name or specialty..."
+                  placeholderTextColor={colors.textMuted}
+                  value={search}
+                  onChangeText={setSearch}
+                />
+              </View>
+            </>
+          }
+          renderItem={renderDoctorItem}
+          renderHiddenItem={renderHiddenItem}
+          contentContainerStyle={styles.listContainer}
+          ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <MCIcon name="doctor" size={64} color={colors.textMuted} />
               <Text style={styles.emptyText}>No doctors found</Text>
             </View>
-          )}
-        </View>
-      </ScrollView>
+          }
+          refreshing={loading}
+          onRefresh={fetchData}
+          closeOnRowPress={true}
+          closeOnRowOpen={true}
+          closeOnRowBeginSwipe={true}
+        />
+      )}
     </View>
   );
 };
@@ -255,12 +245,12 @@ const makeStyles = colors => StyleSheet.create({
   expertiseText: { fontSize: 11, color: colors.textSecondary, fontWeight: '500' },
 
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start' },
-  doctorCardInactive: { backgroundColor: '#FEF2F2', overflow: 'hidden' },
+  doctorCardInactive: { backgroundColor: colors.surfaceMuted},
 
-  avatarInactive: { backgroundColor: '#FCA5A5' },
+  avatarInactive: { backgroundColor: colors.border },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  textInactive: { color: '#9CA3AF' },
-  tagInactive: { backgroundColor: '#FEE2E2' },
+  textInactive: { color: colors.textMuted },
+  tagInactive: { backgroundColor: colors.border },
   inactiveBadge: {
     backgroundColor: colors.danger,
     paddingHorizontal: 6,
@@ -268,32 +258,33 @@ const makeStyles = colors => StyleSheet.create({
     borderRadius: 4,
   },
   inactiveBadgeText: { color: colors.white, fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
-  actionBtns: { position: 'relative', marginLeft: 8, paddingTop: 4 },
   emptyContainer: { alignItems: 'center', justifyContent: 'center', marginTop: 60 },
   emptyText: { marginTop: 16, fontSize: 16, color: colors.textMuted },
 
-  cardDropdown: {
-    position: 'absolute',
-    top: 22,
-    right: 0,
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    paddingVertical: 4,
-    minWidth: 140,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-    zIndex: 10,
-  },
-  menuItem: {
+  rowBack: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    gap: 10,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 16,
+    overflow: 'hidden',
   },
-  menuDivider: { height: 1, backgroundColor: colors.border, marginHorizontal: 8 },
-  menuItemText: { fontSize: 14, fontWeight: '500', color: colors.textPrimary },
+  backBtn: {
+    width: 80,
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backDelete: {
+    backgroundColor: '#EF4444',
+    borderTopLeftRadius: 16,
+    borderBottomLeftRadius: 16,
+  },
+  backEdit: {
+    backgroundColor: colors.primary,
+    borderTopRightRadius: 16,
+    borderBottomRightRadius: 16,
+  },
+  backBtnText: { color: '#fff', fontSize: 12, fontWeight: '600', marginTop: 4 },
 });
