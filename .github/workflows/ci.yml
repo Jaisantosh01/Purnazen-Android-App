@@ -24,6 +24,11 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.txt
 
+      - name: Install CV native libs (mirror backend/Dockerfile)
+        # mediapipe dlopens libGLESv2.so.2/libEGL.so.1 and opencv needs libGL;
+        # GitHub's ubuntu-24.04 image no longer ships them.
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libglib2.0-0 libgl1 libgles2 libegl1
+
       - name: Install dependencies
         run: pip install -r requirements.txt
 

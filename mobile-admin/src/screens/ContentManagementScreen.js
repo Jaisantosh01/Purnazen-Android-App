@@ -123,6 +123,7 @@ const ContentManagementScreen = ({ navigation }) => {
         title="Content Management"
         subtitle="Terms, conditions & privacy policies"
         onBack={() => navigation.goBack()}
+        underColor={colors.card}
         right={
           <TouchableOpacity onPress={openAddModal} style={{ padding: 4 }}>
             <MCIcon name="plus" size={24} color={colors.headerText} />

@@ -188,6 +188,7 @@ const VideoManagementScreen = ({ navigation }) => {
       <ScreenHeader
         title="Video Management"
         onBack={() => navigation.goBack()}
+        underColor={colors.card}
         right={
           <TouchableOpacity style={styles.addBtn} onPress={activeTab === 'sessions' ? openAddSessionModal : openAddGroupModal}>
             <MCIcon name="plus" size={24} color={colors.headerText} />
