@@ -5,9 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  StatusBar,
   Switch,
-  Linking,
   Modal,
   TextInput,
   ActivityIndicator,
@@ -19,11 +17,9 @@ import authService from '../services/authService';
 import socialAuthService from '../services/socialAuthService';
 import preferencesService from '../services/preferencesService';
 import biometricService from '../services/biometricService';
-import { checkForUpdate, FORCE_MARKER } from '../services/updateService';
-import { APP_VERSION } from '../config';
 import { useAuthStore } from '../store/authStore';
 import useTheme from '../hooks/useTheme';
-import { useHeaderTopPadding } from '../components/ScreenHeader';
+import ScreenHeader from '../components/ScreenHeader';
 
 // Shared toggle ids with the backend user_preferences.notifications dict.
 const PREF_KEYS = {
@@ -42,8 +38,6 @@ const HUES = {
 };
 const soft = hex => `${hex}22`;
 
-const SUPPORT_EMAIL = 'support@purnazen.com';
-
 // Supported app languages. The selected code persists to user_preferences;
 // full UI translation (i18n) is wired separately.
 const LANGUAGES = [
@@ -59,7 +53,6 @@ const languageLabel = code => (LANGUAGES.find(l => l.code === code) || LANGUAGES
 const SettingsScreen = ({ navigation }) => {
   const user = useAuthStore(state => state.user);
   const { colors, isDark, setMode } = useTheme();
-  const headerTop = useHeaderTopPadding(16);
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const tint = hue => hue || colors.primary;
@@ -113,7 +106,6 @@ const SettingsScreen = ({ navigation }) => {
   const [biometric, setBiometric]                 = useState(false);
   const [biometricBusy, setBiometricBusy]         = useState(false);
   const [language, setLanguage]                   = useState('en');
-  const [updateChecking, setUpdateChecking]       = useState(false);
 
   // Hydrate toggles/values from the server (defaults kept offline).
   React.useEffect(() => {
@@ -340,80 +332,9 @@ const SettingsScreen = ({ navigation }) => {
     }
   };
 
-  // Manual "Check for Updates" — reuses the GitHub-release check the launch
-  // prompt uses (force:true so it runs from dev builds too).
-  const handleCheckForUpdate = async () => {
-    if (updateChecking) return;
-    setUpdateChecking(true);
-    try {
-      const u = await checkForUpdate({ force: true });
-      if (!u) {
-        showAlert('Up to date', `You're on the latest version (v${APP_VERSION}).`);
-        return;
-      }
-      const openApk = () => { Linking.openURL(u.apkUrl).catch(() => {}); };
-      const notes = (u.notes || '')
-        .split('\n')
-        .filter(l => !l.includes(FORCE_MARKER))
-        .join('\n')
-        .trim();
-      const body =
-        `Version ${u.version} is available${u.current ? ` (you have v${u.current})` : ''}.` +
-        (u.forced ? '\n\nThis is a critical update and is required to continue.' : '') +
-        (notes ? `\n\n${notes}` : '');
-      const buttons = u.forced
-        ? [{ text: 'Update now', onPress: openApk }]
-        : [
-            { text: 'Later', style: 'cancel' },
-            { text: 'Update now', onPress: openApk },
-          ];
-      showAlert(
-        u.forced ? 'Update required' : 'Update available',
-        body,
-        buttons,
-        { cancelable: !u.forced },
-      );
-    } catch {
-      showAlert('Check for Updates', 'Could not check for updates. Please try again later.');
-    } finally {
-      setUpdateChecking(false);
-    }
-  };
-
-  const openSupport = () =>
-    showAlert(
-      'Help & Support',
-      `Reach the Purnazen team at ${SUPPORT_EMAIL} for help with the admin console.`,
-    );
-
-  const handleLogout = () => {
-    showAlert('Logout', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: async () => {
-          await authService.logout();
-          // Auth-state flip swaps the root navigator back to Login (App.tsx).
-        },
-      },
-    ]);
-  };
-
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.headerBg} />
-
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: headerTop }]}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <MCIcon name="arrow-left" size={22} color={colors.white} />
-        </TouchableOpacity>
-        <View style={styles.headerText}>
-          <Text style={styles.headerTitle}>Settings</Text>
-          <Text style={styles.headerSubtitle}>Manage your preferences</Text>
-        </View>
-      </View>
+      <ScreenHeader title="Settings" subtitle="Manage your preferences" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
 
@@ -529,43 +450,7 @@ const SettingsScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {/* About */}
-        <View style={styles.section}>
-          <SectionHeader title="About" />
-          <View style={styles.card}>
-            <ArrowRow
-              icon="cloud-download-outline"
-              hue={HUES.blue}
-              title="Check for Updates"
-              subtitle={updateChecking ? 'Checking…' : `Current version v${APP_VERSION}`}
-              valueText={updateChecking ? '…' : undefined}
-              onPress={handleCheckForUpdate}
-            />
-            <View style={styles.rowDivider} />
-            <ArrowRow
-              icon="help-circle-outline"
-              hue={HUES.purple}
-              title="Help & Support"
-              subtitle="Get assistance"
-              onPress={openSupport}
-            />
-          </View>
-        </View>
-
-        {/* Account actions */}
-        <View style={styles.section}>
-          <SectionHeader title="Account" />
-          <View style={styles.card}>
-            <ArrowRow
-              icon="logout"
-              hue={colors.danger}
-              title="Logout"
-              onPress={handleLogout}
-            />
-          </View>
-        </View>
-
-        <Text style={styles.version}>Purnazen Admin v{APP_VERSION}</Text>
+        <Text style={styles.version}>Purnazen Admin</Text>
       </ScrollView>
 
       {/* Edit Profile modal */}
@@ -753,28 +638,6 @@ export default SettingsScreen;
 
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-
-  header: {
-    backgroundColor: colors.headerBg,
-    paddingHorizontal: 20,
-    paddingBottom: 24,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerText: { flex: 1 },
-  headerTitle: { fontSize: 22, fontWeight: '700', color: colors.white },
-  headerSubtitle: { fontSize: 13, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
 
   section: { paddingHorizontal: 16, marginTop: 22 },
   sectionHeader: {

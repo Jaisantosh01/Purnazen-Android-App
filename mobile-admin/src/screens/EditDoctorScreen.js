@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  StatusBar,
   ScrollView,
   TextInput,
   Modal,
@@ -16,11 +15,11 @@ import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { EditFormSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
-import { useHeaderTopPadding } from '../components/ScreenHeader';
+import ScreenHeader from '../components/ScreenHeader';
 import { showAlert } from '../utils/alert';
 
 const SelectionModal = ({ visible, onClose, title, data, selectedIds, onToggle }) => {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
   <Modal visible={visible} animationType="slide" transparent={true}>
@@ -35,7 +34,7 @@ const SelectionModal = ({ visible, onClose, title, data, selectedIds, onToggle }
               style={[styles.modalItem, selectedIds.includes(item.id) && styles.tagSelected]} 
               onPress={() => onToggle(item.id)}
             >
-              <Text>{item.name}</Text>
+              <Text style={{color: colors.textPrimary}}>{item.name}</Text>
               {selectedIds.includes(item.id) && <MCIcon name="check" size={20} color={colors.primary} />}
             </TouchableOpacity>
           )}
@@ -48,8 +47,7 @@ const SelectionModal = ({ visible, onClose, title, data, selectedIds, onToggle }
 };
 
 const EditDoctorScreen = ({ route, navigation }) => {
-  const { colors, isDark } = useTheme();
-  const headerTop = useHeaderTopPadding();
+  const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { doctorId } = route.params;
   const [loading, setLoading] = useState(true);
@@ -215,81 +213,71 @@ const EditDoctorScreen = ({ route, navigation }) => {
 
   if (loading) return (
     <View style={styles.root}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.card} />
-      <View style={[styles.header, { paddingTop: headerTop }]}>
-        <TouchableOpacity><MCIcon name="arrow-left" size={24} color={colors.textPrimary} /></TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit Doctor Details</Text>
-        <View style={{ width: 24 }} />
-      </View>
+      <ScreenHeader title="Edit Doctor Details" onBack={() => navigation.goBack()} />
       <EditFormSkeleton />
     </View>
   );
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.card} />
-      <View style={[styles.header, { paddingTop: headerTop }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()}><MCIcon name="arrow-left" size={24} color={colors.textPrimary} /></TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit Doctor Details</Text>
-        <View style={{ width: 24 }} />
-      </View>
+      <ScreenHeader title="Edit Doctor Details" onBack={() => navigation.goBack()} />
 
       <ScrollView contentContainerStyle={styles.content}>
         {doctorId ? (
             <>
                 <Text style={styles.sectionLabel}>Account Details</Text>
                 <Text style={styles.label}>Full Name</Text>
-                <TextInput style={styles.input} value={editedDoctor.full_name} onChangeText={(val) => setEditedDoctor({...editedDoctor, full_name: val})} placeholder="Enter full name" />
+                <TextInput style={styles.input} value={editedDoctor.full_name} onChangeText={(val) => setEditedDoctor({...editedDoctor, full_name: val})} placeholder="Enter full name" placeholderTextColor={colors.textMuted} />
 
                 <Text style={styles.label}>Email</Text>
-                <TextInput style={styles.input} value={editedDoctor.email} onChangeText={(val) => setEditedDoctor({...editedDoctor, email: val})} placeholder="email@example.com" keyboardType="email-address" autoCapitalize="none" />
+                <TextInput style={styles.input} value={editedDoctor.email} onChangeText={(val) => setEditedDoctor({...editedDoctor, email: val})} placeholder="email@example.com" placeholderTextColor={colors.textMuted} keyboardType="email-address" autoCapitalize="none" />
 
                 <Text style={styles.label}>Phone</Text>
-                <TextInput style={styles.input} value={editedDoctor.phone} onChangeText={(val) => setEditedDoctor({...editedDoctor, phone: val})} placeholder="+91-9876543210" keyboardType="phone-pad" />
+                <TextInput style={styles.input} value={editedDoctor.phone} onChangeText={(val) => setEditedDoctor({...editedDoctor, phone: val})} placeholder="+91-9876543210" placeholderTextColor={colors.textMuted} keyboardType="phone-pad" />
             </>
         ) : (
             <>
                 <Text style={styles.label}>Full Name</Text>
-                <TextInput style={styles.input} value={editedDoctor.name} onChangeText={(val) => setEditedDoctor({...editedDoctor, name: val})} placeholder="Enter full name" />
+                <TextInput style={styles.input} value={editedDoctor.name} onChangeText={(val) => setEditedDoctor({...editedDoctor, name: val})} placeholder="Enter full name" placeholderTextColor={colors.textMuted} />
 
                 <Text style={styles.label}>Email</Text>
-                <TextInput style={styles.input} value={editedDoctor.email} onChangeText={(val) => setEditedDoctor({...editedDoctor, email: val})} placeholder="email@example.com" keyboardType="email-address" autoCapitalize="none" />
+                <TextInput style={styles.input} value={editedDoctor.email} onChangeText={(val) => setEditedDoctor({...editedDoctor, email: val})} placeholder="email@example.com" placeholderTextColor={colors.textMuted} keyboardType="email-address" autoCapitalize="none" />
 
                 <Text style={styles.label}>Password</Text>
-                <TextInput style={styles.input} value={editedDoctor.password} onChangeText={(val) => setEditedDoctor({...editedDoctor, password: val})} placeholder="Enter password" secureTextEntry />
+                <TextInput style={styles.input} value={editedDoctor.password} onChangeText={(val) => setEditedDoctor({...editedDoctor, password: val})} placeholder="Enter password" placeholderTextColor={colors.textMuted} secureTextEntry />
 
                 <Text style={styles.label}>Phone (optional)</Text>
-                <TextInput style={styles.input} value={editedDoctor.phone} onChangeText={(val) => setEditedDoctor({...editedDoctor, phone: val})} placeholder="+91-9876543210" keyboardType="phone-pad" />
+                <TextInput style={styles.input} value={editedDoctor.phone} onChangeText={(val) => setEditedDoctor({...editedDoctor, phone: val})} placeholder="+91-9876543210" placeholderTextColor={colors.textMuted} keyboardType="phone-pad" />
             </>
         )}
 
         <Text style={styles.label}>Specialties</Text>
         <TouchableOpacity style={styles.input} onPress={() => setModalType('specialty')}>
-            <Text>{editedDoctor.specialty_ids?.length ? `${editedDoctor.specialty_ids.length} selected` : 'Select Specialties'}</Text>
+            <Text style={{color: colors.textPrimary}}>{editedDoctor.specialty_ids?.length ? `${editedDoctor.specialty_ids.length} selected` : 'Select Specialties'}</Text>
         </TouchableOpacity>
         {renderSelectedTags('specialty_ids', specialties)}
         
         <Text style={styles.label}>About</Text>
-        <TextInput style={styles.input} value={editedDoctor.about} onChangeText={(val) => setEditedDoctor({...editedDoctor, about: val})} placeholder="Enter doctor's biography" multiline />
+        <TextInput style={styles.input} value={editedDoctor.about} onChangeText={(val) => setEditedDoctor({...editedDoctor, about: val})} placeholder="Enter doctor's biography" placeholderTextColor={colors.textMuted} multiline />
         
         <Text style={styles.label}>Education</Text>
-        <TextInput style={styles.input} value={editedDoctor.education} onChangeText={(val) => setEditedDoctor({...editedDoctor, education: val})} placeholder="e.g. MBBS, MD" />
+        <TextInput style={styles.input} value={editedDoctor.education} onChangeText={(val) => setEditedDoctor({...editedDoctor, education: val})} placeholder="e.g. MBBS, MD" placeholderTextColor={colors.textMuted} />
         
         <Text style={styles.label}>Experience (Years)</Text>
-        <TextInput style={styles.input} value={String(editedDoctor.experience || '')} onChangeText={(val) => setEditedDoctor({...editedDoctor, experience: parseInt(val) || 0})} placeholder="Years of experience" keyboardType="numeric" />
+        <TextInput style={styles.input} value={String(editedDoctor.experience || '')} onChangeText={(val) => setEditedDoctor({...editedDoctor, experience: parseInt(val) || 0})} placeholder="Years of experience" placeholderTextColor={colors.textMuted} keyboardType="numeric" />
         
         <Text style={styles.label}>Consultation Fee</Text>
-        <TextInput style={styles.input} value={String(editedDoctor.fee || '')} onChangeText={(val) => setEditedDoctor({...editedDoctor, fee: parseInt(val) || 0})} placeholder="Fee per consultation" keyboardType="numeric" />
+        <TextInput style={styles.input} value={String(editedDoctor.fee || '')} onChangeText={(val) => setEditedDoctor({...editedDoctor, fee: parseInt(val) || 0})} placeholder="Fee per consultation" placeholderTextColor={colors.textMuted} keyboardType="numeric" />
 
         <Text style={styles.label}>Expertise</Text>
         <TouchableOpacity style={styles.input} onPress={() => setModalType('expertise')}>
-            <Text>{editedDoctor.expertise_ids?.length ? `${editedDoctor.expertise_ids.length} selected` : 'Select Expertise'}</Text>
+            <Text style={{color: colors.textPrimary}}>{editedDoctor.expertise_ids?.length ? `${editedDoctor.expertise_ids.length} selected` : 'Select Expertise'}</Text>
         </TouchableOpacity>
         {renderSelectedTags('expertise_ids', allExpertise)}
         
         <Text style={styles.label}>Languages</Text>
         <TouchableOpacity style={styles.input} onPress={() => setModalType('language')}>
-            <Text>{editedDoctor.language_ids?.length ? `${editedDoctor.language_ids.length} selected` : 'Select Languages'}</Text>
+            <Text style={{color: colors.textPrimary}}>{editedDoctor.language_ids?.length ? `${editedDoctor.language_ids.length} selected` : 'Select Languages'}</Text>
         </TouchableOpacity>
         {renderSelectedTags('language_ids', allLanguages)}
 
@@ -331,21 +319,21 @@ const EditDoctorScreen = ({ route, navigation }) => {
         {editedDoctor.awards?.map((award, index) => (
             <View key={index} style={styles.awardInputCard}>
                 <Text style={styles.label}>Award Title</Text>
-                <TextInput style={styles.input} placeholder="e.g. Best Doctor" value={award.title} onChangeText={(val) => updateAward(index, 'title', val)} />
+                <TextInput style={styles.input} placeholder="e.g. Best Doctor" placeholderTextColor={colors.textMuted} value={award.title} onChangeText={(val) => updateAward(index, 'title', val)} />
                 
                 <View style={styles.row}>
                     <View style={{flex: 1}}>
                         <Text style={styles.label}>Issuer</Text>
-                        <TextInput style={styles.input} placeholder="e.g. Health Assoc" value={award.issuer} onChangeText={(val) => updateAward(index, 'issuer', val)} />
+                        <TextInput style={styles.input} placeholder="e.g. Health Assoc" placeholderTextColor={colors.textMuted} value={award.issuer} onChangeText={(val) => updateAward(index, 'issuer', val)} />
                     </View>
                     <View style={{width: 80, marginLeft: 8}}>
                         <Text style={styles.label}>Year</Text>
-                        <TextInput style={styles.input} placeholder="2024" value={String(award.year || '')} onChangeText={(val) => updateAward(index, 'year', parseInt(val))} keyboardType="numeric" />
+                        <TextInput style={styles.input} placeholder="2024" placeholderTextColor={colors.textMuted} value={String(award.year || '')} onChangeText={(val) => updateAward(index, 'year', parseInt(val))} keyboardType="numeric" />
                     </View>
                 </View>
                 
                 <Text style={styles.label}>Description</Text>
-                <TextInput style={styles.input} placeholder="Brief description" value={award.description} onChangeText={(val) => updateAward(index, 'description', val)} multiline />
+                <TextInput style={styles.input} placeholder="Brief description" placeholderTextColor={colors.textMuted} value={award.description} onChangeText={(val) => updateAward(index, 'description', val)} multiline />
                 
                 <TouchableOpacity style={styles.removeBtn} onPress={() => removeAward(index)}>
                     <Text style={{color: colors.danger, fontWeight: '600'}}>Remove Award</Text>
@@ -370,19 +358,19 @@ const EditDoctorScreen = ({ route, navigation }) => {
                 </View>
               </TouchableOpacity>
             </View>
-            <TextInput style={styles.input} placeholder="e.g. Sarah Acupressure Clinic" value={clinic.name} onChangeText={(val) => updateClinic(index, 'name', val)} />
+            <TextInput style={styles.input} placeholder="e.g. Sarah Acupressure Clinic" placeholderTextColor={colors.textMuted} value={clinic.name} onChangeText={(val) => updateClinic(index, 'name', val)} />
 
             <Text style={styles.label}>Address</Text>
-            <TextInput style={styles.input} placeholder="e.g. 123 MG Road" value={clinic.address} onChangeText={(val) => updateClinic(index, 'address', val)} />
+            <TextInput style={styles.input} placeholder="e.g. 123 MG Road" placeholderTextColor={colors.textMuted} value={clinic.address} onChangeText={(val) => updateClinic(index, 'address', val)} />
 
             <View style={styles.row}>
               <View style={{flex: 1}}>
                 <Text style={styles.label}>City</Text>
-                <TextInput style={styles.input} placeholder="e.g. Bangalore" value={clinic.city} onChangeText={(val) => updateClinic(index, 'city', val)} />
+                <TextInput style={styles.input} placeholder="e.g. Bangalore" placeholderTextColor={colors.textMuted} value={clinic.city} onChangeText={(val) => updateClinic(index, 'city', val)} />
               </View>
               <View style={{flex: 1, marginLeft: 8}}>
                 <Text style={styles.label}>Phone</Text>
-                <TextInput style={styles.input} placeholder="e.g. +91-9876543210" value={clinic.phone} onChangeText={(val) => updateClinic(index, 'phone', val)} keyboardType="phone-pad" />
+                <TextInput style={styles.input} placeholder="e.g. +91-9876543210" placeholderTextColor={colors.textMuted} value={clinic.phone} onChangeText={(val) => updateClinic(index, 'phone', val)} keyboardType="phone-pad" />
               </View>
             </View>
 
@@ -421,12 +409,10 @@ const EditDoctorScreen = ({ route, navigation }) => {
 
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  header: { paddingHorizontal: 20, paddingBottom: 16, backgroundColor: colors.card, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  headerTitle: { fontSize: 20, fontWeight: '800', color: colors.textPrimary },
   content: { padding: 20 },
   sectionLabel: { fontSize: 16, fontWeight: '700', color: colors.textPrimary, marginTop: 20, marginBottom: 8 },
   label: { fontSize: 14, fontWeight: '600', color: colors.textSecondary, marginBottom: 8, marginTop: 12 },
-  input: { backgroundColor: colors.card, borderRadius: 8, padding: 12, borderWidth: 1, borderColor: colors.borderStrong },
+  input: { backgroundColor: colors.card, borderRadius: 8, padding: 12, borderWidth: 1, borderColor: colors.borderStrong, color: colors.textPrimary },
   disabled: { backgroundColor: colors.surfaceMuted },
   tagScroll: { marginTop: 8, marginBottom: 4 },
   tag: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: colors.primaryLight, borderRadius: 16, marginRight: 8 },
@@ -434,7 +420,7 @@ const makeStyles = colors => StyleSheet.create({
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   modalContent: { backgroundColor: colors.card, borderRadius: 12, padding: 15, maxHeight: '80%' },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, paddingHorizontal: 5 },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, paddingHorizontal: 5, color: colors.textPrimary },
   modalItem: { 
       flexDirection: 'row', 
       justifyContent: 'space-between', 

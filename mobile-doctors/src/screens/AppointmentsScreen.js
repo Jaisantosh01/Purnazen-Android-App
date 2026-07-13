@@ -72,6 +72,14 @@ const buildDateRange = () => {
   return days;
 };
 
+const getDefaultTimeSlot = () => {
+  const hour = new Date().getHours();
+  if (hour >= 6 && hour <= 11) return 'morning';
+  if (hour >= 12 && hour <= 16) return 'afternoon';
+  if (hour >= 17 && hour <= 21) return 'evening';
+  return 'all';
+};
+
 const parseTimeToMinutes = (timeStr) => {
   if (!timeStr) return -1;
   const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
@@ -203,7 +211,7 @@ const AppointmentCard = ({ item, onAccept, onComplete, onCancel, onPress }) => {
                       style={[
                         styles.actionBtn,
                         styles.completeBtn,
-                        !apptOver && { backgroundColor: '#E5E7EB', borderColor: '#E5E7EB' }
+                        !apptOver && { backgroundColor: colors.borderStrong, borderColor: colors.borderStrong }
                       ]}
                       disabled={!apptOver}
                       activeOpacity={0.85}
@@ -297,9 +305,9 @@ const AppointmentsScreen = ({ navigation }) => {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(null); // null = all dates
+  const [selectedDate, setSelectedDate] = useState(todayApiDate()); // null = all dates
   const [selectedStatus, setSelectedStatus] = useState('all');
-  const [selectedTime, setSelectedTime] = useState('all');
+  const [selectedTime, setSelectedTime] = useState(getDefaultTimeSlot());
   const [showStatusFilter, setShowStatusFilter] = useState(false);
 
   // Calendar states
@@ -590,11 +598,8 @@ const AppointmentsScreen = ({ navigation }) => {
       {/* Header */}
       <ScreenHeader
         title="Appointments"
-        right={
-          <TouchableOpacity onPress={onRefresh}>
-            <MCIcon name="refresh" size={22} color={colors.white} />
-          </TouchableOpacity>
-        }
+        showBack={false}
+        underColor={colors.card}
       />
 
       {/* Date strip */}
@@ -965,7 +970,7 @@ const makeStyles = colors => StyleSheet.create({
   },
   calModalContent: {
     width: '100%',
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: SPACING.lg,

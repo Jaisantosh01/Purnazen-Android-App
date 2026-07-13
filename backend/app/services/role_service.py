@@ -7,8 +7,11 @@ from datetime import datetime
 
 class RoleService:
     @staticmethod
-    def get_all(db: Session):
-        return db.query(Role).filter(Role.is_active == True).all()
+    def get_all(db: Session, include_inactive: bool = False):
+        query = db.query(Role)
+        if not include_inactive:
+            query = query.filter(Role.is_active == True)
+        return query.all()
 
     @staticmethod
     def create(db: Session, data: dict, user):

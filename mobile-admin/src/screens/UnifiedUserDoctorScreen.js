@@ -7,29 +7,28 @@ import { ENDPOINTS } from '../constants/apiEndpoints';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 
-const UnifiedUserDoctorScreen = ({ navigation }) => {
+const UnifiedUserDoctorScreen = ({ navigation, route }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const [activeTab, setActiveTab] = useState('users');
+  const [activeTab, setActiveTab] = useState(route?.params?.tab || 'users');
+
+  // Dashboard KPI tiles deep-link here with a `tab` param; honor it when the
+  // screen instance is reused.
+  React.useEffect(() => {
+    if (route?.params?.tab) setActiveTab(route.params.tab);
+  }, [route?.params?.tab]);
 
   return (
     <View style={styles.root}>
       <ScreenHeader
         title="Users & Doctors"
         subtitle={activeTab === 'users' ? 'Manage app users and their roles' : 'Manage doctors and their profiles'}
-        right={activeTab === 'users' ? (
-          <TouchableOpacity
-            style={styles.manageBtn}
-            onPress={() => navigation.navigate('ManageRoles', { title: 'Roles', endpoint: ENDPOINTS.ROLES })}
-          >
-            <MCIcon name="account-cog" size={24} color={colors.primary} />
-          </TouchableOpacity>
-        ) : (
+        right={activeTab === 'users' ? null : (
           <TouchableOpacity
             style={styles.manageBtn}
             onPress={() => navigation.navigate('EditDoctor', { doctorId: null })}
           >
-            <MCIcon name="plus" size={24} color={colors.primary} />
+            <MCIcon name="plus" size={24} color={colors.headerText} />
           </TouchableOpacity>
         )}
       />

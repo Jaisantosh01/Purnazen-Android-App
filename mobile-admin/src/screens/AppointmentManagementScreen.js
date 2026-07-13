@@ -14,20 +14,11 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
+import { STATUS_OPTIONS, APPOINTMENT_STATUS_COLORS as STATUS_COLORS, DAY_NAMES, MONTH_NAMES } from '../constants/appointments';
 import { ListSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 import { showAlert } from '../utils/alert';
-
-const STATUS_OPTIONS = ['pending', 'booked', 'completed', 'cancelled'];
-const STATUS_COLORS = {
-  pending: '#F59E0B',
-  booked: '#3B82F6',
-  completed: '#10B981',
-  cancelled: '#EF4444',
-};
-const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 const formatAddress = (addr) => {
   if (!addr) return '';
@@ -310,7 +301,7 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
             style={[styles.filterToggle, hasAppliedFilters && styles.filterToggleActive]}
             onPress={openFilterModal}
           >
-            <MCIcon name="filter-variant" size={20} color={hasAppliedFilters ? colors.white : colors.textSecondary} />
+            <MCIcon name="filter-variant" size={20} color={hasAppliedFilters ? colors.primary : colors.headerText} />
             {hasAppliedFilters && (
               <View style={styles.filterBadge}>
                 <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
@@ -731,8 +722,8 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
 
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  filterToggle: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surfaceMuted, justifyContent: 'center', alignItems: 'center' },
-  filterToggleActive: { backgroundColor: colors.primary },
+  filterToggle: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
+  filterToggleActive: { backgroundColor: colors.white },
   filterBadge: { position: 'absolute', top: -4, right: -4, width: 18, height: 18, borderRadius: 9, backgroundColor: colors.danger, justifyContent: 'center', alignItems: 'center' },
   filterBadgeText: { color: colors.white, fontSize: 10, fontWeight: '800' },
   searchSection: { backgroundColor: colors.card, paddingTop: 10, paddingBottom: 12 },
@@ -767,7 +758,7 @@ const makeStyles = colors => StyleSheet.create({
   filterModalContainer: { backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%', width: '100%', maxWidth: 640, alignSelf: 'center' },
   filterModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
   filterModalTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
-  filterModalBody: { padding: 20 },
+  filterModalBody: { padding: 20, paddingBottom: 32 },
   filterSectionLabel: { fontSize: 14, fontWeight: '700', color: colors.textPrimary, marginBottom: 10 },
   doctorSearchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceMuted, borderRadius: 10, paddingHorizontal: 12, height: 40 },
   doctorSearchInput: { flex: 1, fontSize: 14, color: colors.textPrimary, padding: 0, marginLeft: 8 },
@@ -791,7 +782,7 @@ const makeStyles = colors => StyleSheet.create({
   dateBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceMuted, borderRadius: 8, paddingHorizontal: 10, height: 40, gap: 6 },
   dateBtnText: { flex: 1, fontSize: 13, fontWeight: '500', color: colors.textPrimary },
   dateBtnPlaceholder: { color: colors.textMuted, fontWeight: '400' },
-  statusGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  statusGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
   statusCard: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: colors.border, width: '47%' },
   radioOuter: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: colors.borderStrong, justifyContent: 'center', alignItems: 'center', marginRight: 8 },
   radioInner: { width: 10, height: 10, borderRadius: 5 },

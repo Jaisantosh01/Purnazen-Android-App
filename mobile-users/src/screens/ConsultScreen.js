@@ -183,8 +183,8 @@ const ConsultScreen = ({ navigation }) => {
 
       <View style={styles.cardFooter}>
         <View>
-          <Text style={styles.feeLabel}>Consultation fee</Text>
-          <Text style={styles.feeAmount}>₹{doctor.fee}</Text>
+          <Text style={styles.feeLabel}>Starts at only</Text>
+          <Text style={styles.feeAmount}>₹{doctor.minFee ?? doctor.fee}</Text>
         </View>
         <View style={[
           styles.availabilityBadge,

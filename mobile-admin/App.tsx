@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme, CommonActions } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // @ts-ignore
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { Text, TouchableOpacity, StyleSheet } from 'react-native';
 // @ts-ignore
 import authService from './src/services/authService';
 // @ts-ignore
@@ -35,15 +34,15 @@ import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import UnifiedUserDoctorScreen from './src/screens/UnifiedUserDoctorScreen';
-import DoctorManagementScreen from './src/screens/DoctorManagementScreen';
 import DoctorDetailScreen from './src/screens/DoctorDetailScreen';
 import EditDoctorScreen from './src/screens/EditDoctorScreen';
 import MetadataManagementScreen from './src/screens/MetadataManagementScreen';
-import UserManagementScreen from './src/screens/UserManagementScreen';
 import EditUserScreen from './src/screens/EditUserScreen';
 import ManageRolesScreen from './src/screens/ManageRolesScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import HelpSupportScreen from './src/screens/HelpSupportScreen';
+import ContentViewerScreen from './src/screens/ContentViewerScreen';
 import AppointmentManagementScreen from './src/screens/AppointmentManagementScreen';
 import SlotManagementScreen from './src/screens/SlotManagementScreen';
 import DoctorLeaveManagementScreen from './src/screens/DoctorLeaveManagementScreen';
@@ -52,52 +51,93 @@ import VideoGroupDetailScreen from './src/screens/VideoGroupDetailScreen';
 import UploadVideoScreen from './src/screens/UploadVideoScreen';
 import FaqManagementScreen from './src/screens/FaqManagementScreen';
 import NotificationAdminScreen from './src/screens/NotificationAdminScreen';
-
-
+import ContentManagementScreen from './src/screens/ContentManagementScreen';
+import ContentDetailScreen from './src/screens/ContentDetailScreen';
+import ContentEditorScreen from './src/screens/ContentEditorScreen';
+import ManageScreen from './src/screens/ManageScreen';
 
 const RootStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 const HomeStack = createNativeStackNavigator();
-const UsersStack = createNativeStackNavigator();
-const AppointmentsStack = createNativeStackNavigator();
+const ManageStack = createNativeStackNavigator();
 const ProfileStack = createNativeStackNavigator();
 
 const TAB_ICONS: Record<string, { active: string; inactive: string }> = {
-  Home:        { active: 'home',                    inactive: 'home-outline'                  },
-  Users:       { active: 'account-group',           inactive: 'account-group-outline'         },
-  LeaveCenter: { active: 'beach',                   inactive: 'beach'                         },
-  Appointments:{ active: 'calendar-clock',          inactive: 'calendar-clock-outline'        },
-  Profile:     { active: 'account-circle',          inactive: 'account-circle-outline'        },
+  Home:    { active: 'home',           inactive: 'home-outline'           },
+  Manage:  { active: 'view-grid',      inactive: 'view-grid-outline'      },
+  Profile: { active: 'account-circle', inactive: 'account-circle-outline' },
 };
+
+const TAB_ROOT_SCREENS: Record<string, string> = {
+  Home:    'HomeMain',
+  Manage:  'ManageMain',
+  Profile: 'ProfileMain',
+};
+
+const makeTabListener = (routeName: string) => () => ({
+  tabPress: () => {
+    if (!navigationRef.isReady()) return;
+    const rootState = navigationRef.getRootState();
+    if (!rootState) return;
+    const mainRoute = rootState.routes[0];
+    const tabState = mainRoute?.state;
+    if (!tabState) return;
+    const tabRoute = tabState.routes.find((r: any) => r.name === routeName);
+    const childState = tabRoute?.state;
+    if (!childState) return;
+    const rootName = TAB_ROOT_SCREENS[routeName];
+    const isRootVisible =
+      childState.index === 0 && childState.routes[0]?.name === rootName;
+    if (isRootVisible) return;
+    const targetKey = childState.key;
+    if (!targetKey) return;
+    navigationRef.dispatch({
+      ...CommonActions.reset({ index: 0, routes: [{ name: rootName }] }),
+      target: targetKey,
+    });
+  },
+});
 
 function HomeStackNavigator() {
   return (
     <HomeStack.Navigator screenOptions={{ headerShown: false }}>
-      <HomeStack.Screen name="HomeMain"        component={HomeScreen} />
-      <HomeStack.Screen name="SlotManagement"  component={SlotManagementScreen} />
-      <HomeStack.Screen name="DoctorLeaveManagement" component={DoctorLeaveManagementScreen} />
-      <HomeStack.Screen name="VideoManagement" component={VideoManagementScreen} />
-      <HomeStack.Screen name="VideoGroupDetail" component={VideoGroupDetailScreen} />
-      <HomeStack.Screen name="UploadVideo"     component={UploadVideoScreen} />
-      <HomeStack.Screen name="FaqManagement"   component={FaqManagementScreen} />
-      <HomeStack.Screen name="NotificationAdmin" component={NotificationAdminScreen} />
-
+      {/* Dashboard cards deep-link into the Manage tab, so only the dashboard
+          itself lives in this stack. */}
+      <HomeStack.Screen name="HomeMain" component={HomeScreen} />
     </HomeStack.Navigator>
   );
 }
 
-function UsersAndDoctorsStackNavigator() {
+// Every management area is grouped under the Manage tab: the hub screen lists
+// them by domain (People / Scheduling / Content) and the detail screens stack
+// on top so back always returns to the hub.
+function ManageStackNavigator() {
   return (
-    <UsersStack.Navigator screenOptions={{ headerShown: false }}>
-      <UsersStack.Screen name="UsersAndDoctorsMain" component={UnifiedUserDoctorScreen} />
-      <UsersStack.Screen name="EditUser" component={EditUserScreen} />
-      <UsersStack.Screen name="ManageRoles" component={MetadataManagementScreen} />
-      <UsersStack.Screen name="DoctorDetail" component={DoctorDetailScreen} />
-      <UsersStack.Screen name="EditDoctor" component={EditDoctorScreen} />
-      <UsersStack.Screen name="ManageExpertise" component={MetadataManagementScreen} />
-      <UsersStack.Screen name="ManageLanguages" component={MetadataManagementScreen} />
-      <UsersStack.Screen name="ManageSpecialties" component={MetadataManagementScreen} />
-    </UsersStack.Navigator>
+    <ManageStack.Navigator screenOptions={{ headerShown: false }}>
+      <ManageStack.Screen name="ManageMain" component={ManageScreen} />
+      {/* People */}
+      <ManageStack.Screen name="UsersAndDoctorsMain" component={UnifiedUserDoctorScreen} />
+      <ManageStack.Screen name="EditUser" component={EditUserScreen} />
+      <ManageStack.Screen name="ManageRoles" component={MetadataManagementScreen} />
+      <ManageStack.Screen name="DoctorDetail" component={DoctorDetailScreen} />
+      <ManageStack.Screen name="EditDoctor" component={EditDoctorScreen} />
+      <ManageStack.Screen name="ManageExpertise" component={MetadataManagementScreen} />
+      <ManageStack.Screen name="ManageLanguages" component={MetadataManagementScreen} />
+      <ManageStack.Screen name="ManageSpecialties" component={MetadataManagementScreen} />
+      {/* Scheduling */}
+      <ManageStack.Screen name="AppointmentsMain" component={AppointmentManagementScreen} />
+      <ManageStack.Screen name="SlotManagement" component={SlotManagementScreen} />
+      <ManageStack.Screen name="DoctorLeaveManagement" component={DoctorLeaveManagementScreen} />
+      {/* Content */}
+      <ManageStack.Screen name="VideoManagement" component={VideoManagementScreen} />
+      <ManageStack.Screen name="VideoGroupDetail" component={VideoGroupDetailScreen} />
+      <ManageStack.Screen name="UploadVideo" component={UploadVideoScreen} />
+      <ManageStack.Screen name="FaqManagement" component={FaqManagementScreen} />
+      <ManageStack.Screen name="NotificationAdmin" component={NotificationAdminScreen} />
+      <ManageStack.Screen name="ContentManagement" component={ContentManagementScreen} />
+      <ManageStack.Screen name="ContentEditor" component={ContentEditorScreen} />
+      <ManageStack.Screen name="ContentDetail" component={ContentDetailScreen} />
+    </ManageStack.Navigator>
   );
 }
 
@@ -106,15 +146,9 @@ function ProfileStackNavigator() {
     <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
       <ProfileStack.Screen name="ProfileMain"    component={ProfileScreen}        />
       <ProfileStack.Screen name="Settings"       component={SettingsScreen}       />
+      <ProfileStack.Screen name="HelpSupport"    component={HelpSupportScreen}    />
+      <ProfileStack.Screen name="ContentViewer"  component={ContentViewerScreen}  />
     </ProfileStack.Navigator>
-  );
-}
-
-function AppointmentsStackNavigator() {
-  return (
-    <AppointmentsStack.Navigator screenOptions={{ headerShown: false }}>
-      <AppointmentsStack.Screen name="AppointmentsMain" component={AppointmentManagementScreen} />
-    </AppointmentsStack.Navigator>
   );
 }
 
@@ -156,16 +190,12 @@ function MainTabs() {
         },
       })}
     >
-      <Tab.Screen name="Home"        component={HomeStackNavigator}    />
-      <Tab.Screen name="Users"       component={UsersAndDoctorsStackNavigator} />
-      <Tab.Screen name="LeaveCenter" component={DoctorLeaveManagementScreen} options={{ tabBarLabel: 'Leaves' }} />
-      <Tab.Screen name="Appointments" component={AppointmentsStackNavigator} />
-      <Tab.Screen name="Profile"     component={ProfileStackNavigator} />
+      <Tab.Screen name="Home"    component={HomeStackNavigator}    listeners={makeTabListener('Home')}    options={{ tabBarLabel: 'Dashboard' }} />
+      <Tab.Screen name="Manage"  component={ManageStackNavigator}  listeners={makeTabListener('Manage')}  />
+      <Tab.Screen name="Profile" component={ProfileStackNavigator} listeners={makeTabListener('Profile')} />
     </Tab.Navigator>
   );
 }
-
-const styles = StyleSheet.create({});
 
 // ── Minimal splash shown while bootstrap is in-flight ─────────────────────────
 function SplashScreen() {

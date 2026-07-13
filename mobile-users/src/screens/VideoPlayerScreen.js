@@ -8,6 +8,7 @@ import {
   StatusBar,
   ActivityIndicator,
   TextInput,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import apiClient from '../api/client';
@@ -19,8 +20,9 @@ import VideoPlayer from '../components/VideoPlayer';
 import AppDialog from '../components/AppDialog';
 
 const VideoPlayerScreen = ({ route, navigation }) => {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { width: screenW } = useWindowDimensions();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { groupId } = route.params;
 
@@ -174,14 +176,37 @@ const VideoPlayerScreen = ({ route, navigation }) => {
   }, [hasNext, currentVideoIndex, goToVideo]);
 
   if (loading) {
+    // Skeleton mirrors the loaded layout (dark player frame on top, info +
+    // playlist below) so the page doesn't flash from a light spinner page to
+    // the dark player once the catalog arrives.
     return (
-      <View style={styles.center}>
-        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
-        <View style={styles.loadBadge}>
-          <MCIcon name="play-circle-outline" size={40} color={colors.primary} />
+      <View style={styles.root}>
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+        <View style={{ height: insets.top, backgroundColor: '#000' }} />
+        <View style={[styles.playerSkeleton, { height: (screenW * 9) / 16 }]}>
+          <ActivityIndicator size="large" color="#fff" />
         </View>
-        <ActivityIndicator size="small" color={colors.primary} style={{ marginTop: 16 }} />
-        <Text style={styles.loadText}>Loading sessions…</Text>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={[styles.floatingBack, { top: insets.top + 8 }]}
+          hitSlop={hit}
+        >
+          <MCIcon name="arrow-left" size={22} color="#fff" />
+        </TouchableOpacity>
+        <View style={styles.skeletonBody}>
+          <View style={[styles.skelLine, { width: '38%', height: 10 }]} />
+          <View style={[styles.skelLine, { width: '72%', height: 18, marginTop: 12 }]} />
+          <View style={[styles.skelLine, { width: '54%', height: 12, marginTop: 10, marginBottom: 22 }]} />
+          {[1, 2, 3].map(i => (
+            <View key={i} style={styles.skelRow}>
+              <View style={styles.skelCircle} />
+              <View style={{ flex: 1 }}>
+                <View style={[styles.skelLine, { width: '64%', height: 12 }]} />
+                <View style={[styles.skelLine, { width: '28%', height: 10, marginTop: 8 }]} />
+              </View>
+            </View>
+          ))}
+        </View>
       </View>
     );
   }
@@ -344,15 +369,33 @@ const hit = { top: 10, bottom: 10, left: 10, right: 10 };
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: colors.background },
-  loadBadge: {
-    width: 84,
-    height: 84,
-    borderRadius: 24,
-    backgroundColor: colors.primaryLight,
+
+  // Loading skeleton — same silhouette as the loaded page
+  playerSkeleton: {
+    width: '100%',
+    backgroundColor: '#000',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  loadText: { fontSize: 13, color: colors.textMuted, marginTop: 10 },
+  skeletonBody: { padding: 20 },
+  skelLine: { borderRadius: 6, backgroundColor: colors.surfaceMuted },
+  skelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  skelCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceMuted,
+    marginRight: 12,
+  },
 
   floatingBack: {
     position: 'absolute',
@@ -401,7 +444,7 @@ const makeStyles = colors => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.card,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 14,
     marginBottom: 10,
     borderWidth: StyleSheet.hairlineWidth,

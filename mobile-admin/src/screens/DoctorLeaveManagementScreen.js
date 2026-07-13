@@ -12,20 +12,13 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
+import { LEAVE_STATUS_COLORS as STATUS_COLORS, DAY_NAMES, MONTH_NAMES } from '../constants/appointments';
 import TimePickerModal from '../components/TimePickerModal';
 import SkeletonBox, { LeaveCardSkeleton, LeaveStatsSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 import { showAlert } from '../utils/alert';
 
-const STATUS_COLORS = {
-  pending: { bg: '#F59E0B', label: 'Pending' },
-  approved: { bg: '#10B981', label: 'Approved' },
-  rejected: { bg: '#EF4444', label: 'Rejected' },
-};
-
-const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const CalendarPicker = ({ value, onSelect }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -186,9 +179,6 @@ const LeaveCard = ({ leave, onPress, onStatusUpdate }) => {
 };
 
 const DoctorLeaveManagementScreen = ({ navigation, route }) => {
-  // Rendered both as the "Leaves" tab (route name LeaveCenter) and pushed from
-  // Home — only the pushed instance gets a back arrow.
-  const isTabInstance = route?.name === 'LeaveCenter';
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [leaves, setLeaves] = useState([]);
@@ -201,13 +191,13 @@ const DoctorLeaveManagementScreen = ({ navigation, route }) => {
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [draftFromDate, setDraftFromDate] = useState('');
   const [draftToDate, setDraftToDate] = useState('');
-  const [draftLeaveType, setDraftLeaveType] = useState('');
+  const [draftPartialDay, setDraftPartialDay] = useState(false);
   const [draftTimeFrom, setDraftTimeFrom] = useState('');
   const [draftTimeTo, setDraftTimeTo] = useState('');
 
   const [appliedFromDate, setAppliedFromDate] = useState('');
   const [appliedToDate, setAppliedToDate] = useState('');
-  const [appliedLeaveType, setAppliedLeaveType] = useState('');
+  const [appliedPartialDay, setAppliedPartialDay] = useState(false);
   const [appliedTimeFrom, setAppliedTimeFrom] = useState('');
   const [appliedTimeTo, setAppliedTimeTo] = useState('');
 
@@ -234,7 +224,7 @@ const DoctorLeaveManagementScreen = ({ navigation, route }) => {
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
   };
 
-  const hasActiveFilters = appliedFromDate || appliedToDate || appliedLeaveType || appliedTimeFrom || appliedTimeTo;
+  const hasActiveFilters = appliedFromDate || appliedToDate || appliedPartialDay || appliedTimeFrom || appliedTimeTo;
 
   const buildParams = useCallback(() => {
     const params = {};
@@ -242,11 +232,11 @@ const DoctorLeaveManagementScreen = ({ navigation, route }) => {
     if (statusFilter) params.status = statusFilter;
     if (appliedFromDate) params.from_date = appliedFromDate;
     if (appliedToDate) params.to_date = appliedToDate;
-    if (appliedLeaveType) params.leave_type = appliedLeaveType;
+    if (appliedPartialDay) params.leave_type = 'custom';
     if (appliedTimeFrom) params.time_from = to24Hour(appliedTimeFrom);
     if (appliedTimeTo) params.time_to = to24Hour(appliedTimeTo);
     return params;
-  }, [debouncedSearch, statusFilter, appliedFromDate, appliedToDate, appliedLeaveType, appliedTimeFrom, appliedTimeTo]);
+  }, [debouncedSearch, statusFilter, appliedFromDate, appliedToDate, appliedPartialDay, appliedTimeFrom, appliedTimeTo]);
 
   const fetchLeaves = useCallback(() => {
     setLoading(true);
@@ -309,7 +299,7 @@ const DoctorLeaveManagementScreen = ({ navigation, route }) => {
   const openFilterModal = () => {
     setDraftFromDate(appliedFromDate);
     setDraftToDate(appliedToDate);
-    setDraftLeaveType(appliedLeaveType);
+    setDraftPartialDay(appliedPartialDay);
     setDraftTimeFrom(appliedTimeFrom);
     setDraftTimeTo(appliedTimeTo);
     setCalendarTarget(null);
@@ -330,7 +320,7 @@ const DoctorLeaveManagementScreen = ({ navigation, route }) => {
   const applyFilters = () => {
     setAppliedFromDate(draftFromDate);
     setAppliedToDate(draftToDate);
-    setAppliedLeaveType(draftLeaveType);
+    setAppliedPartialDay(draftPartialDay);
     setAppliedTimeFrom(draftTimeFrom);
     setAppliedTimeTo(draftTimeTo);
     setFilterModalVisible(false);
@@ -360,12 +350,12 @@ const DoctorLeaveManagementScreen = ({ navigation, route }) => {
   const clearAllFilters = () => {
     setDraftFromDate('');
     setDraftToDate('');
-    setDraftLeaveType('');
+    setDraftPartialDay(false);
     setDraftTimeFrom('');
     setDraftTimeTo('');
     setAppliedFromDate('');
     setAppliedToDate('');
-    setAppliedLeaveType('');
+    setAppliedPartialDay(false);
     setAppliedTimeFrom('');
     setAppliedTimeTo('');
     setFilterModalVisible(false);
@@ -407,7 +397,7 @@ const DoctorLeaveManagementScreen = ({ navigation, route }) => {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.activeChipRow}>
           {appliedFromDate ? <View style={styles.chip}><Text style={styles.chipText}>From: {appliedFromDate}</Text></View> : null}
           {appliedToDate ? <View style={styles.chip}><Text style={styles.chipText}>To: {appliedToDate}</Text></View> : null}
-          {appliedLeaveType ? <View style={styles.chip}><Text style={styles.chipText}>{appliedLeaveType === 'single' ? 'Single Day' : appliedLeaveType === 'multiple' ? 'Multiple Days' : 'Partial Day'}</Text></View> : null}
+          {appliedPartialDay ? <View style={styles.chip}><Text style={styles.chipText}>Partial Day</Text></View> : null}
           {appliedTimeFrom ? <View style={styles.chip}><Text style={styles.chipText}>From: {appliedTimeFrom}</Text></View> : null}
           {appliedTimeTo ? <View style={styles.chip}><Text style={styles.chipText}>To: {appliedTimeTo}</Text></View> : null}
         </ScrollView>
@@ -420,10 +410,10 @@ const DoctorLeaveManagementScreen = ({ navigation, route }) => {
       <ScreenHeader
         title="Doctor Leaves"
         subtitle="Review and manage leave requests"
-        onBack={isTabInstance ? undefined : () => navigation.goBack()}
+        onBack={() => navigation.goBack()}
         right={
           <TouchableOpacity onPress={openFilterModal} style={styles.filterBtn}>
-            <MCIcon name="filter-variant" size={22} color={hasActiveFilters ? colors.primary : colors.textSecondary} />
+            <MCIcon name="filter-variant" size={22} color={hasActiveFilters ? colors.headerText : 'rgba(255,255,255,0.7)'} />
           </TouchableOpacity>
         }
       />
@@ -714,27 +704,17 @@ const DoctorLeaveManagementScreen = ({ navigation, route }) => {
                 ))}
               </View>
 
-              <Text style={[styles.filterSectionLabel, { marginTop: 20 }]}>Leave Type</Text>
-              <View style={styles.leaveTypeRow}>
-                {[
-                  { value: '', label: 'All' },
-                  { value: 'single', label: 'Single Day' },
-                  { value: 'multiple', label: 'Multiple Days' },
-                  { value: 'custom', label: 'Partial Day' },
-                ].map(opt => (
-                  <TouchableOpacity
-                    key={opt.value}
-                    style={[styles.leaveTypeBtn, draftLeaveType === opt.value && styles.leaveTypeBtnActive]}
-                    onPress={() => setDraftLeaveType(opt.value)}
-                  >
-                    <Text style={[styles.leaveTypeText, draftLeaveType === opt.value && styles.leaveTypeTextActive]}>
-                      {opt.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <TouchableOpacity
+                style={styles.partialDayRow}
+                onPress={() => setDraftPartialDay(!draftPartialDay)}
+              >
+                <View style={[styles.checkbox, draftPartialDay && styles.checkboxChecked]}>
+                  {draftPartialDay && <MCIcon name="check" size={14} color="#fff" />}
+                </View>
+                <Text style={styles.partialDayLabel}>Partial Day</Text>
+              </TouchableOpacity>
 
-              {draftLeaveType === 'custom' && (
+              {draftPartialDay && (
                 <View style={styles.timeRangeSection}>
                   <Text style={styles.filterSectionLabel}>Time Range</Text>
                   <View style={styles.filterDateRow}>
@@ -789,8 +769,16 @@ const DoctorLeaveManagementScreen = ({ navigation, route }) => {
             <CalendarPicker
               value={calendarTarget === 'from' ? draftFromDate : draftToDate}
               onSelect={(d) => {
-                if (calendarTarget === 'from') setDraftFromDate(d);
-                else setDraftToDate(d);
+                if (calendarTarget === 'from') {
+                  setDraftFromDate(d);
+                  setDraftToDate(d);
+                } else {
+                  if (draftFromDate && d < draftFromDate) {
+                    showAlert('Invalid', 'To date cannot be before from date');
+                    return;
+                  }
+                  setDraftToDate(d);
+                }
                 setCalendarModalVisible(false);
               }}
             />
@@ -878,11 +866,10 @@ const makeStyles = colors => StyleSheet.create({
   filterQuickDates: { flexDirection: 'row', gap: 8, marginTop: 12 },
   quickDateBtn: { flex: 1, backgroundColor: colors.primaryLight, borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
   quickDateText: { fontSize: 12, fontWeight: '600', color: colors.primary },
-  leaveTypeRow: { flexDirection: 'row', gap: 8 },
-  leaveTypeBtn: { flex: 1, paddingVertical: 12, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.card },
-  leaveTypeBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  leaveTypeText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
-  leaveTypeTextActive: { color: colors.white },
+  partialDayRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
+  checkbox: { width: 22, height: 22, borderRadius: 4, borderWidth: 2, borderColor: colors.borderStrong, justifyContent: 'center', alignItems: 'center' },
+  checkboxChecked: { backgroundColor: colors.primary, borderColor: colors.primary },
+  partialDayLabel: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
   timeRangeSection: { marginTop: 16 },
   filterModalActions: { flexDirection: 'row', alignItems: 'center', padding: 16, paddingBottom: 24, borderTopWidth: 1, borderTopColor: colors.border, gap: 10 },
   filterCancelBtn: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 10, backgroundColor: colors.surfaceMuted },

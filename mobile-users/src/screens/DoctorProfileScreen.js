@@ -283,8 +283,12 @@ const DoctorProfileScreen = ({ navigation, route }) => {
       {/* ── Bottom Bar ── */}
       <View style={styles.bottomBar}>
         <View style={styles.feeSection}>
-          <Text style={styles.feeLabel}>Consultation Fee</Text>
-          <Text style={styles.feeAmount}>₹{doctor.fee}</Text>
+          <Text style={styles.feeLabel}>Starts at only</Text>
+          <Text style={styles.feeAmount}>
+            ₹{visitTypes.length > 0
+              ? Math.min(...visitTypes.map(v => v.fee))
+              : doctor.minFee ?? doctor.fee}
+          </Text>
         </View>
         <TouchableOpacity
           style={styles.bookBtn}

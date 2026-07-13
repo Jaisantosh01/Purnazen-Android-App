@@ -55,6 +55,7 @@ export default function AppDialog({
   confirmDisabled = false,
   destructive = false,
   dismissOnBackdrop = true,
+  showCancel = true,
 }) {
   const { colors } = useTheme();
   const styles = makeStyles(colors);
@@ -79,29 +80,32 @@ export default function AppDialog({
         >
           {/* Inner Pressable swallows taps so they don't bubble to the backdrop */}
           <Pressable style={styles.card} onPress={() => {}}>
-            {icon ? (
-              <View style={[styles.iconBadge, { backgroundColor: iconBg || colors.primaryLight }]}>
-                <MCIcon name={icon} size={26} color={iconColor || accent} />
-              </View>
-            ) : null}
+            {/* Header scrolls WITH the body: when content is long the icon/title
+                glide away instead of staying pinned and squeezing the list into
+                a sliver. Short dialogs are unaffected (ScrollView is
+                content-sized via flexGrow:0). Only the action buttons stay put. */}
+            <ScrollView
+              style={styles.scroll}
+              showsVerticalScrollIndicator={false}
+              nestedScrollEnabled
+              keyboardShouldPersistTaps="handled"
+            >
+              {icon ? (
+                <View style={[styles.iconBadge, { backgroundColor: iconBg || colors.primaryLight }]}>
+                  <MCIcon name={icon} size={26} color={iconColor || accent} />
+                </View>
+              ) : null}
 
-            {title ? <Text style={styles.title}>{title}</Text> : null}
-            {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+              {title ? <Text style={styles.title}>{title}</Text> : null}
+              {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
 
-            {topSlot ? <View style={{ paddingHorizontal: 8 }}>{topSlot}</View> : null}
+              {topSlot ? <View style={styles.topSlot}>{topSlot}</View> : null}
 
-            {children ? (
-              <ScrollView
-                style={styles.body}
-                showsVerticalScrollIndicator={false}
-                nestedScrollEnabled
-              >
-                {children}
-              </ScrollView>
-            ) : null}
+              {children ? <View style={styles.body}>{children}</View> : null}
+            </ScrollView>
 
             <View style={styles.actions}>
-              {onClose ? (
+              {onClose && showCancel ? (
                 <TouchableOpacity
                   style={[styles.btn, styles.btnCancel]}
                   onPress={onClose}
@@ -181,6 +185,10 @@ const makeStyles = colors => StyleSheet.create({
     marginTop: 6,
     lineHeight: 19,
   },
+  // flexGrow:0 keeps short dialogs content-sized; flexShrink:1 lets the scroll
+  // area give way to the pinned action buttons when the card hits maxHeight.
+  scroll: { flexGrow: 0, flexShrink: 1 },
+  topSlot: { marginTop: 16 },
   body: { marginTop: 18 },
   actions: {
     flexDirection: 'row',

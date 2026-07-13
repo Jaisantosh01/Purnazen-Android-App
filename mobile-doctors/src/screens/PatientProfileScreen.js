@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,8 @@ import {
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { SPACING, RADIUS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 import patientService from '../services/patientService';
 
 const MENU_ITEMS = [
@@ -21,6 +22,8 @@ const MENU_ITEMS = [
 ];
 
 const PatientProfileScreen = ({ route, navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { id, patientId, appointment } = route.params || {};
   const activePatientId = patientId || id;
 
@@ -94,11 +97,11 @@ const PatientProfileScreen = ({ route, navigation }) => {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : error ? (
         <View style={styles.center}>
-          <MCIcon name="alert-circle-outline" size={48} color={COLORS.danger} style={{ marginBottom: 12 }} />
+          <MCIcon name="alert-circle-outline" size={48} color={colors.danger} style={{ marginBottom: 12 }} />
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={fetchPatient}>
             <Text style={styles.retryText}>Retry</Text>
@@ -126,11 +129,11 @@ const PatientProfileScreen = ({ route, navigation }) => {
               {/* Contact Information */}
               <View style={styles.contactContainer}>
                 <View style={styles.contactRow}>
-                  <MCIcon name="phone-outline" size={18} color={COLORS.textSecondary} style={styles.contactIcon} />
+                  <MCIcon name="phone-outline" size={18} color={colors.textSecondary} style={styles.contactIcon} />
                   <Text style={styles.contactText}>{patient.phone || 'N/A'}</Text>
                 </View>
                 <View style={styles.contactRow}>
-                  <MCIcon name="email-outline" size={18} color={COLORS.textSecondary} style={styles.contactIcon} />
+                  <MCIcon name="email-outline" size={18} color={colors.textSecondary} style={styles.contactIcon} />
                   <Text style={styles.contactText}>{patient.email || 'N/A'}</Text>
                 </View>
               </View>
@@ -140,7 +143,7 @@ const PatientProfileScreen = ({ route, navigation }) => {
             <View style={styles.summaryRow}>
               <View style={styles.summaryCard}>
                 <View style={styles.summaryIconWrap}>
-                  <MCIcon name="calendar-check" size={20} color={COLORS.primary} />
+                  <MCIcon name="calendar-check" size={20} color={colors.primary} />
                 </View>
                 <Text style={styles.summaryValue}>{patient.totalConsultations}</Text>
                 <Text style={styles.summaryLabel}>Total Consultations</Text>
@@ -148,7 +151,7 @@ const PatientProfileScreen = ({ route, navigation }) => {
 
               <View style={styles.summaryCard}>
                 <View style={styles.summaryIconWrap}>
-                  <MCIcon name="calendar-clock" size={20} color={COLORS.primary} />
+                  <MCIcon name="calendar-clock" size={20} color={colors.primary} />
                 </View>
                 <Text style={styles.summaryValue}>{patient.lastVisit}</Text>
                 <Text style={styles.summaryLabel}>Last Visit</Text>
@@ -165,11 +168,11 @@ const PatientProfileScreen = ({ route, navigation }) => {
                     onPress={() => handleMenuPress(item.id)}>
                     <View style={styles.menuItemLeft}>
                       <View style={styles.menuIconWrap}>
-                        <MCIcon name={item.icon} size={20} color={COLORS.primary} />
+                        <MCIcon name={item.icon} size={20} color={colors.primary} />
                       </View>
                       <Text style={styles.menuItemTitle}>{item.title}</Text>
                     </View>
-                    <MCIcon name="chevron-right" size={20} color={COLORS.textMuted} />
+                    <MCIcon name="chevron-right" size={20} color={colors.textMuted} />
                   </TouchableOpacity>
                   {index < MENU_ITEMS.length - 1 && <View style={styles.menuDivider} />}
                 </React.Fragment>
@@ -185,7 +188,7 @@ const PatientProfileScreen = ({ route, navigation }) => {
                 activeOpacity={0.85}
                 onPress={handleConsultation}>
                 <Text style={styles.actionBtnText}>{buttonLabel}</Text>
-                <MCIcon name="arrow-right" size={20} color={COLORS.white} />
+                <MCIcon name="arrow-right" size={20} color={colors.white} />
               </TouchableOpacity>
             </View>
           )}
@@ -198,16 +201,17 @@ const PatientProfileScreen = ({ route, navigation }) => {
 export default PatientProfileScreen;
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors =>
+  StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   scrollContent: { padding: SPACING.lg, paddingBottom: 40 },
 
   // Top Card
   profileCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.lg,
     alignItems: 'center',
     elevation: 2,
@@ -221,31 +225,31 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: SPACING.md,
   },
   avatarText: {
-    color: COLORS.primary,
+    color: colors.primary,
     fontSize: 24,
     fontWeight: '800',
   },
   profileName: {
     fontSize: 18,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   profileMeta: {
     fontSize: 13.5,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '500',
     marginBottom: SPACING.md,
   },
   divider: {
     height: 1,
-    backgroundColor: COLORS.border,
+    backgroundColor: colors.border,
     width: '100%',
     marginBottom: SPACING.md,
   },
@@ -264,7 +268,7 @@ const styles = StyleSheet.create({
   },
   contactText: {
     fontSize: 13.5,
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     fontWeight: '500',
   },
 
@@ -276,10 +280,10 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.md,
     alignItems: 'center',
     elevation: 2,
@@ -292,7 +296,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: COLORS.primaryFaint,
+    backgroundColor: colors.primaryFaint,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: SPACING.xs,
@@ -300,22 +304,22 @@ const styles = StyleSheet.create({
   summaryValue: {
     fontSize: 16,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 2,
   },
   summaryLabel: {
     fontSize: 11,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '600',
     textAlign: 'center',
   },
 
   // Menu Container
   menuContainer: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     paddingHorizontal: SPACING.md,
     elevation: 2,
     shadowColor: '#000',
@@ -337,7 +341,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: COLORS.primaryFaint,
+    backgroundColor: colors.primaryFaint,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: SPACING.md,
@@ -345,11 +349,11 @@ const styles = StyleSheet.create({
   menuItemTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   menuDivider: {
     height: 1,
-    backgroundColor: COLORS.border,
+    backgroundColor: colors.border,
   },
   center: {
     flex: 1,
@@ -359,19 +363,19 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 14.5,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: SPACING.md,
     fontWeight: '500',
   },
   retryBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingHorizontal: 18,
     paddingVertical: 8,
     borderRadius: RADIUS.md,
   },
   retryText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '700',
     fontSize: 13.5,
   },
@@ -382,14 +386,14 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     padding: SPACING.md,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: colors.border,
   },
   actionBtn: {
     flexDirection: 'row',
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: RADIUS.md,
     paddingVertical: 14,
     alignItems: 'center',
@@ -397,7 +401,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   actionBtnText: {
-    color: COLORS.white,
+    color: colors.white,
     fontSize: 15,
     fontWeight: '700',
   },

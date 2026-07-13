@@ -1,14 +1,15 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   TextInput,
   ScrollView,
-  Modal,
+  Alert,
 } from 'react-native';
+import { SwipeListView } from 'react-native-swipe-list-view';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
@@ -31,16 +32,12 @@ const UserManagementScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedRole, setSelectedRole] = useState('All');
-  
-  // Menu state
-  const [menuVisible, setMenuVisible] = useState(null);
-  const [menuPosition, setMenuPosition] = useState({ top: 0, right: 20 });
-  const [isMenuOpenTop, setIsMenuOpenTop] = useState(false);
-  const menuButtonRefs = useRef({});
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+    }, [])
+  );
 
   const fetchData = () => {
     setLoading(true);
@@ -60,14 +57,21 @@ const UserManagementScreen = ({ navigation }) => {
       .finally(() => setLoading(false));
   };
 
-  const openMenu = (userId) => {
-    menuButtonRefs.current[userId]?.measure((x, y, width, height, pageX, pageY) => {
-      const screenHeight = 800; // Approximate
-      const showTop = pageY > screenHeight / 2;
-      setMenuPosition({ top: showTop ? pageY - 100 : pageY + height });
-      setIsMenuOpenTop(showTop);
-      setMenuVisible(userId);
-    });
+  const handleEdit = (item, rowMap) => {
+    if (rowMap?.[item.id]) rowMap[item.id].closeRow();
+    navigation.navigate('EditUser', { user: item });
+  };
+
+  const handleDelete = (item, rowMap) => {
+    if (rowMap?.[item.id]) rowMap[item.id].closeRow();
+    Alert.alert('Delete User', `Are you sure you want to delete ${item.full_name}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => {
+        apiClient.delete(`${ENDPOINTS.USERS}/${item.id}`)
+          .then(() => { showAlert('Success', 'User deleted'); fetchData(); })
+          .catch(() => showAlert('Error', 'Failed to delete user'));
+      }},
+    ]);
   };
 
   const filteredUsers = users.filter(u => 
@@ -94,9 +98,12 @@ const UserManagementScreen = ({ navigation }) => {
           <ListSkeleton count={5} />
         </View>
       ) : (
-      <FlatList
+      <SwipeListView
         data={filteredUsers}
         keyExtractor={item => item.id.toString()}
+        leftOpenValue={80}
+        rightOpenValue={-80}
+        disableRightSwipe={false}
         ListHeaderComponent={
           <>
             <View style={styles.searchContainer}>
@@ -140,7 +147,11 @@ const UserManagementScreen = ({ navigation }) => {
         renderItem={({ item }) => {
           const roleData = roles.find(r => r.name.toLowerCase() === (item.role || '').toLowerCase());
           return (
-            <View style={styles.userCard}>
+            <TouchableOpacity
+              style={styles.userCard}
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate('EditUser', { user: item })}
+            >
               <View style={[styles.avatar, { backgroundColor: colors.primaryLight }]}>
                   <MCIcon name={roleData?.icon || 'account'} size={28} color={colors.primary} />
               </View>
@@ -150,34 +161,28 @@ const UserManagementScreen = ({ navigation }) => {
                 </View>
                 <Text style={styles.userEmail}>{item.email}</Text>
               </View>
-              <TouchableOpacity 
-                ref={(ref) => menuButtonRefs.current[item.id] = ref}
-                onPress={() => openMenu(item.id)} 
-                style={styles.menuButton}
-              >
-                <MCIcon name="dots-vertical" size={24} color={colors.textMuted} />
-              </TouchableOpacity>
-              
-              <Modal transparent visible={menuVisible === item.id} onRequestClose={() => setMenuVisible(null)}>
-                <TouchableOpacity style={styles.modalOverlay} onPress={() => setMenuVisible(null)} activeOpacity={1}>
-                  <View style={[styles.menu, { top: menuPosition.top, right: 12 }]}>
-                    <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuVisible(null); navigation.navigate('EditUser', { user: item }); }}>
-                      <MCIcon name="pencil" size={18} color={colors.primary} />
-                      <Text style={styles.menuItemText}>Edit</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuVisible(null); showAlert('Delete', 'Delete user coming soon'); }}>
-                      <MCIcon name="delete" size={18} color="#FF4D4D" />
-                      <Text style={[styles.menuItemText, { color: colors.danger }]}>Delete</Text>
-                    </TouchableOpacity>
-                  </View>
-                </TouchableOpacity>
-              </Modal>
-            </View>
+            </TouchableOpacity>
           );
         }}
+        renderHiddenItem={(data, rowMap) => (
+          <View style={styles.rowBack}>
+            <TouchableOpacity style={[styles.backBtn, styles.backDelete]} onPress={() => handleDelete(data.item, rowMap)}>
+              <MCIcon name="delete" size={22} color="#fff" />
+              <Text style={styles.backBtnText}>Delete</Text>
+            </TouchableOpacity>
+            <View style={{flex: 1}} />
+            <TouchableOpacity style={[styles.backBtn, styles.backEdit]} onPress={() => handleEdit(data.item, rowMap)}>
+              <MCIcon name="pencil" size={22} color="#fff" />
+              <Text style={styles.backBtnText}>Edit</Text>
+            </TouchableOpacity>
+          </View>
+        )}
         contentContainerStyle={styles.listContainer}
         refreshing={loading}
         onRefresh={fetchData}
+        closeOnRowPress={true}
+        closeOnRowOpen={true}
+        closeOnRowBeginSwipe={true}
       />
       )}
     </View>
@@ -215,7 +220,7 @@ const makeStyles = colors => StyleSheet.create({
   searchIcon: { marginRight: 10 },
   searchInput: { flex: 1, fontSize: 14, color: colors.textPrimary },
   tabsContainer: { paddingHorizontal: 12, marginBottom: 16 },
-  tabsContent: { gap: 10 },
+  tabsContent: { gap: 10, paddingRight: 16 },
   tab: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, borderWidth: 1, backgroundColor: colors.surfaceMuted },
   tabText: { fontWeight: '600', color: colors.textSecondary },
   listContainer: { paddingHorizontal: 12, paddingBottom: 16 },
@@ -235,11 +240,32 @@ const makeStyles = colors => StyleSheet.create({
   userNameContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
   userName: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
   userEmail: { fontSize: 13, color: colors.textMuted },
-  menuButton: { padding: 4 },
-  menu: { position: 'absolute', backgroundColor: colors.card, borderRadius: 8, padding: 8, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, zIndex: 10 },
-  menuItem: { flexDirection: 'row', alignItems: 'center', padding: 8, gap: 8 },
-  menuItemText: { fontSize: 14, fontWeight: '500' },
-  modalOverlay: { flex: 1, backgroundColor: 'transparent' }
+  rowBack: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 12,
+    marginBottom: 12,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  backBtn: {
+    width: 80,
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backDelete: {
+    backgroundColor: '#EF4444',
+    borderTopLeftRadius: 16,
+    borderBottomLeftRadius: 16,
+  },
+  backEdit: {
+    backgroundColor: colors.primary,
+    borderTopRightRadius: 16,
+    borderBottomRightRadius: 16,
+  },
+  backBtnText: { color: '#fff', fontSize: 12, fontWeight: '600', marginTop: 4 },
 });
 
 export default UserManagementScreen;

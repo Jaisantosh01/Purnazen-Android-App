@@ -534,7 +534,7 @@ const ScheduleScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="My Schedule" subtitle="Availability & Leave" />
+      <ScreenHeader title="My Schedule" subtitle="Availability & Leave" showBack={false} />
       
       <View style={styles.segmentedWrapper}>
         {renderSegmentedControl()}
@@ -622,7 +622,7 @@ const makeStyles = colors => StyleSheet.create({
     paddingLeft: SPACING.xs,
   },
   emptyAvailabilityCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: colors.border,
@@ -661,7 +661,7 @@ const makeStyles = colors => StyleSheet.create({
   },
   segmentedContainer: {
     flexDirection: 'row',
-    backgroundColor: '#EEF4FF',
+    backgroundColor: colors.primaryLight,
     borderRadius: RADIUS.md,
     padding: 4,
     borderWidth: 1,
@@ -697,7 +697,7 @@ const makeStyles = colors => StyleSheet.create({
 
   // Weekdays List Card Styles
   daysListCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: colors.border,
@@ -772,7 +772,7 @@ const makeStyles = colors => StyleSheet.create({
 
   // Leave Styles
   upcomingLeaveCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: colors.border,
@@ -796,7 +796,7 @@ const makeStyles = colors => StyleSheet.create({
     color: colors.textSecondary,
   },
   emptyLeaveCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: colors.border,
@@ -814,7 +814,7 @@ const makeStyles = colors => StyleSheet.create({
     textAlign: 'center',
   },
   leaveActionsCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: colors.border,
@@ -850,7 +850,7 @@ const makeStyles = colors => StyleSheet.create({
     marginBottom: SPACING.lg,
   },
   applyLeaveRowCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: colors.border,
@@ -867,7 +867,7 @@ const makeStyles = colors => StyleSheet.create({
     shadowRadius: 2,
   },
   leaveHistoryRowCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: colors.border,
@@ -890,7 +890,7 @@ const makeStyles = colors => StyleSheet.create({
     flex: 1,
   },
   applyLeaveCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: colors.border,
@@ -915,7 +915,7 @@ const makeStyles = colors => StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: RADIUS.sm,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -938,7 +938,7 @@ const makeStyles = colors => StyleSheet.create({
   },
   statusCard: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: colors.border,
@@ -1011,7 +1011,7 @@ const makeStyles = colors => StyleSheet.create({
     gap: SPACING.md,
   },
   historyCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: colors.border,

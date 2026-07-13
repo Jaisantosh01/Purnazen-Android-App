@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,11 +6,13 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   ScrollView,
+  RefreshControl,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { SPACING, RADIUS } from '../constants/theme';
+import useTheme from '../hooks/useTheme';
 import appointmentService from '../services/appointmentService';
 import { showAlert } from '../utils/alert';
 
@@ -53,31 +55,41 @@ const isAppointmentOver = (dateStr, endTimeStr) => {
 };
 
 // ─── Info Row Component ─────────────────────────────────────────────────────────
-const InfoRow = ({ icon, label, value }) => (
+const InfoRow = ({ icon, label, value }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
   <View style={styles.infoItem}>
     <View style={styles.infoIconWrap}>
-      <MCIcon name={icon} size={18} color={COLORS.primary} />
+      <MCIcon name={icon} size={18} color={colors.primary} />
     </View>
     <View style={styles.infoTextWrap}>
       <Text style={styles.infoLabel}>{label}</Text>
       <Text style={styles.infoValue}>{value || '—'}</Text>
     </View>
   </View>
-);
+  );
+};
 
 // ─── Section Card Component ─────────────────────────────────────────────────────
-const SectionCard = ({ title, icon, children }) => (
+const SectionCard = ({ title, icon, children }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
   <View style={styles.sectionCard}>
     <View style={styles.sectionHeader}>
-      <MCIcon name={icon} size={18} color={COLORS.primary} />
+      <MCIcon name={icon} size={18} color={colors.primary} />
       <Text style={styles.sectionTitle}>{title}</Text>
     </View>
     {children}
   </View>
-);
+  );
+};
 
 // ─── Status Badge ───────────────────────────────────────────────────────────────
 const StatusBadge = ({ status }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.booked;
   return (
     <View style={[styles.badge, { backgroundColor: cfg.bg }]}>
@@ -89,6 +101,8 @@ const StatusBadge = ({ status }) => {
 
 // ─── Main Screen ────────────────────────────────────────────────────────────────
 const AppointmentDetailScreen = ({ route, navigation }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { appointment: initialAppointment } = route.params || {};
   const id = initialAppointment?.id;
   const [appointment, setAppointment] = useState(initialAppointment || null);
@@ -179,12 +193,18 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
     });
   };
 
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchAppointmentDetails(true);
+    setRefreshing(false);
+  }, [fetchAppointmentDetails]);
+
   // ── Render content ──────────────────────────────────────────────────────────
   const renderContent = () => {
     if (loading) {
       return (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.stateText}>Loading appointment details…</Text>
         </View>
       );
@@ -193,7 +213,7 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
     if (error) {
       return (
         <View style={styles.center}>
-          <MCIcon name="alert-circle-outline" size={64} color={COLORS.danger} />
+          <MCIcon name="alert-circle-outline" size={64} color={colors.danger} />
           <Text style={styles.errorTitle}>Error Loading Details</Text>
           <Text style={styles.errorSubtitle}>{error}</Text>
           <TouchableOpacity style={styles.retryBtn} activeOpacity={0.8} onPress={fetchAppointmentDetails}>
@@ -206,7 +226,7 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
     if (!appointment) {
       return (
         <View style={styles.center}>
-          <MCIcon name="calendar-search" size={64} color={COLORS.textMuted} />
+          <MCIcon name="calendar-search" size={64} color={colors.textMuted} />
           <Text style={styles.emptyTitle}>No Details Found</Text>
           <Text style={styles.emptySubtitle}>We couldn't find details for this appointment.</Text>
           <TouchableOpacity style={styles.backBtn} activeOpacity={0.8} onPress={() => navigation.goBack()}>
@@ -229,8 +249,8 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              colors={[COLORS.primary]}
-              tintColor={COLORS.primary}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
             />
           }
         >
@@ -241,7 +261,7 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
             onPress={handlePatientPress}>
             <View style={styles.profileTopRow}>
               <View style={styles.avatarWrap}>
-                <MCIcon name="account" size={36} color={COLORS.primary} />
+                <MCIcon name="account" size={36} color={colors.primary} />
               </View>
               <View style={styles.profileInfo}>
                 <Text style={styles.patientName}>
@@ -249,13 +269,13 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
                 </Text>
                 <View style={styles.profileMeta}>
                   <View style={styles.metaPill}>
-                    <MCIcon name="calendar-account" size={12} color={COLORS.textSecondary} />
+                    <MCIcon name="calendar-account" size={12} color={colors.textSecondary} />
                     <Text style={styles.metaPillText}>
                       {appointment.userAge ? `${appointment.userAge} yrs` : 'Age N/A'}
                     </Text>
                   </View>
                   <View style={styles.metaPill}>
-                    <MCIcon name="gender-male-female" size={12} color={COLORS.textSecondary} />
+                    <MCIcon name="gender-male-female" size={12} color={colors.textSecondary} />
                     <Text style={styles.metaPillText}>
                       {appointment.userGender || 'N/A'}
                     </Text>
@@ -267,7 +287,7 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
 
             <View style={styles.viewProfileRow}>
               <Text style={styles.viewProfileText}>View Patient Profile & Medical History</Text>
-              <MCIcon name="chevron-right" size={16} color={COLORS.primary} />
+              <MCIcon name="chevron-right" size={16} color={colors.primary} />
             </View>
           </TouchableOpacity>
 
@@ -310,7 +330,7 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
                 style={[styles.actionBtn, styles.acceptBtn]}
                 activeOpacity={0.8}
                 onPress={handleAccept}>
-                <MCIcon name="check" size={18} color={COLORS.white} style={{ marginRight: 6 }} />
+                <MCIcon name="check" size={18} color={colors.white} style={{ marginRight: 6 }} />
                 <Text style={styles.acceptBtnText}>Accept Appointment</Text>
               </TouchableOpacity>
             )}
@@ -322,7 +342,7 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
                   style={[
                     styles.actionBtn,
                     styles.completeBtn,
-                    !apptOver && { backgroundColor: '#E5E7EB', borderColor: '#E5E7EB' }
+                    !apptOver && { backgroundColor: colors.borderStrong, borderColor: colors.borderStrong }
                   ]}
                   disabled={!apptOver}
                   activeOpacity={0.8}
@@ -330,7 +350,7 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
                   <MCIcon
                     name="check-decagram"
                     size={18}
-                    color={apptOver ? COLORS.white : '#9CA3AF'}
+                    color={apptOver ? colors.white : '#9CA3AF'}
                     style={{ marginRight: 6 }}
                   />
                   <Text style={[styles.completeBtnText, !apptOver && { color: '#9CA3AF' }]}>
@@ -344,7 +364,7 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
               style={[styles.actionBtn, styles.cancelBtn]}
               activeOpacity={0.8}
               onPress={handleCancel}>
-              <MCIcon name="close-circle-outline" size={18} color={COLORS.danger} style={{ marginRight: 6 }} />
+              <MCIcon name="close-circle-outline" size={18} color={colors.danger} style={{ marginRight: 6 }} />
               <Text style={styles.cancelBtnText}>Cancel Appointment</Text>
             </TouchableOpacity>
           </View>
@@ -368,19 +388,20 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
 export default AppointmentDetailScreen;
 
 // ─── Styles ─────────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = colors =>
+  StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   scroll: { padding: SPACING.lg, gap: SPACING.md },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SPACING.xl, gap: SPACING.md },
-  stateText: { fontSize: 14, color: COLORS.textSecondary, fontWeight: '500' },
+  stateText: { fontSize: 14, color: colors.textSecondary, fontWeight: '500' },
   bottomSpacer: { height: 160 },
 
   // ── Profile Card ──
   profileCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.lg,
     elevation: 2,
     shadowColor: '#000',
@@ -397,23 +418,23 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: COLORS.primaryFaint,
+    backgroundColor: colors.primaryFaint,
     alignItems: 'center',
     justifyContent: 'center',
   },
   profileInfo: { flex: 1, gap: 4 },
-  patientName: { fontSize: 16.5, fontWeight: '800', color: COLORS.textPrimary },
+  patientName: { fontSize: 16.5, fontWeight: '800', color: colors.textPrimary },
   profileMeta: { flexDirection: 'row', gap: SPACING.sm },
   metaPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: COLORS.surfaceMuted,
+    backgroundColor: colors.surfaceMuted,
     borderRadius: RADIUS.pill,
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
-  metaPillText: { fontSize: 11, color: COLORS.textSecondary, fontWeight: '600' },
+  metaPillText: { fontSize: 11, color: colors.textSecondary, fontWeight: '600' },
   viewProfileRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -421,11 +442,11 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
     paddingTop: SPACING.md,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: colors.border,
   },
   viewProfileText: {
     fontSize: 13,
-    color: COLORS.primary,
+    color: colors.primary,
     fontWeight: '700',
   },
 
@@ -443,10 +464,10 @@ const styles = StyleSheet.create({
 
   // ── Section Card ──
   sectionCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.lg,
     elevation: 1,
     shadowColor: '#000',
@@ -461,9 +482,9 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
     paddingBottom: SPACING.sm,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: colors.border,
   },
-  sectionTitle: { fontSize: 15, fontWeight: '800', color: COLORS.textPrimary },
+  sectionTitle: { fontSize: 15, fontWeight: '800', color: colors.textPrimary },
 
   // ── Info Items ──
   infoItem: {
@@ -476,21 +497,21 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: COLORS.primaryFaint,
+    backgroundColor: colors.primaryFaint,
     alignItems: 'center',
     justifyContent: 'center',
   },
   infoTextWrap: { flex: 1 },
-  infoLabel: { fontSize: 11, fontWeight: '600', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
-  infoValue: { fontSize: 14, fontWeight: '600', color: COLORS.textPrimary, marginTop: 2 },
+  infoLabel: { fontSize: 11, fontWeight: '600', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  infoValue: { fontSize: 14, fontWeight: '600', color: colors.textPrimary, marginTop: 2 },
 
   // ── Action Buttons Block ──
   fixedActionBlock: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: colors.border,
     gap: SPACING.md,
   },
   actionBtn: {
@@ -502,40 +523,40 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   acceptBtn: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   acceptBtnText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '700',
     fontSize: 15,
   },
   completeBtn: {
-    backgroundColor: COLORS.success,
-    borderColor: COLORS.success,
+    backgroundColor: colors.success,
+    borderColor: colors.success,
   },
   completeBtnText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '700',
     fontSize: 15,
   },
   cancelBtn: {
     backgroundColor: 'transparent',
-    borderColor: COLORS.danger,
+    borderColor: colors.danger,
   },
   cancelBtnText: {
-    color: COLORS.danger,
+    color: colors.danger,
     fontWeight: '700',
     fontSize: 15,
   },
 
   // ── Error/Empty States ──
-  errorTitle: { fontSize: 18, fontWeight: '800', color: COLORS.textPrimary },
-  errorSubtitle: { fontSize: 13.5, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: SPACING.sm },
-  retryBtn: { paddingHorizontal: SPACING.xl, paddingVertical: 12, backgroundColor: COLORS.primary, borderRadius: RADIUS.pill },
-  retryBtnText: { color: COLORS.white, fontWeight: '700', fontSize: 14 },
-  emptyTitle: { fontSize: 18, fontWeight: '800', color: COLORS.textPrimary },
-  emptySubtitle: { fontSize: 13.5, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: SPACING.sm },
-  backBtn: { paddingHorizontal: SPACING.xl, paddingVertical: 12, backgroundColor: COLORS.primary, borderRadius: RADIUS.pill },
-  backBtnText: { color: COLORS.white, fontWeight: '700', fontSize: 14 },
+  errorTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
+  errorSubtitle: { fontSize: 13.5, color: colors.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: SPACING.sm },
+  retryBtn: { paddingHorizontal: SPACING.xl, paddingVertical: 12, backgroundColor: colors.primary, borderRadius: RADIUS.pill },
+  retryBtnText: { color: colors.white, fontWeight: '700', fontSize: 14 },
+  emptyTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
+  emptySubtitle: { fontSize: 13.5, color: colors.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: SPACING.sm },
+  backBtn: { paddingHorizontal: SPACING.xl, paddingVertical: 12, backgroundColor: colors.primary, borderRadius: RADIUS.pill },
+  backBtnText: { color: colors.white, fontWeight: '700', fontSize: 14 },
 });

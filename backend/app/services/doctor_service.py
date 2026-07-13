@@ -46,6 +46,10 @@ VISIT_SLUG_TO_CONSULTATION_TYPE = {
     meta["id"]: name for name, meta in VISIT_TYPE_PRESENTATION.items()
 }
 
+# Display order for visit types / consultation-type tags: clinic first, then
+# home, then video (unknown types last, in their original order).
+VISIT_TYPE_ORDER = {"Clinic Visit": 0, "Home Visit": 1, "Video Call": 2}
+
 
 class DoctorService:
 
@@ -63,7 +67,11 @@ class DoctorService:
     def get_visit_types(doctor: Doctor) -> list[dict]:
         fee = float(doctor.consultation_fee)
         visit_types = []
-        for link in doctor.consultation_type_links:
+        links = sorted(
+            doctor.consultation_type_links,
+            key=lambda link: VISIT_TYPE_ORDER.get(link.consultation_type.name, 9),
+        )
+        for link in links:
             ct_name = link.consultation_type.name
             meta = VISIT_TYPE_PRESENTATION.get(
                 ct_name,
@@ -160,8 +168,8 @@ class DoctorService:
         slots = []
         booked_str = {str(b) for b in booked_ids}
         for av, st in rows:
-            if st.id in booked_ids:
-                continue
+            # Booked slots stay in the list flagged `booked: true` (the booking
+            # UI greys them out); only leave-blocked slots are omitted entirely.
             if st.id in blocked_slots_by_leave:
                 continue
             slots.append({

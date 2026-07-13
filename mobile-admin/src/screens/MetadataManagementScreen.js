@@ -3,25 +3,22 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
-  StatusBar,
   TextInput,
   Modal,
-  ScrollView,
 } from 'react-native';
+import { SwipeListView } from 'react-native-swipe-list-view';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ROLE_ICONS } from '../constants/icons';
 import { ListSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
-import { useHeaderTopPadding } from '../components/ScreenHeader';
+import ScreenHeader from '../components/ScreenHeader';
 import { showAlert } from '../utils/alert';
 
 const MetadataManagementScreen = ({ route, navigation }) => {
-  const { colors, isDark } = useTheme();
-  const headerTop = useHeaderTopPadding();
+  const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { title, endpoint } = route.params;
   const isRole = title === 'Roles';
@@ -30,7 +27,6 @@ const MetadataManagementScreen = ({ route, navigation }) => {
   const [newItemName, setNewItemName] = useState('');
   const [selectedIcon, setSelectedIcon] = useState(ROLE_ICONS[0]);
   const [editingItem, setEditingItem] = useState(null);
-  const [menuVisible, setMenuVisible] = useState(null); 
   const [modalVisible, setModalVisible] = useState(false);
 
   useEffect(() => {
@@ -75,7 +71,6 @@ const MetadataManagementScreen = ({ route, navigation }) => {
     setEditingItem(item);
     setNewItemName(item.name);
     setSelectedIcon(item.icon || ROLE_ICONS[0]);
-    setMenuVisible(null);
     setModalVisible(true);
   };
 
@@ -87,7 +82,6 @@ const MetadataManagementScreen = ({ route, navigation }) => {
   }
 
   const handleDelete = (id) => {
-    setMenuVisible(null);
     showAlert('Delete', 'Are you sure?', [
       { text: 'Cancel' },
       {
@@ -104,52 +98,56 @@ const MetadataManagementScreen = ({ route, navigation }) => {
 
   const renderItem = ({ item }) => (
     <View style={styles.itemCard}>
-      <View style={{flexDirection: 'row', alignItems: 'center'}}>
+      <View style={{flexDirection: 'row', alignItems: 'center', flex: 1}}>
         {isRole && item.icon && <MCIcon name={item.icon} size={20} color={colors.primary} style={{marginRight: 10}} />}
         <Text style={styles.itemName}>{item.name}</Text>
       </View>
-      <TouchableOpacity onPress={() => setMenuVisible(menuVisible === item.id ? null : item.id)}>
-        <MCIcon name="dots-vertical" size={24} color={colors.textMuted} />
+      <MCIcon name="drag-horizontal" size={20} color={colors.textMuted} />
+    </View>
+  );
+
+  const renderHiddenItem = (data, rowMap) => (
+    <View style={styles.rowBack}>
+      <TouchableOpacity style={[styles.backBtn, styles.deleteBack]} onPress={() => { rowMap[data.item.id]?.closeRow(); handleDelete(data.item.id); }}>
+        <MCIcon name="delete" size={22} color="#fff" />
+        <Text style={styles.backBtnText}>Delete</Text>
       </TouchableOpacity>
-      
-      {menuVisible === item.id && (
-        <View style={styles.menu}>
-          <TouchableOpacity style={styles.menuItem} onPress={() => startEdit(item)}>
-            <MCIcon name="pencil" size={18} color={colors.primary} />
-            <Text style={styles.menuItemText}>Edit</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem} onPress={() => handleDelete(item.id)}>
-            <MCIcon name="delete" size={18} color="#FF4D4D" />
-            <Text style={[styles.menuItemText, { color: colors.danger }]}>Delete</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      <TouchableOpacity style={[styles.backBtn, styles.editBack]} onPress={() => { startEdit(data.item); rowMap[data.item.id]?.closeRow(); }}>
+        <MCIcon name="pencil" size={22} color="#fff" />
+        <Text style={styles.backBtnText}>Edit</Text>
+      </TouchableOpacity>
     </View>
   );
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.card} />
-      <View style={[styles.header, { paddingTop: headerTop }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <MCIcon name="arrow-left" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{title}</Text>
-        <TouchableOpacity onPress={openAddModal}>
-          <MCIcon name="plus" size={24} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title={title}
+        onBack={() => navigation.goBack()}
+        right={
+          <TouchableOpacity onPress={openAddModal}>
+            <MCIcon name="plus" size={24} color={colors.headerText} />
+          </TouchableOpacity>
+        }
+      />
 
       {loading && items.length === 0 ? (
         <ListSkeleton count={5} />
       ) : (
-        <FlatList
+        <SwipeListView
           data={items}
           keyExtractor={item => item.id.toString()}
           renderItem={renderItem}
+          renderHiddenItem={renderHiddenItem}
+          leftOpenValue={75}
+          rightOpenValue={-75}
+          stopLeftSwipe={130}
+          stopRightSwipe={-130}
           contentContainerStyle={styles.listContainer}
           refreshing={loading}
           onRefresh={fetchItems}
+          closeOnRowOpen
+          closeOnRowPress
           ListEmptyComponent={!loading && <Text style={styles.emptyText}>No items found</Text>}
         />
       )}
@@ -181,7 +179,7 @@ const MetadataManagementScreen = ({ route, navigation }) => {
                     </View>
                 )}
                 <View style={styles.modalButtons}>
-                    <TouchableOpacity style={[styles.btn, styles.cancelBtn]} onPress={() => setModalVisible(false)}><Text>Cancel</Text></TouchableOpacity>
+                    <TouchableOpacity style={[styles.btn, styles.cancelBtn]} onPress={() => setModalVisible(false)}><Text style={styles.cancelBtnText}>Cancel</Text></TouchableOpacity>
                     <TouchableOpacity style={[styles.btn, styles.saveBtn]} onPress={handleSave}><Text style={styles.saveBtnText}>Save</Text></TouchableOpacity>
                 </View>
             </View>
@@ -193,27 +191,28 @@ const MetadataManagementScreen = ({ route, navigation }) => {
 
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  header: { paddingHorizontal: 20, paddingBottom: 16, backgroundColor: colors.card, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  headerTitle: { fontSize: 20, fontWeight: '800', color: colors.textPrimary },
   listContainer: { padding: 16 },
-  itemCard: { backgroundColor: colors.card, padding: 16, borderRadius: 12, marginBottom: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', position: 'relative' },
-  itemName: { fontSize: 16, fontWeight: '600' },
-  menu: { position: 'absolute', right: 40, top: 16, backgroundColor: colors.card, borderRadius: 8, padding: 8, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, zIndex: 10 },
-  menuItem: { flexDirection: 'row', alignItems: 'center', padding: 8, gap: 8 },
-  menuItemText: { fontSize: 14, fontWeight: '500' },
+  itemCard: { backgroundColor: colors.card, padding: 16, borderRadius: 12, marginBottom: 8, flexDirection: 'row', alignItems: 'center' },
+  itemName: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
+  rowBack: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, borderRadius: 12, overflow: 'hidden', flex: 1 },
+  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, justifyContent: 'center', width: 75, height: '100%' },
+  editBack: { backgroundColor: '#3B82F6' },
+  deleteBack: { backgroundColor: '#EF4444' },
+  backBtnText: { color: '#fff', fontSize: 12, fontWeight: '600' },
   emptyText: { textAlign: 'center', marginTop: 20, color: colors.textMuted },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   modalContent: { backgroundColor: colors.card, borderRadius: 12, padding: 20 },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15 },
-  modalInput: { backgroundColor: colors.background, borderRadius: 8, paddingHorizontal: 12, height: 44, marginBottom: 15, borderWidth: 1, borderColor: colors.borderStrong },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, color: colors.textPrimary },
+  modalInput: { backgroundColor: colors.background, borderRadius: 8, paddingHorizontal: 12, height: 44, marginBottom: 15, borderWidth: 1, borderColor: colors.borderStrong, color: colors.textPrimary },
   iconPicker: { marginBottom: 15 },
-  label: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
+  label: { fontSize: 14, fontWeight: '600', marginBottom: 8, color: colors.textSecondary },
   iconOption: { padding: 10, borderRadius: 8, marginRight: 8, backgroundColor: colors.surfaceMuted },
   selectedIcon: { backgroundColor: colors.primaryLight, borderWidth: 1, borderColor: colors.primary },
   modalButtons: { flexDirection: 'row', gap: 10 },
   iconContainer: { flexDirection: 'row', flexWrap: 'wrap' },
   btn: { flex: 1, padding: 12, borderRadius: 8, alignItems: 'center' },
   cancelBtn: { backgroundColor: colors.surfaceMuted },
+  cancelBtnText: { color: colors.textSecondary, fontWeight: '600' },
   saveBtn: { backgroundColor: colors.primary },
   saveBtnText: { color: colors.white, fontWeight: 'bold' }
 });

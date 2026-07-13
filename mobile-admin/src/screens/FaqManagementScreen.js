@@ -10,8 +10,9 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { showAlert } from '../utils/alert';
+import { SwipeListView } from 'react-native-swipe-list-view';
 import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
+import { showAlert } from '../utils/alert';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
@@ -30,6 +31,7 @@ const FaqManagementScreen = ({ navigation }) => {
   const [editingItem, setEditingItem] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [expandedIds, setExpandedIds] = useState({});
+  const [sortMode, setSortMode] = useState(false);
 
   useEffect(() => {
     fetchItems();
@@ -108,6 +110,7 @@ const FaqManagementScreen = ({ navigation }) => {
 
   const onDragEnd = useCallback(({ data }) => {
     setItems(data);
+    setSortMode(false);
     const updates = data.map((item, index) => ({
       id: item.id,
       sort_order: index,
@@ -120,35 +123,73 @@ const FaqManagementScreen = ({ navigation }) => {
     });
   }, []);
 
-  const renderItem = useCallback(({ item, drag, isActive: isDragging }) => {
+  const renderItem = ({ item }) => {
     const isExpanded = expandedIds[item.id];
     const isInactive = item.is_active === false;
     const headerTextColor = isInactive ? colors.textMuted : colors.headerText;
-    const headerIconColor = isInactive ? colors.textMuted : colors.headerText;
+
+    return (
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={() => toggleExpand(item.id)}
+        onLongPress={() => setSortMode(true)}
+        delayLongPress={400}
+      >
+        <View style={[styles.card, isInactive && styles.cardInactive]}>
+          <View style={[styles.cardHeader, isInactive && styles.cardHeaderInactive]}>
+            <View style={styles.cardHeaderLeft}>
+              <Text style={[styles.questionText, { color: headerTextColor }]} numberOfLines={isExpanded ? undefined : 1}>{item.question}</Text>
+            </View>
+            <MCIcon name={isExpanded ? 'chevron-up' : 'chevron-down'} size={20} color={headerTextColor} />
+          </View>
+          {isExpanded && (
+            <View style={styles.cardBody}>
+              <Text style={styles.answerText}>{item.answer}</Text>
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderHiddenItem = (data, rowMap) => (
+    <View style={styles.rowBack}>
+      <TouchableOpacity style={[styles.backBtn, styles.deleteBack]} onPress={() => { rowMap[data.item.id]?.closeRow(); handleDelete(data.item.id); }}>
+        <MCIcon name="delete" size={22} color="#fff" />
+        <Text style={styles.backBtnText}>Delete</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={[styles.backBtn, styles.editBack]} onPress={() => { rowMap[data.item.id]?.closeRow(); startEdit(data.item); }}>
+        <MCIcon name="pencil" size={22} color="#fff" />
+        <Text style={styles.backBtnText}>Edit</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const onSwipeValueChange = useCallback((swipeData) => {
+    if (swipeData.value !== 0 && expandedIds[swipeData.key]) {
+      setExpandedIds(prev => ({ ...prev, [swipeData.key]: false }));
+    }
+  }, [expandedIds]);
+
+  const renderDraggableItem = useCallback(({ item, drag, isActive: isDragging }) => {
+    const isExpanded = expandedIds[item.id];
+    const isInactive = item.is_active === false;
+    const headerTextColor = isInactive ? colors.textMuted : colors.headerText;
 
     return (
       <ScaleDecorator>
         <View style={[styles.card, isDragging && styles.cardDragging]}>
           <TouchableOpacity
             style={[styles.cardHeader, isInactive && styles.cardHeaderInactive]}
-            onPress={() => toggleExpand(item.id)}
             onLongPress={drag}
-            delayLongPress={200}
+            delayLongPress={100}
             activeOpacity={0.8}
+            disabled={!sortMode}
           >
             <View style={styles.cardHeaderLeft}>
-              <MCIcon name="drag" size={20} color={headerIconColor} style={styles.dragHandle} />
               <Text style={[styles.questionText, { color: headerTextColor }]} numberOfLines={isExpanded ? undefined : 1}>{item.question}</Text>
             </View>
-            <View style={styles.cardHeaderRight}>
-              <MCIcon name={isExpanded ? 'chevron-up' : 'chevron-down'} size={20} color={headerIconColor} />
-              <TouchableOpacity onPress={() => startEdit(item)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <MCIcon name="pencil" size={18} color={headerIconColor} style={styles.cardActionIcon} />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => handleDelete(item.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <MCIcon name="delete" size={18} color={headerIconColor} />
-              </TouchableOpacity>
-            </View>
+            <MCIcon name="drag-horizontal" size={20} color={headerTextColor} />
           </TouchableOpacity>
           {isExpanded && (
             <View style={styles.cardBody}>
@@ -158,7 +199,7 @@ const FaqManagementScreen = ({ navigation }) => {
         </View>
       </ScaleDecorator>
     );
-  }, [expandedIds, colors, styles]);
+  }, [expandedIds, colors, styles, sortMode]);
 
   return (
     <View style={styles.root}>
@@ -168,22 +209,50 @@ const FaqManagementScreen = ({ navigation }) => {
         onBack={() => navigation.goBack()}
         right={
           <TouchableOpacity onPress={openAddModal} style={{ padding: 4 }}>
-            <MCIcon name="plus" size={24} color={colors.primary} />
+            <MCIcon name="plus" size={24} color={colors.headerText} />
           </TouchableOpacity>
         }
       />
 
+      {sortMode && (
+        <View style={styles.sortBannerWrap}>
+          <View style={styles.sortBanner}>
+            <MCIcon name="sort" size={18} color="#fff" />
+            <Text style={styles.sortBannerText}>Drag to reorder</Text>
+            <TouchableOpacity style={styles.sortDoneBtn} onPress={() => setSortMode(false)}>
+              <Text style={styles.sortDoneText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {loading && items.length === 0 ? (
         <ListSkeleton count={5} />
-      ) : (
+      ) : sortMode ? (
         <DraggableFlatList
           data={items}
           keyExtractor={item => item.id.toString()}
-          renderItem={renderItem}
+          renderItem={renderDraggableItem}
           onDragEnd={onDragEnd}
+          contentContainerStyle={styles.listContainer}
+        />
+      ) : (
+        <SwipeListView
+          data={items}
+          keyExtractor={item => item.id.toString()}
+          renderItem={renderItem}
+          renderHiddenItem={renderHiddenItem}
+          leftOpenValue={75}
+          rightOpenValue={-75}
+          stopLeftSwipe={130}
+          stopRightSwipe={-130}
+          onSwipeValueChange={onSwipeValueChange}
           contentContainerStyle={styles.listContainer}
           refreshing={loading}
           onRefresh={fetchItems}
+          closeOnRowOpen
+          closeOnRowPress
+          previewRowKey={null}
           ListEmptyComponent={!loading && <Text style={styles.emptyText}>No FAQs found</Text>}
         />
       )}
@@ -238,6 +307,7 @@ const makeStyles = colors => StyleSheet.create({
     borderRadius: 12, marginBottom: 8, overflow: 'hidden',
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
   },
+  cardInactive: { backgroundColor: colors.surfaceMuted },
   cardDragging: {
     shadowOpacity: 0.2, shadowRadius: 12, elevation: 8,
   },
@@ -249,13 +319,26 @@ const makeStyles = colors => StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
   },
   cardHeaderLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 },
-  dragHandle: { marginRight: 8 },
   questionText: { fontSize: 15, fontWeight: '700', color: colors.headerText, flex: 1 },
-  cardHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  cardActionIcon: { marginLeft: 4 },
   cardBody: { padding: 12, paddingTop: 8, backgroundColor: colors.primaryFaint },
   answerText: { fontSize: 14, color: colors.textSecondary, lineHeight: 20 },
   emptyText: { textAlign: 'center', marginTop: 40, fontSize: 15, color: colors.textMuted },
+
+  rowBack: { flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, borderRadius: 12, overflow: 'hidden' },
+  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, justifyContent: 'center', width: 75, height: '100%' },
+  editBack: { backgroundColor: '#3B82F6' },
+  deleteBack: { backgroundColor: '#EF4444' },
+  backBtnText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+
+  sortBannerWrap: { paddingHorizontal: 12, paddingTop: 8 },
+  sortBanner: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary,
+    paddingHorizontal: 16, paddingVertical: 10, gap: 8, borderRadius: 8,
+  },
+  sortBannerText: { flex: 1, fontSize: 14, fontWeight: '600', color: '#fff' },
+  sortDoneBtn: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 16, paddingVertical: 6, borderRadius: 8 },
+  sortDoneText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   modalContent: { backgroundColor: colors.card, borderRadius: 14, padding: 20, width: '100%', maxWidth: 560, alignSelf: 'center' },
   modalTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary, marginBottom: 16 },
