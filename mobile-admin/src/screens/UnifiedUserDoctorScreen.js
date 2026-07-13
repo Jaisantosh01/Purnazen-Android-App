@@ -23,14 +23,7 @@ const UnifiedUserDoctorScreen = ({ navigation, route }) => {
       <ScreenHeader
         title="Users & Doctors"
         subtitle={activeTab === 'users' ? 'Manage app users and their roles' : 'Manage doctors and their profiles'}
-        right={activeTab === 'users' ? (
-          <TouchableOpacity
-            style={styles.manageBtn}
-            onPress={() => navigation.navigate('ManageRoles', { title: 'Roles', endpoint: ENDPOINTS.ROLES })}
-          >
-            <MCIcon name="account-cog" size={24} color={colors.headerText} />
-          </TouchableOpacity>
-        ) : (
+        right={activeTab === 'users' ? null : (
           <TouchableOpacity
             style={styles.manageBtn}
             onPress={() => navigation.navigate('EditDoctor', { doctorId: null })}
