@@ -193,6 +193,12 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
     });
   };
 
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchAppointmentDetails(true);
+    setRefreshing(false);
+  }, [fetchAppointmentDetails]);
+
   // ── Render content ──────────────────────────────────────────────────────────
   const renderContent = () => {
     if (loading) {
