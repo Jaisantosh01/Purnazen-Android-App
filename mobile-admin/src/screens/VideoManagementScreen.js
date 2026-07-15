@@ -160,15 +160,15 @@ const VideoManagementScreen = ({ navigation }) => {
 
   const groupRenderHiddenItem = (data, rowMap) => (
     <View style={styles.rowBack}>
-      <TouchableOpacity style={[styles.backBtn, styles.deleteBack]} onPress={() => { handleDeleteGroup(data.item.id); rowMap[data.item.id]?.closeRow(); }}><MCIcon name="delete" size={24} color={colors.white} /></TouchableOpacity>
       <TouchableOpacity style={[styles.backBtn, styles.editBack]} onPress={() => { openEditGroupModal(data.item); rowMap[data.item.id]?.closeRow(); }}><MCIcon name="pencil" size={24} color={colors.white} /></TouchableOpacity>
+      <TouchableOpacity style={[styles.backBtn, styles.deleteBack]} onPress={() => { handleDeleteGroup(data.item.id); rowMap[data.item.id]?.closeRow(); }}><MCIcon name="delete" size={24} color={colors.white} /></TouchableOpacity>
     </View>
   );
 
   const sessionRenderHiddenItem = (data, rowMap) => (
     <View style={styles.rowBack}>
-      <TouchableOpacity style={[styles.backBtn, styles.deleteBack]} onPress={() => { handleDeleteSession(data.item.id); rowMap[data.item.id]?.closeRow(); }}><MCIcon name="delete" size={24} color={colors.white} /></TouchableOpacity>
       <TouchableOpacity style={[styles.backBtn, styles.editBack]} onPress={() => { openEditSessionModal(data.item); rowMap[data.item.id]?.closeRow(); }}><MCIcon name="pencil" size={24} color={colors.white} /></TouchableOpacity>
+      <TouchableOpacity style={[styles.backBtn, styles.deleteBack]} onPress={() => { handleDeleteSession(data.item.id); rowMap[data.item.id]?.closeRow(); }}><MCIcon name="delete" size={24} color={colors.white} /></TouchableOpacity>
     </View>
   );
 
@@ -251,17 +251,17 @@ const VideoManagementScreen = ({ navigation }) => {
         <View style={styles.modalOverlay}>
             <View style={styles.modalCard}>
                 <Text style={styles.modalTitle}>{isEditingGroup ? 'Edit Group' : 'Add New Group'}</Text>
-                <TextInput style={styles.input} placeholder="Title" value={groupTitle} onChangeText={setGroupTitle} />
-                <TextInput style={styles.input} placeholder="Description" value={groupDescription} onChangeText={setGroupDescription} multiline />
+                <TextInput style={styles.input} placeholder="Title" placeholderTextColor={colors.textMuted} value={groupTitle} onChangeText={setGroupTitle} />
+                <TextInput style={styles.input} placeholder="Description" placeholderTextColor={colors.textMuted} value={groupDescription} onChangeText={setGroupDescription} multiline />
                 
                 <Text style={styles.label}>Select Icon</Text>
                 <TouchableOpacity style={styles.iconInput} onPress={() => { setIconTarget('group'); setIconModalVisible(true); }}>
                     <MCIcon name={groupIcon} size={24} color={colors.primary} />
-                    <Text style={{marginLeft: 10}}>{groupIcon}</Text>
+                    <Text style={{marginLeft: 10, color: colors.textPrimary}}>{groupIcon}</Text>
                 </TouchableOpacity>
 
                 <View style={styles.modalActions}>
-                    <TouchableOpacity style={styles.modalBtn} onPress={() => setGroupModalVisible(false)}><Text>Cancel</Text></TouchableOpacity>
+                    <TouchableOpacity style={styles.modalBtn} onPress={() => setGroupModalVisible(false)}><Text style={{color: colors.textPrimary}}>Cancel</Text></TouchableOpacity>
                     <TouchableOpacity style={[styles.modalBtn, styles.saveBtn]} onPress={handleSaveGroup}><Text style={{color: colors.white}}>{isEditingGroup ? 'Save' : 'Add'}</Text></TouchableOpacity>
                 </View>
             </View>
@@ -276,15 +276,15 @@ const VideoManagementScreen = ({ navigation }) => {
               <Text style={styles.modalTitle}>{isEditingSession ? 'Edit Session' : 'Add New Session'}</Text>
 
               <Text style={styles.label}>Title</Text>
-              <TextInput style={styles.input} placeholder="Session title" value={sessionTitle} onChangeText={setSessionTitle} />
+              <TextInput style={styles.input} placeholder="Session title" placeholderTextColor={colors.textMuted} value={sessionTitle} onChangeText={setSessionTitle} />
 
               <Text style={styles.label}>Duration</Text>
-              <TextInput style={styles.input} placeholder="e.g. 20 min" value={sessionDuration} onChangeText={setSessionDuration} />
+              <TextInput style={styles.input} placeholder="e.g. 20 min" placeholderTextColor={colors.textMuted} value={sessionDuration} onChangeText={setSessionDuration} />
 
               <Text style={styles.label}>Icon</Text>
               <TouchableOpacity style={styles.iconInput} onPress={() => { setIconTarget('session'); setSessionIconModalVisible(true); }}>
                 <MCIcon name={sessionIcon} size={24} color={colors.primary} style={{marginRight: 10}} />
-                <Text style={{flex: 1}}>{sessionIcon}</Text>
+                <Text style={{flex: 1, color: colors.textPrimary}}>{sessionIcon}</Text>
                 <MCIcon name="chevron-down" size={20} color={colors.textMuted} />
               </TouchableOpacity>
 
@@ -306,7 +306,7 @@ const VideoManagementScreen = ({ navigation }) => {
               </View>
 
               <View style={styles.modalActions}>
-                <TouchableOpacity style={styles.modalBtn} onPress={() => setSessionModalVisible(false)}><Text>Cancel</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.modalBtn} onPress={() => setSessionModalVisible(false)}><Text style={{color: colors.textPrimary}}>Cancel</Text></TouchableOpacity>
                 <TouchableOpacity style={[styles.modalBtn, styles.saveBtn]} onPress={handleSaveSession}><Text style={{color: colors.white}}>{isEditingSession ? 'Save' : 'Add'}</Text></TouchableOpacity>
               </View>
             </View>
@@ -369,7 +369,7 @@ const makeStyles = colors => StyleSheet.create({
   card: { backgroundColor: colors.card, padding: 16, borderRadius: 12, marginBottom: 12, flexDirection: 'row', alignItems: 'center', elevation: 2 },
   iconContainer: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center', marginRight: 15 },
   cardContent: { flex: 1 },
-  groupTitle: { fontSize: 16, fontWeight: '700' },
+  groupTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
   groupDescription: { color: colors.textSecondary, marginTop: 4 },
   addBtn: { backgroundColor: 'rgba(255,255,255,0.2)', width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   rowBack: { flexDirection: 'row', justifyContent: 'space-between', flex: 1, alignItems: 'center', marginBottom: 12, borderRadius: 12, overflow: 'hidden' },
@@ -382,9 +382,9 @@ const makeStyles = colors => StyleSheet.create({
   padding: 20,
   borderRadius: 16,
 },
-  modalTitle: { fontSize: 18, fontWeight: '800', marginBottom: 16 },
-  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, marginBottom: 12 },
-  label: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
+  modalTitle: { fontSize: 18, fontWeight: '800', marginBottom: 16, color: colors.textPrimary },
+  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, marginBottom: 12, color: colors.textPrimary },
+  label: { fontSize: 14, fontWeight: '600', marginBottom: 8, color: colors.textPrimary },
   iconInput: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, marginBottom: 12 },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 10 },
   modalBtn: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 8, backgroundColor: colors.surfaceMuted },
@@ -401,7 +401,7 @@ const makeStyles = colors => StyleSheet.create({
   groupPickerContainer: { marginBottom: 12 },
   groupOption: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: colors.border, marginBottom: 6 },
   groupOptionSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
-  groupOptionText: { marginLeft: 10, flex: 1, fontSize: 14 },
+  groupOptionText: { marginLeft: 10, flex: 1, fontSize: 14, color: colors.textPrimary },
   groupOptionTextSelected: { color: colors.white },
   wellnessIconGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', padding: 8 },
   wellnessIconBox: { width: 52, height: 52, borderRadius: 12, backgroundColor: colors.surfaceMuted, margin: 5, alignItems: 'center', justifyContent: 'center' },

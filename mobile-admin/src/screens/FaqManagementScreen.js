@@ -154,13 +154,13 @@ const FaqManagementScreen = ({ navigation }) => {
 
   const renderHiddenItem = (data, rowMap) => (
     <View style={styles.rowBack}>
-      <TouchableOpacity style={[styles.backBtn, styles.deleteBack]} onPress={() => { rowMap[data.item.id]?.closeRow(); handleDelete(data.item.id); }}>
-        <MCIcon name="delete" size={22} color="#fff" />
-        <Text style={styles.backBtnText}>Delete</Text>
-      </TouchableOpacity>
       <TouchableOpacity style={[styles.backBtn, styles.editBack]} onPress={() => { rowMap[data.item.id]?.closeRow(); startEdit(data.item); }}>
         <MCIcon name="pencil" size={22} color="#fff" />
         <Text style={styles.backBtnText}>Edit</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={[styles.backBtn, styles.deleteBack]} onPress={() => { rowMap[data.item.id]?.closeRow(); handleDelete(data.item.id); }}>
+        <MCIcon name="delete" size={22} color="#fff" />
+        <Text style={styles.backBtnText}>Delete</Text>
       </TouchableOpacity>
     </View>
   );

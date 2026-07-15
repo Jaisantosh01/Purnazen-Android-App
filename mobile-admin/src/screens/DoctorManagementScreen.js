@@ -132,14 +132,13 @@ const DoctorManagementScreen = ({ navigation }) => {
 
   const renderHiddenItem = (data, rowMap) => (
     <View style={styles.rowBack}>
-      <TouchableOpacity style={[styles.backBtn, styles.backDelete]} onPress={() => handleDelete(data.item, rowMap)}>
-        <MCIcon name="delete" size={22} color="#fff" />
-        <Text style={styles.backBtnText}>Delete</Text>
-      </TouchableOpacity>
-      <View style={{flex: 1}} />
-      <TouchableOpacity style={[styles.backBtn, styles.backEdit]} onPress={() => handleEdit(data.item, rowMap)}>
+      <TouchableOpacity style={[styles.backBtn, styles.editBack]} onPress={() => handleEdit(data.item, rowMap)}>
         <MCIcon name="pencil" size={22} color="#fff" />
         <Text style={styles.backBtnText}>Edit</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={[styles.backBtn, styles.deleteBack]} onPress={() => handleDelete(data.item, rowMap)}>
+        <MCIcon name="delete" size={22} color="#fff" />
+        <Text style={styles.backBtnText}>Delete</Text>
       </TouchableOpacity>
     </View>
   );
@@ -234,7 +233,7 @@ const makeStyles = colors => StyleSheet.create({
   searchIcon: { marginRight: 8 },
   searchInput: { flex: 1, fontSize: 14, color: colors.textPrimary },
   listContainer: { paddingHorizontal: 16 },
-  doctorCard: { backgroundColor: colors.card, borderRadius: 16, padding: 16, marginBottom: 12, overflow: 'visible', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+  doctorCard: { backgroundColor: colors.card, borderRadius: 16, padding: 16, marginBottom: 12, overflow: 'hidden', borderWidth: 1, borderColor: colors.border },
   doctorInfo: { flex: 1, flexDirection: 'row', alignItems: 'center' },
   avatarPlaceholder: { width: 56, height: 56, borderRadius: 28, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
   details: { flex: 1 },
@@ -264,27 +263,25 @@ const makeStyles = colors => StyleSheet.create({
   rowBack: {
     flex: 1,
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginHorizontal: 16,
     marginBottom: 12,
     borderRadius: 16,
     overflow: 'hidden',
   },
   backBtn: {
-    width: 80,
-    height: '100%',
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
     justifyContent: 'center',
+    width: 75,
+    height: '100%',
   },
-  backDelete: {
+  editBack: {
+    backgroundColor: '#3B82F6',
+  },
+  deleteBack: {
     backgroundColor: '#EF4444',
-    borderTopLeftRadius: 16,
-    borderBottomLeftRadius: 16,
   },
-  backEdit: {
-    backgroundColor: colors.primary,
-    borderTopRightRadius: 16,
-    borderBottomRightRadius: 16,
-  },
-  backBtnText: { color: '#fff', fontSize: 12, fontWeight: '600', marginTop: 4 },
+  backBtnText: { color: '#fff', fontSize: 12, fontWeight: '600' },
 });
