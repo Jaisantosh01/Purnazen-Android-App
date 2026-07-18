@@ -200,6 +200,18 @@ const FaceScanScreen = ({ navigation, route }) => {
 
   const handleCapture = useCallback(async () => {
     if (capturing || uploading || !cameraRef.current) return;
+    // Gate the manual shutter the same way auto-capture is gated: don't shoot
+    // while a blocking quality issue is active (no/partial face, off-centre,
+    // too small…), so a half-in-frame face can't be captured and processed.
+    const blocking = Array.isArray(qualityIssues) ? qualityIssues.filter(i => i.blocking) : [];
+    if (blocking.length) {
+      showAlert(
+        'Almost there',
+        FACE_GUIDANCE[blocking[0].code] || blocking[0].guidance || 'Align your face inside the oval',
+        [{ text: 'Got it' }],
+      );
+      return;
+    }
     setCountdown(null);
     readyStreak.current = 0;
     setCapturing(true);
@@ -219,7 +231,7 @@ const FaceScanScreen = ({ navigation, route }) => {
       setUploading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [capturing, uploading]);
+  }, [capturing, uploading, qualityIssues]);
 
   const quality = deriveQuality(qualityIssues);
   const ready = quality.status === 'ready';

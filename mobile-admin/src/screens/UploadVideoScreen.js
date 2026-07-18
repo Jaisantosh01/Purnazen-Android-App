@@ -76,6 +76,14 @@ const UploadVideoScreen = ({ route, navigation }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPath]);
 
+  // Auto-select the folder currently being browsed as the upload target. The
+  // explicit "Upload to …" button sits below a long directory list, so users
+  // rarely reached it — leaving no folder selected and the Upload button stuck
+  // disabled. Tap the × on the target bar to clear, then re-pick if needed.
+  useEffect(() => {
+    setSelectedDir(currentPath || '/');
+  }, [currentPath]);
+
   useEffect(() => {
     apiClient.get(ENDPOINTS.VIDEO_GROUPS)
       .then(res => setGroups((res?.data?.groups || []).filter(g => g.is_active !== false)))

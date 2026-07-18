@@ -154,36 +154,46 @@ const UserManagementScreen = ({ navigation }) => {
                 </View>
                 <Text style={styles.userEmail}>{item.email}</Text>
               </View>
-              <TouchableOpacity 
+              <TouchableOpacity
                 ref={(ref) => menuButtonRefs.current[item.id] = ref}
-                onPress={() => openMenu(item.id)} 
+                onPress={() => openMenu(item.id)}
                 style={styles.menuButton}
               >
                 <MCIcon name="dots-vertical" size={24} color={colors.textMuted} />
               </TouchableOpacity>
-              
-              <Modal transparent visible={menuVisible === item.id} onRequestClose={() => setMenuVisible(null)}>
-                <TouchableOpacity style={styles.modalOverlay} onPress={() => setMenuVisible(null)} activeOpacity={1}>
-                  <View style={[styles.menu, { top: menuPosition.top, right: 12 }]}>
-                    <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuVisible(null); navigation.navigate('EditUser', { user: item }); }}>
-                      <MCIcon name="pencil" size={18} color={colors.primary} />
-                      <Text style={styles.menuItemText}>Edit</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuVisible(null); showAlert('Delete', 'Delete user coming soon'); }}>
-                      <MCIcon name="delete" size={18} color="#FF4D4D" />
-                      <Text style={[styles.menuItemText, { color: colors.danger }]}>Delete</Text>
-                    </TouchableOpacity>
-                  </View>
-                </TouchableOpacity>
-              </Modal>
             </TouchableOpacity>
           );
         }}
+        style={styles.list}
         contentContainerStyle={styles.listContainer}
         refreshing={loading}
         onRefresh={fetchData}
       />
       )}
+
+      {/* Single row-action menu (hoisted out of the list rows so mounting a
+          Modal per row can't hurt performance or block list scrolling). */}
+      <Modal transparent visible={!!menuVisible} onRequestClose={() => setMenuVisible(null)}>
+        <TouchableOpacity style={styles.modalOverlay} onPress={() => setMenuVisible(null)} activeOpacity={1}>
+          <View style={[styles.menu, { top: menuPosition.top, right: 12 }]}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                const u = users.find(x => x.id === menuVisible);
+                setMenuVisible(null);
+                if (u) navigation.navigate('EditUser', { user: u });
+              }}
+            >
+              <MCIcon name="pencil" size={18} color={colors.primary} />
+              <Text style={styles.menuItemText}>Edit</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuVisible(null); showAlert('Delete', 'Delete user coming soon'); }}>
+              <MCIcon name="delete" size={18} color="#FF4D4D" />
+              <Text style={[styles.menuItemText, { color: colors.danger }]}>Delete</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 };
@@ -222,6 +232,7 @@ const makeStyles = colors => StyleSheet.create({
   tabsContent: { gap: 10, paddingRight: 16 },
   tab: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, borderWidth: 1, backgroundColor: colors.surfaceMuted },
   tabText: { fontWeight: '600', color: colors.textSecondary },
+  list: { flex: 1 },
   listContainer: { paddingHorizontal: 12, paddingBottom: 16 },
   userCard: { 
     backgroundColor: colors.card, 

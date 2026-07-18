@@ -90,8 +90,8 @@ const VideoManagementScreen = ({ navigation }) => {
 
   const openEditGroupModal = (group) => {
     setEditingGroup(group);
-    setGroupTitle(group.title);
-    setGroupDescription(group.description);
+    setGroupTitle(group.title || '');
+    setGroupDescription(group.description || '');
     setGroupIcon(group.icon || ROLE_ICONS[0]);
     setIsEditingGroup(true);
     setGroupModalVisible(true);
@@ -140,8 +140,10 @@ const VideoManagementScreen = ({ navigation }) => {
 
   const openEditSessionModal = (session) => {
     setEditingSession(session);
-    setSessionTitle(session.title);
-    setSessionDuration(session.duration);
+    setSessionTitle(session.title || '');
+    // duration can arrive as a number; TextInput value must be a string or the
+    // app hard-crashes on opening the edit modal.
+    setSessionDuration(session.duration != null ? String(session.duration) : '');
     setSessionIcon(session.icon || 'meditation');
     setSessionVideoGroupId(session.videoGroupId);
     setIsEditingSession(true);
@@ -279,7 +281,7 @@ const VideoManagementScreen = ({ navigation }) => {
               <TextInput style={styles.input} placeholder="Session title" value={sessionTitle} onChangeText={setSessionTitle} />
 
               <Text style={styles.label}>Duration</Text>
-              <TextInput style={styles.input} placeholder="e.g. 20 min" value={sessionDuration} onChangeText={setSessionDuration} />
+              <TextInput style={styles.input} placeholder="e.g. 20 min" value={String(sessionDuration ?? '')} onChangeText={setSessionDuration} />
 
               <Text style={styles.label}>Icon</Text>
               <TouchableOpacity style={styles.iconInput} onPress={() => { setIconTarget('session'); setSessionIconModalVisible(true); }}>

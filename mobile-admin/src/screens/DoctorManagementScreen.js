@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { showAlert } from '../utils/alert';
 // @ts-ignore
@@ -143,19 +145,6 @@ const DoctorManagementScreen = ({ navigation }) => {
               >
                 <MCIcon name="dots-vertical" size={20} color={isInactive ? colors.textMuted : colors.textPrimary} />
               </TouchableOpacity>
-              {menuTarget?.id === item.id && (
-                <View style={styles.cardDropdown}>
-                  <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuTarget(null); handleEdit(item); }}>
-                    <MCIcon name="pencil-outline" size={16} color={colors.textPrimary} />
-                    <Text style={styles.menuItemText}>Edit</Text>
-                  </TouchableOpacity>
-                  <View style={styles.menuDivider} />
-                  <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuTarget(null); handleDelete(item); }}>
-                    <MCIcon name="delete-outline" size={16} color={colors.danger} />
-                    <Text style={[styles.menuItemText, { color: colors.danger }]}>Delete</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
             </View>
           </View>
         </View>
@@ -215,6 +204,35 @@ const DoctorManagementScreen = ({ navigation }) => {
           )}
         </View>
       </ScrollView>
+
+      {/* Action menu — a Modal so it always dismisses on outside tap / back. */}
+      <Modal
+        visible={!!menuTarget}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuTarget(null)}
+      >
+        <Pressable style={styles.menuBackdrop} onPress={() => setMenuTarget(null)}>
+          <Pressable style={styles.menuSheet} onPress={() => {}}>
+            <Text style={styles.menuSheetTitle} numberOfLines={1}>{menuTarget?.name}</Text>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => { const t = menuTarget; setMenuTarget(null); handleEdit(t); }}
+            >
+              <MCIcon name="pencil-outline" size={18} color={colors.textPrimary} />
+              <Text style={styles.menuItemText}>Edit</Text>
+            </TouchableOpacity>
+            <View style={styles.menuDivider} />
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => { const t = menuTarget; setMenuTarget(null); handleDelete(t); }}
+            >
+              <MCIcon name="delete-outline" size={18} color={colors.danger} />
+              <Text style={[styles.menuItemText, { color: colors.danger }]}>Delete</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 };
@@ -272,28 +290,40 @@ const makeStyles = colors => StyleSheet.create({
   emptyContainer: { alignItems: 'center', justifyContent: 'center', marginTop: 60 },
   emptyText: { marginTop: 16, fontSize: 16, color: colors.textMuted },
 
-  cardDropdown: {
-    position: 'absolute',
-    top: 22,
-    right: 0,
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    paddingVertical: 4,
-    minWidth: 140,
+  menuBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  menuSheet: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    paddingVertical: 6,
+    width: '100%',
+    maxWidth: 320,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 8,
-    zIndex: 10,
+  },
+  menuSheetTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textMuted,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 6,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 16,
     gap: 10,
   },
   menuDivider: { height: 1, backgroundColor: colors.border, marginHorizontal: 8 },
-  menuItemText: { fontSize: 14, fontWeight: '500', color: colors.textPrimary },
+  menuItemText: { fontSize: 15, fontWeight: '500', color: colors.textPrimary },
 });
