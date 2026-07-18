@@ -12,8 +12,10 @@ loop's work is one indexed query per minute.
 
 import asyncio
 import logging
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
+from app.core.config import settings
 from app.db.session import SessionLocal
 from app.models.appointment import Appointment
 from app.models.broadcast import Broadcast
@@ -27,9 +29,21 @@ _INTERVAL_SECONDS = 60
 def send_due_reminders(now: datetime | None = None) -> int:
     """Send reminders for appointments starting within the lead window.
 
+    Appointment dates and slot start times are stored as bare wall-clock values
+    in the app timezone (``settings.APP_TIMEZONE``), so "now" is anchored to that
+    zone before comparing. Otherwise reminders fire off by the server's UTC
+    offset (~5.5h for IST on a UTC container) for both patient and doctor.
+
     Returns the number of appointments reminded (for tests/logging).
     """
-    now = now or datetime.now()
+    tz = ZoneInfo(settings.APP_TIMEZONE)
+    if now is None:
+        now = datetime.now(tz)
+    elif now.tzinfo is None:
+        # A naive caller-supplied time is taken as app-local wall clock.
+        now = now.replace(tzinfo=tz)
+    else:
+        now = now.astimezone(tz)
     db = SessionLocal()
     try:
         settings_row = NotificationService.get_settings(db)
@@ -53,7 +67,7 @@ def send_due_reminders(now: datetime | None = None) -> int:
             slot = appointment.slot_timing
             if not slot or not slot.start_time:
                 continue
-            start_dt = datetime.combine(appointment.date, slot.start_time)
+            start_dt = datetime.combine(appointment.date, slot.start_time, tzinfo=tz)
             if not (now <= start_dt <= now + lead):
                 continue
 
@@ -83,7 +97,7 @@ def send_due_reminders(now: datetime | None = None) -> int:
                     data=payload,
                 )
 
-            appointment.reminder_sent_at = now
+            appointment.reminder_sent_at = now.astimezone(timezone.utc).replace(tzinfo=None)
             db.commit()
             reminded += 1
 
