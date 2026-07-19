@@ -88,6 +88,43 @@ def test_white_balance_reduces_colour_cast():
     assert after.max() - after.min() < before.max() - before.min()
 
 
+# ── exposure: same subject at different brightness converges after normalize ──
+
+def _mean_l(img_bgr):
+    lab = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2Lab)
+    return float(np.mean(lab[:, :, 0]))
+
+
+def test_exposure_normalization_converges_bright_and_dim():
+    """A bright and a dim capture of the same face land at similar luminance —
+    the fix for 'same face, different lighting → different score'."""
+    from app.ai.image_preprocessor import normalize_exposure
+
+    base = _skin_patch(bgr=(120, 150, 190))
+    bright = np.clip(base.astype(np.int16) + 55, 0, 255).astype(np.uint8)
+    dim = np.clip(base.astype(np.int16) - 55, 0, 255).astype(np.uint8)
+
+    gap_before = abs(_mean_l(bright) - _mean_l(dim))
+    gap_after = abs(_mean_l(normalize_exposure(bright)) - _mean_l(normalize_exposure(dim)))
+
+    assert gap_after < gap_before
+    # The residual gap should be a small fraction of the original swing.
+    assert gap_after < gap_before * 0.5
+
+
+def test_exposure_normalization_preserves_relative_contrast():
+    """A single global gain must keep a dark region darker than a light one so
+    contrast-based metrics (dark circles) survive normalization."""
+    from app.ai.image_preprocessor import normalize_exposure
+
+    img = np.full((80, 80, 3), (120, 150, 190), np.uint8)
+    img[:40] = (60, 75, 110)  # top half noticeably darker
+    out = normalize_exposure(img)
+    top_l = _mean_l(out[:40])
+    bottom_l = _mean_l(out[40:])
+    assert top_l < bottom_l
+
+
 # ── skin tone: ITA orders light vs dark, baseline_a stays bounded ────────────
 
 def test_skin_tone_ita_orders_light_dark():

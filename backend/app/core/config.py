@@ -21,6 +21,12 @@ class Settings(BaseSettings):
     # time (containers run in UTC). India Standard Time by default.
     APP_TIMEZONE: str = "Asia/Kolkata"
 
+    # How long an unpaid booking "hold" (status=pending, payment_status=pending)
+    # keeps a slot reserved before the scheduler releases it. Without this a user
+    # who starts booking and abandons payment blocks that slot for everyone else
+    # forever. 15 min is comfortably longer than a payment flow takes.
+    UNPAID_HOLD_TTL_MINUTES: int = 15
+
     # Comma-separated list of allowed origins; "*" allows all (dev only)
     CORS_ORIGINS: str = "*"
 
