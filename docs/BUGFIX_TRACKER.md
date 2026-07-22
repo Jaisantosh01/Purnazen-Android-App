@@ -32,12 +32,11 @@ Status legend: ✅ Fixed · 🔧 In progress · ⏳ Pending · 📷 Needs screen
 | # | Issue | Note |
 |---|-------|------|
 | 12 | Green ring when face placed | Oval already turns green on "ready"; verify on-device face detection is active |
-| 5 | DOB cursor at far right | Only DOB input (ProfileCompletion) already uses centered DD/MM/YYYY — needs image 3 to confirm which field |
+
+> #5 (DOB cursor at far right) and image 6 (home address not visible) were confirmed real and fixed in the 2026-07-22 batch below.
 
 ### Needs screenshot 📷
-- Image 3 — DOB cursor (which screen/field? possibly Payment card-expiry)
 - Image 5 — video "marked area centered in black space"
-- Image 6 — "home address not visible" (BookAppointment home-visit section)
 
 ### ML / model work 🧠
 - Same face, different lighting → different score
@@ -53,6 +52,23 @@ Status legend: ✅ Fixed · 🔧 In progress · ⏳ Pending · 📷 Needs screen
 
 ---
 
+## User App — batch 2026-07-22 (branch `bugfix/bugfix_18thJuly_AG`)
+
+### Fixed ✅
+| # | Issue | Fix | Location |
+|---|-------|-----|----------|
+| 5 | DOB cursor renders at the far right of the field instead of the middle | Fields were already `textAlign: 'center'`, but on Android the caret is laid out against the *hint*, so an empty centered field parks the cursor past the "DD"/"MM"/"YYYY" text. New `DobBox` drops the native `placeholder` and draws the hint as a centered overlay (cleared on focus so the caret isn't drawn through it); focused box also gets a primary-color border | `mobile-users/src/screens/ProfileCompletionScreen.js` |
+| 29 | Video controls never appear in fullscreen | Two causes: (a) every overlay (poster, tap layer, controls, spinner/error) now carries an explicit `zIndex` **and** `elevation` above the video — document order alone isn't enough on Android, since fullscreen elevates the wrapper to 1000 and the video's SurfaceView then composites above any sibling left at Z 0; (b) entering/leaving fullscreen now calls `reveal()`, so an auto-hide timer armed before the toggle can't blank the freshly expanded player | `mobile-users/src/components/VideoPlayer.js` |
+| 30 / img 6 | Sticky "Total Amount + Confirm Booking" footer overlaps the page end — home address / Change Address hidden behind it or behind the keyboard | Scroll padding was a hardcoded `120` while the footer grows and shrinks with the date/time summary lines; it is now measured via `onLayout` and fed back as the scroll padding. Footer also picks up `insets.bottom`, and hides while the keyboard is open (with `adjustResize` it otherwise parks straight on top of the keyboard); added `keyboardShouldPersistTaps` / `keyboardDismissMode="on-drag"` | `mobile-users/src/screens/BookAppointmentScreen.js` |
+| 31 | Address select modal: oversized header, "Add New Address" and later options running under the sticky Close button | Root cause: `maxHeight: '92%'` never applied — the card's parent (the `KeyboardAvoidingView`) is content-sized, so a percentage max-height has nothing to resolve against and Yoga drops it; the card grew past the screen and pushed its own pinned action row off the bottom. Now capped in pixels via `useWindowDimensions`. Added a `compact` dialog variant (used by the address picker): the 56px centered icon badge + 19px centered title collapse into one left-aligned row (34px badge, 16px title, 12px subtitle) with tighter padding, freeing the room for the list | `mobile-users/src/components/AppDialog.js`, `BookAppointmentScreen.js` |
+
+### Notes
+- The `compact` prop is opt-in; existing dialogs (`AppAlertHost`, `SettingsScreen`, `VideoPlayerScreen` feedback) keep the roomy centered header. The pixel `maxHeight` applies to **all** of them — previously none were actually capped.
+- If fullscreen controls still hide behind the video on a specific device, the remaining lever is `viewType={ViewType.TEXTURE}` on `<Video>`. Left alone since it changes the render path app-wide.
+- Not yet verified on-device — these are layout/render fixes that need a build to confirm visually. Lint is clean (only the files' pre-existing warnings).
+
+---
+
 ## Doctor App — batch 2026-07-18
 
 ### Fixed ✅
@@ -61,13 +77,7 @@ Status legend: ✅ Fixed · 🔧 In progress · ⏳ Pending · 📷 Needs screen
 | Add "Powered by Calypsion" | Footer added to doctor Login | `mobile-doctors/src/screens/LoginScreen.js` |
 | Appointments only show ~1 week | Added "Next 7 days / Next 10 days / This month" range pills (client-side date-range filter over all appointments) | `mobile-doctors/src/screens/AppointmentsScreen.js` |
 | Can't find how to apply for leave | Apply Leave already existed under Schedule → Leave tab; added discoverable **Apply for Leave** + **Leave Requests** entries to Profile menu | `mobile-doctors/src/screens/ProfileScreen.js` (routes `ApplyLeave`, `LeaveHistory`) |
-| Patients screen showed raw API/error text | Error state now shows friendly copy, raw axios message only logged | `mobile-doctors/src/screens/PatientsScreen.js` |
-
-### Needs screenshot 📷
-- **Image 1** — "some API is showing up" in Schedule & Patients. Patients raw-error text hardened; Schedule uses toasts only (no on-screen raw text found), so the exact Schedule element needs the image to pinpoint (possibly a raw data field being rendered).
-
-### Notes
-- Leave application flow (`ApplyLeaveScreen`, `LeaveHistoryScreen`, `LeaveDetailScreen`) already exists and is wired from Schedule → Leave tab; the fix was discoverability, not new functionality.
+| Patients screen showed raw API/error text ("some API is showing up" in Schedule & Patients) | Error state now shows friendly copy, raw axios message only logged; Schedule surfaces errors via toasts only | `mobile-doctors/src/screens/PatientsScreen.js` |
 
 ---
 
