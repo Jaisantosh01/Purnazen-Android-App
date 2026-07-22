@@ -128,7 +128,7 @@ const LeaveCard = ({ leave, onPress, onStatusUpdate }) => {
       <View style={styles.cardHeader}>
         <View style={styles.cardHeaderLeft}>
           <MCIcon name="calendar-remove" size={20} color={colors.primary} />
-          <Text style={styles.leaveDate}>
+          <Text style={styles.leaveDate} numberOfLines={1}>
             {leave.leaveType === 'multiple'
               ? (leave.startDate ? `${leave.startDate} - ${leave.endDate || ''}` : leave.leaveDate || leave.startDate || '—')
               : leave.leaveDate || leave.startDate || '—'}
@@ -144,7 +144,7 @@ const LeaveCard = ({ leave, onPress, onStatusUpdate }) => {
         <View style={styles.cardRow}>
           <MCIcon name="doctor" size={16} color={colors.primary} />
           <Text style={styles.cardLabel}>Doctor:</Text>
-          <Text style={styles.cardValue}>{leave.doctorName || leave.doctorId}</Text>
+          <Text style={styles.cardValue} numberOfLines={1}>{leave.doctorName || leave.doctorId}</Text>
         </View>
         {renderLeaveInfo()}
         {leave.reason && (
@@ -830,10 +830,10 @@ const makeStyles = colors => StyleSheet.create({
     backgroundColor: colors.card, borderRadius: 12, marginHorizontal: 16, marginBottom: 10,
     padding: 14, elevation: 1,
   },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  cardHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  leaveDate: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
-  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, gap: 8 },
+  cardHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 },
+  leaveDate: { fontSize: 15, fontWeight: '700', color: colors.textPrimary, flexShrink: 1 },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, flexShrink: 0 },
   statusDot: { width: 8, height: 8, borderRadius: 4 },
   statusText: { fontSize: 11, fontWeight: '700' },
   cardBody: { gap: 6 },

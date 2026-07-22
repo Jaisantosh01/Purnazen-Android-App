@@ -78,6 +78,10 @@ export default function VideoPlayer({
   const [trackW, setTrackW] = useState(0);
   const [seeking, setSeeking] = useState(false);
   const seekPreview = useRef(0);
+  // True between issuing a seek() and the native onSeek confirming it. While
+  // pending we ignore progress events, which briefly report the *old* time and
+  // otherwise snap the scrubber back when tracing/seeking.
+  const seekPending = useRef(false);
 
   // Controls visibility (animated fade) + auto-hide timer.
   const [visible, setVisible] = useState(true);
@@ -140,6 +144,7 @@ export default function VideoPlayer({
   const togglePlay = () => {
     if (errored) { setErrored(false); setRetryKey(k => k + 1); return; }
     if (ended) {
+      seekPending.current = true;
       videoRef.current?.seek(0);
       setEnded(false);
       setCurrentTime(0);
@@ -153,16 +158,21 @@ export default function VideoPlayer({
 
   const skip = delta => {
     const t = clamp(currentTime + delta, 0, duration || 0);
+    seekPending.current = true;
     videoRef.current?.seek(t);
     setCurrentTime(t);
-    if (ended && delta < 0) setEnded(false);
+    // Seeking anywhere before the end resumes normal playback controls.
+    if (ended && t < (duration || 0)) setEnded(false);
     reveal();
   };
 
   const onVideoProgress = data => {
-    if (!seeking) setCurrentTime(data.currentTime);
+    // Skip stale progress ticks that arrive before a pending seek lands.
+    if (!seeking && !seekPending.current) setCurrentTime(data.currentTime);
     onProgress?.(data);
   };
+
+  const onVideoSeek = () => { seekPending.current = false; };
 
   const onVideoLoad = data => {
     setDuration(data.duration);
@@ -204,8 +214,12 @@ export default function VideoPlayer({
           setCurrentTime(seekPreview.current);
         },
         onPanResponderRelease: () => {
+          seekPending.current = true;
           videoRef.current?.seek(seekPreview.current);
           setCurrentTime(seekPreview.current);
+          // Tracing back after the clip finished must restore the play button
+          // and resume from the scrubbed position instead of forcing a replay.
+          if (seekPreview.current < (duration || 0)) setEnded(false);
           setSeeking(false);
           reveal();
         },
@@ -249,6 +263,7 @@ export default function VideoPlayer({
           resizeMode="contain"
           repeat={false}
           onProgress={onVideoProgress}
+          onSeek={onVideoSeek}
           onLoad={onVideoLoad}
           onLoadStart={() => setBuffering(true)}
           onReadyForDisplay={() => setBuffering(false)}

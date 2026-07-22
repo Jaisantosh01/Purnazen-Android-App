@@ -52,18 +52,49 @@ class AppointmentRepository:
 
     @staticmethod
     def slot_taken(
-        db: Session, doctor_id: uuid.UUID, date: date_type, slot_timing_id: uuid.UUID
+        db: Session,
+        doctor_id: uuid.UUID,
+        date: date_type,
+        slot_timing_id: uuid.UUID,
+        exclude_user_id: uuid.UUID | None = None,
     ) -> bool:
+        q = db.query(Appointment).filter(
+            Appointment.doctor_id == doctor_id,
+            Appointment.date == date,
+            Appointment.slot_timing_id == slot_timing_id,
+            Appointment.status.in_(["booked", "pending"]),
+        )
+        if exclude_user_id is not None:
+            # A user's own *unpaid* hold must never block them from retrying the
+            # same slot — only confirmed (paid) or other users' holds count.
+            q = q.filter(
+                ~(
+                    (Appointment.user_id == exclude_user_id)
+                    & (Appointment.payment_status == "pending")
+                )
+            )
+        return q.first() is not None
+
+    @staticmethod
+    def get_user_unpaid_hold(
+        db: Session,
+        user_id: uuid.UUID,
+        doctor_id: uuid.UUID,
+        date: date_type,
+        slot_timing_id: uuid.UUID,
+    ) -> "Appointment | None":
+        """The requesting user's own pending, unpaid booking for this exact slot."""
         return (
             db.query(Appointment)
             .filter(
+                Appointment.user_id == user_id,
                 Appointment.doctor_id == doctor_id,
                 Appointment.date == date,
                 Appointment.slot_timing_id == slot_timing_id,
-                Appointment.status.in_(["booked", "pending"]),
+                Appointment.status == "pending",
+                Appointment.payment_status == "pending",
             )
             .first()
-            is not None
         )
 
     @staticmethod

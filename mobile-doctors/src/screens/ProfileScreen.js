@@ -117,6 +117,8 @@ const ProfileScreen = ({ navigation }) => {
   };
 
   const MENU_ITEMS = [
+    { icon: 'calendar-plus',       iconColor: '#16A34A', title: 'Apply for Leave',   subtitle: 'Request time off',   onPress: () => navigation.navigate('ApplyLeave') },
+    { icon: 'calendar-clock',      iconColor: '#7C3AED', title: 'Leave Requests',    subtitle: 'View your leaves',   onPress: () => navigation.navigate('LeaveHistory', { filter: 'all' }) },
     { icon: 'cog-outline',         iconColor: '#6B7280', title: 'Settings',          subtitle: 'App preferences', onPress: () => navigation.navigate('Settings') },
     { icon: 'cloud-download-outline', iconColor: '#0D9488', title: 'Check for Updates', subtitle: null,          onPressKey: 'checkUpdate' },
     { icon: 'help-circle-outline', iconColor: '#0284c7', title: 'Help & Support',    subtitle: 'Get assistance', onPress: () => navigation.navigate('HelpSupport') },

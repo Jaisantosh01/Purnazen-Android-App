@@ -13,6 +13,7 @@ from app.models.slot_timings import SlotTimings
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.doctor_repository import DoctorRepository
 from app.schemas.appointment import BookAppointmentRequest, UpdateAppointmentRequest
+from app.utils.names import format_doctor_name
 from app.services.doctor_service import (
     VISIT_SLUG_TO_CONSULTATION_TYPE,
 )
@@ -36,7 +37,23 @@ class AppointmentService:
         if data.date < date.today():
             return {"success": False, "message": "Date must not be in the past"}, 400
 
-        if AppointmentRepository.slot_taken(db, doctor.id, data.date, data.slot_timing_id):
+        # If the user already has their own unpaid hold on this exact slot (e.g.
+        # they booked earlier but never paid), resume it instead of reporting the
+        # slot as taken or creating a duplicate — the hold only becomes a real
+        # block once payment is confirmed.
+        existing_hold = AppointmentRepository.get_user_unpaid_hold(
+            db, user.id, doctor.id, data.date, data.slot_timing_id
+        )
+        if existing_hold is not None:
+            return {
+                "success": True,
+                "message": "Appointment booked successfully",
+                "appointment": existing_hold.to_dict(),
+            }, 200
+
+        if AppointmentRepository.slot_taken(
+            db, doctor.id, data.date, data.slot_timing_id, exclude_user_id=user.id
+        ):
             return {
                 "success": False,
                 "message": "This time slot is already booked. Please pick another one.",
@@ -88,7 +105,7 @@ class AppointmentService:
                         slot_timing.start_time.minute,
                     ),
                 )
-                doctor_name = f"Dr. {doctor.user.full_name}" if doctor.user else "Doctor"
+                doctor_name = format_doctor_name(doctor.user.full_name) if doctor.user else "Doctor"
                 patient_name = user.full_name or "Patient"
                 link = _create_meet_link(
                     summary=f"Consultation — {doctor_name} & {patient_name}",
