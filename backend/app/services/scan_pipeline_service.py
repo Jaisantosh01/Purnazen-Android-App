@@ -467,6 +467,17 @@ def run_scan_pipeline(scan_id: int, scan_type: str) -> None:
                 logger.warning("Tongue pipeline failed (%s); using neutral defaults", exc)
                 scores = dict(_MOCK_TONGUE_SCORES)
 
+            # Reject frames where no tongue is actually visible instead of
+            # returning bogus TCM markers (mirrors the no-face failure path).
+            if scores.get("tongue_detected") is False:
+                FaceScanRepository.set_status(
+                    db,
+                    scan,
+                    "failed",
+                    error_message="No tongue detected. Stick out your tongue to fill the outline and retake.",
+                )
+                return
+
             # Serialize the detected tongue bbox so the mobile processing screen
             # can crop+zoom to it and outline the tongue (parallels the face mesh).
             tongue_bbox = (scores.get("raw_metrics") or {}).get("tongue_bbox")

@@ -217,22 +217,7 @@ const LoginScreen = ({ navigation }) => {
               ) : (
                 <>
                   <MCIcon name="google" size={20} color="#DB4437" />
-                  <Text style={styles.socialBtnText}>Google</Text>
-                </>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.socialBtn}
-              activeOpacity={0.8}
-              onPress={() => handleSocialLogin('github')}
-              disabled={isLoading || !!socialLoading}
-            >
-              {socialLoading === 'github' ? (
-                <ActivityIndicator size="small" color={colors.primary} />
-              ) : (
-                <>
-                  <MCIcon name="github" size={21} color={colors.textPrimary} />
-                  <Text style={styles.socialBtnText}>GitHub</Text>
+                  <Text style={styles.socialBtnText}>Continue with Google</Text>
                 </>
               )}
             </TouchableOpacity>

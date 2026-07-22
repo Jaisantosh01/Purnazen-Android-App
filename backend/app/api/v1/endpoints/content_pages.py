@@ -30,12 +30,15 @@ class ContentPageUpdate(BaseModel):
 
 @router.get("", summary="List content pages (admin)", dependencies=[Depends(require_role("admin"))])
 def list_content_pages(
+    type: str | None = None,
     role_id: str | None = None,
     is_active: bool | None = None,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     query = db.query(ContentPage).order_by(ContentPage.created_at.desc())
+    if type:
+        query = query.filter(ContentPage.type == type)
     if role_id:
         query = query.filter(ContentPage.role_id == role_id)
     if is_active is not None:

@@ -103,8 +103,9 @@ def test_save_session_success(client, db_session):
     assert data["type"] == "wellness"
     assert data["duration"] == "15 min"
     assert data["status"] == "Completed"
-    assert data["painBefore"] == 8
-    assert data["painAfter"] == 3
+    # Pain scores moved to the therapy_feedback table (migration 1dd9c36eec4d);
+    # sessions no longer carry them.
+    assert "painBefore" not in data
     assert data["groupTitle"] == "Wellness & Prevention"
     assert data["videoTitle"] == "Video 0"
 
@@ -181,7 +182,7 @@ def test_history_stats(client, db_session):
     stats = client.get("/api/v1/therapy-history", headers=headers).json()["data"]["stats"]
     assert stats["sessions"] == 2
     assert stats["minutes"] == 35
-    assert stats["avgRelief"] == -5
+    # avgRelief left with the pain columns (now derived from therapy_feedback)
 
 
 def test_history_pagination(client, db_session):

@@ -148,7 +148,7 @@ def test_get_doctors_returns_card_shape(client, db_session):
     assert data["total"] == 1
 
     doctor = data["doctors"][0]
-    assert doctor["name"] == "Dr. Dr Sarah Chen"
+    assert doctor["name"] == "Dr. Sarah Chen"
     assert doctor["specialties"] == ["Acupressure Specialist"]
     assert doctor["rating"] == 4.9
     assert doctor["reviews"] == 234
@@ -166,7 +166,7 @@ def test_get_doctors_search_by_name(client, db_session):
     response = client.get("/api/v1/doctors", params={"search": "rajesh"})
     data = response.json()["data"]
     assert data["total"] == 1
-    assert data["doctors"][0]["name"] == "Dr. Dr Rajesh Kumar"
+    assert data["doctors"][0]["name"] == "Dr. Rajesh Kumar"
 
 
 def test_get_doctors_pagination(client, db_session):
@@ -198,7 +198,7 @@ def test_filter_available_today(client, db_session):
     assert response.status_code == 200
     data = response.json()["data"]
     assert data["total"] == 1
-    assert data["doctors"][0]["name"] == "Dr. Dr Here"
+    assert data["doctors"][0]["name"] == "Dr. Here"
 
 
 def test_filter_video_call(client, db_session):
@@ -212,7 +212,7 @@ def test_filter_video_call(client, db_session):
     response = client.get("/api/v1/doctors/video-call")
     data = response.json()["data"]
     assert data["total"] == 1
-    assert data["doctors"][0]["name"] == "Dr. Dr Video"
+    assert data["doctors"][0]["name"] == "Dr. Video"
 
 
 def test_filter_home_visit(client, db_session):
@@ -229,7 +229,7 @@ def test_filter_home_visit(client, db_session):
     response = client.get("/api/v1/doctors/home-visit")
     data = response.json()["data"]
     assert data["total"] == 1
-    assert data["doctors"][0]["name"] == "Dr. Dr House"
+    assert data["doctors"][0]["name"] == "Dr. House"
 
 
 def test_filter_top_rated_orders_by_rating(client, db_session):
@@ -240,7 +240,7 @@ def test_filter_top_rated_orders_by_rating(client, db_session):
     response = client.get("/api/v1/doctors/top-rated")
     data = response.json()["data"]
     assert data["total"] == 2
-    assert [d["name"] for d in data["doctors"]] == ["Dr. Dr Best", "Dr. Dr Good"]
+    assert [d["name"] for d in data["doctors"]] == ["Dr. Best", "Dr. Good"]
 
 
 def test_filter_supports_search_and_pagination(client, db_session):
@@ -277,7 +277,7 @@ def test_get_doctor_detail_returns_card_shape(client, db_session):
 
     data = body["data"]
     assert data["id"] == str(doctor.id)
-    assert data["name"] == "Dr. Dr Sarah Chen"
+    assert data["name"] == "Dr. Sarah Chen"
     assert data["specialties"] == ["Acupressure Specialist"]
     assert data["fee"] == 1200.0
     assert data["experience"] == 15

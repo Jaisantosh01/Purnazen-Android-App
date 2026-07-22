@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
-  Linking,
   Modal,
   TextInput,
   ActivityIndicator,
@@ -18,7 +17,6 @@ import authService from '../services/authService';
 import socialAuthService from '../services/socialAuthService';
 import preferencesService from '../services/preferencesService';
 import biometricService from '../services/biometricService';
-import { checkForUpdate, FORCE_MARKER } from '../services/updateService';
 import { APP_VERSION } from '../config';
 import { useAuthStore } from '../store/authStore';
 import useTheme from '../hooks/useTheme';
@@ -40,8 +38,6 @@ const HUES = {
   rose: '#E11D48',
 };
 const soft = hex => `${hex}22`;
-
-const SUPPORT_EMAIL = 'support@purnazen.com';
 
 // Supported app languages. The selected code persists to user_preferences;
 // full UI translation (i18n) is wired separately.
@@ -111,7 +107,6 @@ const SettingsScreen = ({ navigation }) => {
   const [biometric, setBiometric]                 = useState(false);
   const [biometricBusy, setBiometricBusy]         = useState(false);
   const [language, setLanguage]                   = useState('en');
-  const [updateChecking, setUpdateChecking]       = useState(false);
 
   // Hydrate toggles/values from the server (defaults kept offline).
   React.useEffect(() => {
@@ -284,7 +279,6 @@ const SettingsScreen = ({ navigation }) => {
     } else {
       showAlert('Link a Social Account', 'Sign in with the account you want to link.', [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'GitHub', onPress: () => linkWith('github') },
         { text: 'Google', onPress: () => linkWith('google') },
       ]);
     }
@@ -338,66 +332,6 @@ const SettingsScreen = ({ navigation }) => {
     }
   };
 
-  // Manual "Check for Updates" — reuses the GitHub-release check the launch
-  // prompt uses (force:true so it runs from dev builds too).
-  const handleCheckForUpdate = async () => {
-    if (updateChecking) return;
-    setUpdateChecking(true);
-    try {
-      const u = await checkForUpdate({ force: true });
-      if (!u) {
-        showAlert('Up to date', `You're on the latest version (v${APP_VERSION}).`);
-        return;
-      }
-      const openApk = () => { Linking.openURL(u.apkUrl).catch(() => {}); };
-      const notes = (u.notes || '')
-        .split('\n')
-        .filter(l => !l.includes(FORCE_MARKER))
-        .join('\n')
-        .trim();
-      const body =
-        `Version ${u.version} is available${u.current ? ` (you have v${u.current})` : ''}.` +
-        (u.forced ? '\n\nThis is a critical update and is required to continue.' : '') +
-        (notes ? `\n\n${notes}` : '');
-      const buttons = u.forced
-        ? [{ text: 'Update now', onPress: openApk }]
-        : [
-            { text: 'Later', style: 'cancel' },
-            { text: 'Update now', onPress: openApk },
-          ];
-      showAlert(
-        u.forced ? 'Update required' : 'Update available',
-        body,
-        buttons,
-        { cancelable: !u.forced },
-      );
-    } catch {
-      showAlert('Check for Updates', 'Could not check for updates. Please try again later.');
-    } finally {
-      setUpdateChecking(false);
-    }
-  };
-
-  const openSupport = () =>
-    showAlert(
-      'Help & Support',
-      `Reach the Purnazen team at ${SUPPORT_EMAIL} for help with the doctor app.`,
-    );
-
-  const handleLogout = () => {
-    showAlert('Logout', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: async () => {
-          await authService.logout();
-          // Auth-state flip swaps the root navigator back to Login (App.tsx).
-        },
-      },
-    ]);
-  };
-
   return (
     <View style={styles.root}>
       <ScreenHeader title="Settings" subtitle="Manage your preferences" />
@@ -445,7 +379,7 @@ const SettingsScreen = ({ navigation }) => {
               icon="link-variant"
               hue={HUES.rose}
               title="Linked Social Account"
-              subtitle="Sign in with Google or GitHub"
+              subtitle="Sign in with Google"
               valueText={
                 linkBusy
                   ? 'Linking...'
@@ -512,42 +446,6 @@ const SettingsScreen = ({ navigation }) => {
               subtitle="App display language"
               valueText={languageLabel(language)}
               onPress={() => setShowLanguage(true)}
-            />
-          </View>
-        </View>
-
-        {/* About */}
-        <View style={styles.section}>
-          <SectionHeader title="About" />
-          <View style={styles.card}>
-            <ArrowRow
-              icon="cloud-download-outline"
-              hue={HUES.blue}
-              title="Check for Updates"
-              subtitle={updateChecking ? 'Checking…' : `Current version v${APP_VERSION}`}
-              valueText={updateChecking ? '…' : undefined}
-              onPress={handleCheckForUpdate}
-            />
-            <View style={styles.rowDivider} />
-            <ArrowRow
-              icon="help-circle-outline"
-              hue={HUES.purple}
-              title="Help & Support"
-              subtitle="Get assistance"
-              onPress={openSupport}
-            />
-          </View>
-        </View>
-
-        {/* Account actions */}
-        <View style={styles.section}>
-          <SectionHeader title="Account" />
-          <View style={styles.card}>
-            <ArrowRow
-              icon="logout"
-              hue={colors.danger}
-              title="Logout"
-              onPress={handleLogout}
             />
           </View>
         </View>

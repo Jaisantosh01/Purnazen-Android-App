@@ -131,6 +131,7 @@ const HomeScreen = ({ navigation }) => {
                   title="Scheduled Appts"
                   value={stats?.scheduled_appointments}
                   icon="calendar-clock"
+                  onPress={() => navigation.navigate('Manage', { screen: 'AppointmentsMain', params: { filterStatus: 'booked' } })}
                 />
                 <KpiCard
                   title="Today Leaves"
@@ -150,7 +151,7 @@ const HomeScreen = ({ navigation }) => {
         </View>
 
         {/* ── Management ── */}
-        <View style={styles.section}>
+        {/* <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
             <MCIcon name="view-dashboard-outline" size={20} color={colors.textPrimary} />
             <Text style={styles.sectionTitle}>Quick Actions</Text>
@@ -207,7 +208,7 @@ const HomeScreen = ({ navigation }) => {
               <MCIcon name="chevron-right" size={22} color={colors.textMuted} />
             </TouchableOpacity>
           </View>
-        </View>
+        </View> */}
       </ScrollView>
     </View>
   );

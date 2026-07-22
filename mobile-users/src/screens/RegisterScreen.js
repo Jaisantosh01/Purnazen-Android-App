@@ -15,15 +15,20 @@ import {
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import authService from '../services/authService';
 import socialAuthService from '../services/socialAuthService';
 import useTheme from '../hooks/useTheme';
 import { useProfileStore } from '../store/profileStore';
 
-const EMAIL_RE = /^\S+@\S+\.\S+$/;
+// Proper address form: local@domain.tld with a real 2+ char TLD, no leading/
+// trailing dots or consecutive dots in either part. Rejects "a@b", "x@y.c" and
+// other malformed inputs that the previous \S+@\S+\.\S+ pattern let through.
+const EMAIL_RE = /^[a-zA-Z0-9](?:[a-zA-Z0-9._%+-]*[a-zA-Z0-9])?@(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
 
 const RegisterScreen = ({ navigation }) => {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [fullName, setFullName]         = useState('');
   const [email, setEmail]               = useState('');
@@ -145,7 +150,7 @@ const RegisterScreen = ({ navigation }) => {
         <ScrollView
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.cardContent}
+          contentContainerStyle={[styles.cardContent, { paddingBottom: 20 + insets.bottom }]}
           bounces={false}
         >
           <View style={styles.handle} />
@@ -304,22 +309,7 @@ const RegisterScreen = ({ navigation }) => {
               ) : (
                 <>
                   <MCIcon name="google" size={20} color="#DB4437" />
-                  <Text style={styles.socialBtnText}>Google</Text>
-                </>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.socialBtn}
-              activeOpacity={0.8}
-              onPress={() => handleSocialSignup('github')}
-              disabled={isLoading || !!socialLoading}
-            >
-              {socialLoading === 'github' ? (
-                <ActivityIndicator size="small" color={colors.primary} />
-              ) : (
-                <>
-                  <MCIcon name="github" size={21} color={colors.textPrimary} />
-                  <Text style={styles.socialBtnText}>GitHub</Text>
+                  <Text style={styles.socialBtnText}>Continue with Google</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -330,6 +320,11 @@ const RegisterScreen = ({ navigation }) => {
             <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}>
               <Text style={styles.switchLink}>Login</Text>
             </TouchableOpacity>
+          </View>
+
+          <View style={styles.poweredBy}>
+            <Text style={styles.poweredByText}>Powered by </Text>
+            <Text style={styles.poweredByBrand}>Calypsion</Text>
           </View>
         </ScrollView>
       </View>
@@ -495,4 +490,12 @@ const makeStyles = colors => StyleSheet.create({
   },
   switchHint: { fontSize: 14, color: colors.textSecondary },
   switchLink: { fontSize: 14, fontWeight: '800', color: colors.primary },
+  poweredBy: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 18,
+  },
+  poweredByText: { fontSize: 12, color: colors.textMuted, letterSpacing: 0.2 },
+  poweredByBrand: { fontSize: 12, fontWeight: '800', color: colors.primary, letterSpacing: 0.2 },
 });

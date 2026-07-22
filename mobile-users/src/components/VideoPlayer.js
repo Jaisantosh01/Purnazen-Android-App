@@ -9,6 +9,8 @@ import {
   PanResponder,
   Animated,
   useWindowDimensions,
+  StatusBar,
+  BackHandler,
 } from 'react-native';
 import Video from 'react-native-video';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -62,10 +64,6 @@ export default function VideoPlayer({
   // size arrives in onLoad, then adapts so portrait clips get a tall frame
   // instead of being squashed into a short letterboxed strip.
   const [aspect, setAspect] = useState(16 / 9);
-  // Measured player height — drives the control overlay height so the bottom bar
-  // (scrubber + fullscreen toggle) always lands at the real bottom edge, in both
-  // the inline and fullscreen layouts.
-  const [wrapH, setWrapH] = useState(0);
 
   const [paused, setPaused] = useState(!autoPlay);
   const [duration, setDuration] = useState(0);
@@ -80,6 +78,10 @@ export default function VideoPlayer({
   const [trackW, setTrackW] = useState(0);
   const [seeking, setSeeking] = useState(false);
   const seekPreview = useRef(0);
+  // True between issuing a seek() and the native onSeek confirming it. While
+  // pending we ignore progress events, which briefly report the *old* time and
+  // otherwise snap the scrubber back when tracing/seeking.
+  const seekPending = useRef(false);
 
   // Controls visibility (animated fade) + auto-hide timer.
   const [visible, setVisible] = useState(true);
@@ -117,6 +119,16 @@ export default function VideoPlayer({
     return () => clearTimeout(hideTimer.current);
   }, [paused, seeking, ended, errored, buffering, armAutoHide, fade]);
 
+  // Hardware back exits fullscreen instead of leaving the screen.
+  useEffect(() => {
+    if (!fullscreen) return undefined;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      setFullscreen(false);
+      return true;
+    });
+    return () => sub.remove();
+  }, [fullscreen]);
+
   // Reset when the source changes (playlist switch).
   useEffect(() => {
     setPaused(!autoPlay);
@@ -132,6 +144,7 @@ export default function VideoPlayer({
   const togglePlay = () => {
     if (errored) { setErrored(false); setRetryKey(k => k + 1); return; }
     if (ended) {
+      seekPending.current = true;
       videoRef.current?.seek(0);
       setEnded(false);
       setCurrentTime(0);
@@ -145,16 +158,21 @@ export default function VideoPlayer({
 
   const skip = delta => {
     const t = clamp(currentTime + delta, 0, duration || 0);
+    seekPending.current = true;
     videoRef.current?.seek(t);
     setCurrentTime(t);
-    if (ended && delta < 0) setEnded(false);
+    // Seeking anywhere before the end resumes normal playback controls.
+    if (ended && t < (duration || 0)) setEnded(false);
     reveal();
   };
 
   const onVideoProgress = data => {
-    if (!seeking) setCurrentTime(data.currentTime);
+    // Skip stale progress ticks that arrive before a pending seek lands.
+    if (!seeking && !seekPending.current) setCurrentTime(data.currentTime);
     onProgress?.(data);
   };
+
+  const onVideoSeek = () => { seekPending.current = false; };
 
   const onVideoLoad = data => {
     setDuration(data.duration);
@@ -196,8 +214,12 @@ export default function VideoPlayer({
           setCurrentTime(seekPreview.current);
         },
         onPanResponderRelease: () => {
+          seekPending.current = true;
           videoRef.current?.seek(seekPreview.current);
           setCurrentTime(seekPreview.current);
+          // Tracing back after the clip finished must restore the play button
+          // and resume from the scrubbed position instead of forcing a replay.
+          if (seekPreview.current < (duration || 0)) setEnded(false);
           setSeeking(false);
           reveal();
         },
@@ -213,22 +235,35 @@ export default function VideoPlayer({
   const maxH = screenH * 0.62;
   const playerH = Math.min(Math.max(screenW / aspect, minH), maxH);
 
+  // Every overlay gets this explicit height: absolute boxes that rely on
+  // top+bottom insets collapse to the top on this setup (see styles.controls),
+  // and deriving it (instead of measuring via onLayout) keeps the overlays in
+  // sync with the frame on the very frame fullscreen/orientation changes.
+  const overlayH = fullscreen ? screenH : playerH;
+
   return (
     <View
-      style={[styles.wrap, fullscreen ? styles.wrapFullscreen : { height: playerH }]}
-      onLayout={e => setWrapH(e.nativeEvent.layout.height)}
+      style={[
+        styles.wrap,
+        fullscreen
+          ? [styles.wrapFullscreen, { width: screenW, height: screenH }]
+          : { height: playerH },
+      ]}
     >
+      {/* Immersive fullscreen: drop the status bar while covering the window */}
+      {fullscreen && <StatusBar hidden />}
       {source?.uri ? (
         <Video
           key={retryKey}
           ref={videoRef}
           source={source}
-          style={StyleSheet.absoluteFill}
+          style={{ width: '100%', height: overlayH }}
           paused={paused}
           muted={muted}
           resizeMode="contain"
           repeat={false}
           onProgress={onVideoProgress}
+          onSeek={onVideoSeek}
           onLoad={onVideoLoad}
           onLoadStart={() => setBuffering(true)}
           onReadyForDisplay={() => setBuffering(false)}
@@ -238,25 +273,26 @@ export default function VideoPlayer({
           progressUpdateInterval={500}
         />
       ) : (
-        <View style={styles.posterWrap}>{poster}</View>
+        <View style={[styles.posterWrap, { height: overlayH }]}>{poster}</View>
       )}
 
-      {/* Tap layer toggles the control overlay */}
+      {/* Tap layer toggles the control overlay (explicit height, like the
+          other overlays, so the whole frame stays tappable) */}
       <Pressable
-        style={StyleSheet.absoluteFill}
+        style={[styles.tapLayer, { height: overlayH }]}
         onPress={() => (visible ? (setVisible(false), fade(0)) : reveal())}
       />
 
       {/* Buffering spinner */}
       {buffering && !errored && (
-        <View style={styles.centerOverlay} pointerEvents="none">
+        <View style={[styles.centerOverlay, { height: overlayH }]} pointerEvents="none">
           <ActivityIndicator size="large" color={colors.white} />
         </View>
       )}
 
       {/* Load error */}
       {errored && (
-        <View style={styles.centerOverlay}>
+        <View style={[styles.centerOverlay, { height: overlayH }]}>
           <MCIcon name="alert-circle-outline" size={40} color={colors.white} />
           <Text style={styles.errorText}>Couldn't play this video</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={togglePlay} activeOpacity={0.85}>
@@ -270,7 +306,7 @@ export default function VideoPlayer({
           reliably fills the player; absolute top/bottom wasn't resolving to the
           player height on this setup, collapsing the controls to the top. */}
       <Animated.View
-        style={[styles.controls, { height: wrapH || playerH, opacity }]}
+        style={[styles.controls, { height: overlayH, opacity }]}
         pointerEvents={visible && !errored ? 'box-none' : 'none'}
       >
         {/* Scrim for legibility */}
@@ -348,23 +384,40 @@ const makeStyles = colors => StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
   },
-  // Pure-JS fullscreen: the same Video instance expands to cover the screen
-  // (no native fullscreen player, so controls never desync / jump). Highest
-  // zIndex so it sits over the rest of the screen.
+  // Pure-JS fullscreen: the same Video instance expands to cover the window
+  // (no native fullscreen player, so controls never desync / jump). Sized with
+  // explicit width/height passed inline — right/bottom insets don't resolve on
+  // this setup (see styles.controls) and left the player far from fullscreen.
+  // Highest zIndex so it sits over the rest of the screen.
   wrapFullscreen: {
     aspectRatio: undefined,
     position: 'absolute',
     top: 0,
     left: 0,
-    right: 0,
-    bottom: 0,
     zIndex: 1000,
     elevation: 1000,
   },
-  posterWrap: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
-
+  // Poster / spinner / error overlays: explicit height passed inline for the
+  // same reason — with absoluteFill they collapsed and hugged the top edge.
+  posterWrap: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tapLayer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+  },
   centerOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,

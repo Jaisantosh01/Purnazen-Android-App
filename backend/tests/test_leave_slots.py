@@ -2,6 +2,8 @@ import pytest
 from datetime import date, time
 import uuid
 
+from tests.test_doctors import next_weekday
+
 from app.main import app
 from app.models.day_of_week import DayOfWeek
 from app.models.role import Role
@@ -79,8 +81,9 @@ def test_leave_blocks_availability(client, db_session):
     db_session.add_all([avail1, avail2])
     db_session.commit()
 
-    # Get slots on a Monday date, e.g. 2026-07-06
-    test_date = date(2026, 7, 6)
+    # Get slots on the next upcoming Monday (a fixed date would eventually fall
+    # in the past and the booking endpoint rejects past dates with a 400).
+    test_date = next_weekday("Monday")
     slots = DoctorService.get_time_slots(db_session, doctor, test_date)
     assert len(slots) == 2
 

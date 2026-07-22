@@ -63,10 +63,12 @@ jobs:
 
       - name: Deploy to Container App
         env:
-          # OTA config (sourced from repo secret/var); applied here because the
-          # Container App control plane is configured during deploy, not locally.
+          # OTA + Firebase config (sourced from repo secrets/vars); applied here
+          # because the Container App control plane is configured during deploy,
+          # not locally.
           REG_TOKEN: ${{ secrets.RELEASE_REGISTER_TOKEN }}
           REL_CONTAINER: ${{ vars.AZURE_RELEASES_CONTAINER }}
+          FIREBASE_SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
         run: |
           APP="${{ vars.BACKEND_CONTAINERAPP }}"
           RG="${{ vars.AZURE_RESOURCE_GROUP }}"
@@ -76,6 +78,13 @@ jobs:
             az containerapp secret set --name "$APP" --resource-group "$RG" \
               --secrets "release-register-token=$REG_TOKEN" --output none
             EXTRA_ENV="RELEASE_REGISTER_TOKEN=secretref:release-register-token AZURE_RELEASES_CONTAINER_NAME=${REL_CONTAINER:-app-releases}"
+          fi
+          if [ -n "$FIREBASE_SA_JSON" ]; then
+            # One credential powers FCM push + social-login token verification
+            # (see docs/FIREBASE.md). Same secretref pattern as above.
+            az containerapp secret set --name "$APP" --resource-group "$RG" \
+              --secrets "firebase-service-account-json=$FIREBASE_SA_JSON" --output none
+            EXTRA_ENV="$EXTRA_ENV FIREBASE_SERVICE_ACCOUNT_JSON=secretref:firebase-service-account-json"
           fi
           az containerapp update \
             --name "$APP" \

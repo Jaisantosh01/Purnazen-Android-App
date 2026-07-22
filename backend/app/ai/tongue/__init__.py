@@ -12,10 +12,15 @@ import logging
 import numpy as np
 
 from app.ai.tongue.color_analyzer import analyze_colors
-from app.ai.tongue.segmenter import segment_tongue
+from app.ai.tongue.segmenter import segment_tongue, tongue_coverage
 from app.ai.tongue.tcm_rules import overall_wellness
 
 logger = logging.getLogger(__name__)
+
+# Minimum reddish coverage in the guide region for a frame to count as showing
+# an actual tongue. A well-extended tongue clears this comfortably; a closed
+# mouth or non-tongue frame falls below it. Tunable if false rejects show up.
+MIN_TONGUE_COVERAGE = 0.12
 
 
 def _mask_bbox(mask: "np.ndarray") -> "list | None":
@@ -40,6 +45,9 @@ def _mask_bbox(mask: "np.ndarray") -> "list | None":
 
 def analyze(img_bgr: "np.ndarray") -> dict:
     """Run the full tongue pipeline. Always returns a valid scores dict."""
+    coverage = tongue_coverage(img_bgr)
+    tongue_detected = coverage >= MIN_TONGUE_COVERAGE
+
     mask, used_fallback = segment_tongue(img_bgr)
     markers = analyze_colors(img_bgr, mask)
     score = overall_wellness(markers)
@@ -52,10 +60,14 @@ def analyze(img_bgr: "np.ndarray") -> dict:
         "tongue_moisture":   markers["moisture"],
         "tongue_shape":      markers["shape"],
         "overall_wellness_score": score,
+        # Surfaced so the pipeline can reject frames with no tongue present.
+        "tongue_detected": tongue_detected,
         "raw_metrics": {
             "sprint": 4,
             "scoring_method": "cv",
             "tongue_segmentation_fallback": used_fallback,
+            "tongue_coverage": round(coverage, 4),
+            "tongue_detected": tongue_detected,
             "tongue_bbox": bbox,
             "tongue_metrics": markers["raw"],
         },

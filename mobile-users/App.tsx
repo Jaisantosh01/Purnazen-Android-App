@@ -50,6 +50,7 @@ import ProfileScreen from './src/screens/ProfileScreen';
 import TherapyHistoryScreen from './src/screens/TherapyHistoryScreen';
 import HelpSupportScreen from './src/screens/HelpSupportScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import ContentViewerScreen from './src/screens/ContentViewerScreen';
 import SubscriptionsScreen from './src/screens/SubscriptionsScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
 import NotificationCenterScreen from './src/screens/NotificationCenterScreen';
@@ -168,6 +169,7 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="Subscriptions"  component={SubscriptionsScreen}  />
       <ProfileStack.Screen name="Notifications"  component={NotificationsScreen}  />
       <ProfileStack.Screen name="AddressManagement" component={AddressManagementScreen} />
+      <ProfileStack.Screen name="ContentViewer" component={ContentViewerScreen} />
     </ProfileStack.Navigator>
   );
 }

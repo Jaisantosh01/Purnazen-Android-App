@@ -122,7 +122,13 @@ const BookAppointmentScreen = ({ navigation, route }) => {
       return;
     }
     consultService.getDoctorClinics(doctor.id)
-      .then(data => { if (Array.isArray(data) && data.length) setClinics(data); })
+      .then(data => {
+        if (Array.isArray(data) && data.length) {
+          setClinics(data);
+          const primary = data.find(c => c.is_primary);
+          setSelectedClinic(primary || data[0]);
+        }
+      })
       .catch(() => setClinics([]));
   }, [doctor.id, selectedVisit]);
 
@@ -229,7 +235,9 @@ const BookAppointmentScreen = ({ navigation, route }) => {
   for (let i = 1; i <= daysInMonth; i++) {
     calendarDays.push({ day: i, current: true });
   }
-  const remaining = 42 - calendarDays.length;
+  // Only pad out the final week — never a whole empty trailing row — so the
+  // calendar height matches the month and leaves no dead space above "Select Time".
+  const remaining = (7 - (calendarDays.length % 7)) % 7;
   for (let i = 1; i <= remaining; i++) {
     calendarDays.push({ day: i, current: false });
   }
@@ -242,6 +250,34 @@ const BookAppointmentScreen = ({ navigation, route }) => {
     todayStart.setHours(0, 0, 0, 0);
     return date < todayStart;
   };
+
+  // Parse a slot's start time ("09:00 AM" / "14:30") into {h, min}.
+  const parseSlotStart = (timeStr) => {
+    const m = /(\d{1,2}):(\d{2})\s*(AM|PM)?/i.exec(String(timeStr || ''));
+    if (!m) return null;
+    let h = parseInt(m[1], 10);
+    const min = parseInt(m[2], 10);
+    const ap = m[3] && m[3].toUpperCase();
+    if (ap === 'PM' && h !== 12) h += 12;
+    if (ap === 'AM' && h === 12) h = 0;
+    return { h, min };
+  };
+
+  // A slot is "past" only when the selected date is today and its start time
+  // has already elapsed — you can't book a slot earlier than the current hour.
+  const isSlotPast = (slot) => {
+    if (!selectedDate) return false;
+    const now = new Date();
+    const selected = new Date(currentYear, currentMonth, selectedDate);
+    if (selected.toDateString() !== now.toDateString()) return false;
+    const t = parseSlotStart(slot.time);
+    if (!t) return false;
+    const slotStart = new Date(currentYear, currentMonth, selectedDate, t.h, t.min);
+    return slotStart <= now;
+  };
+
+  // A slot is unavailable if it's booked OR already elapsed today.
+  const isSlotUnavailable = (slot) => slot.booked || isSlotPast(slot);
 
   return (
     <View style={styles.root}>
@@ -376,35 +412,38 @@ const BookAppointmentScreen = ({ navigation, route }) => {
               <Text style={styles.noSlotsTitle}>No Slots Available</Text>
               <Text style={styles.noSlotsText}>Please choose another date.</Text>
             </View>
-          ) : timeSlots.length > 0 && timeSlots.every(s => s.booked) ? (
+          ) : timeSlots.length > 0 && timeSlots.every(isSlotUnavailable) ? (
             <View style={styles.noSlotsCard}>
               <MCIcon name="clock-off-outline" size={28} color={colors.textMuted} />
-              <Text style={styles.noSlotsTitle}>All Slots Booked</Text>
-              <Text style={styles.noSlotsText}>All slots are booked for this date. Please choose another day.</Text>
+              <Text style={styles.noSlotsTitle}>No Slots Available</Text>
+              <Text style={styles.noSlotsText}>All slots for this date are booked or have passed. Please choose another day.</Text>
             </View>
           ) : (
             <View style={styles.timeGrid}>
-              {timeSlots.map(slot => (
-                <TouchableOpacity
-                  key={slot.id}
-                  style={[
-                    styles.timeSlot,
-                    slot.booked && styles.timeSlotBooked,
-                    !slot.booked && selectedTime?.id === slot.id && styles.timeSlotActive,
-                  ]}
-                  onPress={() => !slot.booked && setSelectedTime(slot)}
-                  activeOpacity={slot.booked ? 1 : 0.8}
-                  disabled={slot.booked}
-                >
-                  <Text style={[
-                    styles.timeSlotText,
-                    slot.booked && styles.timeSlotBookedText,
-                    !slot.booked && selectedTime?.id === slot.id && styles.timeSlotTextActive,
-                  ]}>
-                    {slot.time} - {slot.end_time}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              {timeSlots.map(slot => {
+                const unavailable = isSlotUnavailable(slot);
+                return (
+                  <TouchableOpacity
+                    key={slot.id}
+                    style={[
+                      styles.timeSlot,
+                      unavailable && styles.timeSlotBooked,
+                      !unavailable && selectedTime?.id === slot.id && styles.timeSlotActive,
+                    ]}
+                    onPress={() => !unavailable && setSelectedTime(slot)}
+                    activeOpacity={unavailable ? 1 : 0.8}
+                    disabled={unavailable}
+                  >
+                    <Text style={[
+                      styles.timeSlotText,
+                      unavailable && styles.timeSlotBookedText,
+                      !unavailable && selectedTime?.id === slot.id && styles.timeSlotTextActive,
+                    ]}>
+                      {slot.time} - {slot.end_time}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           )}
         </View>

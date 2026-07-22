@@ -143,6 +143,13 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
     }
   }, [route?.params?.filterDate]);
 
+  // Deep-link from dashboard KPIs (e.g. "Scheduled Appts") can preselect a status.
+  useEffect(() => {
+    if (route?.params?.filterStatus) {
+      setAppliedStatus([route.params.filterStatus]);
+    }
+  }, [route?.params?.filterStatus]);
+
   const fetchAppointments = useCallback(() => {
     setLoading(true);
     apiClient
@@ -758,7 +765,7 @@ const makeStyles = colors => StyleSheet.create({
   filterModalContainer: { backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%', width: '100%', maxWidth: 640, alignSelf: 'center' },
   filterModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
   filterModalTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
-  filterModalBody: { padding: 20 },
+  filterModalBody: { padding: 20, paddingBottom: 32 },
   filterSectionLabel: { fontSize: 14, fontWeight: '700', color: colors.textPrimary, marginBottom: 10 },
   doctorSearchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceMuted, borderRadius: 10, paddingHorizontal: 12, height: 40 },
   doctorSearchInput: { flex: 1, fontSize: 14, color: colors.textPrimary, padding: 0, marginLeft: 8 },
@@ -782,7 +789,7 @@ const makeStyles = colors => StyleSheet.create({
   dateBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceMuted, borderRadius: 8, paddingHorizontal: 10, height: 40, gap: 6 },
   dateBtnText: { flex: 1, fontSize: 13, fontWeight: '500', color: colors.textPrimary },
   dateBtnPlaceholder: { color: colors.textMuted, fontWeight: '400' },
-  statusGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  statusGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
   statusCard: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: colors.border, width: '47%' },
   radioOuter: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: colors.borderStrong, justifyContent: 'center', alignItems: 'center', marginRight: 8 },
   radioInner: { width: 10, height: 10, borderRadius: 5 },

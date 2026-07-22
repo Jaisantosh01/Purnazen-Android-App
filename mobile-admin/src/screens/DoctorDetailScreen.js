@@ -47,17 +47,24 @@ const DoctorDetailScreen = ({ route, navigation }) => {
 
   const fetchDoctor = () => {
     setLoading(true);
-    Promise.all([
-      apiClient.get(ENDPOINTS.DOCTOR_DETAIL(doctorId)),
-      apiClient.get(ENDPOINTS.SLOT_TIMINGS),
-      apiClient.get(ENDPOINTS.DOCTOR_AVAILABILITY(doctorId)),
-    ])
-      .then(([docRes, slotRes, availRes]) => {
+    // The doctor record is the only critical call — render the profile even if
+    // the (secondary) slot/availability lookups fail, instead of dropping the
+    // whole screen to a "not found" / error state.
+    apiClient.get(ENDPOINTS.DOCTOR_DETAIL(doctorId))
+      .then(docRes => {
         setDoctor(docRes.data || docRes);
-        const allDays = slotRes.data || slotRes || [];
-        const availList = availRes.data || availRes || [];
+        return Promise.all([
+          apiClient.get(ENDPOINTS.SLOT_TIMINGS).catch(() => null),
+          apiClient.get(ENDPOINTS.DOCTOR_AVAILABILITY(doctorId)).catch(() => null),
+        ]);
+      })
+      .then((results) => {
+        if (!results) return;
+        const [slotRes, availRes] = results;
+        const allDays = slotRes?.data || slotRes || [];
+        const availList = availRes?.data || availRes || [];
         const selectedIds = availList.map(a => a.slot_timing_id);
-        const daysWithSlots = allDays
+        const daysWithSlots = (Array.isArray(allDays) ? allDays : [])
           .map(day => ({
             ...day,
             slots: (day.slots || []).filter(s => selectedIds.includes(s.id)),
@@ -108,7 +115,7 @@ const DoctorDetailScreen = ({ route, navigation }) => {
           <InfoItem icon="information-outline" label="About" value={doctor.about || 'No description available.'} />
           <InfoItem icon="school-outline" label="Education" value={doctor.education || 'N/A'} />
           <InfoItem icon="clock-outline" label="Experience" value={doctor.experience ? `${doctor.experience} years` : 'N/A'} />
-          <InfoItem icon="currency-usd" label="Consultation Fee" value={doctor.fee ? `$${doctor.fee}` : 'N/A'} />
+          <InfoItem icon="currency-inr" label="Consultation Fee" value={doctor.fee ? `₹${doctor.fee}` : 'N/A'} />
           <InfoItem icon="head-check-outline" label="Expertise" value={doctor.expertise?.join(', ') || 'N/A'} />
           <InfoItem icon="translate" label="Languages" value={doctor.languages?.join(', ') || 'N/A'} />
           

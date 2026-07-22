@@ -90,8 +90,8 @@ const VideoManagementScreen = ({ navigation }) => {
 
   const openEditGroupModal = (group) => {
     setEditingGroup(group);
-    setGroupTitle(group.title);
-    setGroupDescription(group.description);
+    setGroupTitle(group.title || '');
+    setGroupDescription(group.description || '');
     setGroupIcon(group.icon || ROLE_ICONS[0]);
     setIsEditingGroup(true);
     setGroupModalVisible(true);
@@ -140,8 +140,10 @@ const VideoManagementScreen = ({ navigation }) => {
 
   const openEditSessionModal = (session) => {
     setEditingSession(session);
-    setSessionTitle(session.title);
-    setSessionDuration(session.duration);
+    setSessionTitle(session.title || '');
+    // duration can arrive as a number; TextInput value must be a string or the
+    // app hard-crashes on opening the edit modal.
+    setSessionDuration(session.duration != null ? String(session.duration) : '');
     setSessionIcon(session.icon || 'meditation');
     setSessionVideoGroupId(session.videoGroupId);
     setIsEditingSession(true);
@@ -188,6 +190,7 @@ const VideoManagementScreen = ({ navigation }) => {
       <ScreenHeader
         title="Video Management"
         onBack={() => navigation.goBack()}
+        underColor={colors.card}
         right={
           <TouchableOpacity style={styles.addBtn} onPress={activeTab === 'sessions' ? openAddSessionModal : openAddGroupModal}>
             <MCIcon name="plus" size={24} color={colors.headerText} />
@@ -278,7 +281,7 @@ const VideoManagementScreen = ({ navigation }) => {
               <TextInput style={styles.input} placeholder="Session title" value={sessionTitle} onChangeText={setSessionTitle} />
 
               <Text style={styles.label}>Duration</Text>
-              <TextInput style={styles.input} placeholder="e.g. 20 min" value={sessionDuration} onChangeText={setSessionDuration} />
+              <TextInput style={styles.input} placeholder="e.g. 20 min" value={String(sessionDuration ?? '')} onChangeText={setSessionDuration} />
 
               <Text style={styles.label}>Icon</Text>
               <TouchableOpacity style={styles.iconInput} onPress={() => { setIconTarget('session'); setSessionIconModalVisible(true); }}>
@@ -389,7 +392,7 @@ const makeStyles = colors => StyleSheet.create({
   modalBtn: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 8, backgroundColor: colors.surfaceMuted },
   saveBtn: { backgroundColor: colors.primary },
   iconOption: { padding: 10, borderRadius: 8, backgroundColor: colors.surfaceMuted, margin: 4 },
-  tabBar: { flexDirection: 'row', backgroundColor: colors.card, paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
+  tabBar: { flexDirection: 'row', backgroundColor: colors.card, paddingHorizontal: 16, paddingBottom: 12, paddingTop:10 ,borderBottomWidth: 1, borderBottomColor: colors.border },
   tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8, marginHorizontal: 4 },
   activeTab: { backgroundColor: colors.primary },
   tabText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },

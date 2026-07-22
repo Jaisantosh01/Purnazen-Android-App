@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -22,150 +22,280 @@ import { showAlert } from '../utils/alert';
 
 const VIDEO_MIME_TYPES = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'video/webm', 'video/ogg'];
 
+const formatBytes = (bytes) => {
+  if (!bytes || bytes <= 0) return '';
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+};
+
+const titleFromFilename = (name) =>
+  (name || '')
+    .replace(/\.[^.]+$/, '')
+    .replace(/[_-]+/g, ' ')
+    .trim();
+
+const STATUS_META = {
+  pending: { icon: 'clock-outline', color: '#9CA3AF' },
+  uploading: { icon: 'progress-upload', color: '#3B82F6' },
+  done: { icon: 'check-circle', color: '#10B981' },
+  failed: { icon: 'alert-circle', color: '#EF4444' },
+};
+
 const UploadVideoScreen = ({ route, navigation }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const { videoGroupId } = route.params;
+  const defaultGroupId = route.params?.videoGroupId || null;
 
+  // Storage browser
   const [directories, setDirectories] = useState([]);
+  const [dirFiles, setDirFiles] = useState([]);
   const [dirsLoading, setDirsLoading] = useState(true);
   const [currentPath, setCurrentPath] = useState('');
-  const [pathHistory, setPathHistory] = useState([]);
   const [selectedDir, setSelectedDir] = useState('');
   const [viewMode, setViewMode] = useState('grid');
-
   const [createDirModal, setCreateDirModal] = useState(false);
   const [newDirName, setNewDirName] = useState('');
 
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [duration, setDuration] = useState('');
-  const [icon, setIcon] = useState('play-circle');
-  const [iconModalVisible, setIconModalVisible] = useState(false);
+  // Upload queue: one entry per picked video
+  const [items, setItems] = useState([]);
+  const [expandedId, setExpandedId] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
+
+  // Targets
+  const [groups, setGroups] = useState([]);
+  const [sessions, setSessions] = useState([]);
+  const [targetPickerFor, setTargetPickerFor] = useState(null); // item id or '__all__'
+  const [iconPickerFor, setIconPickerFor] = useState(null);
+
+  const cancelledRef = useRef(false);
 
   useEffect(() => {
     fetchDirectories();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPath]);
 
+  // Auto-select the folder currently being browsed as the upload target. The
+  // explicit "Upload to …" button sits below a long directory list, so users
+  // rarely reached it — leaving no folder selected and the Upload button stuck
+  // disabled. Tap the × on the target bar to clear, then re-pick if needed.
+  useEffect(() => {
+    setSelectedDir(currentPath || '/');
+  }, [currentPath]);
+
+  useEffect(() => {
+    apiClient.get(ENDPOINTS.VIDEO_GROUPS)
+      .then(res => setGroups((res?.data?.groups || []).filter(g => g.is_active !== false)))
+      .catch(() => setGroups([]));
+    apiClient.get(ENDPOINTS.ALL_SESSIONS)
+      .then(res => setSessions(res?.data?.sessions || []))
+      .catch(() => setSessions([]));
+    return () => { cancelledRef.current = true; };
+  }, []);
+
   const fetchDirectories = () => {
     setDirsLoading(true);
     const params = currentPath ? { parent: currentPath } : {};
     apiClient.get(ENDPOINTS.VIDEO_STORAGE_DIRECTORIES, { params })
-      .then(res => setDirectories(res?.data?.directories || []))
-      .catch(() => setDirectories([]))
+      .then(res => {
+        setDirectories(res?.data?.directories || []);
+        setDirFiles(res?.data?.files || []);
+      })
+      .catch(err => {
+        setDirectories([]);
+        setDirFiles([]);
+        showAlert('Error', err?.message || 'Failed to load storage directories');
+      })
       .finally(() => setDirsLoading(false));
   };
 
-  const navigateInto = (dir) => {
-    setPathHistory(prev => [...prev, currentPath]);
-    setCurrentPath(dir);
-    setSelectedDir('');
-  };
-
-  const navigateBack = () => {
-    const prev = [...pathHistory];
-    const parent = prev.pop();
-    setPathHistory(prev);
-    setCurrentPath(parent || '');
-    setSelectedDir('');
-  };
+  const navigateInto = (dir) => setCurrentPath(dir);
 
   const navigateBreadcrumb = (index) => {
     const crumbs = currentPath.replace(/\/$/, '').split('/').filter(Boolean);
     const targetParts = crumbs.slice(0, index + 1);
-    const targetPath = targetParts.length > 0 ? targetParts.join('/') + '/' : '';
-    setPathHistory([]);
-    setCurrentPath(targetPath);
-    setSelectedDir('');
+    setCurrentPath(targetParts.length > 0 ? targetParts.join('/') + '/' : '');
   };
 
-  const selectCurrentFolder = () => {
-    setSelectedDir(currentPath);
-  };
-
-  const handlePickFile = async () => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: 'video/*',
-        copyToCacheDirectory: true,
-      });
-      if (result.canceled) return;
-      const file = result.assets?.[0];
-      if (file) {
-        const mime = (file.mimeType || '').toLowerCase();
-        const isVideo = mime.startsWith('video/') || VIDEO_MIME_TYPES.includes(mime);
-        if (!isVideo) {
-          showAlert('Invalid file', 'Only video files are allowed');
-          return;
-        }
-        setSelectedFile(file);
-      }
-    } catch (err) {
-      showAlert('Error', 'Failed to pick video file');
-    }
-  };
+  const selectCurrentFolder = () => setSelectedDir(currentPath || '/');
 
   const handleCreateDir = () => {
-    const name = newDirName.trim();
-    if (!name) { showAlert('Error', 'Enter a directory name'); return; }
-    const path = currentPath + (name.endsWith('/') ? name : name + '/');
+    const name = newDirName.trim().replace(/^\/+|\/+$/g, '');
+    if (!name) { showAlert('Error', 'Enter a folder name'); return; }
+    const path = currentPath + name + '/';
     apiClient.post(ENDPOINTS.VIDEO_STORAGE_DIRECTORIES, { path })
       .then(() => {
         setCreateDirModal(false);
         setNewDirName('');
         fetchDirectories();
       })
-      .catch(() => showAlert('Error', 'Failed to create directory'));
+      .catch(() => showAlert('Error', 'Failed to create folder'));
   };
 
-  const handleUpload = async () => {
-    if (!selectedFile) { showAlert('Error', 'Select a video file'); return; }
-    if (!selectedDir) { showAlert('Error', 'Select a storage directory'); return; }
-    if (!title.trim()) { showAlert('Error', 'Enter a video title'); return; }
+  // ── Upload queue management ──
 
-    setUploading(true);
+  const handlePickFiles = async () => {
     try {
-      const formData = new FormData();
-      formData.append('file', {
-        uri: selectedFile.uri,
-        type: selectedFile.mimeType || 'video/mp4',
-        name: selectedFile.name || 'video.mp4',
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'video/*',
+        multiple: true,
+        copyToCacheDirectory: true,
       });
-      formData.append('directory', selectedDir);
-      formData.append('title', title.trim());
-      formData.append('description', description.trim());
-      formData.append('duration', String(parseInt(duration) || 0));
-      formData.append('icon', icon);
-      formData.append('video_group_id', videoGroupId);
-      formData.append('sort_order', '0');
-
-      await apiClient.post(ENDPOINTS.VIDEO_UPLOAD, formData, { timeout: 300000 });
-
-      showAlert('Success', 'Video uploaded successfully');
-      navigation.goBack();
+      if (result.canceled) return;
+      const assets = result.assets || [];
+      const videos = assets.filter(f => {
+        const mime = (f.mimeType || '').toLowerCase();
+        return mime.startsWith('video/') || VIDEO_MIME_TYPES.includes(mime);
+      });
+      if (videos.length < assets.length) {
+        showAlert('Some files skipped', 'Only video files are allowed');
+      }
+      if (videos.length === 0) return;
+      const newItems = videos.map((file, i) => ({
+        id: `${Date.now()}_${i}_${file.name}`,
+        file,
+        title: titleFromFilename(file.name),
+        description: '',
+        duration: '',
+        icon: 'play-circle',
+        groupId: defaultGroupId,
+        sessionId: null,
+        status: 'pending',
+        error: null,
+      }));
+      setItems(prev => [...prev, ...newItems]);
+      if (newItems.length === 1 && items.length === 0) setExpandedId(newItems[0].id);
     } catch (err) {
-      showAlert('Error', err?.message || 'Upload failed');
-    } finally {
-      setUploading(false);
+      showAlert('Error', 'Failed to pick video files');
     }
   };
+
+  const updateItem = (id, patch) => {
+    setItems(prev => prev.map(it => (it.id === id ? { ...it, ...patch } : it)));
+  };
+
+  const removeItem = (id) => {
+    setItems(prev => prev.filter(it => it.id !== id));
+    if (expandedId === id) setExpandedId(null);
+  };
+
+  const targetLabel = (item) => {
+    if (item.sessionId) {
+      const s = sessions.find(x => x.id === item.sessionId);
+      if (s) return `Session: ${s.title}`;
+    }
+    if (item.groupId) {
+      const g = groups.find(x => x.id === item.groupId);
+      if (g) return `Group: ${g.title}`;
+      return 'Group selected';
+    }
+    return 'Select group / session...';
+  };
+
+  const applyTarget = (target) => {
+    // target: { groupId, sessionId }
+    if (targetPickerFor === '__all__') {
+      setItems(prev => prev.map(it => (it.status === 'done' ? it : { ...it, ...target })));
+    } else if (targetPickerFor) {
+      updateItem(targetPickerFor, target);
+    }
+    setTargetPickerFor(null);
+  };
+
+  // ── Upload ──
+
+  const readyToUpload = items.some(it => it.status !== 'done');
+  const canUpload =
+    !uploading &&
+    items.length > 0 &&
+    readyToUpload &&
+    !!selectedDir &&
+    items.every(it => it.status === 'done' || (it.title.trim() && it.groupId));
+
+  const validationHint = () => {
+    if (items.length === 0) return 'Add at least one video file';
+    if (!selectedDir) return 'Select a storage folder above';
+    if (!items.every(it => it.status === 'done' || it.title.trim())) return 'Every video needs a title';
+    if (!items.every(it => it.status === 'done' || it.groupId)) return 'Every video needs a group or session';
+    return null;
+  };
+
+  const uploadOne = async (item) => {
+    const formData = new FormData();
+    formData.append('file', {
+      uri: item.file.uri,
+      type: item.file.mimeType || 'video/mp4',
+      name: item.file.name || 'video.mp4',
+    });
+    formData.append('directory', selectedDir === '/' ? '' : selectedDir);
+    formData.append('title', item.title.trim());
+    formData.append('description', item.description.trim());
+    formData.append('duration', String(parseInt(item.duration, 10) || 0));
+    formData.append('icon', item.icon);
+    formData.append('video_group_id', item.groupId);
+    formData.append('sort_order', '0');
+    await apiClient.post(ENDPOINTS.VIDEO_UPLOAD, formData, { timeout: 600000 });
+  };
+
+  const handleUploadAll = async () => {
+    const hint = validationHint();
+    if (hint) { showAlert('Cannot upload', hint); return; }
+
+    const queue = items.filter(it => it.status !== 'done');
+    setUploading(true);
+    setUploadProgress({ current: 0, total: queue.length });
+
+    let failed = 0;
+    for (let i = 0; i < queue.length; i++) {
+      if (cancelledRef.current) return;
+      const item = queue[i];
+      setUploadProgress({ current: i + 1, total: queue.length });
+      updateItem(item.id, { status: 'uploading', error: null });
+      try {
+        await uploadOne(item);
+        if (cancelledRef.current) return;
+        updateItem(item.id, { status: 'done' });
+      } catch (err) {
+        if (cancelledRef.current) return;
+        failed++;
+        updateItem(item.id, { status: 'failed', error: err?.message || 'Upload failed' });
+      }
+    }
+
+    setUploading(false);
+    fetchDirectories();
+    if (failed === 0) {
+      showAlert('Success', `${queue.length} video${queue.length > 1 ? 's' : ''} uploaded successfully`, [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
+    } else {
+      showAlert('Upload finished', `${queue.length - failed} succeeded, ${failed} failed. Failed videos stay in the list — tap Upload to retry them.`);
+    }
+  };
+
+  // ── Renderers ──
 
   const crumbs = currentPath ? currentPath.replace(/\/$/, '').split('/').filter(Boolean) : [];
 
   const renderGridDir = (dir) => {
     const displayName = dir.replace(/\/$/, '').split('/').pop() || dir;
     return (
-      <TouchableOpacity
-        key={dir}
-        style={styles.dirGridItem}
-        onPress={() => navigateInto(dir)}
-      >
+      <TouchableOpacity key={dir} style={styles.dirGridItem} onPress={() => navigateInto(dir)}>
         <MCIcon name="folder" size={28} color={colors.warning} />
         <Text style={styles.dirGridText} numberOfLines={1}>{displayName}</Text>
       </TouchableOpacity>
+    );
+  };
+
+  const renderGridFile = (file) => {
+    const displayName = file.name.split('/').pop() || file.name;
+    return (
+      <View key={file.name} style={[styles.dirGridItem, styles.fileGridItem]}>
+        <MCIcon name="movie-outline" size={26} color={colors.primary} />
+        <Text style={styles.dirGridText} numberOfLines={2}>{displayName}</Text>
+        {!!file.size && <Text style={styles.fileSizeText}>{formatBytes(file.size)}</Text>}
+      </View>
     );
   };
 
@@ -180,28 +310,153 @@ const UploadVideoScreen = ({ route, navigation }) => {
     );
   };
 
+  const renderListFile = ({ item }) => {
+    const displayName = item.name.split('/').pop() || item.name;
+    return (
+      <View style={styles.dirListItem}>
+        <MCIcon name="movie-outline" size={22} color={colors.primary} />
+        <Text style={styles.dirListText} numberOfLines={1}>{displayName}</Text>
+        {!!item.size && <Text style={styles.fileSizeText}>{formatBytes(item.size)}</Text>}
+      </View>
+    );
+  };
+
+  const renderQueueItem = (item) => {
+    const meta = STATUS_META[item.status] || STATUS_META.pending;
+    const isExpanded = expandedId === item.id;
+    return (
+      <View key={item.id} style={styles.queueCard}>
+        <TouchableOpacity
+          style={styles.queueHeader}
+          onPress={() => setExpandedId(isExpanded ? null : item.id)}
+          activeOpacity={0.8}
+        >
+          {item.status === 'uploading'
+            ? <ActivityIndicator size="small" color={meta.color} />
+            : <MCIcon name={meta.icon} size={20} color={meta.color} />}
+          <View style={{ flex: 1, marginHorizontal: 8 }}>
+            <Text style={styles.queueTitle} numberOfLines={1}>{item.title || item.file.name}</Text>
+            <Text style={styles.queueMeta} numberOfLines={1}>
+              {item.file.name}{item.file.size ? ` • ${formatBytes(item.file.size)}` : ''}
+            </Text>
+            {item.status === 'failed' && !!item.error && (
+              <Text style={styles.queueError} numberOfLines={2}>{item.error}</Text>
+            )}
+          </View>
+          {item.status !== 'uploading' && item.status !== 'done' && (
+            <TouchableOpacity onPress={() => removeItem(item.id)} style={{ padding: 4 }}>
+              <MCIcon name="close-circle" size={20} color={colors.danger} />
+            </TouchableOpacity>
+          )}
+          <MCIcon name={isExpanded ? 'chevron-up' : 'chevron-down'} size={20} color={colors.textMuted} />
+        </TouchableOpacity>
+
+        {isExpanded && (
+          <View style={styles.queueBody}>
+            <Text style={styles.smallLabel}>Title</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Video title"
+              placeholderTextColor={colors.textMuted}
+              value={item.title}
+              onChangeText={t => updateItem(item.id, { title: t })}
+              editable={!uploading && item.status !== 'done'}
+            />
+
+            <Text style={styles.smallLabel}>Description</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              placeholder="Brief description"
+              placeholderTextColor={colors.textMuted}
+              value={item.description}
+              onChangeText={t => updateItem(item.id, { description: t })}
+              multiline
+              editable={!uploading && item.status !== 'done'}
+            />
+
+            <Text style={styles.smallLabel}>Duration (seconds)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. 600"
+              placeholderTextColor={colors.textMuted}
+              value={item.duration}
+              onChangeText={t => updateItem(item.id, { duration: t })}
+              keyboardType="numeric"
+              editable={!uploading && item.status !== 'done'}
+            />
+
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.smallLabel}>Group / Session</Text>
+                <TouchableOpacity
+                  style={styles.pickerInput}
+                  disabled={uploading || item.status === 'done'}
+                  onPress={() => setTargetPickerFor(item.id)}
+                >
+                  <MCIcon name={item.sessionId ? 'meditation' : 'folder-outline'} size={18} color={item.groupId ? colors.primary : colors.textMuted} />
+                  <Text style={[styles.pickerInputText, !item.groupId && { color: colors.textMuted }]} numberOfLines={1}>
+                    {targetLabel(item)}
+                  </Text>
+                  <MCIcon name="chevron-down" size={18} color={colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+              <View>
+                <Text style={styles.smallLabel}>Icon</Text>
+                <TouchableOpacity
+                  style={styles.pickerInput}
+                  disabled={uploading || item.status === 'done'}
+                  onPress={() => setIconPickerFor(item.id)}
+                >
+                  <MCIcon name={item.icon} size={20} color={colors.primary} />
+                  <MCIcon name="chevron-down" size={18} color={colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  const hint = validationHint();
+
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Upload Video" onBack={() => navigation.goBack()} />
+      <ScreenHeader title="Upload Videos" onBack={() => navigation.goBack()} />
 
       <ScrollView style={styles.body} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
         {/* File Picker */}
-        <Text style={styles.label}>Video File</Text>
-        <TouchableOpacity style={styles.filePicker} onPress={handlePickFile}>
+        <Text style={styles.label}>Video Files</Text>
+        <TouchableOpacity style={styles.filePicker} onPress={handlePickFiles} disabled={uploading}>
           <MCIcon name="video-plus" size={32} color={colors.primary} />
           <Text style={styles.filePickerText}>
-            {selectedFile ? selectedFile.name : 'Tap to select a video file'}
+            {items.length > 0
+              ? `${items.length} video${items.length > 1 ? 's' : ''} selected — tap to add more`
+              : 'Tap to select one or more video files'}
           </Text>
-          {selectedFile && (
-            <TouchableOpacity onPress={() => setSelectedFile(null)}>
-              <MCIcon name="close-circle" size={22} color={colors.danger} />
-            </TouchableOpacity>
-          )}
         </TouchableOpacity>
 
+        {/* Upload queue */}
+        {items.length > 0 && (
+          <>
+            <View style={styles.queueToolbar}>
+              <Text style={styles.queueCount}>Videos to upload</Text>
+              <TouchableOpacity
+                style={styles.applyAllBtn}
+                disabled={uploading}
+                onPress={() => setTargetPickerFor('__all__')}
+              >
+                <MCIcon name="playlist-check" size={16} color={colors.primary} />
+                <Text style={styles.applyAllText}>Set group for all</Text>
+              </TouchableOpacity>
+            </View>
+            {items.map(renderQueueItem)}
+          </>
+        )}
+
         {/* Directory Selection */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.label}>Storage Directory</Text>
+        <View style={[styles.sectionHeader, { marginTop: 20 }]}>
+          <Text style={styles.label}>Storage Folder</Text>
           <View style={{ flexDirection: 'row', gap: 6 }}>
             <TouchableOpacity
               style={[styles.viewToggleBtn, viewMode === 'grid' && styles.viewToggleActive]}
@@ -220,7 +475,7 @@ const UploadVideoScreen = ({ route, navigation }) => {
 
         {/* Breadcrumb */}
         <View style={styles.breadcrumbRow}>
-          <TouchableOpacity style={styles.breadcrumbItem} onPress={() => { setPathHistory([]); setCurrentPath(''); setSelectedDir(''); }}>
+          <TouchableOpacity style={styles.breadcrumbItem} onPress={() => setCurrentPath('')}>
             <MCIcon name="home" size={16} color={colors.primary} />
           </TouchableOpacity>
           {crumbs.map((part, i) => (
@@ -244,84 +499,78 @@ const UploadVideoScreen = ({ route, navigation }) => {
         {selectedDir ? (
           <View style={styles.selectedDirBar}>
             <MCIcon name="check-circle" size={18} color="#10B981" />
-            <Text style={styles.selectedDirText}>Uploading to: {selectedDir}</Text>
+            <Text style={styles.selectedDirText}>Uploading to: {selectedDir === '/' ? 'root' : selectedDir}</Text>
             <TouchableOpacity onPress={() => setSelectedDir('')}>
               <MCIcon name="close" size={18} color={colors.textMuted} />
             </TouchableOpacity>
           </View>
         ) : null}
 
-        {/* Directory listing */}
+        {/* Directory + file listing */}
         {dirsLoading ? (
           <DirGridSkeleton />
-        ) : directories.length === 0 ? (
+        ) : directories.length === 0 && dirFiles.length === 0 ? (
           <View style={styles.emptyDirs}>
             <MCIcon name="folder-open-outline" size={48} color={colors.textMuted} />
             <Text style={styles.emptyDirText}>This folder is empty</Text>
-            <TouchableOpacity style={styles.useCurrentBtn} onPress={selectCurrentFolder}>
-              <MCIcon name="check" size={18} color={colors.white} />
-              <Text style={styles.useCurrentBtnText}>Use this folder</Text>
-            </TouchableOpacity>
           </View>
         ) : viewMode === 'grid' ? (
           <View style={styles.dirsGrid}>
             {directories.map(renderGridDir)}
+            {dirFiles.map(renderGridFile)}
           </View>
         ) : (
-          <FlatList
-            data={directories}
-            keyExtractor={item => item}
-            renderItem={renderListDir}
-            scrollEnabled={false}
-            style={styles.dirList}
-          />
+          <View style={styles.dirList}>
+            <FlatList
+              data={directories}
+              keyExtractor={item => item}
+              renderItem={renderListDir}
+              scrollEnabled={false}
+            />
+            <FlatList
+              data={dirFiles}
+              keyExtractor={item => item.name}
+              renderItem={renderListFile}
+              scrollEnabled={false}
+            />
+          </View>
         )}
 
-        {directories.length > 0 && (
-          <TouchableOpacity style={styles.useCurrentBtn} onPress={selectCurrentFolder}>
-            <MCIcon name="check" size={18} color={colors.white} />
-            <Text style={styles.useCurrentBtnText}>
-              {currentPath ? `Upload to "${currentPath.replace(/\/$/, '').split('/').pop()}"` : 'Upload to root'}
-            </Text>
-          </TouchableOpacity>
-        )}
-
-        {/* Video Details */}
-        <Text style={[styles.label, { marginTop: 20 }]}>Title</Text>
-        <TextInput style={styles.input} placeholder="Video title" value={title} onChangeText={setTitle} />
-
-        <Text style={styles.label}>Description</Text>
-        <TextInput style={[styles.input, styles.textArea]} placeholder="Brief description" value={description} onChangeText={setDescription} multiline />
-
-        <Text style={styles.label}>Duration (seconds)</Text>
-        <TextInput style={styles.input} placeholder="e.g. 600" value={duration} onChangeText={setDuration} keyboardType="numeric" />
-
-        <Text style={styles.label}>Icon</Text>
-        <TouchableOpacity style={styles.iconInput} onPress={() => setIconModalVisible(true)}>
-          <MCIcon name={icon} size={24} color={colors.primary} />
-          <Text style={{ flex: 1, marginLeft: 10 }}>{icon}</Text>
-          <MCIcon name="chevron-down" size={20} color={colors.textMuted} />
+        <TouchableOpacity style={styles.useCurrentBtn} onPress={selectCurrentFolder}>
+          <MCIcon name="check" size={18} color={colors.white} />
+          <Text style={styles.useCurrentBtnText}>
+            {currentPath ? `Upload to "${currentPath.replace(/\/$/, '').split('/').pop()}"` : 'Upload to root'}
+          </Text>
         </TouchableOpacity>
       </ScrollView>
 
       {/* Upload Button */}
       <View style={styles.footer}>
+        {!uploading && !!hint && items.length > 0 && (
+          <Text style={styles.footerHint}>{hint}</Text>
+        )}
         <TouchableOpacity
-          style={[styles.uploadBtn, (uploading || !selectedDir) && { opacity: 0.6 }]}
-          onPress={handleUpload}
-          disabled={uploading || !selectedDir}
+          style={[styles.uploadBtn, !canUpload && { opacity: 0.6 }]}
+          onPress={handleUploadAll}
+          disabled={!canUpload}
         >
           {uploading ? (
             <ActivityIndicator size="small" color={colors.white} />
           ) : (
             <MCIcon name="cloud-upload" size={22} color={colors.white} />
           )}
-          <Text style={styles.uploadBtnText}>{uploading ? 'Uploading...' : 'Upload Video'}</Text>
+          <Text style={styles.uploadBtnText}>
+            {uploading
+              ? `Uploading ${uploadProgress.current}/${uploadProgress.total}...`
+              : items.length > 1
+                ? `Upload ${items.filter(it => it.status !== 'done').length} Videos`
+                : 'Upload Video'}
+          </Text>
         </TouchableOpacity>
       </View>
 
       {/* Create Directory Modal */}
-      <Modal visible={createDirModal} transparent animationType="fade">
+      <Modal visible={createDirModal} transparent animationType="fade" onRequestClose={() => setCreateDirModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>
@@ -330,32 +579,81 @@ const UploadVideoScreen = ({ route, navigation }) => {
             <TextInput
               style={styles.input}
               placeholder="Folder name"
+              placeholderTextColor={colors.textMuted}
               value={newDirName}
               onChangeText={setNewDirName}
               autoFocus
             />
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.modalBtn} onPress={() => setCreateDirModal(false)}><Text>Cancel</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.modalBtn} onPress={() => setCreateDirModal(false)}><Text style={{ color: colors.textPrimary }}>Cancel</Text></TouchableOpacity>
               <TouchableOpacity style={[styles.modalBtn, styles.saveBtn]} onPress={handleCreateDir}><Text style={{ color: colors.white }}>Create</Text></TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
 
-      {/* Icon Selector Modal */}
-      <Modal visible={iconModalVisible} transparent animationType="fade">
-        <TouchableOpacity style={styles.modalOverlayCentered} activeOpacity={1} onPress={() => setIconModalVisible(false)}>
-          <View style={styles.iconPickerCard}>
-            <View style={styles.wellnessIconGrid}>
-              {WELLNESS_ICONS.map(ic => (
+      {/* Target (group/session) picker */}
+      <Modal visible={!!targetPickerFor} transparent animationType="fade" onRequestClose={() => setTargetPickerFor(null)}>
+        <TouchableOpacity style={styles.modalOverlayCentered} activeOpacity={1} onPress={() => setTargetPickerFor(null)}>
+          <View style={styles.targetPickerCard}>
+            <Text style={styles.modalTitle}>
+              {targetPickerFor === '__all__' ? 'Set target for all videos' : 'Select target'}
+            </Text>
+            <ScrollView style={{ maxHeight: 420 }}>
+              <Text style={styles.targetSection}>Video Groups</Text>
+              {groups.length === 0 && <Text style={styles.targetEmpty}>No groups available</Text>}
+              {groups.map(g => (
                 <TouchableOpacity
-                  key={ic}
-                  style={[styles.wellnessIconBox, icon === ic && styles.wellnessIconBoxSelected]}
-                  onPress={() => { setIcon(ic); setIconModalVisible(false); }}
+                  key={g.id}
+                  style={styles.targetOption}
+                  onPress={() => applyTarget({ groupId: g.id, sessionId: null })}
                 >
-                  <MCIcon name={ic} size={26} color={icon === ic ? colors.white : colors.textPrimary} />
+                  <MCIcon name={g.icon || 'folder'} size={20} color={colors.primary} />
+                  <Text style={styles.targetOptionText}>{g.title}</Text>
                 </TouchableOpacity>
               ))}
+
+              <Text style={[styles.targetSection, { marginTop: 12 }]}>Sessions</Text>
+              {sessions.length === 0 && <Text style={styles.targetEmpty}>No sessions available</Text>}
+              {sessions.map(s => {
+                const linked = !!s.videoGroupId;
+                return (
+                  <TouchableOpacity
+                    key={s.id}
+                    style={[styles.targetOption, !linked && { opacity: 0.45 }]}
+                    disabled={!linked}
+                    onPress={() => applyTarget({ groupId: s.videoGroupId, sessionId: s.id })}
+                  >
+                    <MCIcon name={s.icon || 'meditation'} size={20} color={colors.primary} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.targetOptionText}>{s.title}</Text>
+                      {!linked && <Text style={styles.targetEmpty}>No video group linked</Text>}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Icon Selector Modal */}
+      <Modal visible={!!iconPickerFor} transparent animationType="fade" onRequestClose={() => setIconPickerFor(null)}>
+        <TouchableOpacity style={styles.modalOverlayCentered} activeOpacity={1} onPress={() => setIconPickerFor(null)}>
+          <View style={styles.iconPickerCard}>
+            <View style={styles.wellnessIconGrid}>
+              {WELLNESS_ICONS.map(ic => {
+                const current = items.find(it => it.id === iconPickerFor)?.icon;
+                return (
+                  <TouchableOpacity
+                    key={ic}
+                    style={[styles.wellnessIconBox, current === ic && styles.wellnessIconBoxSelected]}
+                    onPress={() => { updateItem(iconPickerFor, { icon: ic }); setIconPickerFor(null); }}
+                  >
+                    <MCIcon name={ic} size={26} color={current === ic ? colors.white : colors.textPrimary} />
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
         </TouchableOpacity>
@@ -368,14 +666,29 @@ const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   body: { flex: 1, padding: 20 },
   label: { fontSize: 14, fontWeight: '600', color: colors.textSecondary, marginBottom: 8 },
-  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, marginBottom: 12, fontSize: 14, color: colors.textPrimary },
-  textArea: { minHeight: 80, textAlignVertical: 'top' },
+  smallLabel: { fontSize: 12, fontWeight: '600', color: colors.textSecondary, marginBottom: 4, marginTop: 8 },
+  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, marginBottom: 4, fontSize: 14, color: colors.textPrimary, backgroundColor: colors.card },
+  textArea: { minHeight: 70, textAlignVertical: 'top' },
   filePicker: {
     borderWidth: 2, borderColor: colors.primary, borderStyle: 'dashed', borderRadius: 12,
-    padding: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 20,
+    padding: 20, alignItems: 'center', justifyContent: 'center', marginBottom: 12,
     backgroundColor: colors.primaryLight,
   },
   filePickerText: { fontSize: 14, color: colors.textSecondary, marginTop: 8, textAlign: 'center' },
+
+  // Upload queue
+  queueToolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  queueCount: { fontSize: 13, fontWeight: '700', color: colors.textPrimary },
+  applyAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: colors.primaryLight },
+  applyAllText: { fontSize: 12, fontWeight: '600', color: colors.primary },
+  queueCard: { borderWidth: 1, borderColor: colors.border, borderRadius: 12, marginBottom: 8, backgroundColor: colors.card, overflow: 'hidden' },
+  queueHeader: { flexDirection: 'row', alignItems: 'center', padding: 12 },
+  queueTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
+  queueMeta: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
+  queueError: { fontSize: 11, color: '#EF4444', marginTop: 2 },
+  queueBody: { paddingHorizontal: 12, paddingBottom: 12, borderTopWidth: 1, borderTopColor: colors.border },
+  pickerInput: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 12, backgroundColor: colors.card },
+  pickerInputText: { flex: 1, fontSize: 13, color: colors.textPrimary },
 
   // Section header
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
@@ -402,7 +715,9 @@ const makeStyles = colors => StyleSheet.create({
     width: '30%', aspectRatio: 1, borderRadius: 12, borderWidth: 1, borderColor: colors.border,
     backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', padding: 8,
   },
+  fileGridItem: { backgroundColor: colors.surfaceMuted },
   dirGridText: { fontSize: 11, fontWeight: '600', color: colors.textPrimary, marginTop: 6, textAlign: 'center' },
+  fileSizeText: { fontSize: 10, color: colors.textMuted, marginTop: 2 },
 
   // Directory list mode
   dirList: { marginBottom: 8 },
@@ -421,21 +736,26 @@ const makeStyles = colors => StyleSheet.create({
 
   // Empty state
   emptyDirs: { alignItems: 'center', paddingVertical: 24 },
-  emptyDirText: { fontSize: 14, color: colors.textMuted, marginTop: 12, marginBottom: 16 },
+  emptyDirText: { fontSize: 14, color: colors.textMuted, marginTop: 12 },
 
   createDirBtn: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primaryLight },
 
-  iconInput: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, marginBottom: 12 },
   footer: { padding: 20, paddingBottom: 32, backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.border },
+  footerHint: { fontSize: 12, color: colors.textMuted, textAlign: 'center', marginBottom: 8 },
   uploadBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: colors.primary, padding: 16, borderRadius: 12 },
   uploadBtnText: { fontSize: 16, fontWeight: '700', color: colors.white },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', padding: 20 },
   modalCard: { backgroundColor: colors.card, padding: 20, borderRadius: 16 },
-  modalTitle: { fontSize: 18, fontWeight: '800', marginBottom: 16 },
+  modalTitle: { fontSize: 16, fontWeight: '800', marginBottom: 12, color: colors.textPrimary },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 10 },
   modalBtn: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 8, backgroundColor: colors.surfaceMuted },
   saveBtn: { backgroundColor: colors.primary },
   modalOverlayCentered: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center', padding: 30 },
+  targetPickerCard: { backgroundColor: colors.card, borderRadius: 16, padding: 16, maxWidth: 420, width: '100%' },
+  targetSection: { fontSize: 12, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase', marginBottom: 6 },
+  targetEmpty: { fontSize: 12, color: colors.textMuted, marginBottom: 6 },
+  targetOption: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 10, borderRadius: 10, marginBottom: 2 },
+  targetOptionText: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
   iconPickerCard: { backgroundColor: colors.card, borderRadius: 16, padding: 16, maxWidth: 400, width: '100%' },
   wellnessIconGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', padding: 8 },
   wellnessIconBox: { width: 52, height: 52, borderRadius: 12, backgroundColor: colors.surfaceMuted, margin: 5, alignItems: 'center', justifyContent: 'center' },

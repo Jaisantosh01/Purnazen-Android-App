@@ -72,6 +72,14 @@ const buildDateRange = () => {
   return days;
 };
 
+const getDefaultTimeSlot = () => {
+  const hour = new Date().getHours();
+  if (hour >= 6 && hour <= 11) return 'morning';
+  if (hour >= 12 && hour <= 16) return 'afternoon';
+  if (hour >= 17 && hour <= 21) return 'evening';
+  return 'all';
+};
+
 const parseTimeToMinutes = (timeStr) => {
   if (!timeStr) return -1;
   const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
@@ -104,6 +112,14 @@ const STATUS_CONFIG = {
 };
 
 const STATUS_FILTERS = ['all', 'pending', 'booked', 'completed', 'cancelled'];
+
+// Multi-day range views so the doctor isn't limited to a single day / one week.
+// `days` counts from today inclusive (today + N-1).
+const RANGE_OPTIONS = [
+  { key: '7', label: 'Next 7 days', days: 7 },
+  { key: '10', label: 'Next 10 days', days: 10 },
+  { key: 'month', label: 'This month', days: 30 },
+];
 
 const StatusBadge = ({ status }) => {
   const { colors, isDark } = useTheme();
@@ -297,9 +313,10 @@ const AppointmentsScreen = ({ navigation }) => {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(null); // null = all dates
+  const [selectedDate, setSelectedDate] = useState(todayApiDate()); // null = all dates
+  const [selectedRange, setSelectedRange] = useState(null); // null | '7' | '10' | 'month'
   const [selectedStatus, setSelectedStatus] = useState('all');
-  const [selectedTime, setSelectedTime] = useState('all');
+  const [selectedTime, setSelectedTime] = useState(getDefaultTimeSlot());
   const [showStatusFilter, setShowStatusFilter] = useState(false);
 
   // Calendar states
@@ -467,6 +484,7 @@ const AppointmentsScreen = ({ navigation }) => {
 
   // ── Derived display ─────────────────────────────────────────────────────────
   const todayLabel = (() => {
+    if (selectedRange) return RANGE_OPTIONS.find(o => o.key === selectedRange)?.label ?? 'All Dates';
     if (!selectedDate) return 'All Dates';
     const d = new Date(selectedDate + 'T00:00:00');
     const today = todayApiDate();
@@ -478,7 +496,29 @@ const AppointmentsScreen = ({ navigation }) => {
     ? 'All Status'
     : STATUS_CONFIG[selectedStatus]?.label ?? selectedStatus;
 
+  // Date window for a selected multi-day range (today .. today + days-1).
+  const rangeBounds = useMemo(() => {
+    if (!selectedRange) return null;
+    const opt = RANGE_OPTIONS.find(o => o.key === selectedRange);
+    if (!opt) return null;
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = new Date();
+    end.setDate(end.getDate() + (opt.days - 1));
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+  }, [selectedRange]);
+
+  const apptInRange = (appt) => {
+    if (!rangeBounds) return true;
+    if (!appt.date) return false;
+    const ds = typeof appt.date === 'string' ? appt.date.split('T')[0] : toApiDate(new Date(appt.date));
+    const d = new Date(ds + 'T00:00:00');
+    return d >= rangeBounds.start && d <= rangeBounds.end;
+  };
+
   const filteredAppointments = appointments.filter(appt => {
+    if (!apptInRange(appt)) return false;
     if (selectedTime === 'all') return true;
     const mins = parseTimeToMinutes(appt.time);
     if (mins === -1) return false;
@@ -500,6 +540,7 @@ const AppointmentsScreen = ({ navigation }) => {
   const getFirstDayOfMonth = (month, year) => new Date(year, month, 1).getDay();
 
   const handleDateSelect = (dateStr) => {
+    setSelectedRange(null);
     setSelectedDate(dateStr);
     setShowCalendarModal(false);
   };
@@ -546,17 +587,16 @@ const AppointmentsScreen = ({ navigation }) => {
             return (
               <TouchableOpacity
                 key={`day-${day}`}
-                style={[
-                  styles.dayCell,
-                  isDisabled && styles.dayCellDisabled,
-                  isToday && styles.dayCellToday,
-                  isSelected && styles.dayCellActive,
-                ]}
+                style={[styles.dayCell, isDisabled && styles.dayCellDisabled]}
                 onPress={isDisabled ? undefined : () => handleDateSelect(itemDateStr)}
                 disabled={isDisabled}
                 activeOpacity={isDisabled ? 1 : 0.7}
               >
-                <View style={styles.dayCellContent}>
+                <View style={[
+                  styles.dayCellContent,
+                  isToday && styles.dayCellToday,
+                  isSelected && styles.dayCellActive,
+                ]}>
                   <Text
                     style={[
                       styles.dayText,
@@ -591,11 +631,7 @@ const AppointmentsScreen = ({ navigation }) => {
       <ScreenHeader
         title="Appointments"
         showBack={false}
-        right={
-          <TouchableOpacity onPress={onRefresh}>
-            <MCIcon name="refresh" size={22} color={colors.white} />
-          </TouchableOpacity>
-        }
+        underColor={colors.card}
       />
 
       {/* Date strip */}
@@ -603,18 +639,34 @@ const AppointmentsScreen = ({ navigation }) => {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateStripInner}>
           {/* "All" pill */}
           <TouchableOpacity
-            style={[styles.datePill, !selectedDate && styles.datePillActive]}
+            style={[styles.datePill, !selectedDate && !selectedRange && styles.datePillActive]}
             activeOpacity={0.8}
-            onPress={() => setSelectedDate(null)}>
-            <MCIcon name="calendar-blank" size={14} color={!selectedDate ? colors.white : colors.textSecondary} />
-            <Text style={[styles.datePillDay, !selectedDate && styles.datePillTextActive]}>All</Text>
+            onPress={() => { setSelectedDate(null); setSelectedRange(null); }}>
+            <MCIcon name="calendar-blank" size={14} color={!selectedDate && !selectedRange ? colors.white : colors.textSecondary} />
+            <Text style={[styles.datePillDay, !selectedDate && !selectedRange && styles.datePillTextActive]}>All</Text>
           </TouchableOpacity>
+
+          {/* Multi-day range pills (next 7/10 days, this month) */}
+          {RANGE_OPTIONS.map(r => {
+            const active = selectedRange === r.key;
+            return (
+              <TouchableOpacity
+                key={r.key}
+                style={[styles.datePill, active && styles.datePillActive]}
+                activeOpacity={0.8}
+                onPress={() => { setSelectedRange(active ? null : r.key); setSelectedDate(null); }}>
+                <MCIcon name="calendar-week" size={14} color={active ? colors.white : colors.textSecondary} />
+                <Text style={[styles.datePillDay, active && styles.datePillTextActive]}>{r.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+
           {dateRange.map((d, i) => (
             <DatePill
               key={i}
               date={d}
               selected={selectedDate === toApiDate(d)}
-              onPress={() => setSelectedDate(selectedDate === toApiDate(d) ? null : toApiDate(d))}
+              onPress={() => { setSelectedRange(null); setSelectedDate(selectedDate === toApiDate(d) ? null : toApiDate(d)); }}
             />
           ))}
         </ScrollView>
@@ -677,7 +729,7 @@ const AppointmentsScreen = ({ navigation }) => {
       ) : filteredAppointments.length === 0 ? (
         <EmptyState
           selectedDate={selectedDate}
-          onClear={() => { setSelectedDate(null); setSelectedStatus('all'); setSelectedTime('all'); }}
+          onClear={() => { setSelectedDate(null); setSelectedRange(null); setSelectedStatus('all'); setSelectedTime('all'); }}
         />
       ) : (
         <FlatList
@@ -1006,30 +1058,29 @@ const makeStyles = colors => StyleSheet.create({
   calNavBtn: { padding: 4 },
   weekDaysRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'flex-start',
     marginBottom: 8,
   },
   weekDayText: {
     fontSize: 12,
     fontWeight: '800',
     color: colors.textMuted,
-    width: 32,
+    width: `${100 / 7}%`,
     textAlign: 'center',
   },
   daysGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-around',
+    justifyContent: 'flex-start',
   },
+  // 1/7-width cells so all 7 columns fit and align with the weekday header on
+  // every screen size (fixed-px cells wrapped/misaligned before).
   dayCell: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: `${100 / 7}%`,
+    height: 42,
     alignItems: 'center',
     justifyContent: 'center',
     marginVertical: 2,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
   },
   dayCellActive: {
     backgroundColor: colors.primary,
@@ -1042,9 +1093,14 @@ const makeStyles = colors => StyleSheet.create({
     opacity: 0.3,
   },
   dayCellContent: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
+    gap: 1,
   },
   dayText: {
     fontSize: 13.5,

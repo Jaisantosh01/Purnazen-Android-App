@@ -3,12 +3,11 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   TextInput,
   Modal,
-  ScrollView,
 } from 'react-native';
+import { SwipeListView } from 'react-native-swipe-list-view';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
@@ -28,7 +27,6 @@ const MetadataManagementScreen = ({ route, navigation }) => {
   const [newItemName, setNewItemName] = useState('');
   const [selectedIcon, setSelectedIcon] = useState(ROLE_ICONS[0]);
   const [editingItem, setEditingItem] = useState(null);
-  const [menuVisible, setMenuVisible] = useState(null); 
   const [modalVisible, setModalVisible] = useState(false);
 
   useEffect(() => {
@@ -73,7 +71,6 @@ const MetadataManagementScreen = ({ route, navigation }) => {
     setEditingItem(item);
     setNewItemName(item.name);
     setSelectedIcon(item.icon || ROLE_ICONS[0]);
-    setMenuVisible(null);
     setModalVisible(true);
   };
 
@@ -85,7 +82,6 @@ const MetadataManagementScreen = ({ route, navigation }) => {
   }
 
   const handleDelete = (id) => {
-    setMenuVisible(null);
     showAlert('Delete', 'Are you sure?', [
       { text: 'Cancel' },
       {
@@ -101,32 +97,28 @@ const MetadataManagementScreen = ({ route, navigation }) => {
   };
 
   const renderItem = ({ item }) => (
-    <TouchableOpacity
-      style={styles.itemCard}
-      activeOpacity={0.8}
-      onPress={() => startEdit(item)}
-    >
-      <View style={{flexDirection: 'row', alignItems: 'center'}}>
+    <View style={styles.itemCard}>
+      <View style={{flexDirection: 'row', alignItems: 'center', flex: 1}}>
         {isRole && item.icon && <MCIcon name={item.icon} size={20} color={colors.primary} style={{marginRight: 10}} />}
         <Text style={styles.itemName}>{item.name}</Text>
       </View>
-      <TouchableOpacity onPress={() => setMenuVisible(menuVisible === item.id ? null : item.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-        <MCIcon name="dots-vertical" size={24} color={colors.textMuted} />
+      <MCIcon name="drag-horizontal" size={20} color={colors.textMuted} />
+    </View>
+  );
+
+  // Single-direction reveal (swipe right→left) shows Edit + Delete together on
+  // the right. A symmetric two-way swipe let rows rest half-open ("not closing").
+  const renderHiddenItem = (data, rowMap) => (
+    <View style={styles.rowBack}>
+      <TouchableOpacity style={[styles.backBtn, styles.editBack]} onPress={() => { rowMap[data.item.id]?.closeRow(); startEdit(data.item); }}>
+        <MCIcon name="pencil" size={22} color="#fff" />
+        <Text style={styles.backBtnText}>Edit</Text>
       </TouchableOpacity>
-      
-      {menuVisible === item.id && (
-        <View style={styles.menu}>
-          <TouchableOpacity style={styles.menuItem} onPress={() => startEdit(item)}>
-            <MCIcon name="pencil" size={18} color={colors.primary} />
-            <Text style={styles.menuItemText}>Edit</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem} onPress={() => handleDelete(item.id)}>
-            <MCIcon name="delete" size={18} color="#FF4D4D" />
-            <Text style={[styles.menuItemText, { color: colors.danger }]}>Delete</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-    </TouchableOpacity>
+      <TouchableOpacity style={[styles.backBtn, styles.deleteBack]} onPress={() => { rowMap[data.item.id]?.closeRow(); handleDelete(data.item.id); }}>
+        <MCIcon name="delete" size={22} color="#fff" />
+        <Text style={styles.backBtnText}>Delete</Text>
+      </TouchableOpacity>
+    </View>
   );
 
   return (
@@ -144,13 +136,21 @@ const MetadataManagementScreen = ({ route, navigation }) => {
       {loading && items.length === 0 ? (
         <ListSkeleton count={5} />
       ) : (
-        <FlatList
+        <SwipeListView
           data={items}
           keyExtractor={item => item.id.toString()}
           renderItem={renderItem}
+          renderHiddenItem={renderHiddenItem}
+          disableRightSwipe
+          rightOpenValue={-150}
+          stopRightSwipe={-150}
           contentContainerStyle={styles.listContainer}
           refreshing={loading}
           onRefresh={fetchItems}
+          closeOnRowOpen
+          closeOnRowPress
+          closeOnRowBeginSwipe
+          closeOnScroll
           ListEmptyComponent={!loading && <Text style={styles.emptyText}>No items found</Text>}
         />
       )}
@@ -195,11 +195,13 @@ const MetadataManagementScreen = ({ route, navigation }) => {
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   listContainer: { padding: 16 },
-  itemCard: { backgroundColor: colors.card, padding: 16, borderRadius: 12, marginBottom: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', position: 'relative' },
+  itemCard: { backgroundColor: colors.card, padding: 16, borderRadius: 12, marginBottom: 8, flexDirection: 'row', alignItems: 'center' },
   itemName: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
-  menu: { position: 'absolute', right: 40, top: 16, backgroundColor: colors.card, borderRadius: 8, padding: 8, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, zIndex: 10 },
-  menuItem: { flexDirection: 'row', alignItems: 'center', padding: 8, gap: 8 },
-  menuItemText: { fontSize: 14, fontWeight: '500', color: colors.textPrimary },
+  rowBack: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 8, borderRadius: 12, overflow: 'hidden', flex: 1 },
+  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, justifyContent: 'center', width: 75, height: '100%' },
+  editBack: { backgroundColor: '#3B82F6' },
+  deleteBack: { backgroundColor: '#EF4444' },
+  backBtnText: { color: '#fff', fontSize: 12, fontWeight: '600' },
   emptyText: { textAlign: 'center', marginTop: 20, color: colors.textMuted },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   modalContent: { backgroundColor: colors.card, borderRadius: 12, padding: 20 },

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme, CommonActions } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -41,6 +41,8 @@ import EditUserScreen from './src/screens/EditUserScreen';
 import ManageRolesScreen from './src/screens/ManageRolesScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import HelpSupportScreen from './src/screens/HelpSupportScreen';
+import ContentViewerScreen from './src/screens/ContentViewerScreen';
 import AppointmentManagementScreen from './src/screens/AppointmentManagementScreen';
 import SlotManagementScreen from './src/screens/SlotManagementScreen';
 import DoctorLeaveManagementScreen from './src/screens/DoctorLeaveManagementScreen';
@@ -51,6 +53,7 @@ import FaqManagementScreen from './src/screens/FaqManagementScreen';
 import NotificationAdminScreen from './src/screens/NotificationAdminScreen';
 import ContentManagementScreen from './src/screens/ContentManagementScreen';
 import ContentDetailScreen from './src/screens/ContentDetailScreen';
+import ContentEditorScreen from './src/screens/ContentEditorScreen';
 import ManageScreen from './src/screens/ManageScreen';
 
 const RootStack = createNativeStackNavigator();
@@ -64,6 +67,36 @@ const TAB_ICONS: Record<string, { active: string; inactive: string }> = {
   Manage:  { active: 'view-grid',      inactive: 'view-grid-outline'      },
   Profile: { active: 'account-circle', inactive: 'account-circle-outline' },
 };
+
+const TAB_ROOT_SCREENS: Record<string, string> = {
+  Home:    'HomeMain',
+  Manage:  'ManageMain',
+  Profile: 'ProfileMain',
+};
+
+const makeTabListener = (routeName: string) => () => ({
+  tabPress: () => {
+    if (!navigationRef.isReady()) return;
+    const rootState = navigationRef.getRootState();
+    if (!rootState) return;
+    const mainRoute = rootState.routes[0];
+    const tabState = mainRoute?.state;
+    if (!tabState) return;
+    const tabRoute = tabState.routes.find((r: any) => r.name === routeName);
+    const childState = tabRoute?.state;
+    if (!childState) return;
+    const rootName = TAB_ROOT_SCREENS[routeName];
+    const isRootVisible =
+      childState.index === 0 && childState.routes[0]?.name === rootName;
+    if (isRootVisible) return;
+    const targetKey = childState.key;
+    if (!targetKey) return;
+    navigationRef.dispatch({
+      ...CommonActions.reset({ index: 0, routes: [{ name: rootName }] }),
+      target: targetKey,
+    });
+  },
+});
 
 function HomeStackNavigator() {
   return (
@@ -102,6 +135,7 @@ function ManageStackNavigator() {
       <ManageStack.Screen name="FaqManagement" component={FaqManagementScreen} />
       <ManageStack.Screen name="NotificationAdmin" component={NotificationAdminScreen} />
       <ManageStack.Screen name="ContentManagement" component={ContentManagementScreen} />
+      <ManageStack.Screen name="ContentEditor" component={ContentEditorScreen} />
       <ManageStack.Screen name="ContentDetail" component={ContentDetailScreen} />
     </ManageStack.Navigator>
   );
@@ -112,6 +146,8 @@ function ProfileStackNavigator() {
     <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
       <ProfileStack.Screen name="ProfileMain"    component={ProfileScreen}        />
       <ProfileStack.Screen name="Settings"       component={SettingsScreen}       />
+      <ProfileStack.Screen name="HelpSupport"    component={HelpSupportScreen}    />
+      <ProfileStack.Screen name="ContentViewer"  component={ContentViewerScreen}  />
     </ProfileStack.Navigator>
   );
 }
@@ -154,9 +190,9 @@ function MainTabs() {
         },
       })}
     >
-      <Tab.Screen name="Home"    component={HomeStackNavigator} options={{ tabBarLabel: 'Dashboard' }} />
-      <Tab.Screen name="Manage"  component={ManageStackNavigator} />
-      <Tab.Screen name="Profile" component={ProfileStackNavigator} />
+      <Tab.Screen name="Home"    component={HomeStackNavigator}    listeners={makeTabListener('Home')}    options={{ tabBarLabel: 'Dashboard' }} />
+      <Tab.Screen name="Manage"  component={ManageStackNavigator}  listeners={makeTabListener('Manage')}  />
+      <Tab.Screen name="Profile" component={ProfileStackNavigator} listeners={makeTabListener('Profile')} />
     </Tab.Navigator>
   );
 }
