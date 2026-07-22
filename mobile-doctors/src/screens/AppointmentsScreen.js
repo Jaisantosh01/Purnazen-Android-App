@@ -72,6 +72,14 @@ const buildDateRange = () => {
   return days;
 };
 
+const getDefaultTimeSlot = () => {
+  const hour = new Date().getHours();
+  if (hour >= 6 && hour <= 11) return 'morning';
+  if (hour >= 12 && hour <= 16) return 'afternoon';
+  if (hour >= 17 && hour <= 21) return 'evening';
+  return 'all';
+};
+
 const parseTimeToMinutes = (timeStr) => {
   if (!timeStr) return -1;
   const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
@@ -305,10 +313,10 @@ const AppointmentsScreen = ({ navigation }) => {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(null); // null = all dates
+  const [selectedDate, setSelectedDate] = useState(todayApiDate()); // null = all dates
   const [selectedRange, setSelectedRange] = useState(null); // null | '7' | '10' | 'month'
   const [selectedStatus, setSelectedStatus] = useState('all');
-  const [selectedTime, setSelectedTime] = useState('all');
+  const [selectedTime, setSelectedTime] = useState(getDefaultTimeSlot());
   const [showStatusFilter, setShowStatusFilter] = useState(false);
 
   // Calendar states
@@ -624,11 +632,6 @@ const AppointmentsScreen = ({ navigation }) => {
         title="Appointments"
         showBack={false}
         underColor={colors.card}
-        right={
-          <TouchableOpacity onPress={onRefresh}>
-            <MCIcon name="refresh" size={22} color={colors.white} />
-          </TouchableOpacity>
-        }
       />
 
       {/* Date strip */}

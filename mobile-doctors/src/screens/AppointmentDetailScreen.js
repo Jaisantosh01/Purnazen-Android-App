@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   ScrollView,
+  RefreshControl,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -191,6 +192,12 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
       appointment: appointment,
     });
   };
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchAppointmentDetails(true);
+    setRefreshing(false);
+  }, [fetchAppointmentDetails]);
 
   // ── Render content ──────────────────────────────────────────────────────────
   const renderContent = () => {
