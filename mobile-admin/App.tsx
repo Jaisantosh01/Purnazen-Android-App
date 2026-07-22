@@ -48,6 +48,7 @@ import SlotManagementScreen from './src/screens/SlotManagementScreen';
 import DoctorLeaveManagementScreen from './src/screens/DoctorLeaveManagementScreen';
 import VideoManagementScreen from './src/screens/VideoManagementScreen';
 import VideoGroupDetailScreen from './src/screens/VideoGroupDetailScreen';
+import VideoGroupEditorScreen from './src/screens/VideoGroupEditorScreen';
 import UploadVideoScreen from './src/screens/UploadVideoScreen';
 import FaqManagementScreen from './src/screens/FaqManagementScreen';
 import NotificationAdminScreen from './src/screens/NotificationAdminScreen';
@@ -131,6 +132,7 @@ function ManageStackNavigator() {
       {/* Content */}
       <ManageStack.Screen name="VideoManagement" component={VideoManagementScreen} />
       <ManageStack.Screen name="VideoGroupDetail" component={VideoGroupDetailScreen} />
+      <ManageStack.Screen name="VideoGroupEditor" component={VideoGroupEditorScreen} />
       <ManageStack.Screen name="UploadVideo" component={UploadVideoScreen} />
       <ManageStack.Screen name="FaqManagement" component={FaqManagementScreen} />
       <ManageStack.Screen name="NotificationAdmin" component={NotificationAdminScreen} />

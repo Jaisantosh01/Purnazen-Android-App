@@ -1,5 +1,6 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Modal, Pressable } from 'react-native';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import Video from 'react-native-video';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
@@ -18,15 +19,12 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
 
-  const [addVideoModalVisible, setAddVideoModalVisible] = useState(false);
-  const [allVideos, setAllVideos] = useState([]);
-  const [selectedVideoIds, setSelectedVideoIds] = useState(new Set());
-  const [videosLoading, setVideosLoading] = useState(false);
-
-  useEffect(() => {
-    fetchCatalog();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groupId]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchCatalog();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [groupId])
+  );
 
   const fetchCatalog = () => {
     setLoading(true);
@@ -34,46 +32,6 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
       .then(res => setCatalog(res.data))
       .catch(() => showAlert('Error', 'Failed to fetch catalog'))
       .finally(() => setLoading(false));
-  };
-
-  const openAddVideoModal = () => {
-    setVideosLoading(true);
-    setAddVideoModalVisible(true);
-    Promise.all([
-      apiClient.get(ENDPOINTS.ALL_VIDEOS),
-      apiClient.get(ENDPOINTS.VIDEO_GROUP_CATALOG(groupId)),
-    ])
-      .then(([allRes, groupRes]) => {
-        const all = allRes.data?.videos || [];
-        const groupVideoIds = new Set((groupRes.data?.videos || []).map(v => v.id));
-        setAllVideos(all);
-        setSelectedVideoIds(groupVideoIds);
-      })
-      .catch(() => showAlert('Error', 'Failed to load videos'))
-      .finally(() => setVideosLoading(false));
-  };
-
-  const toggleVideo = (videoId) => {
-    setSelectedVideoIds(prev => {
-      const next = new Set(prev);
-      if (next.has(videoId)) {
-        next.delete(videoId);
-      } else {
-        next.add(videoId);
-      }
-      return next;
-    });
-  };
-
-  const handleSaveVideos = () => {
-    apiClient.put(`${ENDPOINTS.ALL_VIDEOS}/groups/${groupId}/videos`, {
-      video_ids: Array.from(selectedVideoIds),
-    })
-      .then(() => {
-        setAddVideoModalVisible(false);
-        fetchCatalog();
-      })
-      .catch(() => showAlert('Error', 'Failed to update videos'));
   };
 
   const renderVideo = ({ item, index }) => {
@@ -113,8 +71,8 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
             <TouchableOpacity onPress={() => navigation.navigate('UploadVideo', { videoGroupId: groupId })}>
               <MCIcon name="cloud-upload" size={24} color={colors.headerText} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={openAddVideoModal}>
-              <MCIcon name="pencil" size={22} color={colors.headerText} />
+            <TouchableOpacity onPress={() => navigation.navigate('VideoGroupEditor', { groupId, groupTitle })}>
+              <MCIcon name="playlist-edit" size={22} color={colors.headerText} />
             </TouchableOpacity>
           </View>
         }
@@ -124,8 +82,8 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
         <View style={styles.emptyContainer}>
           <MCIcon name="video-off" size={64} color={colors.textMuted} />
           <Text style={styles.emptyText}>No videos in this group</Text>
-          <TouchableOpacity style={styles.addVideoBtn} onPress={openAddVideoModal}>
-            <MCIcon name="pencil" size={20} color={colors.white} />
+          <TouchableOpacity style={styles.addVideoBtn} onPress={() => navigation.navigate('VideoGroupEditor', { groupId, groupTitle })}>
+            <MCIcon name="playlist-edit" size={20} color={colors.white} />
             <Text style={styles.addVideoBtnText}>Manage Videos</Text>
           </TouchableOpacity>
         </View>
@@ -172,44 +130,6 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
         </View>
       )}
 
-      {/* Add/Remove Videos Modal */}
-      <Modal visible={addVideoModalVisible} transparent animationType="slide">
-        <Pressable style={styles.modalOverlay} onPress={() => setAddVideoModalVisible(false)}>
-          <Pressable style={styles.modalCard} onPress={() => {}}>
-            <Text style={styles.modalTitle}>Manage Videos</Text>
-            {videosLoading ? (
-              <ActivityIndicator size="large" style={{padding: 40}} />
-            ) : (
-              <FlatList
-                data={allVideos}
-                keyExtractor={item => item.id.toString()}
-                renderItem={({ item }) => {
-                  const isSelected = selectedVideoIds.has(item.id);
-                  return (
-                    <TouchableOpacity style={styles.videoPickerCard} onPress={() => toggleVideo(item.id)}>
-                      <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-                        {isSelected && <MCIcon name="check" size={18} color={colors.white} />}
-                      </View>
-                      <MCIcon name={item.icon || 'play-circle'} size={24} color={colors.primary} style={{marginRight: 12}} />
-                      <View style={styles.cardContent}>
-                        <Text style={styles.videoPickerTitle}>{item.title}</Text>
-                        {item.description ? (
-                          <Text style={styles.videoPickerDesc} numberOfLines={1}>{item.description}</Text>
-                        ) : null}
-                      </View>
-                    </TouchableOpacity>
-                  );
-                }}
-                style={{maxHeight: 400}}
-              />
-            )}
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.modalBtn} onPress={() => setAddVideoModalVisible(false)}><Text>Cancel</Text></TouchableOpacity>
-              <TouchableOpacity style={[styles.modalBtn, styles.saveBtn]} onPress={handleSaveVideos}><Text style={{color: colors.white}}>Save</Text></TouchableOpacity>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
     </View>
   );
 };
@@ -223,7 +143,7 @@ const makeStyles = colors => StyleSheet.create({
   activeText: { color: colors.white },
   icon: { marginRight: 15 },
   cardContent: { flex: 1 },
-  videoTitle: { fontSize: 16, fontWeight: '700' },
+  videoTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
   videoMeta: { color: colors.textSecondary, marginTop: 4 },
   playerArea: { width: '100%', height: 220, backgroundColor: colors.black, justifyContent: 'center', alignItems: 'center' },
   video: { width: '100%', height: '100%' },
@@ -237,17 +157,6 @@ const makeStyles = colors => StyleSheet.create({
   videoDescriptionText: { fontSize: 13, color: colors.textSecondary, lineHeight: 18, flex: 1 },
   addVideoBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 8, marginTop: 20 },
   addVideoBtnText: { color: colors.white, fontWeight: '600', marginLeft: 8 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', padding: 20 },
-  modalCard: { backgroundColor: colors.card, padding: 20, borderRadius: 16 },
-  modalTitle: { fontSize: 18, fontWeight: '800', marginBottom: 16 },
-  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 16 },
-  modalBtn: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 8, backgroundColor: colors.surfaceMuted },
-  saveBtn: { backgroundColor: colors.primary },
-  videoPickerCard: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 8, marginBottom: 6, backgroundColor: colors.surfaceMuted },
-  checkbox: { width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: colors.primary, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  checkboxSelected: { backgroundColor: colors.primary },
-  videoPickerTitle: { fontSize: 14, fontWeight: '600' },
-  videoPickerDesc: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
 });
 
 export default VideoGroupDetailScreen;

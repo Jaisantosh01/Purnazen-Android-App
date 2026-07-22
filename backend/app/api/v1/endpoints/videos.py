@@ -1,3 +1,4 @@
+import os
 import uuid
 from typing import Optional
 
@@ -7,10 +8,13 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db, require_role
 from app.models.user import User
+from app.models.videos import Videos
+from app.repositories.video_repository import VideoRepository
 from app.schemas.video import VideoCreate, VideoGroupCreate, VideoGroupUpdate, VideoUpdate
 from app.services.video_service import VideoService
 from app.utils.azure_storage import (
     create_blob_directory,
+    list_all_blobs_with_sas,
     list_blob_children,
     upload_blob_file,
 )
@@ -28,6 +32,73 @@ router = APIRouter(prefix="/videos", tags=["Videos"])
 
 class CreateDirectoryRequest(BaseModel):
     path: str
+
+
+class AddFolderRequest(BaseModel):
+    prefix: str
+
+
+VIDEO_EXTENSIONS = {".mp4", ".mov", ".avi", ".mkv", ".webm", ".ogg", ".wmv", ".flv", ".m4v", ".3gp", ".mpeg", ".mpg"}
+
+
+def _recursive_list_files(prefix: str) -> list[dict]:
+    files = list_all_blobs_with_sas(prefix)
+    return files
+
+
+@router.post(
+    "/storage/add-folder",
+    summary="Import all videos from a storage folder to a group",
+    description=(
+        "Recursively list all video files under the given storage prefix, "
+        "create a DB record for each one that doesn't already exist, and "
+        "map every video to the specified group. Returns the newly-created videos."
+    ),
+    status_code=201,
+)
+def add_folder_to_library(
+    body: AddFolderRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    prefix = body.prefix if body.prefix.endswith("/") else body.prefix + "/"
+    all_files = _recursive_list_files(prefix)
+
+    if not all_files:
+        return success_response("No video files found", {"videos": [], "count": 0})
+
+    existing = db.query(Videos).filter(
+        Videos.video_url.in_([f["name"] for f in all_files]),
+        Videos.is_active == True,
+    ).all()
+    url_to_existing = {v.video_url: v for v in existing}
+
+    created = []
+    for f in all_files:
+        if f["name"] in url_to_existing:
+            continue
+        raw_name = f["name"].split("/")[-1]
+        title = os.path.splitext(raw_name)[0].replace("_", " ").replace("-", " ").strip().title()
+        video = VideoRepository.create(
+            db,
+            title=title,
+            description="",
+            duration=0,
+            icon="play-circle",
+            video_url=f["name"],
+            created_by=user.id,
+            updated_by=user.id,
+        )
+        created.append(VideoService._process_video_data(video.to_dict()))
+
+    # Return ALL matched records (new + existing) so the frontend can check them
+    all_videos = [VideoService._process_video_data(v.to_dict()) for v in existing] + created
+
+    return success_response(
+        f"{len(all_videos)} video(s) found in folder",
+        {"videos": all_videos, "count": len(all_videos)},
+        201,
+    )
 
 
 @router.get(

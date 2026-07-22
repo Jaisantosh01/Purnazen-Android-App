@@ -140,8 +140,39 @@ def list_blob_children(prefix: str = "") -> tuple[list[str], list[dict]]:
                 "name": item.name,
                 "size": item.size or 0,
                 "lastModified": item.last_modified.isoformat() if item.last_modified else None,
+                "videoUrl": generate_video_sas_url(item.name),
             })
     return sorted(dirs), sorted(files, key=lambda f: f["name"])
+
+
+def list_all_blobs_with_sas(prefix: str = "") -> list[dict]:
+    """Recursively list ALL blobs under the given prefix, with SAS URLs.
+
+    Uses ``walk_blobs`` with a ``/`` delimiter to descend into subdirectories
+    (same method ``list_blob_children`` uses for a single level). Returns a
+    flat list of dicts with ``name``, ``size``, ``lastModified`` and
+    ``videoUrl``, sorted by name.
+    """
+    client = get_blob_service_client()
+    if not client:
+        return []
+    container = client.get_container_client(settings.AZURE_BLOB_CONTAINER_NAME)
+    blobs: list[dict] = []
+
+    def _recurse(path: str) -> None:
+        for item in container.walk_blobs(name_starts_with=path, delimiter="/"):
+            if isinstance(item, BlobPrefix):
+                _recurse(item.name)
+            elif item.name != path and not item.name.endswith("/"):
+                blobs.append({
+                    "name": item.name,
+                    "size": item.size or 0,
+                    "lastModified": item.last_modified.isoformat() if item.last_modified else None,
+                    "videoUrl": generate_video_sas_url(item.name),
+                })
+
+    _recurse(prefix)
+    return sorted(blobs, key=lambda f: f["name"])
 
 
 def list_blob_directories(prefix: str = "") -> list[str]:

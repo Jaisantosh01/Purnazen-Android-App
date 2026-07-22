@@ -85,7 +85,7 @@ const DoctorManagementScreen = ({ navigation }) => {
 
     return (
       <TouchableOpacity
-        activeOpacity={isInactive ? 1 : 0.7}
+        activeOpacity={1}
         onPress={() => {
           if (!isInactive) {
             navigation.navigate('DoctorDetail', { doctorId: item.id });
@@ -163,7 +163,6 @@ const DoctorManagementScreen = ({ navigation }) => {
           keyExtractor={item => item.id.toString()}
           leftOpenValue={80}
           rightOpenValue={-80}
-          disableRightSwipe={false}
           ListHeaderComponent={
             <>
               <View style={styles.statsRow}>
@@ -200,8 +199,6 @@ const DoctorManagementScreen = ({ navigation }) => {
           refreshing={loading}
           onRefresh={fetchData}
           closeOnRowPress={true}
-          closeOnRowOpen={true}
-          closeOnRowBeginSwipe={true}
         />
       )}
     </View>
