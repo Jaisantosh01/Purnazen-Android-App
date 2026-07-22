@@ -119,15 +119,24 @@ export default function VideoPlayer({
     return () => clearTimeout(hideTimer.current);
   }, [paused, seeking, ended, errored, buffering, armAutoHide, fade]);
 
+  // Entering/leaving fullscreen re-shows the controls (and restarts the
+  // auto-hide timer) — otherwise a timer armed before the toggle fires moments
+  // later and the freshly-expanded player looks like it has no controls at all.
+  const toggleFullscreen = useCallback(() => {
+    setFullscreen(f => !f);
+    reveal();
+  }, [reveal]);
+
   // Hardware back exits fullscreen instead of leaving the screen.
   useEffect(() => {
     if (!fullscreen) return undefined;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       setFullscreen(false);
+      reveal();
       return true;
     });
     return () => sub.remove();
-  }, [fullscreen]);
+  }, [fullscreen, reveal]);
 
   // Reset when the source changes (playlist switch).
   useEffect(() => {
@@ -366,7 +375,7 @@ export default function VideoPlayer({
             <MCIcon name={muted ? 'volume-off' : 'volume-high'} size={20} color={colors.white} />
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => setFullscreen(f => !f)} hitSlop={hit} style={styles.smallCtrl}>
+          <TouchableOpacity onPress={toggleFullscreen} hitSlop={hit} style={styles.smallCtrl}>
             <MCIcon name={fullscreen ? 'fullscreen-exit' : 'fullscreen'} size={22} color={colors.white} />
           </TouchableOpacity>
         </View>
@@ -399,6 +408,10 @@ const makeStyles = colors => StyleSheet.create({
   },
   // Poster / spinner / error overlays: explicit height passed inline for the
   // same reason — with absoluteFill they collapsed and hugged the top edge.
+  // Everything stacked over the video carries an explicit zIndex *and*
+  // elevation. Document order alone isn't enough on Android: in fullscreen the
+  // wrapper is elevated (see wrapFullscreen) and the video's SurfaceView then
+  // composites above any sibling left at Z 0, swallowing the whole overlay.
   posterWrap: {
     position: 'absolute',
     top: 0,
@@ -406,12 +419,16 @@ const makeStyles = colors => StyleSheet.create({
     right: 0,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 1,
+    elevation: 1,
   },
   tapLayer: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
+    zIndex: 2,
+    elevation: 2,
   },
   centerOverlay: {
     position: 'absolute',
@@ -421,6 +438,8 @@ const makeStyles = colors => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
+    zIndex: 4,
+    elevation: 4,
   },
   errorText: { color: colors.white, fontSize: 13, fontWeight: '600' },
   retryBtn: {
@@ -435,7 +454,15 @@ const makeStyles = colors => StyleSheet.create({
   },
   retryText: { color: colors.white, fontWeight: '700', fontSize: 13 },
 
-  controls: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'column' },
+  controls: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'column',
+    zIndex: 3,
+    elevation: 3,
+  },
   scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.35)' },
 
   centerArea: { flex: 1, alignItems: 'center', justifyContent: 'center' },
