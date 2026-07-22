@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Pressable,
   ScrollView,
+  useWindowDimensions,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -37,6 +38,9 @@ import useTheme from '../hooks/useTheme';
  *   confirmDisabled    (bool)    disables the primary button
  *   destructive        (bool)    renders the primary button in the danger color
  *   dismissOnBackdrop  (bool)    tap-outside-to-close (default true)
+ *   compact            (bool)    tight, left-aligned header (icon beside the
+ *                                title instead of a big centered badge) — for
+ *                                pickers, where the list needs the room
  */
 export default function AppDialog({
   visible,
@@ -56,10 +60,18 @@ export default function AppDialog({
   destructive = false,
   dismissOnBackdrop = true,
   showCancel = true,
+  compact = false,
 }) {
   const { colors } = useTheme();
+  const { height: windowH } = useWindowDimensions();
   const styles = makeStyles(colors);
   const accent = destructive ? colors.danger : colors.primary;
+
+  // Cap in pixels, not '%': the card's parent (the KeyboardAvoidingView) is
+  // content-sized, so a percentage max-height has nothing to resolve against
+  // and Yoga drops it — the card then grew past the screen and pushed its own
+  // action buttons off the bottom, which read as the list running under them.
+  const maxHeight = Math.round(windowH * (compact ? 0.88 : 0.85));
 
   return (
     <Modal
@@ -79,32 +91,54 @@ export default function AppDialog({
           pointerEvents="box-none"
         >
           {/* Inner Pressable swallows taps so they don't bubble to the backdrop */}
-          <Pressable style={styles.card} onPress={() => {}}>
+          <Pressable
+            style={[styles.card, compact && styles.cardCompact, { maxHeight }]}
+            onPress={() => {}}
+          >
             {/* Header scrolls WITH the body: when content is long the icon/title
                 glide away instead of staying pinned and squeezing the list into
                 a sliver. Short dialogs are unaffected (ScrollView is
                 content-sized via flexGrow:0). Only the action buttons stay put. */}
             <ScrollView
               style={styles.scroll}
+              contentContainerStyle={styles.scrollContent}
               showsVerticalScrollIndicator={false}
               nestedScrollEnabled
               keyboardShouldPersistTaps="handled"
             >
-              {icon ? (
-                <View style={[styles.iconBadge, { backgroundColor: iconBg || colors.primaryLight }]}>
-                  <MCIcon name={icon} size={26} color={iconColor || accent} />
-                </View>
-              ) : null}
+              {compact ? (
+                (icon || title || subtitle) ? (
+                  <View style={styles.compactHeader}>
+                    {icon ? (
+                      <View style={[styles.iconBadgeCompact, { backgroundColor: iconBg || colors.primaryLight }]}>
+                        <MCIcon name={icon} size={18} color={iconColor || accent} />
+                      </View>
+                    ) : null}
+                    <View style={styles.compactHeaderText}>
+                      {title ? <Text style={styles.titleCompact}>{title}</Text> : null}
+                      {subtitle ? <Text style={styles.subtitleCompact}>{subtitle}</Text> : null}
+                    </View>
+                  </View>
+                ) : null
+              ) : (
+                <>
+                  {icon ? (
+                    <View style={[styles.iconBadge, { backgroundColor: iconBg || colors.primaryLight }]}>
+                      <MCIcon name={icon} size={26} color={iconColor || accent} />
+                    </View>
+                  ) : null}
 
-              {title ? <Text style={styles.title}>{title}</Text> : null}
-              {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+                  {title ? <Text style={styles.title}>{title}</Text> : null}
+                  {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+                </>
+              )}
 
-              {topSlot ? <View style={styles.topSlot}>{topSlot}</View> : null}
+              {topSlot ? <View style={compact ? styles.topSlotCompact : styles.topSlot}>{topSlot}</View> : null}
 
-              {children ? <View style={styles.body}>{children}</View> : null}
+              {children ? <View style={compact ? styles.bodyCompact : styles.body}>{children}</View> : null}
             </ScrollView>
 
-            <View style={styles.actions}>
+            <View style={[styles.actions, compact && styles.actionsCompact]}>
               {onClose && showCancel ? (
                 <TouchableOpacity
                   style={[styles.btn, styles.btnCancel]}
@@ -147,6 +181,7 @@ const makeStyles = colors => StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     paddingHorizontal: 24,
+    paddingVertical: 24,
   },
   kav: { width: '100%' },
   card: {
@@ -160,9 +195,10 @@ const makeStyles = colors => StyleSheet.create({
     shadowOpacity: 0.18,
     shadowRadius: 24,
     elevation: 12,
-    maxHeight: '92%',
     overflow: 'hidden',
   },
+  // Pickers trade the roomy header for list space: less padding all round.
+  cardCompact: { borderRadius: 20, padding: 16 },
   iconBadge: {
     alignSelf: 'center',
     width: 56,
@@ -185,16 +221,35 @@ const makeStyles = colors => StyleSheet.create({
     marginTop: 6,
     lineHeight: 19,
   },
+
+  compactHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  compactHeaderText: { flex: 1 },
+  iconBadgeCompact: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  titleCompact: { fontSize: 16, fontWeight: '800', color: colors.textPrimary },
+  subtitleCompact: { fontSize: 12, color: colors.textSecondary, marginTop: 2, lineHeight: 16 },
+
   // flexGrow:0 keeps short dialogs content-sized; flexShrink:1 lets the scroll
   // area give way to the pinned action buttons when the card hits maxHeight.
   scroll: { flexGrow: 0, flexShrink: 1 },
+  // Breathing room under the last row so it doesn't sit flush against the
+  // pinned action buttons when the list is scrolled to the end.
+  scrollContent: { paddingBottom: 4 },
   topSlot: { marginTop: 16 },
+  topSlotCompact: { marginTop: 12 },
   body: { marginTop: 18 },
+  bodyCompact: { marginTop: 10 },
   actions: {
     flexDirection: 'row',
     gap: 10,
     marginTop: 20,
   },
+  actionsCompact: { marginTop: 12 },
   btn: {
     flex: 1,
     paddingVertical: 13,
