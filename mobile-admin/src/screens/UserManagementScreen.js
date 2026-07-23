@@ -166,14 +166,13 @@ const UserManagementScreen = ({ navigation }) => {
         }}
         renderHiddenItem={(data, rowMap) => (
           <View style={styles.rowBack}>
-            <TouchableOpacity style={[styles.backBtn, styles.backDelete]} onPress={() => handleDelete(data.item, rowMap)}>
-              <MCIcon name="delete" size={22} color="#fff" />
-              <Text style={styles.backBtnText}>Delete</Text>
-            </TouchableOpacity>
-            <View style={{flex: 1}} />
-            <TouchableOpacity style={[styles.backBtn, styles.backEdit]} onPress={() => handleEdit(data.item, rowMap)}>
+            <TouchableOpacity style={[styles.backBtn, styles.editBack]} onPress={() => handleEdit(data.item, rowMap)}>
               <MCIcon name="pencil" size={22} color="#fff" />
               <Text style={styles.backBtnText}>Edit</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.backBtn, styles.deleteBack]} onPress={() => handleDelete(data.item, rowMap)}>
+              <MCIcon name="delete" size={22} color="#fff" />
+              <Text style={styles.backBtnText}>Delete</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -245,6 +244,7 @@ const makeStyles = colors => StyleSheet.create({
   rowBack: {
     flex: 1,
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginHorizontal: 12,
     marginBottom: 12,
@@ -252,22 +252,20 @@ const makeStyles = colors => StyleSheet.create({
     overflow: 'hidden',
   },
   backBtn: {
-    width: 80,
-    height: '100%',
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
     justifyContent: 'center',
+    width: 75,
+    height: '100%',
   },
-  backDelete: {
+  editBack: {
+    backgroundColor: '#3B82F6',
+  },
+  deleteBack: {
     backgroundColor: '#EF4444',
-    borderTopLeftRadius: 16,
-    borderBottomLeftRadius: 16,
   },
-  backEdit: {
-    backgroundColor: colors.primary,
-    borderTopRightRadius: 16,
-    borderBottomRightRadius: 16,
-  },
-  backBtnText: { color: '#fff', fontSize: 12, fontWeight: '600', marginTop: 4 },
+  backBtnText: { color: '#fff', fontSize: 12, fontWeight: '600' },
 });
 
 export default UserManagementScreen;

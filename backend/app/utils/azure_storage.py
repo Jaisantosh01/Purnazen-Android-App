@@ -24,7 +24,11 @@ def get_blob_service_client() -> BlobServiceClient | None:
     return BlobServiceClient.from_connection_string(connection_string)
 
 
-def generate_sas_url(blob_name: str, expiry_minutes: int | None = None) -> str:
+def generate_sas_url(
+    blob_name: str,
+    expiry_minutes: int | None = None,
+    container: str | None = None,
+) -> str:
     """Generate a read-only SAS URL for a blob.
 
     Falls back to returning blob_name unchanged when credentials are missing
@@ -34,11 +38,14 @@ def generate_sas_url(blob_name: str, expiry_minutes: int | None = None) -> str:
         blob_name: The blob path within the container (e.g. ``face_scans/1/raw/abc.jpg``).
         expiry_minutes: Override the default expiry. Defaults to
             ``settings.AZURE_SAS_EXPIRY_MINUTES``.
+        container: Override the container. Defaults to the video container —
+            face scans pass the uploads container (see generate_scan_sas_url).
     """
+    container_name = container or settings.AZURE_BLOB_CONTAINER_NAME
     if not all([
         settings.AZURE_STORAGE_ACCOUNT_NAME,
         settings.AZURE_STORAGE_ACCOUNT_KEY,
-        settings.AZURE_BLOB_CONTAINER_NAME,
+        container_name,
     ]):
         return blob_name
 
@@ -49,7 +56,7 @@ def generate_sas_url(blob_name: str, expiry_minutes: int | None = None) -> str:
     minutes = expiry_minutes if expiry_minutes is not None else settings.AZURE_SAS_EXPIRY_MINUTES
     sas_token = generate_blob_sas(
         account_name=settings.AZURE_STORAGE_ACCOUNT_NAME,
-        container_name=settings.AZURE_BLOB_CONTAINER_NAME,
+        container_name=container_name,
         blob_name=blob_name,
         account_key=settings.AZURE_STORAGE_ACCOUNT_KEY,
         permission=BlobSasPermissions(read=True),
@@ -62,7 +69,18 @@ def generate_sas_url(blob_name: str, expiry_minutes: int | None = None) -> str:
     encoded_blob = quote(blob_name, safe="/")
     return (
         f"https://{settings.AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net"
-        f"/{settings.AZURE_BLOB_CONTAINER_NAME}/{encoded_blob}?{sas_token}"
+        f"/{container_name}/{encoded_blob}?{sas_token}"
+    )
+
+
+def generate_scan_sas_url(blob_name: str, expiry_minutes: int | None = None) -> str:
+    """SAS URL for a face-scan image, which lives in the uploads container
+    (``settings.AZURE_SCANS_CONTAINER_NAME``) rather than the video container.
+    """
+    return generate_sas_url(
+        blob_name,
+        expiry_minutes=expiry_minutes,
+        container=settings.AZURE_SCANS_CONTAINER_NAME,
     )
 
 
@@ -140,14 +158,45 @@ def list_blob_children(prefix: str = "") -> tuple[list[str], list[dict]]:
                 "name": item.name,
                 "size": item.size or 0,
                 "lastModified": item.last_modified.isoformat() if item.last_modified else None,
+                "videoUrl": generate_video_sas_url(item.name),
             })
     return sorted(dirs), sorted(files, key=lambda f: f["name"])
+
+
+def list_all_blobs_with_sas(prefix: str = "") -> list[dict]:
+    """Recursively list ALL blobs under the given prefix, with SAS URLs.
+
+    Uses ``walk_blobs`` with a ``/`` delimiter to descend into subdirectories
+    (same method ``list_blob_children`` uses for a single level). Returns a
+    flat list of dicts with ``name``, ``size``, ``lastModified`` and
+    ``videoUrl``, sorted by name.
+    """
+    client = get_blob_service_client()
+    if not client:
+        return []
+    container = client.get_container_client(settings.AZURE_BLOB_CONTAINER_NAME)
+    blobs: list[dict] = []
+
+    def _recurse(path: str) -> None:
+        for item in container.walk_blobs(name_starts_with=path, delimiter="/"):
+            if isinstance(item, BlobPrefix):
+                _recurse(item.name)
+            elif item.name != path and not item.name.endswith("/"):
+                blobs.append({
+                    "name": item.name,
+                    "size": item.size or 0,
+                    "lastModified": item.last_modified.isoformat() if item.last_modified else None,
+                    "videoUrl": generate_video_sas_url(item.name),
+                })
+
+    _recurse(prefix)
+    return sorted(blobs, key=lambda f: f["name"])
 
 
 def list_blob_directories(prefix: str = "") -> list[str]:
     """List virtual directories (prefixes) in the blob container.
 
-    Returns a sorted list of directory paths (e.g. ``["videos/", "face_scans/"]``).
+    Returns a sorted list of directory paths (e.g. ``["videos/", "yoga/"]``).
     """
     dirs, _ = list_blob_children(prefix)
     return dirs
@@ -177,6 +226,25 @@ def create_blob_directory(path: str) -> bool:
     container = client.get_container_client(settings.AZURE_BLOB_CONTAINER_NAME)
     container.upload_blob(name=path, data=b"", overwrite=True)
     return True
+
+
+def blob_exists(blob_path: str) -> bool:
+    """Check if a blob exists in the container."""
+    import logging
+    logger = logging.getLogger(__name__)
+    client = get_blob_service_client()
+    if not client:
+        logger.warning("blob_exists: Azure Storage not configured")
+        return False
+    try:
+        container = client.get_container_client(settings.AZURE_BLOB_CONTAINER_NAME)
+        blob_client = container.get_blob_client(blob_path)
+        blob_client.get_blob_properties()
+        logger.info("blob_exists: found blob at '%s'", blob_path)
+        return True
+    except Exception as exc:
+        logger.info("blob_exists: blob '%s' not found (%s)", blob_path, exc)
+        return False
 
 
 def upload_blob_file(file_data: bytes, blob_path: str, content_type: str = "video/mp4") -> str:

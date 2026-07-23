@@ -100,9 +100,6 @@ class VideoService:
             )
             return {"success": True, "message": "Video updated", "video": VideoService._process_video_data(video.to_dict())}, 200
         else:
-            if not VideoGroupRepository.get_by_id(db, data.video_group_id):
-                return {"success": False, "message": "Video group not found"}, 404
-
             # Create video without video_group_id and sort_order
             video_fields = data.model_dump(exclude={'video_group_id', 'sort_order'})
             video = VideoRepository.create(
@@ -112,17 +109,21 @@ class VideoService:
                 updated_by=user.id
             )
 
-            # Create mapping
-            VideoGroupMappingRepository.create(
-                db,
-                video_group_id=data.video_group_id,
-                video_id=video.id,
-                sort_order=data.sort_order,
-                created_by=user.id,
-                updated_by=user.id
-            )
-
-            return {"success": True, "message": "Video created and mapped to group", "video": VideoService._process_video_data(video.to_dict())}, 201
+            # Only create mapping when a group was provided
+            if data.video_group_id:
+                if not VideoGroupRepository.get_by_id(db, data.video_group_id):
+                    return {"success": False, "message": "Video group not found"}, 404
+                VideoGroupMappingRepository.create(
+                    db,
+                    video_group_id=data.video_group_id,
+                    video_id=video.id,
+                    sort_order=data.sort_order,
+                    created_by=user.id,
+                    updated_by=user.id
+                )
+                return {"success": True, "message": "Video created and mapped to group", "video": VideoService._process_video_data(video.to_dict())}, 201
+            else:
+                return {"success": True, "message": "Video created", "video": VideoService._process_video_data(video.to_dict())}, 201
 
     @staticmethod
     def delete_video(db: Session, video_id: uuid.UUID):
