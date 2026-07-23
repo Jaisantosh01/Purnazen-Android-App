@@ -49,13 +49,14 @@ const fmtTime = s => {
  *   hasNext    bool       enables the next control
  *
  * Playlists (hasNext + onNext) also get an "up next" card when a clip ends:
+ *   sourceId                identity of the current item — see srcKey below
  *   nextTitle/nextSubtitle  what the card announces
  *   autoPlayNext            when on, the card counts 5s down then advances
- *   onAutoPlayNextChange    fn(bool) — the card's autoplay toggle
  *   suspendUpNext           hides the card (e.g. while a dialog is open)
  */
 export default function VideoPlayer({
   source,
+  sourceId,
   poster = null,
   autoPlay = true,
   onProgress,
@@ -65,7 +66,6 @@ export default function VideoPlayer({
   nextTitle,
   nextSubtitle,
   autoPlayNext = false,
-  onAutoPlayNextChange,
   suspendUpNext = false,
 }) {
   const { colors } = useTheme();
@@ -73,6 +73,14 @@ export default function VideoPlayer({
   const { width: screenW, height: screenH } = useWindowDimensions();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const videoRef = useRef(null);
+
+  // Identity of the item being played. Everything that must restart on a
+  // playlist switch keys off this rather than the URL: two entries can point at
+  // the same blob (identical URL), and swapping the source in place also let a
+  // trailing onEnd from the outgoing clip land on the new one — which left the
+  // next video paused on the replay icon instead of autoplaying. Remounting
+  // <Video/> on this key gives each item a clean native player.
+  const srcKey = sourceId ?? source?.uri ?? '';
 
   // Aspect ratio of the loaded video. Defaults to 16:9 until the real natural
   // size arrives in onLoad, then adapts so portrait clips get a tall frame
@@ -88,12 +96,13 @@ export default function VideoPlayer({
   const [muted, setMuted] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
+  // Real, laid-out height of the player frame (see overlayH).
+  const [frameH, setFrameH] = useState(0);
 
   // "Up next" card: shown when a clip in a playlist ends. With autoplay on it
   // runs a 5s countdown and advances by itself; the user can play now, cancel
-  // (dismiss for this clip), replay, or flip the toggle right on the card.
-  // `autoNext` mirrors the prop so the toggle works even without a handler.
-  const [autoNext, setAutoNext] = useState(autoPlayNext);
+  // (dismiss for this clip) or replay. The autoplay switch itself lives on the
+  // screen below the player, not on the card.
   const [nextDismissed, setNextDismissed] = useState(false);
   const [countdownMs, setCountdownMs] = useState(null);
 
@@ -145,6 +154,9 @@ export default function VideoPlayer({
   // auto-hide timer) — otherwise a timer armed before the toggle fires moments
   // later and the freshly-expanded player looks like it has no controls at all.
   const toggleFullscreen = useCallback(() => {
+    // Drop the measured height so the overlays fall back to the screen estimate
+    // for the one frame before the new layout lands (see frameH / overlayH).
+    setFrameH(0);
     setFullscreen(f => !f);
     reveal();
   }, [reveal]);
@@ -171,9 +183,7 @@ export default function VideoPlayer({
     setNextDismissed(false);
     reveal();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [source?.uri, retryKey]);
-
-  useEffect(() => setAutoNext(autoPlayNext), [autoPlayNext]);
+  }, [srcKey, retryKey]);
 
   // Replaying or scrubbing back off the end offers the card again next time.
   useEffect(() => {
@@ -189,7 +199,7 @@ export default function VideoPlayer({
   // Countdown ticks off wall-clock time (not accumulated intervals) so a
   // backgrounded / throttled timer can't stretch the 5s into something longer.
   useEffect(() => {
-    if (!showUpNext || !autoNext) {
+    if (!showUpNext || !autoPlayNext) {
       setCountdownMs(null);
       return undefined;
     }
@@ -206,14 +216,7 @@ export default function VideoPlayer({
       }
     }, 50);
     return () => clearInterval(id);
-  }, [showUpNext, autoNext]);
-
-  const toggleAutoNext = () => {
-    setAutoNext(v => {
-      onAutoPlayNextChange?.(!v);
-      return !v;
-    });
-  };
+  }, [showUpNext, autoPlayNext]);
 
   const playNextNow = () => {
     setCountdownMs(null);
@@ -321,25 +324,24 @@ export default function VideoPlayer({
   const playerH = Math.min(Math.max(screenW / aspect, minH), maxH);
 
   // Every overlay gets this explicit height: absolute boxes that rely on
-  // top+bottom insets collapse to the top on this setup (see styles.controls),
-  // and deriving it (instead of measuring via onLayout) keeps the overlays in
-  // sync with the frame on the very frame fullscreen/orientation changes.
-  const overlayH = fullscreen ? screenH : playerH;
+  // top+bottom insets collapse to the top on this setup (see styles.controls).
+  // In fullscreen the frame stretches to fill its parent, so the height has to
+  // be *measured* — sizing it from the window instead overshot the visible area
+  // (window height counts system-bar space the screen doesn't get), which
+  // pushed the bottom bar, scrubber and exit-fullscreen button off screen.
+  // screenH is only the estimate for the first frame after a toggle.
+  const overlayH = fullscreen ? frameH || screenH : playerH;
 
   return (
     <View
-      style={[
-        styles.wrap,
-        fullscreen
-          ? [styles.wrapFullscreen, { width: screenW, height: screenH }]
-          : { height: playerH },
-      ]}
+      onLayout={e => setFrameH(e.nativeEvent.layout.height)}
+      style={[styles.wrap, fullscreen ? styles.wrapFullscreen : { height: playerH }]}
     >
       {/* Immersive fullscreen: drop the status bar while covering the window */}
       {fullscreen && <StatusBar hidden />}
       {source?.uri ? (
         <Video
-          key={retryKey}
+          key={`${retryKey}:${srcKey}`}
           ref={videoRef}
           source={source}
           style={{ width: '100%', height: overlayH }}
@@ -465,18 +467,6 @@ export default function VideoPlayer({
           the control overlay with its own scrim. */}
       {showUpNext && (
         <View style={[styles.upNext, { height: overlayH }]}>
-          <TouchableOpacity
-            style={styles.autoToggle}
-            onPress={toggleAutoNext}
-            activeOpacity={0.8}
-            hitSlop={hit}
-          >
-            <Text style={styles.autoToggleLabel}>Autoplay</Text>
-            <View style={[styles.switchTrack, autoNext && styles.switchTrackOn]}>
-              <View style={[styles.switchKnob, autoNext && styles.switchKnobOn]} />
-            </View>
-          </TouchableOpacity>
-
           <Text style={styles.upNextLabel}>UP NEXT</Text>
           {nextTitle ? (
             <Text style={styles.upNextTitle} numberOfLines={2}>{nextTitle}</Text>
@@ -529,16 +519,14 @@ const makeStyles = colors => StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
   },
-  // Pure-JS fullscreen: the same Video instance expands to cover the window
-  // (no native fullscreen player, so controls never desync / jump). Sized with
-  // explicit width/height passed inline — right/bottom insets don't resolve on
-  // this setup (see styles.controls) and left the player far from fullscreen.
+  // Pure-JS fullscreen: the same Video instance expands to cover the screen
+  // (no native fullscreen player, so controls never desync / jump). It fills
+  // its parent — the screen root — rather than taking window dimensions, so
+  // the frame can never extend past the area the screen actually occupies.
   // Highest zIndex so it sits over the rest of the screen.
   wrapFullscreen: {
     aspectRatio: undefined,
-    position: 'absolute',
-    top: 0,
-    left: 0,
+    ...StyleSheet.absoluteFillObject,
     zIndex: 1000,
     elevation: 1000,
   },
@@ -670,27 +658,6 @@ const makeStyles = colors => StyleSheet.create({
     zIndex: 5,
     elevation: 5,
   },
-  autoToggle: {
-    position: 'absolute',
-    top: 10,
-    right: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  autoToggleLabel: { color: colors.white, fontSize: 12, fontWeight: '700' },
-  switchTrack: {
-    width: 38,
-    height: 22,
-    borderRadius: 11,
-    padding: 3,
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.28)',
-  },
-  switchTrackOn: { backgroundColor: colors.primary },
-  switchKnob: { width: 16, height: 16, borderRadius: 8, backgroundColor: '#fff' },
-  switchKnobOn: { alignSelf: 'flex-end' },
-
   upNextLabel: {
     color: 'rgba(255,255,255,0.7)',
     fontSize: 11,

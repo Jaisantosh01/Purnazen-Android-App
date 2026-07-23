@@ -8,6 +8,7 @@ import {
   StatusBar,
   ActivityIndicator,
   TextInput,
+  Switch,
   useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -257,6 +258,7 @@ const VideoPlayerScreen = ({ route, navigation }) => {
       {/* Player */}
       <VideoPlayer
         source={currentVideo.videoUrl ? { uri: currentVideo.videoUrl } : null}
+        sourceId={currentVideo.id}
         poster={
           <MCIcon name={currentVideo.icon || 'play-circle-outline'} size={80} color={colors.primary} />
         }
@@ -267,7 +269,6 @@ const VideoPlayerScreen = ({ route, navigation }) => {
         nextTitle={nextVideo?.title}
         nextSubtitle={nextVideo ? `${Math.floor(nextVideo.duration / 60)} min` : null}
         autoPlayNext={autoPlayNext}
-        onAutoPlayNextChange={handleAutoPlayNextChange}
         // Don't count down (or advance) behind the session-feedback dialog.
         suspendUpNext={showFeedbackModal}
       />
@@ -301,6 +302,29 @@ const VideoPlayerScreen = ({ route, navigation }) => {
               </Text>
             </View>
           </View>
+
+          {/* Autoplay — only meaningful when the group has more than one video */}
+          {catalog.videos.length > 1 && (
+            <View style={styles.autoPlayRow}>
+              <View style={styles.autoPlayIcon}>
+                <MCIcon name="play-speed" size={18} color={colors.primary} />
+              </View>
+              <View style={styles.autoPlayInfo}>
+                <Text style={styles.autoPlayTitle}>Autoplay next session</Text>
+                <Text style={styles.autoPlaySubtitle}>
+                  {autoPlayNext
+                    ? 'Starts the next video 5 seconds after this one ends'
+                    : 'Asks before starting the next video'}
+                </Text>
+              </View>
+              <Switch
+                value={autoPlayNext}
+                onValueChange={handleAutoPlayNextChange}
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor={colors.white}
+              />
+            </View>
+          )}
         </View>
 
         {/* Playlist */}
@@ -461,6 +485,27 @@ const makeStyles = colors => StyleSheet.create({
     borderRadius: 20,
   },
   metaText: { fontSize: 12, color: colors.textMuted, fontWeight: '600' },
+
+  autoPlayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 18,
+    paddingTop: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  autoPlayIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primaryLight,
+  },
+  autoPlayInfo: { flex: 1 },
+  autoPlayTitle: { fontSize: 14.5, fontWeight: '700', color: colors.textPrimary },
+  autoPlaySubtitle: { fontSize: 12, color: colors.textMuted, marginTop: 2, lineHeight: 16 },
 
   playlistSection: { padding: 20 },
   sectionLabel: { fontSize: 11, fontWeight: '700', color: colors.textMuted, letterSpacing: 1, marginBottom: 16 },
