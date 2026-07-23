@@ -22,8 +22,6 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
   const [loading, setLoading] = useState(true);
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [autoPlayNext, setAutoPlayNext] = useState(true);
-  // The player fills its parent in fullscreen, so the header has to step aside.
-  const [playerFullscreen, setPlayerFullscreen] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -80,19 +78,17 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
 
   return (
     <View style={styles.root}>
-      {!playerFullscreen && (
-        <ScreenHeader
-          title={groupTitle}
-          onBack={() => navigation.goBack()}
-          right={
-            <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-              <TouchableOpacity onPress={() => navigation.navigate('VideoGroupEditor', { groupId, groupTitle })}>
-                <MCIcon name="playlist-edit" size={22} color={colors.headerText} />
-              </TouchableOpacity>
-            </View>
-          }
-        />
-      )}
+      <ScreenHeader
+        title={groupTitle}
+        onBack={() => navigation.goBack()}
+        right={
+          <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+            <TouchableOpacity onPress={() => navigation.navigate('VideoGroupEditor', { groupId, groupTitle })}>
+              <MCIcon name="playlist-edit" size={22} color={colors.headerText} />
+            </TouchableOpacity>
+          </View>
+        }
+      />
       
       {loading ? <SessionPlayerSkeleton /> : hasNoVideos ? (
         <View style={styles.emptyContainer}>
@@ -121,7 +117,6 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
               nextTitle={nextVideo?.title}
               nextSubtitle={nextVideo ? `${Math.floor(nextVideo.duration / 60)} min` : null}
               autoPlayNext={autoPlayNext}
-              onFullscreenChange={setPlayerFullscreen}
             />
 
             {catalog?.videos?.length > 1 && (

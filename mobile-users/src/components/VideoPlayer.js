@@ -11,6 +11,7 @@ import {
   useWindowDimensions,
   StatusBar,
   BackHandler,
+  Modal,
 } from 'react-native';
 import Video from 'react-native-video';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -54,9 +55,10 @@ const fmtTime = s => {
  *   autoPlayNext            when on, the card counts 5s down then advances
  *   suspendUpNext           hides the card (e.g. while a dialog is open)
  *
- * onFullscreenChange fn(bool) — fullscreen expands the player to fill its
- * parent, so a screen that wraps the player in a header/chrome should use this
- * to hide that chrome, otherwise "fullscreen" stops short of the real screen.
+ * onFullscreenChange fn(bool) — notified when fullscreen is entered/left. The
+ * player hosts fullscreen in its own Modal window, so screens don't need to
+ * hide their chrome; this is only for callers that care (analytics, pausing
+ * other media, etc).
  */
 export default function VideoPlayer({
   source,
@@ -160,13 +162,32 @@ export default function VideoPlayer({
   // Entering/leaving fullscreen re-shows the controls (and restarts the
   // auto-hide timer) — otherwise a timer armed before the toggle fires moments
   // later and the freshly-expanded player looks like it has no controls at all.
-  const toggleFullscreen = useCallback(() => {
-    // Drop the measured height so the overlays fall back to the screen estimate
-    // for the one frame before the new layout lands (see frameH / overlayH).
-    setFrameH(0);
-    setFullscreen(f => !f);
-    reveal();
-  }, [reveal]);
+  // Entering/leaving fullscreen reparents the frame into/out of the Modal,
+  // which remounts <Video/> — remember where playback was so onLoad can seek
+  // back to it instead of restarting the clip.
+  const currentTimeRef = useRef(0);
+  useEffect(() => { currentTimeRef.current = currentTime; }, [currentTime]);
+  const resumeAtRef = useRef(0);
+
+  const applyFullscreen = useCallback(
+    next => {
+      resumeAtRef.current = currentTimeRef.current;
+      // Drop the measured height so the overlays fall back to the screen
+      // estimate for the one frame before the new layout lands (see overlayH).
+      setFrameH(0);
+      setFullscreen(next);
+      reveal();
+    },
+    [reveal],
+  );
+
+  // Separate toggle/exit: back and onRequestClose can both fire for one press,
+  // and two toggles would cancel out. Exiting is idempotent.
+  const toggleFullscreen = useCallback(
+    () => applyFullscreen(!fullscreen),
+    [applyFullscreen, fullscreen],
+  );
+  const exitFullscreen = useCallback(() => applyFullscreen(false), [applyFullscreen]);
 
   // Report fullscreen through a ref so a fresh handler identity can't re-fire
   // it, and from an effect so the parent is never updated mid-render.
@@ -178,12 +199,11 @@ export default function VideoPlayer({
   useEffect(() => {
     if (!fullscreen) return undefined;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      setFullscreen(false);
-      reveal();
+      exitFullscreen();
       return true;
     });
     return () => sub.remove();
-  }, [fullscreen, reveal]);
+  }, [fullscreen, exitFullscreen]);
 
   // Reset when the source changes (playlist switch).
   useEffect(() => {
@@ -278,6 +298,14 @@ export default function VideoPlayer({
   const onVideoLoad = data => {
     setDuration(data.duration);
     setBuffering(false);
+    // Resume where the previous native player left off (fullscreen remount).
+    if (resumeAtRef.current > 0) {
+      const t = resumeAtRef.current;
+      resumeAtRef.current = 0;
+      seekPending.current = true;
+      videoRef.current?.seek(t);
+      setCurrentTime(t);
+    }
     const ns = data?.naturalSize;
     if (ns && ns.width > 0 && ns.height > 0) {
       // Some decoders report rotated portrait media with width/height swapped.
@@ -341,14 +369,14 @@ export default function VideoPlayer({
 
   // Every overlay gets this explicit height: absolute boxes that rely on
   // top+bottom insets collapse to the top on this setup (see styles.controls).
-  // In fullscreen the frame stretches to fill its parent, so the height has to
-  // be *measured* — sizing it from the window instead overshot the visible area
-  // (window height counts system-bar space the screen doesn't get), which
-  // pushed the bottom bar, scrubber and exit-fullscreen button off screen.
-  // screenH is only the estimate for the first frame after a toggle.
+  // In fullscreen the frame fills the modal window, so the height has to be
+  // *measured* — deriving it from the window instead overshot the area the
+  // frame actually got, which pushed the bottom bar (scrubber, times, mute,
+  // exit-fullscreen) clean off the bottom of the screen. screenH is only the
+  // estimate for the first frame after a toggle.
   const overlayH = fullscreen ? frameH || screenH : playerH;
 
-  return (
+  const frame = (
     <View
       onLayout={e => {
         setFrameH(e.nativeEvent.layout.height);
@@ -454,7 +482,11 @@ export default function VideoPlayer({
 
         {/* Bottom bar: time · scrubber · mute · fullscreen */}
         <View
-          style={[styles.bottomBar, fullscreen && { paddingBottom: Math.max(insets.bottom, 10) + 4 }]}
+          // 24dp floor, not the raw inset: this component reads insets from the
+          // screen it sits in, and a screen inside the tab navigator can report
+          // bottom: 0 (the tab bar consumed it) — which in the fullscreen modal
+          // would drop the bar under the gesture pill.
+          style={[styles.bottomBar, fullscreen && { paddingBottom: Math.max(insets.bottom, 24) + 4 }]}
           pointerEvents="box-none"
         >
           <Text style={styles.time}>{fmtTime(displayTime)}</Text>
@@ -483,9 +515,9 @@ export default function VideoPlayer({
         </View>
       </Animated.View>
 
-      {/* Up next — end-of-clip card for grouped videos. Lives inside the player
-          wrapper (not a Modal) so it shows in fullscreen too, and sits above
-          the control overlay with its own scrim. */}
+      {/* Up next — end-of-clip card for grouped videos. Part of the frame, so
+          it follows the player into fullscreen, and sits above the control
+          overlay with its own scrim. */}
       {showUpNext && (
         <View style={[styles.upNext, { height: overlayH }]}>
           <Text style={styles.upNextLabel}>UP NEXT</Text>
@@ -529,6 +561,30 @@ export default function VideoPlayer({
       )}
     </View>
   );
+
+  if (!fullscreen) return frame;
+
+  // Fullscreen has to be a Modal, not an absolutely-positioned box. This player
+  // renders inside a screen of the bottom-tab navigator, so its parent starts
+  // below the status bar and stops above the tab bar — no amount of positioning
+  // inside that parent reaches the real screen edges, and sizing the frame from
+  // the window instead just overflowed the parent and hid the bottom bar.
+  // A Modal is its own window, so it covers the tab bar and status bar for real.
+  // The placeholder keeps the screen's layout stable behind it.
+  return (
+    <>
+      <View style={[styles.wrap, { height: playerH }]} />
+      <Modal
+        visible
+        statusBarTranslucent
+        animationType="fade"
+        supportedOrientations={['portrait', 'landscape']}
+        onRequestClose={exitFullscreen}
+      >
+        {frame}
+      </Modal>
+    </>
+  );
 }
 
 const hit = { top: 10, bottom: 10, left: 10, right: 10 };
@@ -540,16 +596,12 @@ const makeStyles = colors => StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
   },
-  // Pure-JS fullscreen: the same Video instance expands to cover the screen
-  // (no native fullscreen player, so controls never desync / jump). It fills
-  // its parent — the screen root — rather than taking window dimensions, so
-  // the frame can never extend past the area the screen actually occupies.
-  // Highest zIndex so it sits over the rest of the screen.
+  // Fullscreen frame: fills the modal window that hosts it (see the Modal in
+  // the render), so its measured height is the real screen height — which is
+  // what every overlay's explicit height is derived from.
   wrapFullscreen: {
     aspectRatio: undefined,
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 1000,
-    elevation: 1000,
+    flex: 1,
   },
   // Poster / spinner / error overlays: explicit height passed inline for the
   // same reason — with absoluteFill they collapsed and hugged the top edge.
