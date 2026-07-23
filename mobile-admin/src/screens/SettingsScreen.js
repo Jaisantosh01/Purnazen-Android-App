@@ -238,7 +238,7 @@ const SettingsScreen = ({ navigation }) => {
     }
   };
 
-  // Linked social account: link via Google/GitHub, or unlink the current one.
+  // Linked social account: link via Google, or unlink the current one.
   const linkWith = async provider => {
     setLinkBusy(true);
     try {
@@ -278,7 +278,6 @@ const SettingsScreen = ({ navigation }) => {
     } else {
       showAlert('Link a Social Account', 'Sign in with the account you want to link.', [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'GitHub', onPress: () => linkWith('github') },
         { text: 'Google', onPress: () => linkWith('google') },
       ]);
     }
@@ -379,7 +378,7 @@ const SettingsScreen = ({ navigation }) => {
               icon="link-variant"
               hue={HUES.rose}
               title="Linked Social Account"
-              subtitle="Sign in with Google or GitHub"
+              subtitle="Sign in with Google"
               valueText={
                 linkBusy
                   ? 'Linking...'

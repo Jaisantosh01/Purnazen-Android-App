@@ -20,6 +20,9 @@ import useTheme from '../hooks/useTheme';
 
 const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
 
+// How long the "up next" card counts down before advancing on its own.
+const AUTO_NEXT_MS = 5000;
+
 const fmtTime = s => {
   if (!s || isNaN(s) || s < 0) return '0:00';
   const total = Math.floor(s);
@@ -44,6 +47,12 @@ const fmtTime = s => {
  *   onEnd      fn()       fired when playback reaches the end
  *   onNext     fn()       if provided, shows a "next" button / auto-advances
  *   hasNext    bool       enables the next control
+ *
+ * Playlists (hasNext + onNext) also get an "up next" card when a clip ends:
+ *   nextTitle/nextSubtitle  what the card announces
+ *   autoPlayNext            when on, the card counts 5s down then advances
+ *   onAutoPlayNextChange    fn(bool) — the card's autoplay toggle
+ *   suspendUpNext           hides the card (e.g. while a dialog is open)
  */
 export default function VideoPlayer({
   source,
@@ -53,6 +62,11 @@ export default function VideoPlayer({
   onEnd,
   onNext,
   hasNext = false,
+  nextTitle,
+  nextSubtitle,
+  autoPlayNext = false,
+  onAutoPlayNextChange,
+  suspendUpNext = false,
 }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -74,6 +88,14 @@ export default function VideoPlayer({
   const [muted, setMuted] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
+
+  // "Up next" card: shown when a clip in a playlist ends. With autoplay on it
+  // runs a 5s countdown and advances by itself; the user can play now, cancel
+  // (dismiss for this clip), replay, or flip the toggle right on the card.
+  // `autoNext` mirrors the prop so the toggle works even without a handler.
+  const [autoNext, setAutoNext] = useState(autoPlayNext);
+  const [nextDismissed, setNextDismissed] = useState(false);
+  const [countdownMs, setCountdownMs] = useState(null);
 
   const [trackW, setTrackW] = useState(0);
   const [seeking, setSeeking] = useState(false);
@@ -146,9 +168,63 @@ export default function VideoPlayer({
     setCurrentTime(0);
     setDuration(0);
     setBuffering(true);
+    setNextDismissed(false);
     reveal();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [source?.uri, retryKey]);
+
+  useEffect(() => setAutoNext(autoPlayNext), [autoPlayNext]);
+
+  // Replaying or scrubbing back off the end offers the card again next time.
+  useEffect(() => {
+    if (!ended) setNextDismissed(false);
+  }, [ended]);
+
+  const showUpNext = ended && hasNext && !!onNext && !nextDismissed && !suspendUpNext && !errored;
+
+  // Kept in a ref so a new onNext identity doesn't restart the countdown.
+  const onNextRef = useRef(onNext);
+  useEffect(() => { onNextRef.current = onNext; }, [onNext]);
+
+  // Countdown ticks off wall-clock time (not accumulated intervals) so a
+  // backgrounded / throttled timer can't stretch the 5s into something longer.
+  useEffect(() => {
+    if (!showUpNext || !autoNext) {
+      setCountdownMs(null);
+      return undefined;
+    }
+    const endsAt = Date.now() + AUTO_NEXT_MS;
+    setCountdownMs(AUTO_NEXT_MS);
+    const id = setInterval(() => {
+      const left = endsAt - Date.now();
+      if (left <= 0) {
+        clearInterval(id);
+        setCountdownMs(null);
+        onNextRef.current?.();
+      } else {
+        setCountdownMs(left);
+      }
+    }, 50);
+    return () => clearInterval(id);
+  }, [showUpNext, autoNext]);
+
+  const toggleAutoNext = () => {
+    setAutoNext(v => {
+      onAutoPlayNextChange?.(!v);
+      return !v;
+    });
+  };
+
+  const playNextNow = () => {
+    setCountdownMs(null);
+    onNext?.();
+  };
+
+  const dismissUpNext = () => {
+    setCountdownMs(null);
+    setNextDismissed(true);
+    reveal();
+  };
 
   const togglePlay = () => {
     if (errored) { setErrored(false); setRetryKey(k => k + 1); return; }
@@ -286,11 +362,14 @@ export default function VideoPlayer({
       )}
 
       {/* Tap layer toggles the control overlay (explicit height, like the
-          other overlays, so the whole frame stays tappable) */}
-      <Pressable
-        style={[styles.tapLayer, { height: overlayH }]}
-        onPress={() => (visible ? (setVisible(false), fade(0)) : reveal())}
-      />
+          other overlays, so the whole frame stays tappable). Suppressed while
+          the up-next card is up so taps can't hide the controls under it. */}
+      {!showUpNext && (
+        <Pressable
+          style={[styles.tapLayer, { height: overlayH }]}
+          onPress={() => (visible ? (setVisible(false), fade(0)) : reveal())}
+        />
+      )}
 
       {/* Buffering spinner */}
       {buffering && !errored && (
@@ -316,7 +395,7 @@ export default function VideoPlayer({
           player height on this setup, collapsing the controls to the top. */}
       <Animated.View
         style={[styles.controls, { height: overlayH, opacity }]}
-        pointerEvents={visible && !errored ? 'box-none' : 'none'}
+        pointerEvents={visible && !errored && !showUpNext ? 'box-none' : 'none'}
       >
         {/* Scrim for legibility */}
         <View style={styles.scrim} pointerEvents="none" />
@@ -380,6 +459,63 @@ export default function VideoPlayer({
           </TouchableOpacity>
         </View>
       </Animated.View>
+
+      {/* Up next — end-of-clip card for grouped videos. Lives inside the player
+          wrapper (not a Modal) so it shows in fullscreen too, and sits above
+          the control overlay with its own scrim. */}
+      {showUpNext && (
+        <View style={[styles.upNext, { height: overlayH }]}>
+          <TouchableOpacity
+            style={styles.autoToggle}
+            onPress={toggleAutoNext}
+            activeOpacity={0.8}
+            hitSlop={hit}
+          >
+            <Text style={styles.autoToggleLabel}>Autoplay</Text>
+            <View style={[styles.switchTrack, autoNext && styles.switchTrackOn]}>
+              <View style={[styles.switchKnob, autoNext && styles.switchKnobOn]} />
+            </View>
+          </TouchableOpacity>
+
+          <Text style={styles.upNextLabel}>UP NEXT</Text>
+          {nextTitle ? (
+            <Text style={styles.upNextTitle} numberOfLines={2}>{nextTitle}</Text>
+          ) : null}
+          {nextSubtitle ? <Text style={styles.upNextSub}>{nextSubtitle}</Text> : null}
+
+          <TouchableOpacity style={styles.upNextPlayBtn} onPress={playNextNow} activeOpacity={0.85}>
+            <MCIcon name="play" size={18} color={colors.white} />
+            <Text style={styles.upNextPlayText}>
+              {countdownMs != null
+                ? `Play next in ${Math.ceil(countdownMs / 1000)}s`
+                : 'Play next'}
+            </Text>
+          </TouchableOpacity>
+
+          {countdownMs != null && (
+            <View style={styles.countdownTrack}>
+              <View
+                style={[
+                  styles.countdownFill,
+                  { width: `${clamp(1 - countdownMs / AUTO_NEXT_MS, 0, 1) * 100}%` },
+                ]}
+              />
+            </View>
+          )}
+
+          <View style={styles.upNextGhostRow}>
+            <TouchableOpacity style={styles.upNextGhostBtn} onPress={togglePlay} activeOpacity={0.85}>
+              <MCIcon name="replay" size={16} color={colors.white} />
+              <Text style={styles.upNextGhostText}>Replay</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.upNextGhostBtn} onPress={dismissUpNext} activeOpacity={0.85}>
+              <Text style={styles.upNextGhostText}>
+                {countdownMs != null ? 'Cancel' : 'Not now'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -519,4 +655,87 @@ const makeStyles = colors => StyleSheet.create({
     borderColor: '#fff',
   },
   smallCtrl: { padding: 2 },
+
+  // Up-next card — above the controls (zIndex 3) and the spinner/error
+  // overlay (4); explicit height inline for the same reason as the others.
+  upNext: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    backgroundColor: 'rgba(0,0,0,0.74)',
+    zIndex: 5,
+    elevation: 5,
+  },
+  autoToggle: {
+    position: 'absolute',
+    top: 10,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  autoToggleLabel: { color: colors.white, fontSize: 12, fontWeight: '700' },
+  switchTrack: {
+    width: 38,
+    height: 22,
+    borderRadius: 11,
+    padding: 3,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.28)',
+  },
+  switchTrackOn: { backgroundColor: colors.primary },
+  switchKnob: { width: 16, height: 16, borderRadius: 8, backgroundColor: '#fff' },
+  switchKnobOn: { alignSelf: 'flex-end' },
+
+  upNextLabel: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+  },
+  upNextTitle: {
+    color: colors.white,
+    fontSize: 17,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginTop: 6,
+  },
+  upNextSub: { color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 4 },
+  upNextPlayBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    minWidth: 200,
+    marginTop: 14,
+    paddingHorizontal: 22,
+    paddingVertical: 11,
+    borderRadius: 24,
+    backgroundColor: colors.primary,
+  },
+  upNextPlayText: { color: colors.white, fontSize: 14, fontWeight: '800' },
+  countdownTrack: {
+    width: 200,
+    height: 3,
+    borderRadius: 2,
+    marginTop: 10,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.25)',
+  },
+  countdownFill: { height: 3, borderRadius: 2, backgroundColor: colors.white },
+  upNextGhostRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 },
+  upNextGhostBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+  },
+  upNextGhostText: { color: colors.white, fontSize: 13, fontWeight: '700' },
 });

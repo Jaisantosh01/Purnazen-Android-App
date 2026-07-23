@@ -11,6 +11,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import useTheme from '../hooks/useTheme';
@@ -18,6 +19,9 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { syncVideoProgress } from '../utils/videoTracker';
 import VideoPlayer from '../components/VideoPlayer';
 import AppDialog from '../components/AppDialog';
+
+// Autoplay-next preference — remembered across sessions, on by default.
+const AUTOPLAY_NEXT_KEY = 'video_autoplay_next';
 
 const VideoPlayerScreen = ({ route, navigation }) => {
   const { colors } = useTheme();
@@ -30,6 +34,8 @@ const VideoPlayerScreen = ({ route, navigation }) => {
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const [autoPlayNext, setAutoPlayNext] = useState(true);
 
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [hasPainBefore, setHasPainBefore] = useState(false);
@@ -107,6 +113,17 @@ const VideoPlayerScreen = ({ route, navigation }) => {
       setShowFeedbackModal(false);
     }
   }, [feedbackId, hasPainBefore, painAfter, userFeedback, groupId]);
+
+  useEffect(() => {
+    AsyncStorage.getItem(AUTOPLAY_NEXT_KEY)
+      .then(stored => { if (stored === '0') setAutoPlayNext(false); })
+      .catch(() => {});
+  }, []);
+
+  const handleAutoPlayNextChange = useCallback(next => {
+    setAutoPlayNext(next);
+    AsyncStorage.setItem(AUTOPLAY_NEXT_KEY, next ? '1' : '0').catch(() => {});
+  }, []);
 
   useEffect(() => {
     apiClient
@@ -224,6 +241,7 @@ const VideoPlayerScreen = ({ route, navigation }) => {
   }
 
   const currentVideo = catalog.videos[currentVideoIndex];
+  const nextVideo = catalog.videos[currentVideoIndex + 1];
 
   return (
     <View style={styles.root}>
@@ -246,6 +264,12 @@ const VideoPlayerScreen = ({ route, navigation }) => {
         onEnd={handleEnd}
         onNext={goNext}
         hasNext={hasNext}
+        nextTitle={nextVideo?.title}
+        nextSubtitle={nextVideo ? `${Math.floor(nextVideo.duration / 60)} min` : null}
+        autoPlayNext={autoPlayNext}
+        onAutoPlayNextChange={handleAutoPlayNextChange}
+        // Don't count down (or advance) behind the session-feedback dialog.
+        suspendUpNext={showFeedbackModal}
       />
 
       {/* Floating back button over the player */}
