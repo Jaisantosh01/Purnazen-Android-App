@@ -11,16 +11,16 @@ import {
   ActivityIndicator,
   FlatList,
 } from 'react-native';
-import Video from 'react-native-video';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import * as DocumentPicker from 'expo-document-picker';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
-import { WELLNESS_ICONS } from '../constants/icons';
+import { ICONS_PER_PAGE, WELLNESS_ICONS } from '../constants/icons';
 import { DirGridSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 import { showAlert } from '../utils/alert';
+import { handlePickFiles as sharedHandlePickFiles, uploadOne as sharedUploadOne, handleUploadAll as sharedHandleUploadAll } from '../utils/UploadHelper';
 
 const VIDEO_MIME_TYPES = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'video/webm', 'video/ogg'];
 
@@ -94,6 +94,8 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
 
   // Icon picker
   const [iconPickerFor, setIconPickerFor] = useState(null);
+  const [iconPage, setIconPage] = useState(0);
+  const totalIconPages = Math.ceil(WELLNESS_ICONS.length / ICONS_PER_PAGE);
 
   // Selected videos dropdown
   const [selectedExpanded, setSelectedExpanded] = useState(false);
@@ -283,39 +285,19 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
 
   // Upload queue
   const handlePickFiles = async () => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: 'video/*',
-        multiple: true,
-        copyToCacheDirectory: true,
-      });
-      if (result.canceled) return;
-      const assets = result.assets || [];
-      const videos = assets.filter(f => {
-        const mime = (f.mimeType || '').toLowerCase();
-        return mime.startsWith('video/') || VIDEO_MIME_TYPES.includes(mime);
-      });
-      if (videos.length < assets.length) {
-        showAlert('Some files skipped', 'Only video files are allowed');
-      }
-      if (videos.length === 0) return;
-      const newItems = videos.map((file, i) => ({
-        id: `${Date.now()}_${i}_${file.name}`,
-        file,
-        title: titleFromFilename(file.name),
-        description: '',
-        duration: '',
-        icon: 'play-circle',
-        groupId: groupId,
-        sessionId: null,
-        status: 'pending',
-        error: null,
-      }));
-      setItems(prev => [...prev, ...newItems]);
-      if (newItems.length === 1 && items.length === 0) setExpandedId(newItems[0].id);
-    } catch (err) {
-      showAlert('Error', 'Failed to pick video files');
-    }
+    await sharedHandlePickFiles(
+      currentPath,
+      '', // selectedDir is empty in VideoGroupEditorScreen
+      dirFiles,
+      groupId,
+      setItems,
+      setExpandedId,
+      showAlert
+    );
+  };
+
+  const uploadOne = async (item) => {
+    await sharedUploadOne(item, currentPath);
   };
 
   const updateItem = (id, patch) => {
@@ -327,19 +309,6 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
     if (expandedId === id) setExpandedId(null);
   };
 
-  const targetLabel = (item) => {
-    if (item.sessionId) {
-      const s = sessions.find(x => x.id === item.sessionId);
-      if (s) return `Session: ${s.title}`;
-    }
-    if (item.groupId) {
-      const g = groups.find(x => x.id === item.groupId);
-      if (g) return `Group: ${g.title}`;
-      return 'Group selected';
-    }
-    return 'Select group...';
-  };
-
   const applyTarget = (target) => {
     if (targetPickerFor === '__all__') {
       setItems(prev => prev.map(it => (it.status === 'done' ? it : { ...it, ...target })));
@@ -349,57 +318,29 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
     setTargetPickerFor(null);
   };
 
-  const uploadOne = async (item) => {
-    const formData = new FormData();
-    formData.append('file', {
-      uri: item.file.uri,
-      type: item.file.mimeType || 'video/mp4',
-      name: item.file.name || 'video.mp4',
-    });
-    formData.append('directory', currentPath || '');
-    formData.append('title', item.title.trim());
-    formData.append('description', item.description.trim());
-    formData.append('duration', String(parseInt(item.duration, 10) || 0));
-    formData.append('icon', item.icon);
-    formData.append('video_group_id', '');
-    formData.append('sort_order', '0');
-    await apiClient.post(ENDPOINTS.VIDEO_UPLOAD, formData, { timeout: 600000 });
+  const refreshStorageAndVideos = () => {
+    fetchDirectories();
+    apiClient.get(ENDPOINTS.ALL_VIDEOS)
+      .then(res => setAllVideos(res.data?.videos || []))
+      .catch(() => {});
   };
 
   const handleUploadAll = async () => {
-    const queue = items.filter(it => it.status !== 'done');
-    if (queue.length === 0) return;
-    setUploading(true);
-    setUploadProgress({ current: 0, total: queue.length });
-    let failed = 0;
-    for (let i = 0; i < queue.length; i++) {
-      if (cancelledRef.current) return;
-      const item = queue[i];
-      setUploadProgress({ current: i + 1, total: queue.length });
-      updateItem(item.id, { status: 'uploading', error: null });
-      try {
-        await uploadOne(item);
-        if (cancelledRef.current) return;
-        updateItem(item.id, { status: 'done' });
-      } catch (err) {
-        if (cancelledRef.current) return;
-        failed++;
-        updateItem(item.id, { status: 'failed', error: err?.message || 'Upload failed' });
-      }
-    }
-    setUploading(false);
-    // Refresh videos and directories to include newly uploaded ones
-    const videosRes = await apiClient.get(ENDPOINTS.ALL_VIDEOS);
-    setAllVideos(videosRes.data?.videos || []);
-    fetchDirectories();
-    if (failed === 0) {
-      showAlert('Success', `${queue.length} video${queue.length > 1 ? 's' : ''} uploaded`);
-    } else {
-      showAlert('Upload finished', `${queue.length - failed} succeeded, ${failed} failed`);
-    }
+    await sharedHandleUploadAll({
+      items,
+      updateItem,
+      setItems,
+      setUploading,
+      setUploadProgress,
+      cancelledRef,
+      fetchDirectories: refreshStorageAndVideos,
+      showAlert,
+      selectedDir: currentPath,
+      uploadOne: sharedUploadOne,
+    });
   };
 
-  const readyToUpload = items.some(it => it.status !== 'done');
+  const readyToUpload = items.some(it => it.status === 'pending');
   const canUpload = !uploading && items.length > 0 && readyToUpload;
 
   // Save
@@ -691,33 +632,47 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
               editable={!uploading && item.status !== 'done'}
             />
 
-            <View style={{ flexDirection: 'row', gap: 10 }}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.smallLabel}>Group</Text>
-                <TouchableOpacity
-                  style={styles.pickerInput}
-                  disabled={uploading || item.status === 'done'}
-                  onPress={() => setTargetPickerFor(item.id)}
-                >
-                  <MCIcon name="folder-outline" size={18} color={item.groupId ? colors.primary : colors.textMuted} />
-                  <Text style={[styles.pickerInputText, !item.groupId && { color: colors.textMuted }]} numberOfLines={1}>
-                    {targetLabel(item)}
-                  </Text>
-                  <MCIcon name="chevron-down" size={18} color={colors.textMuted} />
-                </TouchableOpacity>
-              </View>
-              <View>
-                <Text style={styles.smallLabel}>Icon</Text>
-                <TouchableOpacity
-                  style={styles.pickerInput}
-                  disabled={uploading || item.status === 'done'}
-                  onPress={() => setIconPickerFor(item.id)}
-                >
-                  <MCIcon name={item.icon} size={20} color={colors.primary} />
-                  <MCIcon name="chevron-down" size={18} color={colors.textMuted} />
-                </TouchableOpacity>
-              </View>
-            </View>
+            <Text style={styles.smallLabel}>Filename (save as in Azure)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="filename.mp4"
+              placeholderTextColor={colors.textMuted}
+              value={item.saveAs || ''}
+              onChangeText={t => {
+                const existingNames = new Set(dirFiles.map(f => (f.name || '').split('/').pop()?.toLowerCase().trim()));
+                const isDup = existingNames.has(t.toLowerCase().trim());
+                  updateItem(item.id, {
+                    saveAs: t,
+                    status: isDup ? 'failed' : 'pending',
+                    error: isDup ? 'A file with this name already exists in this folder.' : null,
+                  });
+              }}
+              editable={!uploading && item.status !== 'done'}
+              autoCapitalize="none"
+            />
+
+            <TouchableOpacity
+              style={styles.overwriteRow}
+              onPress={() => {
+                if (uploading || item.status === 'done') return;
+                const next = !item.overwrite;
+                updateItem(item.id, {
+                  overwrite: next,
+                  status: item.status === 'failed' ? 'pending' : item.status,
+                  error: next ? null : item.error,
+                });
+              }}
+              disabled={uploading || item.status === 'done'}
+            >
+              <MCIcon
+                name={item.overwrite ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                size={22}
+                color={item.overwrite ? colors.warning : colors.textMuted}
+              />
+              <Text style={[styles.overwriteLabel, item.overwrite && { color: colors.warning }]}>
+                Overwrite if file exists in this folder
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
       </View>
@@ -745,7 +700,7 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
         onBack={handleBackPress}
       />
 
-      <ScrollView style={styles.body} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+      <ScrollView style={styles.body} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: items.length > 0 ? 70 : 120 }}>
         {/* File Picker */}
         <Text style={styles.label}>Upload New Videos</Text>
         <TouchableOpacity style={styles.filePicker} onPress={handlePickFiles} disabled={uploading}>
@@ -761,41 +716,18 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
         {items.length > 0 && (
           <>
             <View style={styles.queueToolbar}>
-              <Text style={styles.queueCount}>New uploads</Text>
-              <TouchableOpacity
-                style={styles.applyAllBtn}
-                disabled={uploading}
-                onPress={() => setTargetPickerFor('__all__')}
-              >
-                <MCIcon name="playlist-check" size={16} color={colors.primary} />
-                <Text style={styles.applyAllText}>Set group for all</Text>
-              </TouchableOpacity>
+              <Text style={styles.queueCount}>New uploads ({items.filter(it => it.status !== 'done').length})</Text>
             </View>
             {items.map(renderQueueItem)}
-
-            <TouchableOpacity
-              style={[styles.uploadBtn, !canUpload && { opacity: 0.5 }]}
-              onPress={handleUploadAll}
-              disabled={!canUpload}
-            >
-              {uploading ? (
-                <ActivityIndicator size="small" color={colors.white} />
-              ) : (
-                <MCIcon name="cloud-upload" size={20} color={colors.white} />
-              )}
-              <Text style={styles.uploadBtnText}>
-                {uploading
-                  ? `Uploading ${uploadProgress.current}/${uploadProgress.total}...`
-                  : `Upload ${items.filter(it => it.status !== 'done').length} Video${items.filter(it => it.status !== 'done').length > 1 ? 's' : ''}`}
-              </Text>
-            </TouchableOpacity>
           </>
         )}
 
+        {items.length === 0 && (
+        <>
         {/* Storage Browser */}
-        <View style={[styles.sectionHeader, { marginTop: items.length > 0 ? 20 : 12 }]}>
+        <View style={styles.sectionHeader}>
           <Text style={styles.label}>
-            Azure Storage {currentPath ? `(${visibleVideoCount} video${visibleVideoCount !== 1 ? 's' : ''})` : ''}
+            Cloud Storage {currentPath ? `(${visibleVideoCount} video${visibleVideoCount !== 1 ? 's' : ''})` : ''}
           </Text>
           <View style={{ flexDirection: 'row', gap: 6 }}>
             {videosInCurrentPath.length > 0 && (
@@ -928,7 +860,8 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
             })}
           </View>
         )}
-
+        </>
+        )}
       </ScrollView>
 
       {/* Expanded selection dropdown — opens ABOVE the bar */}
@@ -948,6 +881,8 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
         </View>
       )}
 
+      {items.length === 0 && (
+      <>
       {/* Selection bar — sticky above Save */}
       <View style={styles.selectionBar}>
         <TouchableOpacity
@@ -984,6 +919,45 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
           </Text>
         </TouchableOpacity>
       </View>
+      </>
+      )}
+
+      {/* Upload bottom bar — shown when items are queued */}
+      {items.length > 0 && (
+      <View style={styles.uploadFooter}>
+        <View style={styles.uploadFooterLeft}>
+          <MCIcon name="folder" size={18} color={colors.primary} />
+          <Text style={styles.uploadFooterText} numberOfLines={1}>
+            {currentPath || 'root'}
+          </Text>
+          <MCIcon name="check-circle" size={18} color={colors.primary} />
+        </View>
+        {uploading ? (
+          <TouchableOpacity
+            style={styles.uploadCancelBtn}
+            onPress={() => {
+              cancelledRef.current = true;
+              setItems([]);
+              setExpandedId(null);
+            }}
+          >
+            <MCIcon name="stop-circle" size={20} color={colors.white} />
+            <Text style={styles.uploadCancelBtnText}>Stop</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={[styles.uploadFooterBtn, !canUpload && { opacity: 0.5 }]}
+            onPress={handleUploadAll}
+            disabled={!canUpload}
+          >
+            <MCIcon name="cloud-upload" size={20} color={colors.white} />
+            <Text style={styles.uploadFooterBtnText}>
+              Upload {items.filter(it => it.status === 'pending').length} Video{items.filter(it => it.status === 'pending').length > 1 ? 's' : ''}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      )}
 
       {/* Video Preview Modal */}
       <Modal visible={!!previewVideo} transparent animationType="fade" onRequestClose={() => setPreviewVideo(null)}>
@@ -1074,22 +1048,43 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
 
       {/* Icon Selector Modal */}
       <Modal visible={!!iconPickerFor} transparent animationType="fade" onRequestClose={() => setIconPickerFor(null)}>
-        <TouchableOpacity style={styles.modalOverlayCentered} activeOpacity={1} onPress={() => setIconPickerFor(null)}>
+        <TouchableOpacity style={styles.modalOverlayCentered} activeOpacity={1} onPress={() => { setIconPickerFor(null); setIconPage(0); }}>
           <View style={styles.iconPickerCard}>
             <View style={styles.wellnessIconGrid}>
-              {WELLNESS_ICONS.map(ic => {
+              {WELLNESS_ICONS.slice(iconPage * ICONS_PER_PAGE, (iconPage + 1) * ICONS_PER_PAGE).map(ic => {
                 const current = items.find(it => it.id === iconPickerFor)?.icon;
                 return (
                   <TouchableOpacity
                     key={ic}
                     style={[styles.wellnessIconBox, current === ic && styles.wellnessIconBoxSelected]}
-                    onPress={() => { updateItem(iconPickerFor, { icon: ic }); setIconPickerFor(null); }}
+                    onPress={() => { updateItem(iconPickerFor, { icon: ic }); setIconPickerFor(null); setIconPage(0); }}
                   >
                     <MCIcon name={ic} size={26} color={current === ic ? colors.white : colors.textPrimary} />
                   </TouchableOpacity>
                 );
               })}
             </View>
+            {totalIconPages > 1 && (
+              <View style={styles.iconPagination}>
+                <TouchableOpacity
+                  style={[styles.iconPageBtn, iconPage === 0 && { opacity: 0.3 }]}
+                  disabled={iconPage === 0}
+                  onPress={() => setIconPage(p => p - 1)}
+                >
+                  <MCIcon name="chevron-left" size={20} color={colors.textPrimary} />
+                  <Text style={styles.iconPageText}>Prev</Text>
+                </TouchableOpacity>
+                <Text style={styles.iconPageIndicator}>{iconPage + 1} / {totalIconPages}</Text>
+                <TouchableOpacity
+                  style={[styles.iconPageBtn, iconPage >= totalIconPages - 1 && { opacity: 0.3 }]}
+                  disabled={iconPage >= totalIconPages - 1}
+                  onPress={() => setIconPage(p => p + 1)}
+                >
+                  <Text style={styles.iconPageText}>Next</Text>
+                  <MCIcon name="chevron-right" size={20} color={colors.textPrimary} />
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         </TouchableOpacity>
       </Modal>
@@ -1114,18 +1109,16 @@ const makeStyles = colors => StyleSheet.create({
   // Upload queue
   queueToolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   queueCount: { fontSize: 13, fontWeight: '700', color: colors.textPrimary },
-  applyAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: colors.primaryLight },
-  applyAllText: { fontSize: 12, fontWeight: '600', color: colors.primary },
   queueCard: { borderWidth: 1, borderColor: colors.border, borderRadius: 12, marginBottom: 8, backgroundColor: colors.card, overflow: 'hidden' },
   queueHeader: { flexDirection: 'row', alignItems: 'center', padding: 12 },
   queueTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
   queueMeta: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
   queueError: { fontSize: 11, color: '#EF4444', marginTop: 2 },
   queueBody: { paddingHorizontal: 12, paddingBottom: 12, borderTopWidth: 1, borderTopColor: colors.border },
+  overwriteRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, paddingVertical: 6 },
+  overwriteLabel: { fontSize: 13, fontWeight: '500', color: colors.textMuted, flex: 1 },
   pickerInput: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 12, backgroundColor: colors.card },
   pickerInputText: { flex: 1, fontSize: 13, color: colors.textPrimary },
-  uploadBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.primary, padding: 14, borderRadius: 10, marginBottom: 4 },
-  uploadBtnText: { fontSize: 14, fontWeight: '700', color: colors.white },
 
   // Section header
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
@@ -1192,6 +1185,15 @@ const makeStyles = colors => StyleSheet.create({
   saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: colors.primary, padding: 16, borderRadius: 12 },
   saveBtnText: { fontSize: 16, fontWeight: '700', color: colors.white },
 
+  // Upload bottom bar (shown when items queued)
+  uploadFooter: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.border, gap: 8 },
+  uploadFooterLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  uploadFooterText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary, flex: 1 },
+  uploadFooterBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10 },
+  uploadFooterBtnText: { fontSize: 13, fontWeight: '700', color: colors.white },
+  uploadCancelBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#EF4444', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10 },
+  uploadCancelBtnText: { fontSize: 13, fontWeight: '700', color: colors.white },
+
   // Modals
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', padding: 20 },
   modalCard: { backgroundColor: colors.card, padding: 20, borderRadius: 16 },
@@ -1205,6 +1207,10 @@ const makeStyles = colors => StyleSheet.create({
   targetOption: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 10, borderRadius: 10, marginBottom: 2 },
   targetOptionText: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
   iconPickerCard: { backgroundColor: colors.card, borderRadius: 16, padding: 16, maxWidth: 400, width: '100%' },
+  iconPagination: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border },
+  iconPageBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, padding: 8 },
+  iconPageText: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
+  iconPageIndicator: { fontSize: 13, fontWeight: '700', color: colors.textMuted },
   wellnessIconGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', padding: 8 },
   wellnessIconBox: { width: 52, height: 52, borderRadius: 12, backgroundColor: colors.surfaceMuted, margin: 5, alignItems: 'center', justifyContent: 'center' },
   wellnessIconBoxSelected: { backgroundColor: colors.primary },

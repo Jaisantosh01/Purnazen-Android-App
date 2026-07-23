@@ -210,6 +210,25 @@ def create_blob_directory(path: str) -> bool:
     return True
 
 
+def blob_exists(blob_path: str) -> bool:
+    """Check if a blob exists in the container."""
+    import logging
+    logger = logging.getLogger(__name__)
+    client = get_blob_service_client()
+    if not client:
+        logger.warning("blob_exists: Azure Storage not configured")
+        return False
+    try:
+        container = client.get_container_client(settings.AZURE_BLOB_CONTAINER_NAME)
+        blob_client = container.get_blob_client(blob_path)
+        blob_client.get_blob_properties()
+        logger.info("blob_exists: found blob at '%s'", blob_path)
+        return True
+    except Exception as exc:
+        logger.info("blob_exists: blob '%s' not found (%s)", blob_path, exc)
+        return False
+
+
 def upload_blob_file(file_data: bytes, blob_path: str, content_type: str = "video/mp4") -> str:
     """Upload raw bytes to Azure Blob Storage.
 

@@ -1,3 +1,4 @@
+import logging
 import os
 import uuid
 from typing import Optional
@@ -13,12 +14,15 @@ from app.repositories.video_repository import VideoRepository
 from app.schemas.video import VideoCreate, VideoGroupCreate, VideoGroupUpdate, VideoUpdate
 from app.services.video_service import VideoService
 from app.utils.azure_storage import (
+    blob_exists,
     create_blob_directory,
     list_all_blobs_with_sas,
     list_blob_children,
     upload_blob_file,
 )
 from app.utils.responses import error_response, success_response
+
+logger = logging.getLogger(__name__)
 
 
 class SyncGroupVideosRequest(BaseModel):
@@ -144,36 +148,56 @@ def create_directory(
 )
 async def upload_video(
     file: UploadFile = File(...),
-    directory: str = Form(...),
+    directory: str = Form(default=""),
     title: str = Form(...),
     description: str = Form(default=""),
     duration: int = Form(default=0),
     icon: str = Form(default="play-circle"),
-    video_group_id: uuid.UUID = Form(...),
+    video_group_id: str = Form(default=""),
     sort_order: int = Form(default=0),
+    overwrite: bool = Form(default=False),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     if not file.filename:
         return error_response("No file provided", 400)
 
+    VIDEO_MIME_PREFIXES = ['video/']
+    VIDEO_EXTENSIONS = {'.mp4', '.mov', '.avi', '.mkv', '.webm', '.ogg', '.wmv', '.flv', '.m4v', '.3gp'}
+    ct = (file.content_type or '').lower()
+    ext = os.path.splitext(file.filename)[1].lower()
+    if not any(ct.startswith(p) for p in VIDEO_MIME_PREFIXES) and not (ext in VIDEO_EXTENSIONS and ct in ('application/octet-stream', '')):
+        return error_response(f"Invalid file type: {ct or ext}. Only video files are allowed.", 400)
+
     dir_path = directory.strip().lstrip("/")
     if dir_path and not dir_path.endswith("/"):
         dir_path += "/"
     blob_path = f"{dir_path}{file.filename}"
+
+    logger.info("upload_video: file='%s' directory='%s' dir_path='%s' blob_path='%s' content_type='%s' overwrite=%s",
+                file.filename, directory, dir_path, blob_path, file.content_type, overwrite)
+
+    # Check for duplicate blob before uploading (unless overwrite is requested)
+    if not overwrite and blob_exists(blob_path):
+        logger.warning("upload_video: DUPLICATE blob '%s' already exists — rejecting", blob_path)
+        return error_response(
+            f'File "{file.filename}" already exists in this folder.',
+            409,
+        )
 
     data = await file.read()
     blob_path = upload_blob_file(data, blob_path, content_type=file.content_type or "video/mp4")
     if not blob_path:
         return error_response("Azure Storage not configured", 503)
 
+    parsed_group_id = uuid.UUID(video_group_id) if video_group_id else None
     create_data = VideoCreate(
         title=title,
         description=description,
         duration=duration,
         icon=icon,
         videoUrl=blob_path,
-        videoGroupId=video_group_id,
+        videoGroupId=parsed_group_id,
         sortOrder=sort_order,
     )
     response, status_code = VideoService.upsert_video(db, user, create_data)

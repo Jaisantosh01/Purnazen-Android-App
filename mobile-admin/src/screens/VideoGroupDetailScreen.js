@@ -6,6 +6,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { SessionPlayerSkeleton } from '../components/SkeletonLoader';
+import NextVideoModal from '../components/NextVideoModal';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 import { showAlert } from '../utils/alert';
@@ -18,6 +19,7 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
   const [loading, setLoading] = useState(true);
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [nextVideoVisible, setNextVideoVisible] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -34,6 +36,20 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
       .finally(() => setLoading(false));
   };
 
+  const handleVideoEnd = () => {
+    const nextIndex = currentVideoIndex + 1;
+    if (catalog?.videos && nextIndex < catalog.videos.length) {
+      setIsPlaying(false);
+      setNextVideoVisible(true);
+    }
+  };
+
+  const handlePlayNext = () => {
+    setCurrentVideoIndex(prev => prev + 1);
+    setNextVideoVisible(false);
+    setIsPlaying(true);
+  };
+
   const renderVideo = ({ item, index }) => {
     const isActive = index === currentVideoIndex;
     const iconName = isActive ? (isPlaying ? 'pause-circle' : 'play-circle') : 'play-circle-outline';
@@ -46,6 +62,7 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
             } else {
               setCurrentVideoIndex(index);
               setIsPlaying(true);
+              setNextVideoVisible(false);
             }
         }}
       >
@@ -68,9 +85,6 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
         onBack={() => navigation.goBack()}
         right={
           <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-            <TouchableOpacity onPress={() => navigation.navigate('UploadVideo', { videoGroupId: groupId })}>
-              <MCIcon name="cloud-upload" size={24} color={colors.headerText} />
-            </TouchableOpacity>
             <TouchableOpacity onPress={() => navigation.navigate('VideoGroupEditor', { groupId, groupTitle })}>
               <MCIcon name="playlist-edit" size={22} color={colors.headerText} />
             </TouchableOpacity>
@@ -103,6 +117,7 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
                         style={styles.video}
                         paused={!isPlaying}
                         resizeMode="contain"
+                        onEnd={handleVideoEnd}
                     />
                 ) : (
                     <View style={styles.placeholder}><Text>Select a video to play</Text></View>
@@ -129,6 +144,15 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
             />
         </View>
       )}
+
+      <NextVideoModal
+        visible={nextVideoVisible}
+        currentTitle={currentVideo?.title || ''}
+        nextTitle={catalog?.videos?.[currentVideoIndex + 1]?.title || ''}
+        onPlayNext={handlePlayNext}
+        onCancel={() => setNextVideoVisible(false)}
+        colors={colors}
+      />
 
     </View>
   );
