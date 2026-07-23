@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
@@ -8,6 +8,7 @@ import {
   TextInput,
   ScrollView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
 // @ts-ignore
@@ -31,31 +32,50 @@ const UserManagementScreen = ({ navigation }) => {
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedRole, setSelectedRole] = useState('All');
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchData();
-    }, [])
-  );
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 400);
+    return () => clearTimeout(timer);
+  }, [search]);
 
-  const fetchData = () => {
-    setLoading(true);
-    Promise.all([
-      apiClient.get(ENDPOINTS.USERS),
-      apiClient.get(ENDPOINTS.ROLES),
-    ])
+  const fetchData = useCallback((pageNum = 1, append = false) => {
+    if (!append) setLoading(true);
+    else setLoadingMore(true);
+
+    const params = { page: pageNum, per_page: 20 };
+    if (debouncedSearch) params.search = debouncedSearch;
+    if (selectedRole !== 'All') params.role = selectedRole;
+
+    const promises = [apiClient.get(ENDPOINTS.USERS, { params })];
+    if (pageNum === 1) promises.push(apiClient.get(ENDPOINTS.ROLES));
+
+    Promise.all(promises)
       .then(([usersRes, rolesRes]) => {
-        setUsers(usersRes?.data || []);
-        setRoles([{ name: 'All', icon: 'account-group' }, ...(rolesRes?.data || [])]);
+        const newUsers = usersRes?.data?.users || [];
+        setUsers(prev => append ? [...prev, ...newUsers] : newUsers);
+        setHasMore(pageNum < (usersRes?.data?.total_pages || 0));
+        setPage(pageNum);
+        if (rolesRes) {
+          setRoles([{ name: 'All', icon: 'account-group' }, ...(rolesRes?.data || [])]);
+        }
       })
       .catch((err) => {
         console.error('Fetch error:', err);
         setUsers([]);
-        setRoles([{ name: 'All', icon: 'account-group' }]);
       })
-      .finally(() => setLoading(false));
-  };
+      .finally(() => { setLoading(false); setLoadingMore(false); });
+  }, [debouncedSearch, selectedRole]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchData(1);
+    }, [fetchData])
+  );
 
   const handleEdit = (item, rowMap) => {
     if (rowMap?.[item.id]) rowMap[item.id].closeRow();
@@ -74,16 +94,17 @@ const UserManagementScreen = ({ navigation }) => {
     ]);
   };
 
-  const filteredUsers = users.filter(u => 
-    (selectedRole === 'All' || (u.role && u.role.toLowerCase() === selectedRole.toLowerCase())) &&
-    (u.full_name?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase()))
-  );
+  const handleLoadMore = () => {
+    if (!loading && !loadingMore && hasMore) {
+      fetchData(page + 1, true);
+    }
+  };
 
   return (
     <View style={styles.root}>
       {/* Header removed from here as it is now in UnifiedUserDoctorScreen */}
 
-      {loading && filteredUsers.length === 0 ? (
+      {loading && users.length === 0 ? (
         <View>
           <View style={styles.searchContainer}>
             <MCIcon name="magnify" size={20} color={colors.textMuted} style={styles.searchIcon} />
@@ -99,7 +120,7 @@ const UserManagementScreen = ({ navigation }) => {
         </View>
       ) : (
       <SwipeListView
-        data={filteredUsers}
+        data={users}
         keyExtractor={item => item.id.toString()}
         leftOpenValue={80}
         rightOpenValue={-80}
@@ -179,7 +200,14 @@ const UserManagementScreen = ({ navigation }) => {
         style={styles.list}
         contentContainerStyle={styles.listContainer}
         refreshing={loading}
-        onRefresh={fetchData}
+        onRefresh={() => fetchData(1)}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={loadingMore ? (
+          <View style={styles.footerLoader}>
+            <ActivityIndicator size="small" color={colors.primary} />
+          </View>
+        ) : null}
         closeOnRowPress={true}
         closeOnRowOpen={true}
         closeOnRowBeginSwipe={true}
@@ -266,6 +294,7 @@ const makeStyles = colors => StyleSheet.create({
     backgroundColor: '#EF4444',
   },
   backBtnText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  footerLoader: { paddingVertical: 20, alignItems: 'center' },
 });
 
 export default UserManagementScreen;

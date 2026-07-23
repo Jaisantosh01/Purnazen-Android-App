@@ -61,7 +61,20 @@ export const handlePickFiles = async (
         error: isDup ? `"${saveAs}" already exists in this folder.` : null,
       };
     });
-    setItems(prev => [...prev, ...newItems]);
+    setItems(prev => {
+      const updated = [...prev];
+      for (const newItem of newItems) {
+        const existingIdx = updated.findIndex(
+          it => it.status === 'failed' && it.file?.name === newItem.file?.name
+        );
+        if (existingIdx >= 0) {
+          updated[existingIdx] = newItem;
+        } else {
+          updated.push(newItem);
+        }
+      }
+      return updated;
+    });
     if (newItems.length === 1) setExpandedId(newItems[0].id);
   } catch (err) {
     showAlert('Error', 'Failed to pick video files');

@@ -229,6 +229,8 @@ def get_all_leaves_admin(
     to_date: Optional[date_type] = Query(None, description="Filter end_date <= this date"),
     leave_type: Optional[str] = Query(None, description="single | multiple | custom"),
     search: Optional[str] = Query(None, description="Search by doctor name"),
+    page: int = Query(1, ge=1, description="Page number (1-based)"),
+    per_page: int = Query(20, ge=1, le=100, description="Items per page"),
     user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
@@ -260,11 +262,25 @@ def get_all_leaves_admin(
         )
         query = query.filter(DoctorLeave.doctor_id.in_(doctor_ids))
 
-    leaves = query.order_by(DoctorLeave.applied_at.desc()).all()
+    total = query.count()
+    total_pages = (total + per_page - 1) // per_page if total else 0
+
+    leaves = (
+        query.order_by(DoctorLeave.applied_at.desc())
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+        .all()
+    )
     serialized = [_leave_to_dict_admin(l) for l in leaves]
     return success_response(
         "Doctor leaves fetched successfully",
-        {"leaves": serialized, "total": len(serialized)},
+        {
+            "leaves": serialized,
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": total_pages,
+        },
     )
 
 
