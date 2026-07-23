@@ -27,7 +27,7 @@ const LoginScreen = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [socialLoading, setSocialLoading] = useState(null); // 'google' | 'github'
+  const [socialLoading, setSocialLoading] = useState(null); // 'google'
   const [focused, setFocused] = useState(null); // 'email' | 'password'
   const emailRef = useRef(null);
   const passwordRef = useRef(null);
@@ -83,9 +83,7 @@ const LoginScreen = ({ navigation }) => {
     setError('');
     setSocialLoading(provider);
     try {
-      await (provider === 'google'
-        ? socialAuthService.signInWithGoogle()
-        : socialAuthService.signInWithGitHub());
+      await socialAuthService.signInWithGoogle();
       // null = user cancelled; success is handled by the auth-state listener
     } catch (err) {
       setError(err.message || 'Sign-in failed. Please try again.');
@@ -219,22 +217,7 @@ const LoginScreen = ({ navigation }) => {
               ) : (
                 <>
                   <MCIcon name="google" size={20} color="#DB4437" />
-                  <Text style={styles.socialBtnText}>Google</Text>
-                </>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.socialBtn}
-              activeOpacity={0.8}
-              onPress={() => handleSocialLogin('github')}
-              disabled={isLoading || !!socialLoading}
-            >
-              {socialLoading === 'github' ? (
-                <ActivityIndicator size="small" color={colors.primary} />
-              ) : (
-                <>
-                  <MCIcon name="github" size={21} color={colors.textPrimary} />
-                  <Text style={styles.socialBtnText}>GitHub</Text>
+                  <Text style={styles.socialBtnText}>Continue with Google</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -242,7 +225,7 @@ const LoginScreen = ({ navigation }) => {
 
           <Text style={styles.note}>
             Admin accounts are provisioned by the Purnazen team — there is no
-            self sign-up. Social sign-in works for existing accounts (same
+            self sign-up. Google sign-in works for existing accounts (same
             email, or linked in Settings).
           </Text>
         </ScrollView>

@@ -1,15 +1,18 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import React, { useState, useMemo, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Switch } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import Video from 'react-native-video';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { SessionPlayerSkeleton } from '../components/SkeletonLoader';
-import NextVideoModal from '../components/NextVideoModal';
+import VideoPlayer from '../components/VideoPlayer';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 import { showAlert } from '../utils/alert';
+
+// Autoplay-next preference — remembered across sessions, on by default.
+const AUTOPLAY_NEXT_KEY = 'video_autoplay_next';
 
 const VideoGroupDetailScreen = ({ route, navigation }) => {
   const { colors } = useTheme();
@@ -18,15 +21,22 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
   const [catalog, setCatalog] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [nextVideoVisible, setNextVideoVisible] = useState(false);
+  const [autoPlayNext, setAutoPlayNext] = useState(true);
 
   useFocusEffect(
     useCallback(() => {
       fetchCatalog();
+      AsyncStorage.getItem(AUTOPLAY_NEXT_KEY)
+        .then(stored => { if (stored === '0') setAutoPlayNext(false); })
+        .catch(() => {});
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [groupId])
   );
+
+  const handleAutoPlayNextChange = useCallback(next => {
+    setAutoPlayNext(next);
+    AsyncStorage.setItem(AUTOPLAY_NEXT_KEY, next ? '1' : '0').catch(() => {});
+  }, []);
 
   const fetchCatalog = () => {
     setLoading(true);
@@ -36,37 +46,19 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
       .finally(() => setLoading(false));
   };
 
-  const handleVideoEnd = () => {
-    const nextIndex = currentVideoIndex + 1;
-    if (catalog?.videos && nextIndex < catalog.videos.length) {
-      setIsPlaying(false);
-      setNextVideoVisible(true);
-    }
-  };
-
-  const handlePlayNext = () => {
-    setCurrentVideoIndex(prev => prev + 1);
-    setNextVideoVisible(false);
-    setIsPlaying(true);
-  };
-
   const renderVideo = ({ item, index }) => {
     const isActive = index === currentVideoIndex;
-    const iconName = isActive ? (isPlaying ? 'pause-circle' : 'play-circle') : 'play-circle-outline';
     return (
-      <TouchableOpacity 
-        style={[styles.card, isActive && styles.activeCard]} 
-        onPress={() => {
-            if (isActive) {
-              setIsPlaying(prev => !prev);
-            } else {
-              setCurrentVideoIndex(index);
-              setIsPlaying(true);
-              setNextVideoVisible(false);
-            }
-        }}
+      <TouchableOpacity
+        style={[styles.card, isActive && styles.activeCard]}
+        onPress={() => setCurrentVideoIndex(index)}
       >
-        <MCIcon name={iconName} size={32} color={isActive ? colors.white : colors.primary} style={styles.icon} />
+        <MCIcon
+          name={isActive ? 'play-circle' : 'play-circle-outline'}
+          size={32}
+          color={isActive ? colors.white : colors.primary}
+          style={styles.icon}
+        />
         <View style={styles.cardContent}>
           <Text style={[styles.videoTitle, isActive && styles.activeText]}>{item.title}</Text>
           <Text style={[styles.videoMeta, isActive && styles.activeText]}>{Math.floor(item.duration / 60)} min</Text>
@@ -76,7 +68,13 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
   };
 
   const currentVideo = catalog?.videos ? catalog.videos[currentVideoIndex] : null;
+  const nextVideo = catalog?.videos ? catalog.videos[currentVideoIndex + 1] : null;
+  const hasNext = !!nextVideo;
   const hasNoVideos = catalog && (!catalog.videos || catalog.videos.length === 0);
+
+  const goNext = useCallback(() => {
+    setCurrentVideoIndex(i => (catalog?.videos?.[i + 1] ? i + 1 : i));
+  }, [catalog]);
 
   return (
     <View style={styles.root}>
@@ -110,24 +108,38 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
               </View>
             ) : null}
 
-            <View style={styles.playerArea}>
-                {currentVideo && currentVideo.videoUrl ? (
-                    <Video
-                        source={{ uri: currentVideo.videoUrl }}
-                        style={styles.video}
-                        paused={!isPlaying}
-                        resizeMode="contain"
-                        onEnd={handleVideoEnd}
-                    />
-                ) : (
-                    <View style={styles.placeholder}><Text>Select a video to play</Text></View>
-                )}
-                {currentVideo && (
-                    <TouchableOpacity style={styles.floatingPlayBtn} onPress={() => setIsPlaying(!isPlaying)}>
-                        <MCIcon name={isPlaying ? 'pause' : 'play'} size={24} color={colors.white} />
-                    </TouchableOpacity>
-                )}
-            </View>
+            <VideoPlayer
+              source={currentVideo?.videoUrl ? { uri: currentVideo.videoUrl } : null}
+              sourceId={currentVideo?.id}
+              poster={<MCIcon name="play-circle-outline" size={72} color={colors.primary} />}
+              onNext={goNext}
+              hasNext={hasNext}
+              nextTitle={nextVideo?.title}
+              nextSubtitle={nextVideo ? `${Math.floor(nextVideo.duration / 60)} min` : null}
+              autoPlayNext={autoPlayNext}
+            />
+
+            {catalog?.videos?.length > 1 && (
+              <View style={styles.autoPlayRow}>
+                <View style={styles.autoPlayIcon}>
+                  <MCIcon name="play-speed" size={18} color={colors.primary} />
+                </View>
+                <View style={styles.autoPlayInfo}>
+                  <Text style={styles.autoPlayTitle}>Autoplay next session</Text>
+                  <Text style={styles.autoPlaySubtitle}>
+                    {autoPlayNext
+                      ? 'Starts the next video 5 seconds after this one ends'
+                      : 'Asks before starting the next video'}
+                  </Text>
+                </View>
+                <Switch
+                  value={autoPlayNext}
+                  onValueChange={handleAutoPlayNextChange}
+                  trackColor={{ false: colors.border, true: colors.primary }}
+                  thumbColor={colors.white}
+                />
+              </View>
+            )}
 
             {currentVideo && currentVideo.description ? (
               <View style={styles.videoDescriptionBanner}>
@@ -145,15 +157,6 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
         </View>
       )}
 
-      <NextVideoModal
-        visible={nextVideoVisible}
-        currentTitle={currentVideo?.title || ''}
-        nextTitle={catalog?.videos?.[currentVideoIndex + 1]?.title || ''}
-        onPlayNext={handlePlayNext}
-        onCancel={() => setNextVideoVisible(false)}
-        colors={colors}
-      />
-
     </View>
   );
 };
@@ -169,10 +172,27 @@ const makeStyles = colors => StyleSheet.create({
   cardContent: { flex: 1 },
   videoTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
   videoMeta: { color: colors.textSecondary, marginTop: 4 },
-  playerArea: { width: '100%', height: 220, backgroundColor: colors.black, justifyContent: 'center', alignItems: 'center' },
-  video: { width: '100%', height: '100%' },
-  placeholder: { color: colors.white },
-  floatingPlayBtn: { position: 'absolute', bottom: 16, right: 16, width: 50, height: 50, borderRadius: 25, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' },
+  autoPlayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: colors.card,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  autoPlayIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primaryLight,
+  },
+  autoPlayInfo: { flex: 1 },
+  autoPlayTitle: { fontSize: 14.5, fontWeight: '700', color: colors.textPrimary },
+  autoPlaySubtitle: { fontSize: 12, color: colors.textMuted, marginTop: 2, lineHeight: 16 },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyText: { marginTop: 16, fontSize: 16, color: colors.textMuted },
   descriptionBanner: { flexDirection: 'row', alignItems: 'center', padding: 14, backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border },
