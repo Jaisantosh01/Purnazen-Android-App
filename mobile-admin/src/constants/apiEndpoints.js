@@ -74,6 +74,7 @@ export const ENDPOINTS = {
   VIDEO_GROUP_CATALOG: (id) => `${API_VERSION}/videos/groups/${id}/catalog`,
   ALL_VIDEOS: `${API_VERSION}/videos`,
   VIDEO_STORAGE_DIRECTORIES: `${API_VERSION}/videos/storage/directories`,
+  VIDEO_ADD_FOLDER: `${API_VERSION}/videos/storage/add-folder`,
   VIDEO_UPLOAD: `${API_VERSION}/videos/upload`,
 
   // Chat

@@ -76,3 +76,5 @@ const _WELLNESS_ICONS = [
 ];
 
 export const WELLNESS_ICONS = [...new Set(_WELLNESS_ICONS)];
+
+export const ICONS_PER_PAGE = 32;
