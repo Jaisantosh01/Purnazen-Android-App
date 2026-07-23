@@ -131,6 +131,7 @@ const HomeScreen = ({ navigation }) => {
                   title="Scheduled Appts"
                   value={stats?.scheduled_appointments}
                   icon="calendar-clock"
+                  onPress={() => navigation.navigate('Manage', { screen: 'AppointmentsMain', params: { filterStatus: 'booked' } })}
                 />
                 <KpiCard
                   title="Today Leaves"

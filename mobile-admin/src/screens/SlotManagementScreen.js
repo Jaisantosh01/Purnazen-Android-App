@@ -111,12 +111,23 @@ const SlotManagementScreen = ({ navigation }) => {
     if (isEditing && editingSlot) {
         apiClient.put(`${ENDPOINTS.SLOT_TIMINGS}/${editingSlot.id}`, payload)
         .then(() => { setModalVisible(false); setIsEditing(false); setEditingSlot(null); fetchSlots(); })
-        .catch(err => showAlert('Error', 'Failed to update slot'));
+        .catch(err => showAlert('Error', err?.message || 'Failed to update slot'));
     } else {
         apiClient.post(ENDPOINTS.SLOT_TIMINGS, payload)
         .then(() => { setModalVisible(false); fetchSlots(); })
-        .catch(err => showAlert('Error', 'Failed to add slot'));
+        .catch(err => showAlert('Error', err?.message || 'Failed to add slot'));
     }
+  };
+
+  // Fresh defaults for each new slot so the picker never carries over the last
+  // slot's time (which produced accidental duplicate/overlapping slots).
+  const openAddModal = () => {
+    setIsEditing(false);
+    setEditingSlot(null);
+    setTargetDay(selectedDay);
+    setStart('09:00:00');
+    setEnd('10:00:00');
+    setModalVisible(true);
   };
 
   const handleDeleteSlot = (slotId) => {
@@ -163,7 +174,7 @@ const SlotManagementScreen = ({ navigation }) => {
         onBack={() => navigation.goBack()}
         underColor={colors.card}
         right={
-          <TouchableOpacity style={styles.addBtn} onPress={() => { setIsEditing(false); setEditingSlot(null); setTargetDay(selectedDay); setModalVisible(true); }}>
+          <TouchableOpacity style={styles.addBtn} onPress={openAddModal}>
             <MCIcon name="plus" size={24} color={colors.headerText} />
           </TouchableOpacity>
         }

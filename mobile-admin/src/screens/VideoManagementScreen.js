@@ -94,8 +94,8 @@ const VideoManagementScreen = ({ navigation }) => {
 
   const openEditGroupModal = (group) => {
     setEditingGroup(group);
-    setGroupTitle(group.title);
-    setGroupDescription(group.description);
+    setGroupTitle(group.title || '');
+    setGroupDescription(group.description || '');
     setGroupIcon(group.icon || ROLE_ICONS[0]);
     setIsEditingGroup(true);
     setGroupModalVisible(true);

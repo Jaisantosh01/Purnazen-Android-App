@@ -9,6 +9,10 @@ PyJWT>=2.10
 bcrypt>=4.2
 psycopg2-binary>=2.9.10
 python-dotenv>=1.0
+# IANA timezone database for zoneinfo.ZoneInfo — the reminder scheduler resolves
+# settings.APP_TIMEZONE, and neither python:3.12-slim nor Windows ships a system
+# tz db.
+tzdata>=2024.1
 slowapi>=0.1.9
 redis>=5.0
 azure-core==1.41.0

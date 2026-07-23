@@ -15,6 +15,12 @@ class Settings(BaseSettings):
     API_V1_PREFIX: str = "/api/v1"
     PROJECT_NAME: str = "Wellness Backend API"
 
+    # IANA timezone for the app's wall-clock domain. Appointment dates and slot
+    # times are stored as bare (offset-naive) values in this zone, so the
+    # reminder scheduler must anchor "now" to it rather than the server's local
+    # time (containers run in UTC). India Standard Time by default.
+    APP_TIMEZONE: str = "Asia/Kolkata"
+
     # Comma-separated list of allowed origins; "*" allows all (dev only)
     CORS_ORIGINS: str = "*"
 

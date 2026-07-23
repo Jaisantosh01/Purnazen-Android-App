@@ -106,9 +106,11 @@ const MetadataManagementScreen = ({ route, navigation }) => {
     </View>
   );
 
+  // Single-direction reveal (swipe right→left) shows Edit + Delete together on
+  // the right. A symmetric two-way swipe let rows rest half-open ("not closing").
   const renderHiddenItem = (data, rowMap) => (
     <View style={styles.rowBack}>
-      <TouchableOpacity style={[styles.backBtn, styles.editBack]} onPress={() => { startEdit(data.item); rowMap[data.item.id]?.closeRow(); }}>
+      <TouchableOpacity style={[styles.backBtn, styles.editBack]} onPress={() => { rowMap[data.item.id]?.closeRow(); startEdit(data.item); }}>
         <MCIcon name="pencil" size={22} color="#fff" />
         <Text style={styles.backBtnText}>Edit</Text>
       </TouchableOpacity>
@@ -139,15 +141,16 @@ const MetadataManagementScreen = ({ route, navigation }) => {
           keyExtractor={item => item.id.toString()}
           renderItem={renderItem}
           renderHiddenItem={renderHiddenItem}
-          leftOpenValue={75}
-          rightOpenValue={-75}
-          stopLeftSwipe={130}
-          stopRightSwipe={-130}
+          disableRightSwipe
+          rightOpenValue={-150}
+          stopRightSwipe={-150}
           contentContainerStyle={styles.listContainer}
           refreshing={loading}
           onRefresh={fetchItems}
           closeOnRowOpen
           closeOnRowPress
+          closeOnRowBeginSwipe
+          closeOnScroll
           ListEmptyComponent={!loading && <Text style={styles.emptyText}>No items found</Text>}
         />
       )}
@@ -194,7 +197,7 @@ const makeStyles = colors => StyleSheet.create({
   listContainer: { padding: 16 },
   itemCard: { backgroundColor: colors.card, padding: 16, borderRadius: 12, marginBottom: 8, flexDirection: 'row', alignItems: 'center' },
   itemName: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
-  rowBack: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, borderRadius: 12, overflow: 'hidden', flex: 1 },
+  rowBack: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 8, borderRadius: 12, overflow: 'hidden', flex: 1 },
   backBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, justifyContent: 'center', width: 75, height: '100%' },
   editBack: { backgroundColor: '#3B82F6' },
   deleteBack: { backgroundColor: '#EF4444' },

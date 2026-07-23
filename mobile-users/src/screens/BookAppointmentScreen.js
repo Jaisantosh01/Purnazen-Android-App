@@ -7,7 +7,10 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
+  Keyboard,
+  Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { showAlert } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -32,8 +35,25 @@ const TAG_TO_VISIT_TYPE = {
 
 const BookAppointmentScreen = ({ navigation, route }) => {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { doctor } = route.params;
+
+  // The sticky footer grows and shrinks (the date/time summary lines come and
+  // go), so its height is measured rather than guessed — a fixed scroll padding
+  // left the last section, "Home Address", trapped behind it.
+  const [barHeight, setBarHeight] = useState(0);
+
+  // While the keyboard is open the footer would sit right on top of it and hide
+  // whatever the user is typing under, so it steps aside until they're done.
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const subShow = Keyboard.addListener(showEvt, () => setKeyboardOpen(true));
+    const subHide = Keyboard.addListener(hideEvt, () => setKeyboardOpen(false));
+    return () => { subShow.remove(); subHide.remove(); };
+  }, []);
 
   const today = new Date();
   const [visitTypes, setVisitTypes]         = useState([]);
@@ -235,7 +255,9 @@ const BookAppointmentScreen = ({ navigation, route }) => {
   for (let i = 1; i <= daysInMonth; i++) {
     calendarDays.push({ day: i, current: true });
   }
-  const remaining = 42 - calendarDays.length;
+  // Only pad out the final week — never a whole empty trailing row — so the
+  // calendar height matches the month and leaves no dead space above "Select Time".
+  const remaining = (7 - (calendarDays.length % 7)) % 7;
   for (let i = 1; i <= remaining; i++) {
     calendarDays.push({ day: i, current: false });
   }
@@ -249,11 +271,44 @@ const BookAppointmentScreen = ({ navigation, route }) => {
     return date < todayStart;
   };
 
+  // Parse a slot's start time ("09:00 AM" / "14:30") into {h, min}.
+  const parseSlotStart = (timeStr) => {
+    const m = /(\d{1,2}):(\d{2})\s*(AM|PM)?/i.exec(String(timeStr || ''));
+    if (!m) return null;
+    let h = parseInt(m[1], 10);
+    const min = parseInt(m[2], 10);
+    const ap = m[3] && m[3].toUpperCase();
+    if (ap === 'PM' && h !== 12) h += 12;
+    if (ap === 'AM' && h === 12) h = 0;
+    return { h, min };
+  };
+
+  // A slot is "past" only when the selected date is today and its start time
+  // has already elapsed — you can't book a slot earlier than the current hour.
+  const isSlotPast = (slot) => {
+    if (!selectedDate) return false;
+    const now = new Date();
+    const selected = new Date(currentYear, currentMonth, selectedDate);
+    if (selected.toDateString() !== now.toDateString()) return false;
+    const t = parseSlotStart(slot.time);
+    if (!t) return false;
+    const slotStart = new Date(currentYear, currentMonth, selectedDate, t.h, t.min);
+    return slotStart <= now;
+  };
+
+  // A slot is unavailable if it's booked OR already elapsed today.
+  const isSlotUnavailable = (slot) => slot.booked || isSlotPast(slot);
+
   return (
     <View style={styles.root}>
       <ScreenHeader title="Book Appointment" subtitle={doctor.name} variant="light" />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        contentContainerStyle={{ paddingBottom: (keyboardOpen ? 0 : barHeight || 120) + 24 }}
+      >
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Select Visit Type</Text>
@@ -382,35 +437,38 @@ const BookAppointmentScreen = ({ navigation, route }) => {
               <Text style={styles.noSlotsTitle}>No Slots Available</Text>
               <Text style={styles.noSlotsText}>Please choose another date.</Text>
             </View>
-          ) : timeSlots.length > 0 && timeSlots.every(s => s.booked) ? (
+          ) : timeSlots.length > 0 && timeSlots.every(isSlotUnavailable) ? (
             <View style={styles.noSlotsCard}>
               <MCIcon name="clock-off-outline" size={28} color={colors.textMuted} />
-              <Text style={styles.noSlotsTitle}>All Slots Booked</Text>
-              <Text style={styles.noSlotsText}>All slots are booked for this date. Please choose another day.</Text>
+              <Text style={styles.noSlotsTitle}>No Slots Available</Text>
+              <Text style={styles.noSlotsText}>All slots for this date are booked or have passed. Please choose another day.</Text>
             </View>
           ) : (
             <View style={styles.timeGrid}>
-              {timeSlots.map(slot => (
-                <TouchableOpacity
-                  key={slot.id}
-                  style={[
-                    styles.timeSlot,
-                    slot.booked && styles.timeSlotBooked,
-                    !slot.booked && selectedTime?.id === slot.id && styles.timeSlotActive,
-                  ]}
-                  onPress={() => !slot.booked && setSelectedTime(slot)}
-                  activeOpacity={slot.booked ? 1 : 0.8}
-                  disabled={slot.booked}
-                >
-                  <Text style={[
-                    styles.timeSlotText,
-                    slot.booked && styles.timeSlotBookedText,
-                    !slot.booked && selectedTime?.id === slot.id && styles.timeSlotTextActive,
-                  ]}>
-                    {slot.time} - {slot.end_time}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              {timeSlots.map(slot => {
+                const unavailable = isSlotUnavailable(slot);
+                return (
+                  <TouchableOpacity
+                    key={slot.id}
+                    style={[
+                      styles.timeSlot,
+                      unavailable && styles.timeSlotBooked,
+                      !unavailable && selectedTime?.id === slot.id && styles.timeSlotActive,
+                    ]}
+                    onPress={() => !unavailable && setSelectedTime(slot)}
+                    activeOpacity={unavailable ? 1 : 0.8}
+                    disabled={unavailable}
+                  >
+                    <Text style={[
+                      styles.timeSlotText,
+                      unavailable && styles.timeSlotBookedText,
+                      !unavailable && selectedTime?.id === slot.id && styles.timeSlotTextActive,
+                    ]}>
+                      {slot.time} - {slot.end_time}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           )}
         </View>
@@ -465,7 +523,18 @@ const BookAppointmentScreen = ({ navigation, route }) => {
 
       </ScrollView>
 
-      <View style={styles.bottomBar}>
+      <View
+        style={[
+          styles.bottomBar,
+          { paddingBottom: 16 + insets.bottom },
+          keyboardOpen && styles.bottomBarHidden,
+        ]}
+        pointerEvents={keyboardOpen ? 'none' : 'auto'}
+        onLayout={e => {
+          const h = e.nativeEvent.layout.height;
+          if (h > 0) setBarHeight(h);
+        }}
+      >
         <View style={styles.summaryRow}>
           {selectedDate && (
             <View style={styles.summaryItem}>
@@ -498,11 +567,12 @@ const BookAppointmentScreen = ({ navigation, route }) => {
 
       {/* Address picker dialog */}
       <AppDialog
+        compact
         visible={showAddressPicker}
         onClose={() => setShowAddressPicker(false)}
         icon="home-map-marker"
         title="Select Address"
-        subtitle="Choose the address for your home visit"
+        subtitle="For your home visit"
         confirmLabel="Close"
         onConfirm={() => setShowAddressPicker(false)}
         showCancel={false}
@@ -669,16 +739,16 @@ const makeStyles = colors => StyleSheet.create({
   /* Address Picker Dialog */
   pickerAddBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    paddingVertical: 12, paddingHorizontal: 10, borderRadius: 12,
+    paddingVertical: 10, paddingHorizontal: 10, borderRadius: 12,
     borderWidth: 1.5, borderColor: colors.primary + '55', borderStyle: 'dashed',
     backgroundColor: colors.primaryFaint,
   },
-  pickerAddBtnText: { fontSize: 14, fontWeight: '600', color: colors.primary },
+  pickerAddBtnText: { fontSize: 13.5, fontWeight: '600', color: colors.primary },
   pickerEmptyText: { fontSize: 13, color: colors.textMuted, textAlign: 'center', paddingVertical: 20 },
   pickerItem: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingVertical: 12, paddingHorizontal: 10, borderRadius: 12,
-    borderWidth: 1, borderColor: 'transparent', marginBottom: 6,
+    paddingVertical: 11, paddingHorizontal: 10, borderRadius: 12,
+    borderWidth: 1, borderColor: 'transparent', marginBottom: 8,
     backgroundColor: colors.surfaceMuted,
   },
   pickerItemActive: { borderColor: colors.primary, backgroundColor: colors.primaryFaint },
@@ -714,6 +784,7 @@ const makeStyles = colors => StyleSheet.create({
     borderTopWidth: 1, borderTopColor: colors.surfaceMuted, elevation: 10,
     shadowColor: colors.black, shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.06, shadowRadius: 6,
   },
+  bottomBarHidden: { display: 'none' },
   summaryRow:    { marginBottom: 10, gap: 4 },
   summaryItem:   { flexDirection: 'row', alignItems: 'center', gap: 6 },
   summaryIcon:   { fontSize: 13 },

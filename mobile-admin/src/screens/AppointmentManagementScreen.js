@@ -143,6 +143,13 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
     }
   }, [route?.params?.filterDate]);
 
+  // Deep-link from dashboard KPIs (e.g. "Scheduled Appts") can preselect a status.
+  useEffect(() => {
+    if (route?.params?.filterStatus) {
+      setAppliedStatus([route.params.filterStatus]);
+    }
+  }, [route?.params?.filterStatus]);
+
   const fetchAppointments = useCallback(() => {
     setLoading(true);
     apiClient

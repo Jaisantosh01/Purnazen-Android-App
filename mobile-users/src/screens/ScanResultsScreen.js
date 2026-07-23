@@ -29,7 +29,32 @@ const METRIC_LABELS = {
   toxinIndicator: 'Toxin indicator',
 };
 
-function buildShareText(results, glowScore, recommendations) {
+const TONGUE_SHARE_ROWS = [
+  ['Tongue colour', 'tongueBodyColor'],
+  ['Coat colour', 'tongueCoatColor'],
+  ['Coat thickness', 'tongueCoatThick'],
+  ['Moisture', 'tongueMoisture'],
+  ['Shape', 'tongueShape'],
+];
+
+function buildShareText(results, glowScore, recommendations, isTongue) {
+  // Tongue and skin scans are distinct reports — share the matching one.
+  if (isTongue) {
+    const lines = ['My Purnazen TCM tongue analysis', ''];
+    if (results.overallWellnessScore != null) lines.push(`Wellness score: ${Math.round(results.overallWellnessScore)}/100`);
+    const markers = TONGUE_SHARE_ROWS.filter(([, key]) => results[key] != null);
+    if (markers.length) {
+      lines.push('', 'Tongue markers:');
+      markers.forEach(([label, key]) => lines.push(`• ${label}: ${results[key]}`));
+    }
+    if (recommendations.length) {
+      lines.push('', 'Top tips:');
+      recommendations.slice(0, 3).forEach(r => lines.push(`• ${r.title}`));
+    }
+    lines.push('', 'Analyzed with Purnazen.');
+    return lines.join('\n');
+  }
+
   const lines = ['My Purnazen skin analysis', ''];
   if (glowScore != null) lines.push(`Glow Score: ${Math.round(glowScore)}/100`);
   if (results.overallWellnessScore != null) lines.push(`Wellness: ${Math.round(results.overallWellnessScore)}/100`);
@@ -91,15 +116,15 @@ const ScanResultsScreen = ({ navigation, route }) => {
     showAlert('Routine', `Opening ${routineKey} routine…`);
   };
 
+  const isTongue = scanType === 'tongue';
+
   const handleShare = async () => {
     try {
-      await Share.share({ message: buildShareText(results, glowScore, recommendations) });
+      await Share.share({ message: buildShareText(results, glowScore, recommendations, isTongue) });
     } catch (e) {
       // user dismissed — no-op
     }
   };
-
-  const isTongue = scanType === 'tongue';
 
   return (
     <View style={styles.root}>
@@ -171,6 +196,25 @@ const ScanResultsScreen = ({ navigation, route }) => {
                   ? 'Good foundation, room to improve'
                   : 'Your skin needs some TLC'}
               </Text>
+
+              {/* Wellness + skin age — surfaced here so they match the shared
+                  report (previously only present in the share text). */}
+              {(results.overallWellnessScore != null || results.skinAgeEstimate != null) && (
+                <View style={styles.statChipsRow}>
+                  {results.overallWellnessScore != null && (
+                    <View style={styles.statChip}>
+                      <Text style={styles.statChipValue}>{Math.round(results.overallWellnessScore)}</Text>
+                      <Text style={styles.statChipLabel}>Wellness</Text>
+                    </View>
+                  )}
+                  {results.skinAgeEstimate != null && (
+                    <View style={styles.statChip}>
+                      <Text style={styles.statChipValue}>{results.skinAgeEstimate}</Text>
+                      <Text style={styles.statChipLabel}>Skin age est.</Text>
+                    </View>
+                  )}
+                </View>
+              )}
             </>
           ) : (
             <View style={styles.tongueScoreBox}>
@@ -192,7 +236,7 @@ const ScanResultsScreen = ({ navigation, route }) => {
           {isTongue ? (
             <View style={styles.tongueGrid}>
               {[
-                ['Body Colour', results.tongueBodyColor],
+                ['Tongue Colour', results.tongueBodyColor],
                 ['Coat Colour', results.tongueCoatColor],
                 ['Coat Thickness', results.tongueCoatThick],
                 ['Moisture', results.tongueMoisture],
@@ -247,7 +291,7 @@ const ScanResultsScreen = ({ navigation, route }) => {
           )}
           <TouchableOpacity
             style={styles.historyLink}
-            onPress={() => navigation.navigate('ScanHistory')}
+            onPress={() => navigation.navigate('ScanHistory', { scanType })}
             activeOpacity={0.7}
           >
             <MCIcon name="history" size={16} color={colors.textSecondary} />
@@ -332,6 +376,30 @@ const makeStyles = colors => StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
     textAlign: 'center',
+  },
+  statChipsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+  },
+  statChip: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    minWidth: 96,
+  },
+  statChipValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.textPrimary,
+  },
+  statChipLabel: {
+    fontSize: 11,
+    color: colors.textMuted,
+    fontWeight: '600',
+    marginTop: 2,
   },
   tongueScoreBox: {
     alignItems: 'center',

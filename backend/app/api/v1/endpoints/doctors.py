@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db, get_current_user, require_role
 from app.services.doctor_service import DoctorService, VISIT_TYPE_ORDER
 from app.utils.responses import error_response, success_response
+from app.utils.names import format_doctor_name
 from app.models.user import User
 
 router = APIRouter(tags=["Doctors"])
@@ -25,7 +26,7 @@ def doctor_card(doctor):
     ]
     return {
         "id": str(doctor.id),
-        "name": f"Dr. {doctor.user.full_name}",
+        "name": format_doctor_name(doctor.user.full_name),
         "full_name": doctor.user.full_name,
         "email": doctor.user.email,
         "phone": doctor.user.phone,
