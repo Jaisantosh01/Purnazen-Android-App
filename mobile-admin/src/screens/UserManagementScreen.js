@@ -170,7 +170,7 @@ const UserManagementScreen = ({ navigation }) => {
           return (
             <TouchableOpacity
               style={styles.userCard}
-              activeOpacity={0.8}
+              activeOpacity={1}
               onPress={() => navigation.navigate('EditUser', { user: item })}
             >
               <View style={[styles.avatar, { backgroundColor: colors.primaryLight }]}>

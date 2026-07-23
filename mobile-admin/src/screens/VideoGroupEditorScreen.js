@@ -1143,7 +1143,7 @@ const makeStyles = colors => StyleSheet.create({
   breadcrumbActive: { color: colors.primary },
 
   // Directory grid mode
-  dirsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  dirsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' },
   dirGridItem: {
     width: '30%', aspectRatio: 1, borderRadius: 12, borderWidth: 1, borderColor: colors.border,
     backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', padding: 8,
