@@ -303,14 +303,19 @@ def sync_group_videos(
 @router.delete(
     "/groups/{group_id}",
     summary="Delete video group",
-    description="Soft-delete a video group and all its associated videos by setting isActive to false.",
+    description=(
+        "Soft-delete a video group and all its associated videos by setting isActive to false. "
+        "Pass `hard=true` to remove the group permanently — refused with 409 when user history "
+        "references it."
+    ),
 )
 def delete_video_group(
     group_id: uuid.UUID,
+    hard: bool = Query(False, description="Permanently delete instead of deactivating."),
     _user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    response, status_code = VideoService.delete_group(db, group_id)
+    response, status_code = VideoService.delete_group(db, group_id, hard=hard)
     if not response["success"]:
         return error_response(response["message"], status_code)
     return success_response(response["message"], None, status_code)
@@ -381,14 +386,18 @@ def update_video(
 @router.delete(
     "/{video_id}",
     summary="Delete video",
-    description="Soft-delete a video from the catalog by setting isActive to false.",
+    description=(
+        "Soft-delete a video from the catalog by setting isActive to false. Pass `hard=true` to "
+        "remove it permanently — refused with 409 when user history references it."
+    ),
 )
 def delete_video(
     video_id: uuid.UUID,
+    hard: bool = Query(False, description="Permanently delete instead of deactivating."),
     _user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    response, status_code = VideoService.delete_video(db, video_id)
+    response, status_code = VideoService.delete_video(db, video_id, hard=hard)
     if not response["success"]:
         return error_response(response["message"], status_code)
     return success_response(response["message"], None, status_code)

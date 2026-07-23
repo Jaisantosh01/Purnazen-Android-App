@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Modal, TextInput, ScrollView, Pressable } from 'react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
+import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
@@ -8,8 +9,15 @@ import { ROLE_ICONS, WELLNESS_ICONS } from '../constants/icons';
 import { ListSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
-import { showAlert } from '../utils/alert';
+import { showAlert, showConfirm } from '../utils/alert';
 import { ICONS_PER_PAGE } from '../constants/icons';
+
+/** Inactive marker for list rows — legible on both palettes (see cardDisabled). */
+const DisabledBadge = ({ styles }) => (
+  <View style={styles.disabledBadge}>
+    <Text style={styles.disabledBadgeText}>Disabled</Text>
+  </View>
+);
 
 const VideoManagementScreen = ({ navigation }) => {
   const { colors } = useTheme();
@@ -29,6 +37,7 @@ const VideoManagementScreen = ({ navigation }) => {
   const [iconModalVisible, setIconModalVisible] = useState(false);
   const [iconTarget, setIconTarget] = useState('group');
   const [groupIconPage, setGroupIconPage] = useState(0);
+  const [groupIsActive, setGroupIsActive] = useState(true);
 
   const [sessionModalVisible, setSessionModalVisible] = useState(false);
   const [isEditingSession, setIsEditingSession] = useState(false);
@@ -39,6 +48,12 @@ const VideoManagementScreen = ({ navigation }) => {
   const [sessionCalculatedDuration, setSessionCalculatedDuration] = useState('');
   const [sessionIconModalVisible, setSessionIconModalVisible] = useState(false);
   const [sessionIconPage, setSessionIconPage] = useState(0);
+  const [sessionIsActive, setSessionIsActive] = useState(true);
+  const [sessionSortMode, setSessionSortMode] = useState(false);
+  const [sortedSessions, setSortedSessions] = useState([]);
+  const [sessionSortOriginal, setSessionSortOriginal] = useState([]);
+  const hasSessionSortChanges = sessionSortMode &&
+    JSON.stringify(sortedSessions.map(s => s.id)) !== JSON.stringify(sessionSortOriginal);
   const totalIconPages = Math.ceil(WELLNESS_ICONS.length / ICONS_PER_PAGE);
 
   useEffect(() => {
@@ -51,7 +66,7 @@ const VideoManagementScreen = ({ navigation }) => {
 
   const fetchVideoGroups = () => {
     setGroupsLoading(true);
-    apiClient.get(ENDPOINTS.VIDEO_GROUPS)
+    apiClient.get(ENDPOINTS.VIDEO_GROUPS, { params: { active_only: false } })
       .then(res => setGroups(res.data?.groups || []))
       .catch(() => showAlert('Error', 'Failed to fetch video groups'))
       .finally(() => setGroupsLoading(false));
@@ -59,7 +74,7 @@ const VideoManagementScreen = ({ navigation }) => {
 
   const fetchSessions = () => {
     setSessionsLoading(true);
-    apiClient.get(ENDPOINTS.ALL_SESSIONS)
+    apiClient.get(ENDPOINTS.ALL_SESSIONS, { params: { active_only: false } })
       .then(res => setSessions(res.data?.sessions || []))
       .catch(() => showAlert('Error', 'Failed to fetch sessions'))
       .finally(() => setSessionsLoading(false));
@@ -68,7 +83,7 @@ const VideoManagementScreen = ({ navigation }) => {
   const handleSaveGroup = () => {
     if (!groupTitle || !groupDescription) { showAlert('Error', 'Please fill in all fields'); return; }
     
-    const payload = { title: groupTitle, description: groupDescription, icon: groupIcon };
+    const payload = { title: groupTitle, description: groupDescription, icon: groupIcon, is_active: groupIsActive };
 
     if (isEditingGroup && editingGroup) {
       apiClient.put(`${ENDPOINTS.VIDEO_GROUPS}/${editingGroup.id}`, payload)
@@ -81,22 +96,60 @@ const VideoManagementScreen = ({ navigation }) => {
     }
   };
 
-  const handleDeleteGroup = (groupId) => {
-    showAlert('Delete Group', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => {
-        apiClient.delete(`${ENDPOINTS.VIDEO_GROUPS}/${groupId}`)
-          .then(fetchVideoGroups)
-          .catch(() => showAlert('Error', 'Failed to delete'));
-      }}
-    ]);
+  /**
+   * Permanent delete behind a themed confirm dialog.
+   *
+   * The API refuses a hard delete (409) when user history points at the
+   * content — destroying it would take watch history and feedback with it. In
+   * that case we don't dead-end: the follow-up offers to disable instead,
+   * which hides it from the apps and leaves the row visibly disabled here.
+   */
+  const confirmHardDelete = ({ kind, name, url, refresh }) => {
+    showConfirm(
+      `Delete ${kind}`,
+      `Permanently delete "${name}"? This cannot be undone.`,
+      async () => {
+        try {
+          await apiClient.delete(url, { params: { hard: true } });
+          refresh();
+        } catch (err) {
+          if (err?.response?.status === 409) {
+            showConfirm(
+              'Cannot delete permanently',
+              err.response?.data?.message || `This ${kind.toLowerCase()} is in use.`,
+              async () => {
+                try {
+                  await apiClient.delete(url);
+                  refresh();
+                } catch {
+                  showAlert('Error', `Failed to disable ${kind.toLowerCase()}`);
+                }
+              },
+              { confirmLabel: 'Disable instead' },
+            );
+            return;
+          }
+          showAlert('Error', err?.response?.data?.message || `Failed to delete ${kind.toLowerCase()}`);
+        }
+      },
+      { confirmLabel: 'Delete', destructive: true },
+    );
   };
+
+  const handleDeleteGroup = (group) =>
+    confirmHardDelete({
+      kind: 'Group',
+      name: group.title,
+      url: `${ENDPOINTS.VIDEO_GROUPS}/${group.id}`,
+      refresh: fetchVideoGroups,
+    });
 
   const openEditGroupModal = (group) => {
     setEditingGroup(group);
     setGroupTitle(group.title || '');
     setGroupDescription(group.description || '');
     setGroupIcon(group.icon || ROLE_ICONS[0]);
+    setGroupIsActive(group.isActive !== false);
     setIsEditingGroup(true);
     setGroupModalVisible(true);
   };
@@ -105,6 +158,7 @@ const VideoManagementScreen = ({ navigation }) => {
     setGroupTitle('');
     setGroupDescription('');
     setGroupIcon(ROLE_ICONS[0]);
+    setGroupIsActive(true);
     setIsEditingGroup(false);
     setEditingGroup(null);
     setGroupModalVisible(true);
@@ -117,6 +171,7 @@ const VideoManagementScreen = ({ navigation }) => {
       title: sessionTitle,
       icon: sessionIcon,
       video_group_id: sessionVideoGroupId,
+      is_active: sessionIsActive,
     };
 
     if (isEditingSession && editingSession) {
@@ -130,15 +185,35 @@ const VideoManagementScreen = ({ navigation }) => {
     }
   };
 
-  const handleDeleteSession = (sessionId) => {
-    showAlert('Delete Session', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => {
-        apiClient.delete(`${ENDPOINTS.ALL_SESSIONS}/${sessionId}`)
-          .then(fetchSessions)
-          .catch(() => showAlert('Error', 'Failed to delete session'));
-      }}
-    ]);
+  const handleDeleteSession = (session) =>
+    confirmHardDelete({
+      kind: 'Session',
+      name: session.title,
+      url: `${ENDPOINTS.ALL_SESSIONS}/${session.id}`,
+      refresh: fetchSessions,
+    });
+
+  const toggleSessionSortMode = () => {
+    if (!sessionSortMode) {
+      setSortedSessions([...sessions]);
+      setSessionSortOriginal(sessions.map(s => s.id));
+    } else {
+      setSortedSessions([]);
+    }
+    setSessionSortMode(prev => !prev);
+  };
+
+  const saveSessionOrder = async () => {
+    try {
+      await Promise.all(sortedSessions.map((s, i) =>
+        apiClient.put(`${ENDPOINTS.ALL_SESSIONS}/${s.id}`, { sort_order: i })
+      ));
+      setSessionSortMode(false);
+      fetchSessions();
+      showAlert('Saved', 'Session order updated');
+    } catch (err) {
+      showAlert('Error', err?.message || 'Failed to save order');
+    }
   };
 
   const openEditSessionModal = (session) => {
@@ -147,6 +222,7 @@ const VideoManagementScreen = ({ navigation }) => {
     setSessionIcon(session.icon || 'meditation');
     setSessionVideoGroupId(session.videoGroupId);
     setSessionCalculatedDuration(session.duration || '');
+    setSessionIsActive(session.isActive !== false);
     setIsEditingSession(true);
     setSessionModalVisible(true);
   };
@@ -156,24 +232,39 @@ const VideoManagementScreen = ({ navigation }) => {
     setSessionIcon('meditation');
     setSessionVideoGroupId(null);
     setSessionCalculatedDuration('');
+    setSessionIsActive(true);
     setIsEditingSession(false);
     setEditingSession(null);
     setSessionModalVisible(true);
   };
 
-  const groupRenderHiddenItem = (data, rowMap) => (
-    <View style={styles.rowBack}>
-      <TouchableOpacity style={[styles.backBtn, styles.editBack]} onPress={() => { openEditGroupModal(data.item); rowMap[data.item.id]?.closeRow(); }}><MCIcon name="pencil" size={24} color={colors.white} /></TouchableOpacity>
-      <TouchableOpacity style={[styles.backBtn, styles.deleteBack]} onPress={() => { handleDeleteGroup(data.item.id); rowMap[data.item.id]?.closeRow(); }}><MCIcon name="delete" size={24} color={colors.white} /></TouchableOpacity>
-    </View>
-  );
-
-  const sessionRenderHiddenItem = (data, rowMap) => (
-    <View style={styles.rowBack}>
-      <TouchableOpacity style={[styles.backBtn, styles.editBack]} onPress={() => { openEditSessionModal(data.item); rowMap[data.item.id]?.closeRow(); }}><MCIcon name="pencil" size={24} color={colors.white} /></TouchableOpacity>
-      <TouchableOpacity style={[styles.backBtn, styles.deleteBack]} onPress={() => { handleDeleteSession(data.item.id); rowMap[data.item.id]?.closeRow(); }}><MCIcon name="delete" size={24} color={colors.white} /></TouchableOpacity>
-    </View>
-  );
+  /**
+   * Swipe layer shared by both tabs: swipe right reveals Edit on the left,
+   * swipe left reveals Delete on the right. The row is closed before the
+   * action runs so the dialog never opens on top of a half-open row.
+   */
+  const renderSwipeActions = (item, rowMap, { onEdit, onDelete }) => {
+    if (!item) return <View style={styles.rowBack} />;
+    const close = () => rowMap[item.id]?.closeRow();
+    return (
+      <View style={styles.rowBack}>
+        <TouchableOpacity
+          style={[styles.backBtn, styles.editBack]}
+          onPress={() => { close(); onEdit(item); }}
+        >
+          <MCIcon name="pencil" size={22} color="#fff" />
+          <Text style={styles.backBtnText}>Edit</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.backBtn, styles.deleteBack]}
+          onPress={() => { close(); onDelete(item); }}
+        >
+          <MCIcon name="delete" size={22} color="#fff" />
+          <Text style={styles.backBtnText}>Delete</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   const renderTabBar = () => (
     <View style={styles.tabBar}>
@@ -203,48 +294,129 @@ const VideoManagementScreen = ({ navigation }) => {
 
       {activeTab === 'sessions' && (
         sessionsLoading ? <ListSkeleton count={5} /> :
+        sessionSortMode ? (
+          <View style={{ flex: 1 }}>
+            <View style={styles.sortBanner}>
+              <MCIcon name="drag-variant" size={18} color={colors.warning} />
+              <Text style={styles.sortBannerText}>Drag the handle to reorder sessions</Text>
+            </View>
+            <DraggableFlatList
+              data={sortedSessions}
+              onDragEnd={({ data }) => setSortedSessions(data)}
+              keyExtractor={item => item.id.toString()}
+              renderItem={({ item, drag, isActive, getIndex }) => (
+                <ScaleDecorator>
+                  <TouchableOpacity activeOpacity={1} onLongPress={drag} delayLongPress={0}>
+                    <View style={[styles.card, isActive && { backgroundColor: colors.primaryLight }]}>
+                      <View style={styles.iconContainer}><MCIcon name={item.icon || 'meditation'} size={24} color={colors.primary} /></View>
+                      <View style={styles.cardContent}>
+                        <Text style={styles.groupTitle}>{item.title}</Text>
+                        <Text style={styles.groupDescription}>{item.duration}</Text>
+                      </View>
+                      <MCIcon name="drag-variant" size={24} color={colors.textMuted} style={{ paddingHorizontal: 12 }} />
+                    </View>
+                  </TouchableOpacity>
+                </ScaleDecorator>
+              )}
+              contentContainerStyle={styles.list}
+            />
+            <View style={styles.sortFooter}>
+              <Text style={styles.sortFooterText}>{sortedSessions.length} session{sortedSessions.length !== 1 ? 's' : ''}</Text>
+              <TouchableOpacity
+                style={[styles.sortSaveBtn, !hasSessionSortChanges && styles.sortSaveBtnDisabled]}
+                disabled={!hasSessionSortChanges}
+                onPress={saveSessionOrder}
+              >
+                <MCIcon name="content-save" size={18} color={hasSessionSortChanges ? colors.white : colors.textMuted} />
+                <Text style={[styles.sortSaveText, !hasSessionSortChanges && styles.sortSaveTextDisabled]}>
+                  Save Order
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
         <SwipeListView
           data={sessions}
           keyExtractor={item => item.id.toString()}
-          renderItem={({ item }) => (
-            <TouchableOpacity activeOpacity={1} style={styles.card} onPress={() => {
-              if (item.videoGroupId) {
-                navigation.navigate('VideoGroupDetail', { groupId: item.videoGroupId, groupTitle: item.title });
-              }
-            }}>
-              <View style={styles.iconContainer}><MCIcon name={item.icon || 'meditation'} size={24} color={colors.primary} /></View>
-              <View style={styles.cardContent}>
-                <Text style={styles.groupTitle}>{item.title}</Text>
-                <Text style={styles.groupDescription}>{item.duration}</Text>
+          renderItem={({ item }) => {
+            const disabled = item.isActive === false;
+            return (
+              <View style={[styles.card, disabled && styles.cardDisabled]}>
+                <TouchableOpacity activeOpacity={0.7} style={styles.cardMain} onPress={() => {
+                  if (item.videoGroupId) {
+                    navigation.navigate('VideoGroupDetail', { groupId: item.videoGroupId, groupTitle: item.title });
+                  }
+                }}
+                onLongPress={toggleSessionSortMode}
+                >
+                  <View style={[styles.iconContainer, disabled && styles.iconContainerDisabled]}>
+                    <MCIcon name={item.icon || 'meditation'} size={24} color={disabled ? colors.textMuted : colors.primary} />
+                  </View>
+                  <View style={styles.cardContent}>
+                    <View style={styles.titleRow}>
+                      <Text style={[styles.groupTitle, disabled && styles.textDisabled]} numberOfLines={1}>{item.title}</Text>
+                      {disabled && <DisabledBadge styles={styles} />}
+                    </View>
+                    <Text style={[styles.groupDescription, disabled && styles.textDisabled]}>{item.duration}</Text>
+                  </View>
+                  {item.videoGroupId && <MCIcon name="chevron-right" size={24} color={colors.textMuted} />}
+                </TouchableOpacity>
               </View>
-              {item.videoGroupId && <MCIcon name="chevron-right" size={24} color={colors.textMuted} />}
-            </TouchableOpacity>
-          )}
-          renderHiddenItem={sessionRenderHiddenItem}
-          leftOpenValue={75}
-          rightOpenValue={-75}
+            );
+          }}
+          renderHiddenItem={(data, rowMap) =>
+            renderSwipeActions(data.item, rowMap, {
+              onEdit: openEditSessionModal,
+              onDelete: handleDeleteSession,
+            })
+          }
+          leftOpenValue={SWIPE_WIDTH}
+          rightOpenValue={-SWIPE_WIDTH}
+          closeOnRowPress={true}
+          closeOnRowOpen={true}
+          closeOnRowBeginSwipe={true}
+          style={{ flex: 1 }}
           contentContainerStyle={styles.list}
         />
-      )}
-
+      ))}
+ 
       {activeTab === 'groups' && (
         groupsLoading ? <ListSkeleton count={5} /> :
         <SwipeListView
           data={groups}
           keyExtractor={item => item.id.toString()}
-          renderItem={({ item }) => (
-            <TouchableOpacity activeOpacity={1} style={styles.card} onPress={() => navigation.navigate('VideoGroupDetail', { groupId: item.id, groupTitle: item.title })}>
-              <View style={styles.iconContainer}><MCIcon name={item.icon || 'folder'} size={24} color={colors.primary} /></View>
-              <View style={styles.cardContent}>
-                <Text style={styles.groupTitle}>{item.title}</Text>
-                <Text style={styles.groupDescription}>{item.description}</Text>
+          renderItem={({ item }) => {
+            const disabled = item.isActive === false;
+            return (
+              <View style={[styles.card, disabled && styles.cardDisabled]}>
+                <TouchableOpacity activeOpacity={0.7} style={styles.cardMain} onPress={() => navigation.navigate('VideoGroupDetail', { groupId: item.id, groupTitle: item.title })}>
+                  <View style={[styles.iconContainer, disabled && styles.iconContainerDisabled]}>
+                    <MCIcon name={item.icon || 'folder'} size={24} color={disabled ? colors.textMuted : colors.primary} />
+                  </View>
+                  <View style={styles.cardContent}>
+                    <View style={styles.titleRow}>
+                      <Text style={[styles.groupTitle, disabled && styles.textDisabled]} numberOfLines={1}>{item.title}</Text>
+                      {disabled && <DisabledBadge styles={styles} />}
+                    </View>
+                    <Text style={[styles.groupDescription, disabled && styles.textDisabled]} numberOfLines={1}>{item.description}</Text>
+                  </View>
+                  <MCIcon name="chevron-right" size={24} color={colors.textMuted} />
+                </TouchableOpacity>
               </View>
-              <MCIcon name="chevron-right" size={24} color={colors.textMuted} />
-            </TouchableOpacity>
-          )}
-          renderHiddenItem={groupRenderHiddenItem}
-          leftOpenValue={75}
-          rightOpenValue={-75}
+            );
+          }}
+          renderHiddenItem={(data, rowMap) =>
+            renderSwipeActions(data.item, rowMap, {
+              onEdit: openEditGroupModal,
+              onDelete: handleDeleteGroup,
+            })
+          }
+          leftOpenValue={SWIPE_WIDTH}
+          rightOpenValue={-SWIPE_WIDTH}
+          closeOnRowPress={true}
+          closeOnRowOpen={true}
+          closeOnRowBeginSwipe={true}
+          style={{ flex: 1 }}
           contentContainerStyle={styles.list}
         />
       )}
@@ -263,6 +435,11 @@ const VideoManagementScreen = ({ navigation }) => {
                 <TouchableOpacity style={styles.iconInput} onPress={() => { setIconTarget('group'); setIconModalVisible(true); }}>
                     <MCIcon name={groupIcon} size={24} color={colors.primary} />
                     <Text style={{marginLeft: 10, color: colors.textPrimary}}>{groupIcon}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.checkRow} onPress={() => setGroupIsActive(!groupIsActive)}>
+                  <MCIcon name={groupIsActive ? 'checkbox-marked' : 'checkbox-blank-outline'} size={22} color={groupIsActive ? colors.primary : colors.textMuted} />
+                  <Text style={[styles.checkLabel, !groupIsActive && { color: colors.textMuted }]}>Active</Text>
                 </TouchableOpacity>
 
                 <View style={styles.modalActions}>
@@ -304,9 +481,15 @@ const VideoManagementScreen = ({ navigation }) => {
               </TouchableOpacity>
 
               <Text style={styles.label}>Video Group <Text style={{color: '#EF4444'}}>*</Text></Text>
+
+              <TouchableOpacity style={styles.checkRow} onPress={() => setSessionIsActive(!sessionIsActive)}>
+                <MCIcon name={sessionIsActive ? 'checkbox-marked' : 'checkbox-blank-outline'} size={22} color={sessionIsActive ? colors.primary : colors.textMuted} />
+                <Text style={[styles.checkLabel, !sessionIsActive && { color: colors.textMuted }]}>Active</Text>
+              </TouchableOpacity>
+
               <View style={styles.groupPickerContainer}>
                 {groups
-                  .filter(g => g.is_active !== false)
+                  .filter(g => g.isActive !== false)
                   .map(g => (
                     <TouchableOpacity
                       key={g.id}
@@ -416,19 +599,70 @@ const VideoManagementScreen = ({ navigation }) => {
   );
 };
 
+// Reveal width for the swipe actions — shared with the action button width so
+// an open row sits exactly flush against it.
+const SWIPE_WIDTH = 88;
+
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   list: { padding: 16 },
-  card: { backgroundColor: colors.card, padding: 16, borderRadius: 12, marginBottom: 12, flexDirection: 'row', alignItems: 'center', elevation: 2 },
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    marginBottom: 12,
+    elevation: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  cardMain: { flex: 1, flexDirection: 'row', alignItems: 'center', padding: 16 },
+  // Disabled rows are marked, not tinted. A background swap can't carry this:
+  // surfaceMuted is all but identical to card in light mode and *lighter* than
+  // it in dark, where it reads as highlighted — the opposite of the intent. So
+  // the card keeps its own surface (text contrast stays correct in both
+  // themes) and the state is carried by the badge + muted content + flat edge.
+  cardDisabled: { borderColor: colors.borderStrong, borderStyle: 'dashed', elevation: 0 },
   iconContainer: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center', marginRight: 15 },
+  iconContainerDisabled: { backgroundColor: colors.surfaceMuted },
   cardContent: { flex: 1 },
-  groupTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  groupTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary, flexShrink: 1 },
   groupDescription: { color: colors.textSecondary, marginTop: 4 },
+  textDisabled: { color: colors.textMuted },
+  disabledBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surfaceMuted,
+  },
+  disabledBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+    color: colors.textMuted,
+  },
   addBtn: { backgroundColor: 'rgba(255,255,255,0.2)', width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  rowBack: { flexDirection: 'row', justifyContent: 'space-between', flex: 1, alignItems: 'center', marginBottom: 12, borderRadius: 12, overflow: 'hidden' },
-  backBtn: { width: 75, height: '100%', justifyContent: 'center', alignItems: 'center' },
+  // Swipe layer. justify-content space-between is the fix: without it both
+  // actions pack against the left edge, so the delete sat under the card and
+  // swiping left revealed nothing you could press.
+  rowBack: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'stretch',
+    marginBottom: 12,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  backBtn: { width: SWIPE_WIDTH, alignItems: 'center', justifyContent: 'center', gap: 4 },
   editBack: { backgroundColor: colors.primary },
   deleteBack: { backgroundColor: colors.danger },
+  backBtnText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', padding: 20 },
   modalCard: {
   backgroundColor: colors.card,
@@ -442,6 +676,8 @@ const makeStyles = colors => StyleSheet.create({
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 10 },
   modalBtn: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 8, backgroundColor: colors.surfaceMuted },
   saveBtn: { backgroundColor: colors.primary },
+  checkRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12, paddingVertical: 6 },
+  checkLabel: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
   iconOption: { padding: 10, borderRadius: 8, backgroundColor: colors.surfaceMuted, margin: 4 },
   tabBar: { flexDirection: 'row', backgroundColor: colors.card, paddingHorizontal: 16, paddingBottom: 12, paddingTop:10 ,borderBottomWidth: 1, borderBottomColor: colors.border },
   tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8, marginHorizontal: 4 },
@@ -465,6 +701,17 @@ const makeStyles = colors => StyleSheet.create({
   iconPageBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, padding: 8 },
   iconPageText: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
   iconPageIndicator: { fontSize: 13, fontWeight: '700', color: colors.textMuted },
+  sortBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: colors.warning + '18' },
+  sortBannerText: { fontSize: 13, color: colors.warning, fontWeight: '600' },
+  dragHandle: { paddingHorizontal: 12, paddingVertical: 16, justifyContent: 'center', alignItems: 'center' },
+  sortFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.border },
+  sortFooterText: { fontSize: 13, color: colors.textMuted },
+  sortSaveBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
+  // Same reasoning as cardDisabled: a real surface + muted content, not an
+  // opacity fade that turns to mud on the dark palette.
+  sortSaveBtnDisabled: { backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
+  sortSaveText: { color: colors.white, fontWeight: '600', fontSize: 14 },
+  sortSaveTextDisabled: { color: colors.textMuted },
 });
 
 export default VideoManagementScreen;

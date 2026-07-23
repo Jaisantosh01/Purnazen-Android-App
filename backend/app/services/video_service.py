@@ -10,6 +10,27 @@ from app.utils.azure_storage import generate_video_sas_url
 
 class VideoService:
     @staticmethod
+    def _history_refs(db: Session, *, group_id: uuid.UUID = None, video_id: uuid.UUID = None) -> int:
+        """Count user-history rows pointing at this content.
+
+        ``therapy_sessions`` (watch history) and ``therapy_feedback`` reference
+        groups/videos through NOT NULL foreign keys, so a hard delete would
+        either fail on the constraint or take real user history with it. When
+        any exist the hard delete is refused and the caller soft-deletes
+        instead — content disappears from the apps either way, but history and
+        the reporting built on it stay intact.
+        """
+        from app.models.therapy_feedback import TherapyFeedback
+        from app.models.therapy_session import TherapySession
+
+        if group_id is not None:
+            return (
+                db.query(TherapySession).filter(TherapySession.group_id == group_id).count()
+                + db.query(TherapyFeedback).filter(TherapyFeedback.video_group_id == group_id).count()
+            )
+        return db.query(TherapySession).filter(TherapySession.video_id == video_id).count()
+
+    @staticmethod
     def _process_video_data(data: dict):
         if data.get("videoUrl"):
             data["videoUrl"] = generate_video_sas_url(data["videoUrl"])
@@ -49,15 +70,41 @@ class VideoService:
             return {"success": True, "message": "Video group created", "group": group.to_dict()}, 201
 
     @staticmethod
-    def delete_group(db: Session, group_id: uuid.UUID):
+    def delete_group(db: Session, group_id: uuid.UUID, hard: bool = False):
         group = VideoGroupRepository.get_by_id(db, group_id)
         if not group:
             return {"success": False, "message": "Video group not found"}, 404
-        
+
+        if hard:
+            refs = VideoService._history_refs(db, group_id=group_id)
+            if refs:
+                return {
+                    "success": False,
+                    "message": (
+                        f"This group has {refs} user history record(s) and cannot be permanently "
+                        "deleted. Disable it instead — it will disappear from the apps."
+                    ),
+                }, 409
+            # Detach the config that points here (both FKs are nullable) so the
+            # delete doesn't trip the constraint, then drop the group. Its
+            # video_mappings cascade; the videos themselves stay in the library.
+            from app.models.chat_option import ChatOption
+            from app.models.wellness_session import WellnessSession
+
+            db.query(WellnessSession).filter(WellnessSession.video_group_id == group_id).update(
+                {"video_group_id": None}, synchronize_session=False
+            )
+            db.query(ChatOption).filter(ChatOption.video_group_id == group_id).update(
+                {"video_group_id": None}, synchronize_session=False
+            )
+            db.delete(group)
+            db.commit()
+            return {"success": True, "message": "Video group permanently deleted"}, 200
+
         # Soft delete associated video mappings
         for mapping in group.video_mappings:
             mapping.is_active = False
-            
+
         VideoGroupRepository.delete(db, group)
         return {"success": True, "message": "Video group deleted (deactivated)"}, 200
 
@@ -126,11 +173,27 @@ class VideoService:
                 return {"success": True, "message": "Video created", "video": VideoService._process_video_data(video.to_dict())}, 201
 
     @staticmethod
-    def delete_video(db: Session, video_id: uuid.UUID):
+    def delete_video(db: Session, video_id: uuid.UUID, hard: bool = False):
         video = VideoRepository.get_by_id(db, video_id)
         if not video:
             return {"success": False, "message": "Video not found"}, 404
-        
+
+        if hard:
+            refs = VideoService._history_refs(db, video_id=video_id)
+            if refs:
+                return {
+                    "success": False,
+                    "message": (
+                        f"This video has {refs} user history record(s) and cannot be permanently "
+                        "deleted. Disable it instead — it will disappear from the apps."
+                    ),
+                }, 409
+            # group_mappings cascade with the row. The blob in storage is left
+            # alone: the same file can back more than one catalog entry.
+            db.delete(video)
+            db.commit()
+            return {"success": True, "message": "Video permanently deleted"}, 200
+
         # Soft delete all mappings for this video
         for mapping in video.group_mappings:
             mapping.is_active = False
