@@ -1,6 +1,8 @@
 import uuid
+from typing import Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db, require_role
@@ -18,13 +20,40 @@ router = APIRouter(prefix="/users", tags=["Users"])
 
 @router.get("", summary="Get all users (admin only)")
 def get_all_users(
+    page: int = Query(1, ge=1, description="Page number (1-based)"),
+    per_page: int = Query(20, ge=1, le=100, description="Items per page"),
+    search: Optional[str] = Query(None, description="Search by name or email"),
+    role: Optional[str] = Query(None, description="Filter by role name"),
     db: Session = Depends(get_db),
     user: User = Depends(require_role("admin")),
 ):
-    users = db.query(User).all()
+    query = db.query(User)
+
+    if search:
+        query = query.filter(
+            User.full_name.ilike(f"%{search}%") | User.email.ilike(f"%{search}%")
+        )
+    if role:
+        query = query.join(User.role).filter(Role.name.ilike(role))
+
+    total = query.count()
+    total_pages = (total + per_page - 1) // per_page if total else 0
+
+    users = (
+        query.order_by(User.created_at.desc())
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+        .all()
+    )
     return success_response(
         "Users fetched successfully",
-        [u.to_dict() for u in users],
+        {
+            "users": [u.to_dict() for u in users],
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": total_pages,
+        },
     )
 
 

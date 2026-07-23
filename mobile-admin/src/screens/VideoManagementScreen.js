@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Modal, TextInput, ScrollView, Pressable } from 'react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
+import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
@@ -29,6 +30,7 @@ const VideoManagementScreen = ({ navigation }) => {
   const [iconModalVisible, setIconModalVisible] = useState(false);
   const [iconTarget, setIconTarget] = useState('group');
   const [groupIconPage, setGroupIconPage] = useState(0);
+  const [groupIsActive, setGroupIsActive] = useState(true);
 
   const [sessionModalVisible, setSessionModalVisible] = useState(false);
   const [isEditingSession, setIsEditingSession] = useState(false);
@@ -39,6 +41,12 @@ const VideoManagementScreen = ({ navigation }) => {
   const [sessionCalculatedDuration, setSessionCalculatedDuration] = useState('');
   const [sessionIconModalVisible, setSessionIconModalVisible] = useState(false);
   const [sessionIconPage, setSessionIconPage] = useState(0);
+  const [sessionIsActive, setSessionIsActive] = useState(true);
+  const [sessionSortMode, setSessionSortMode] = useState(false);
+  const [sortedSessions, setSortedSessions] = useState([]);
+  const [sessionSortOriginal, setSessionSortOriginal] = useState([]);
+  const hasSessionSortChanges = sessionSortMode &&
+    JSON.stringify(sortedSessions.map(s => s.id)) !== JSON.stringify(sessionSortOriginal);
   const totalIconPages = Math.ceil(WELLNESS_ICONS.length / ICONS_PER_PAGE);
 
   useEffect(() => {
@@ -51,7 +59,7 @@ const VideoManagementScreen = ({ navigation }) => {
 
   const fetchVideoGroups = () => {
     setGroupsLoading(true);
-    apiClient.get(ENDPOINTS.VIDEO_GROUPS)
+    apiClient.get(ENDPOINTS.VIDEO_GROUPS, { params: { active_only: false } })
       .then(res => setGroups(res.data?.groups || []))
       .catch(() => showAlert('Error', 'Failed to fetch video groups'))
       .finally(() => setGroupsLoading(false));
@@ -59,7 +67,7 @@ const VideoManagementScreen = ({ navigation }) => {
 
   const fetchSessions = () => {
     setSessionsLoading(true);
-    apiClient.get(ENDPOINTS.ALL_SESSIONS)
+    apiClient.get(ENDPOINTS.ALL_SESSIONS, { params: { active_only: false } })
       .then(res => setSessions(res.data?.sessions || []))
       .catch(() => showAlert('Error', 'Failed to fetch sessions'))
       .finally(() => setSessionsLoading(false));
@@ -68,7 +76,7 @@ const VideoManagementScreen = ({ navigation }) => {
   const handleSaveGroup = () => {
     if (!groupTitle || !groupDescription) { showAlert('Error', 'Please fill in all fields'); return; }
     
-    const payload = { title: groupTitle, description: groupDescription, icon: groupIcon };
+    const payload = { title: groupTitle, description: groupDescription, icon: groupIcon, is_active: groupIsActive };
 
     if (isEditingGroup && editingGroup) {
       apiClient.put(`${ENDPOINTS.VIDEO_GROUPS}/${editingGroup.id}`, payload)
@@ -97,6 +105,7 @@ const VideoManagementScreen = ({ navigation }) => {
     setGroupTitle(group.title || '');
     setGroupDescription(group.description || '');
     setGroupIcon(group.icon || ROLE_ICONS[0]);
+    setGroupIsActive(group.isActive !== false);
     setIsEditingGroup(true);
     setGroupModalVisible(true);
   };
@@ -105,6 +114,7 @@ const VideoManagementScreen = ({ navigation }) => {
     setGroupTitle('');
     setGroupDescription('');
     setGroupIcon(ROLE_ICONS[0]);
+    setGroupIsActive(true);
     setIsEditingGroup(false);
     setEditingGroup(null);
     setGroupModalVisible(true);
@@ -117,6 +127,7 @@ const VideoManagementScreen = ({ navigation }) => {
       title: sessionTitle,
       icon: sessionIcon,
       video_group_id: sessionVideoGroupId,
+      is_active: sessionIsActive,
     };
 
     if (isEditingSession && editingSession) {
@@ -141,12 +152,36 @@ const VideoManagementScreen = ({ navigation }) => {
     ]);
   };
 
+  const toggleSessionSortMode = () => {
+    if (!sessionSortMode) {
+      setSortedSessions([...sessions]);
+      setSessionSortOriginal(sessions.map(s => s.id));
+    } else {
+      setSortedSessions([]);
+    }
+    setSessionSortMode(prev => !prev);
+  };
+
+  const saveSessionOrder = async () => {
+    try {
+      await Promise.all(sortedSessions.map((s, i) =>
+        apiClient.put(`${ENDPOINTS.ALL_SESSIONS}/${s.id}`, { sort_order: i })
+      ));
+      setSessionSortMode(false);
+      fetchSessions();
+      showAlert('Saved', 'Session order updated');
+    } catch (err) {
+      showAlert('Error', err?.message || 'Failed to save order');
+    }
+  };
+
   const openEditSessionModal = (session) => {
     setEditingSession(session);
     setSessionTitle(session.title);
     setSessionIcon(session.icon || 'meditation');
     setSessionVideoGroupId(session.videoGroupId);
     setSessionCalculatedDuration(session.duration || '');
+    setSessionIsActive(session.isActive !== false);
     setIsEditingSession(true);
     setSessionModalVisible(true);
   };
@@ -156,24 +191,33 @@ const VideoManagementScreen = ({ navigation }) => {
     setSessionIcon('meditation');
     setSessionVideoGroupId(null);
     setSessionCalculatedDuration('');
+    setSessionIsActive(true);
     setIsEditingSession(false);
     setEditingSession(null);
     setSessionModalVisible(true);
   };
 
-  const groupRenderHiddenItem = (data, rowMap) => (
+  const groupRenderHiddenItem = (data, rowMap) => {
+    const item = data.item;
+    if (!item) return <View style={styles.rowBack} />;
+    return (
     <View style={styles.rowBack}>
-      <TouchableOpacity style={[styles.backBtn, styles.editBack]} onPress={() => { openEditGroupModal(data.item); rowMap[data.item.id]?.closeRow(); }}><MCIcon name="pencil" size={24} color={colors.white} /></TouchableOpacity>
-      <TouchableOpacity style={[styles.backBtn, styles.deleteBack]} onPress={() => { handleDeleteGroup(data.item.id); rowMap[data.item.id]?.closeRow(); }}><MCIcon name="delete" size={24} color={colors.white} /></TouchableOpacity>
+      <TouchableOpacity style={[styles.backBtn, styles.editBack]} onPress={() => { openEditGroupModal(item); rowMap[item.id]?.closeRow(); }}><MCIcon name="pencil" size={24} color={colors.white} /><Text style={styles.backBtnText}>Edit</Text></TouchableOpacity>
+      <TouchableOpacity style={[styles.backBtn, styles.deleteBack]} onPress={() => { handleDeleteGroup(item.id); rowMap[item.id]?.closeRow(); }}><MCIcon name="delete" size={24} color={colors.white} /><Text style={styles.backBtnText}>Delete</Text></TouchableOpacity>
     </View>
-  );
+    );
+  };
 
-  const sessionRenderHiddenItem = (data, rowMap) => (
+  const sessionRenderHiddenItem = (data, rowMap) => {
+    const item = data.item;
+    if (!item) return <View style={styles.rowBack} />;
+    return (
     <View style={styles.rowBack}>
-      <TouchableOpacity style={[styles.backBtn, styles.editBack]} onPress={() => { openEditSessionModal(data.item); rowMap[data.item.id]?.closeRow(); }}><MCIcon name="pencil" size={24} color={colors.white} /></TouchableOpacity>
-      <TouchableOpacity style={[styles.backBtn, styles.deleteBack]} onPress={() => { handleDeleteSession(data.item.id); rowMap[data.item.id]?.closeRow(); }}><MCIcon name="delete" size={24} color={colors.white} /></TouchableOpacity>
+      <TouchableOpacity style={[styles.backBtn, styles.editBack]} onPress={() => { openEditSessionModal(item); rowMap[item.id]?.closeRow(); }}><MCIcon name="pencil" size={24} color={colors.white} /><Text style={styles.backBtnText}>Edit</Text></TouchableOpacity>
+      <TouchableOpacity style={[styles.backBtn, styles.deleteBack]} onPress={() => { handleDeleteSession(item.id); rowMap[item.id]?.closeRow(); }}><MCIcon name="delete" size={24} color={colors.white} /><Text style={styles.backBtnText}>Delete</Text></TouchableOpacity>
     </View>
-  );
+    );
+  };
 
   const renderTabBar = () => (
     <View style={styles.tabBar}>
@@ -203,48 +247,143 @@ const VideoManagementScreen = ({ navigation }) => {
 
       {activeTab === 'sessions' && (
         sessionsLoading ? <ListSkeleton count={5} /> :
+        sessionSortMode ? (
+          <View style={{ flex: 1 }}>
+            <View style={styles.sortBanner}>
+              <MCIcon name="drag-variant" size={18} color={colors.warning} />
+              <Text style={styles.sortBannerText}>Drag the handle to reorder sessions</Text>
+            </View>
+            <DraggableFlatList
+              data={sortedSessions}
+              onDragEnd={({ data }) => setSortedSessions(data)}
+              keyExtractor={item => item.id.toString()}
+              renderItem={({ item, drag, isActive, getIndex }) => (
+                <ScaleDecorator>
+                  <TouchableOpacity activeOpacity={1} onLongPress={drag} delayLongPress={0}>
+                    <View style={[styles.card, isActive && { backgroundColor: colors.primaryLight }]}>
+                      <View style={styles.iconContainer}><MCIcon name={item.icon || 'meditation'} size={24} color={colors.primary} /></View>
+                      <View style={styles.cardContent}>
+                        <Text style={styles.groupTitle}>{item.title}</Text>
+                        <Text style={styles.groupDescription}>{item.duration}</Text>
+                      </View>
+                      <MCIcon name="drag-variant" size={24} color={colors.textMuted} style={{ paddingHorizontal: 12 }} />
+                    </View>
+                  </TouchableOpacity>
+                </ScaleDecorator>
+              )}
+              contentContainerStyle={styles.list}
+            />
+            <View style={styles.sortFooter}>
+              <Text style={styles.sortFooterText}>{sortedSessions.length} session{sortedSessions.length !== 1 ? 's' : ''}</Text>
+              <TouchableOpacity
+                style={[styles.sortSaveBtn, !hasSessionSortChanges && { opacity: 0.5 }]}
+                disabled={!hasSessionSortChanges}
+                onPress={saveSessionOrder}
+              >
+                <MCIcon name="content-save" size={18} color={colors.white} />
+                <Text style={styles.sortSaveText}>Save Order</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
         <SwipeListView
           data={sessions}
           keyExtractor={item => item.id.toString()}
           renderItem={({ item }) => (
-            <TouchableOpacity activeOpacity={1} style={styles.card} onPress={() => {
-              if (item.videoGroupId) {
-                navigation.navigate('VideoGroupDetail', { groupId: item.videoGroupId, groupTitle: item.title });
-              }
-            }}>
-              <View style={styles.iconContainer}><MCIcon name={item.icon || 'meditation'} size={24} color={colors.primary} /></View>
-              <View style={styles.cardContent}>
-                <Text style={styles.groupTitle}>{item.title}</Text>
-                <Text style={styles.groupDescription}>{item.duration}</Text>
-              </View>
-              {item.videoGroupId && <MCIcon name="chevron-right" size={24} color={colors.textMuted} />}
-            </TouchableOpacity>
+            <View style={[styles.card, item.isActive === false && styles.cardDisabled]}>
+              <TouchableOpacity activeOpacity={1} style={styles.cardMain} onPress={() => {
+                if (item.videoGroupId) {
+                  navigation.navigate('VideoGroupDetail', { groupId: item.videoGroupId, groupTitle: item.title });
+                }
+              }}
+              onLongPress={toggleSessionSortMode}
+              >
+                <View style={styles.iconContainer}><MCIcon name={item.icon || 'meditation'} size={24} color={colors.primary} /></View>
+                <View style={styles.cardContent}>
+                  <Text style={styles.groupTitle}>{item.title}</Text>
+                  <Text style={styles.groupDescription}>{item.duration}</Text>
+                </View>
+                {item.videoGroupId && <MCIcon name="chevron-right" size={24} color={colors.textMuted} />}
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.cardActionBtn} onPress={() => openEditSessionModal(item)}>
+                <MCIcon name="pencil" size={18} color={colors.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.cardActionBtn} onPress={() => handleDeleteSession(item.id)}>
+                <MCIcon name="delete" size={18} color={colors.danger} />
+              </TouchableOpacity>
+            </View>
           )}
-          renderHiddenItem={sessionRenderHiddenItem}
+          renderHiddenItem={(data, rowMap) => {
+            const item = data.item;
+            if (!item) return <View style={styles.rowBack} />;
+            return (
+            <View style={styles.rowBack}>
+              <TouchableOpacity style={styles.editBtn} onPress={() => { openEditSessionModal(item); rowMap[item.id]?.closeRow(); }}>
+                <MCIcon name="pencil" size={22} color="#fff" />
+                <Text style={styles.backBtnText}>Edit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.deleteBtn} onPress={() => { handleDeleteSession(item.id); rowMap[item.id]?.closeRow(); }}>
+                <MCIcon name="delete" size={22} color="#fff" />
+                <Text style={styles.backBtnText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+            );
+          }}
           leftOpenValue={75}
           rightOpenValue={-75}
+          closeOnRowPress={true}
+          closeOnRowOpen={true}
+          closeOnRowBeginSwipe={true}
+          style={{ flex: 1 }}
           contentContainerStyle={styles.list}
         />
-      )}
-
+      ))}
+ 
       {activeTab === 'groups' && (
         groupsLoading ? <ListSkeleton count={5} /> :
         <SwipeListView
           data={groups}
           keyExtractor={item => item.id.toString()}
           renderItem={({ item }) => (
-            <TouchableOpacity activeOpacity={1} style={styles.card} onPress={() => navigation.navigate('VideoGroupDetail', { groupId: item.id, groupTitle: item.title })}>
-              <View style={styles.iconContainer}><MCIcon name={item.icon || 'folder'} size={24} color={colors.primary} /></View>
-              <View style={styles.cardContent}>
-                <Text style={styles.groupTitle}>{item.title}</Text>
-                <Text style={styles.groupDescription}>{item.description}</Text>
-              </View>
-              <MCIcon name="chevron-right" size={24} color={colors.textMuted} />
-            </TouchableOpacity>
+            <View style={[styles.card, item.isActive === false && styles.cardDisabled]}>
+              <TouchableOpacity activeOpacity={1} style={styles.cardMain} onPress={() => navigation.navigate('VideoGroupDetail', { groupId: item.id, groupTitle: item.title })}>
+                <View style={styles.iconContainer}><MCIcon name={item.icon || 'folder'} size={24} color={colors.primary} /></View>
+                <View style={styles.cardContent}>
+                  <Text style={styles.groupTitle}>{item.title}</Text>
+                  <Text style={styles.groupDescription}>{item.description}</Text>
+                </View>
+                <MCIcon name="chevron-right" size={24} color={colors.textMuted} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.cardActionBtn} onPress={() => openEditGroupModal(item)}>
+                <MCIcon name="pencil" size={18} color={colors.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.cardActionBtn} onPress={() => handleDeleteGroup(item.id)}>
+                <MCIcon name="delete" size={18} color={colors.danger} />
+              </TouchableOpacity>
+            </View>
           )}
-          renderHiddenItem={groupRenderHiddenItem}
+          renderHiddenItem={(data, rowMap) => {
+            const item = data.item;
+            if (!item) return <View style={styles.rowBack} />;
+            return (
+            <View style={styles.rowBack}>
+              <TouchableOpacity style={styles.editBtn} onPress={() => { openEditGroupModal(item); rowMap[item.id]?.closeRow(); }}>
+                <MCIcon name="pencil" size={22} color="#fff" />
+                <Text style={styles.backBtnText}>Edit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.deleteBtn} onPress={() => { handleDeleteGroup(item.id); rowMap[item.id]?.closeRow(); }}>
+                <MCIcon name="delete" size={22} color="#fff" />
+                <Text style={styles.backBtnText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+            );
+          }}
           leftOpenValue={75}
           rightOpenValue={-75}
+          closeOnRowPress={true}
+          closeOnRowOpen={true}
+          closeOnRowBeginSwipe={true}
+          style={{ flex: 1 }}
           contentContainerStyle={styles.list}
         />
       )}
@@ -263,6 +402,11 @@ const VideoManagementScreen = ({ navigation }) => {
                 <TouchableOpacity style={styles.iconInput} onPress={() => { setIconTarget('group'); setIconModalVisible(true); }}>
                     <MCIcon name={groupIcon} size={24} color={colors.primary} />
                     <Text style={{marginLeft: 10, color: colors.textPrimary}}>{groupIcon}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.checkRow} onPress={() => setGroupIsActive(!groupIsActive)}>
+                  <MCIcon name={groupIsActive ? 'checkbox-marked' : 'checkbox-blank-outline'} size={22} color={groupIsActive ? colors.primary : colors.textMuted} />
+                  <Text style={[styles.checkLabel, !groupIsActive && { color: colors.textMuted }]}>Active</Text>
                 </TouchableOpacity>
 
                 <View style={styles.modalActions}>
@@ -304,9 +448,15 @@ const VideoManagementScreen = ({ navigation }) => {
               </TouchableOpacity>
 
               <Text style={styles.label}>Video Group <Text style={{color: '#EF4444'}}>*</Text></Text>
+
+              <TouchableOpacity style={styles.checkRow} onPress={() => setSessionIsActive(!sessionIsActive)}>
+                <MCIcon name={sessionIsActive ? 'checkbox-marked' : 'checkbox-blank-outline'} size={22} color={sessionIsActive ? colors.primary : colors.textMuted} />
+                <Text style={[styles.checkLabel, !sessionIsActive && { color: colors.textMuted }]}>Active</Text>
+              </TouchableOpacity>
+
               <View style={styles.groupPickerContainer}>
                 {groups
-                  .filter(g => g.is_active !== false)
+                  .filter(g => g.isActive !== false)
                   .map(g => (
                     <TouchableOpacity
                       key={g.id}
@@ -419,16 +569,19 @@ const VideoManagementScreen = ({ navigation }) => {
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   list: { padding: 16 },
-  card: { backgroundColor: colors.card, padding: 16, borderRadius: 12, marginBottom: 12, flexDirection: 'row', alignItems: 'center', elevation: 2 },
+  card: { backgroundColor: colors.card, borderRadius: 12, marginBottom: 12, elevation: 2, flexDirection: 'row', alignItems: 'center', overflow: 'hidden' },
+  cardMain: { flex: 1, flexDirection: 'row', alignItems: 'center', padding: 16 },
+  cardActionBtn: { padding: 12, justifyContent: 'center', alignItems: 'center' },
+  cardDisabled: { backgroundColor: colors.surfaceMuted },
   iconContainer: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center', marginRight: 15 },
   cardContent: { flex: 1 },
   groupTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
   groupDescription: { color: colors.textSecondary, marginTop: 4 },
   addBtn: { backgroundColor: 'rgba(255,255,255,0.2)', width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  rowBack: { flexDirection: 'row', justifyContent: 'space-between', flex: 1, alignItems: 'center', marginBottom: 12, borderRadius: 12, overflow: 'hidden' },
-  backBtn: { width: 75, height: '100%', justifyContent: 'center', alignItems: 'center' },
-  editBack: { backgroundColor: colors.primary },
-  deleteBack: { backgroundColor: colors.danger },
+  rowBack: { flexDirection: 'row', flex: 1, alignItems: 'stretch', marginBottom: 12, borderRadius: 12, overflow: 'hidden' },
+  editBtn: { width: 75, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center', paddingVertical: 16 },
+  deleteBtn: { width: 75, backgroundColor: colors.danger, justifyContent: 'center', alignItems: 'center', paddingVertical: 16 },
+  backBtnText: { color: '#fff', fontSize: 12, fontWeight: '600' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', padding: 20 },
   modalCard: {
   backgroundColor: colors.card,
@@ -442,6 +595,8 @@ const makeStyles = colors => StyleSheet.create({
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 10 },
   modalBtn: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 8, backgroundColor: colors.surfaceMuted },
   saveBtn: { backgroundColor: colors.primary },
+  checkRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12, paddingVertical: 6 },
+  checkLabel: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
   iconOption: { padding: 10, borderRadius: 8, backgroundColor: colors.surfaceMuted, margin: 4 },
   tabBar: { flexDirection: 'row', backgroundColor: colors.card, paddingHorizontal: 16, paddingBottom: 12, paddingTop:10 ,borderBottomWidth: 1, borderBottomColor: colors.border },
   tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8, marginHorizontal: 4 },
@@ -465,6 +620,13 @@ const makeStyles = colors => StyleSheet.create({
   iconPageBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, padding: 8 },
   iconPageText: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
   iconPageIndicator: { fontSize: 13, fontWeight: '700', color: colors.textMuted },
+  sortBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: colors.warning + '18' },
+  sortBannerText: { fontSize: 13, color: colors.warning, fontWeight: '600' },
+  dragHandle: { paddingHorizontal: 12, paddingVertical: 16, justifyContent: 'center', alignItems: 'center' },
+  sortFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.border },
+  sortFooterText: { fontSize: 13, color: colors.textMuted },
+  sortSaveBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
+  sortSaveText: { color: colors.white, fontWeight: '600', fontSize: 14 },
 });
 
 export default VideoManagementScreen;

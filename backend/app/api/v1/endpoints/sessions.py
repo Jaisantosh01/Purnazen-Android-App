@@ -1,6 +1,7 @@
 import uuid
+from typing import Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
@@ -20,8 +21,11 @@ router = APIRouter(tags=["Sessions"])
     summary="List wellness sessions",
     description="Wellness player catalog (yoga/meditation/breathing routines).",
 )
-def get_sessions(db: Session = Depends(get_db)):
-    sessions = SessionCatalogService.get_wellness_sessions(db)
+def get_sessions(
+    active_only: Optional[bool] = Query(None, description="Filter to only active sessions"),
+    db: Session = Depends(get_db),
+):
+    sessions = SessionCatalogService.get_wellness_sessions(db, active_only)
     return success_response(
         "Sessions fetched successfully",
         {"sessions": sessions, "total": len(sessions)},
