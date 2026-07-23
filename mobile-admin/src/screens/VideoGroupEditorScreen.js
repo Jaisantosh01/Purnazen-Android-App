@@ -17,6 +17,7 @@ import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { ICONS_PER_PAGE, WELLNESS_ICONS } from '../constants/icons';
 import { DirGridSkeleton } from '../components/SkeletonLoader';
+import VideoPlayer from '../components/VideoPlayer';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 import { showAlert } from '../utils/alert';
@@ -972,7 +973,15 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
               </TouchableOpacity>
             </View>
             {previewVideo?.videoUrl && (
-              <Video source={{ uri: previewVideo.videoUrl }} style={styles.previewVideo} resizeMode="contain" controls />
+              <View style={styles.previewVideo}>
+                {/* No fullscreen from inside a modal card — it would only fill
+                    the card, not the screen. */}
+                <VideoPlayer
+                  source={{ uri: previewVideo.videoUrl }}
+                  sourceId={previewVideo.videoUrl}
+                  allowFullscreen={false}
+                />
+              </View>
             )}
           </TouchableOpacity>
         </TouchableOpacity>
@@ -1170,7 +1179,8 @@ const makeStyles = colors => StyleSheet.create({
   previewCard: { backgroundColor: colors.card, borderRadius: 16, padding: 16, maxWidth: 500, width: '100%' },
   previewHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   previewTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary, flex: 1, marginRight: 12 },
-  previewVideo: { width: '100%', height: 240, borderRadius: 8, backgroundColor: colors.black },
+  // Height comes from the player itself (it sizes to the clip's aspect ratio).
+  previewVideo: { width: '100%', borderRadius: 8, overflow: 'hidden', backgroundColor: colors.black },
 
   // Selection bar (fixed above footer)
   selectionBar: { backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.border, paddingHorizontal: 20, paddingVertical: 10 },

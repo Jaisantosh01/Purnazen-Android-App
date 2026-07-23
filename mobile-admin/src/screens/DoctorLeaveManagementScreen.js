@@ -628,34 +628,39 @@ const DoctorLeaveManagementScreen = ({ navigation, route }) => {
       <Modal visible={statusModalVisible} transparent animationType="fade">
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setStatusModalVisible(false)}>
           <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>{newStatus === 'approved' ? 'Approve' : 'Reject'} Leave</Text>
-            {selectedLeave && (
-              <Text style={styles.modalSubtitle}>
-                {selectedLeave.doctorName || selectedLeave.doctorId} - {selectedLeave.leaveDate || selectedLeave.startDate || '—'}
-              </Text>
-            )}
-            {selectedLeave?.reason && (
-              <Text style={styles.modalReason}>Doctor reason: {selectedLeave.reason}</Text>
-            )}
-            <Text style={styles.inputLabel}>Admin Reason (optional)</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Enter reason..."
-              placeholderTextColor={colors.textMuted}
-              value={adminReason}
-              onChangeText={setAdminReason}
-              multiline
-            />
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={[styles.modalBtn, styles.modalCancelBtn]} onPress={() => setStatusModalVisible(false)}>
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalBtn, { backgroundColor: newStatus === 'approved' ? '#10B981' : '#EF4444' }]}
-                onPress={confirmStatusUpdate}
-              >
-                <Text style={styles.modalConfirmText}>Confirm</Text>
-              </TouchableOpacity>
+            {/* Padding lives on this body wrapper, not on modalContainer — the
+                detail modal above shares that container and needs its coloured
+                header to run edge to edge. */}
+            <View style={styles.statusModalBody}>
+              <Text style={styles.modalTitle}>{newStatus === 'approved' ? 'Approve' : 'Reject'} Leave</Text>
+              {selectedLeave && (
+                <Text style={styles.modalSubtitle}>
+                  {selectedLeave.doctorName || selectedLeave.doctorId} - {selectedLeave.leaveDate || selectedLeave.startDate || '—'}
+                </Text>
+              )}
+              {selectedLeave?.reason && (
+                <Text style={styles.modalReason}>Doctor reason: {selectedLeave.reason}</Text>
+              )}
+              <Text style={styles.inputLabel}>Admin Reason (optional)</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Enter reason..."
+                placeholderTextColor={colors.textMuted}
+                value={adminReason}
+                onChangeText={setAdminReason}
+                multiline
+              />
+              <View style={styles.modalActions}>
+                <TouchableOpacity style={[styles.modalBtn, styles.modalCancelBtn]} onPress={() => setStatusModalVisible(false)}>
+                  <Text style={styles.modalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalBtn, { backgroundColor: newStatus === 'approved' ? '#10B981' : '#EF4444' }]}
+                  onPress={confirmStatusUpdate}
+                >
+                  <Text style={styles.modalConfirmText}>Confirm</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </TouchableOpacity>
@@ -893,12 +898,13 @@ const makeStyles = colors => StyleSheet.create({
   // Detail Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 20 },
   modalContainer: { backgroundColor: colors.card, borderRadius: 16, overflow: 'hidden', width: '100%', maxWidth: 560, alignSelf: 'center' },
-  modalTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary, marginBottom: 4, paddingHorizontal: 20 },
-  modalSubtitle: { fontSize: 14, color: colors.textSecondary, marginBottom: 8, paddingHorizontal: 20 },
-  modalReason: { fontSize: 13, color: colors.textMuted, marginBottom: 16, fontStyle: 'italic', paddingHorizontal: 20 },
-  inputLabel: { fontSize: 14, fontWeight: '600', color: colors.textSecondary, marginBottom: 8, paddingHorizontal: 20 },
-  modalInput: { backgroundColor: colors.surfaceMuted, borderRadius: 8, padding: 12, fontSize: 14, color: colors.textPrimary, minHeight: 80, textAlignVertical: 'top', borderWidth: 1, borderColor: colors.border, marginHorizontal: 20 },
-  modalActions: { flexDirection: 'row', gap: 10, marginTop: 20, paddingHorizontal: 20, paddingBottom: 20 },
+  statusModalBody: { padding: 20 },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary, marginBottom: 6 },
+  modalSubtitle: { fontSize: 14, color: colors.textSecondary, marginBottom: 8 },
+  modalReason: { fontSize: 13, color: colors.textMuted, marginBottom: 16, fontStyle: 'italic' },
+  inputLabel: { fontSize: 14, fontWeight: '600', color: colors.textSecondary, marginBottom: 8 },
+  modalInput: { backgroundColor: colors.surfaceMuted, borderRadius: 8, padding: 12, fontSize: 14, color: colors.textPrimary, minHeight: 80, textAlignVertical: 'top', borderWidth: 1, borderColor: colors.border },
+  modalActions: { flexDirection: 'row', gap: 10, marginTop: 20 },
   modalBtn: { flex: 1, paddingVertical: 14, borderRadius: 10, alignItems: 'center' },
   modalCancelBtn: { backgroundColor: colors.surfaceMuted },
   modalCancelText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },

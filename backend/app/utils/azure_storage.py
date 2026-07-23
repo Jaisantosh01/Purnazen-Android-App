@@ -24,7 +24,11 @@ def get_blob_service_client() -> BlobServiceClient | None:
     return BlobServiceClient.from_connection_string(connection_string)
 
 
-def generate_sas_url(blob_name: str, expiry_minutes: int | None = None) -> str:
+def generate_sas_url(
+    blob_name: str,
+    expiry_minutes: int | None = None,
+    container: str | None = None,
+) -> str:
     """Generate a read-only SAS URL for a blob.
 
     Falls back to returning blob_name unchanged when credentials are missing
@@ -34,11 +38,14 @@ def generate_sas_url(blob_name: str, expiry_minutes: int | None = None) -> str:
         blob_name: The blob path within the container (e.g. ``face_scans/1/raw/abc.jpg``).
         expiry_minutes: Override the default expiry. Defaults to
             ``settings.AZURE_SAS_EXPIRY_MINUTES``.
+        container: Override the container. Defaults to the video container —
+            face scans pass the uploads container (see generate_scan_sas_url).
     """
+    container_name = container or settings.AZURE_BLOB_CONTAINER_NAME
     if not all([
         settings.AZURE_STORAGE_ACCOUNT_NAME,
         settings.AZURE_STORAGE_ACCOUNT_KEY,
-        settings.AZURE_BLOB_CONTAINER_NAME,
+        container_name,
     ]):
         return blob_name
 
@@ -49,7 +56,7 @@ def generate_sas_url(blob_name: str, expiry_minutes: int | None = None) -> str:
     minutes = expiry_minutes if expiry_minutes is not None else settings.AZURE_SAS_EXPIRY_MINUTES
     sas_token = generate_blob_sas(
         account_name=settings.AZURE_STORAGE_ACCOUNT_NAME,
-        container_name=settings.AZURE_BLOB_CONTAINER_NAME,
+        container_name=container_name,
         blob_name=blob_name,
         account_key=settings.AZURE_STORAGE_ACCOUNT_KEY,
         permission=BlobSasPermissions(read=True),
@@ -62,7 +69,18 @@ def generate_sas_url(blob_name: str, expiry_minutes: int | None = None) -> str:
     encoded_blob = quote(blob_name, safe="/")
     return (
         f"https://{settings.AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net"
-        f"/{settings.AZURE_BLOB_CONTAINER_NAME}/{encoded_blob}?{sas_token}"
+        f"/{container_name}/{encoded_blob}?{sas_token}"
+    )
+
+
+def generate_scan_sas_url(blob_name: str, expiry_minutes: int | None = None) -> str:
+    """SAS URL for a face-scan image, which lives in the uploads container
+    (``settings.AZURE_SCANS_CONTAINER_NAME``) rather than the video container.
+    """
+    return generate_sas_url(
+        blob_name,
+        expiry_minutes=expiry_minutes,
+        container=settings.AZURE_SCANS_CONTAINER_NAME,
     )
 
 
@@ -178,7 +196,7 @@ def list_all_blobs_with_sas(prefix: str = "") -> list[dict]:
 def list_blob_directories(prefix: str = "") -> list[str]:
     """List virtual directories (prefixes) in the blob container.
 
-    Returns a sorted list of directory paths (e.g. ``["videos/", "face_scans/"]``).
+    Returns a sorted list of directory paths (e.g. ``["videos/", "yoga/"]``).
     """
     dirs, _ = list_blob_children(prefix)
     return dirs
