@@ -106,10 +106,17 @@ export const ENDPOINTS = {
   // Therapy Feedback
   THERAPY_FEEDBACK: `${API_VERSION}/therapy-feedback`,
   THERAPY_FEEDBACK_BY_GROUP: (videoGroupId) => `${API_VERSION}/therapy-feedback/by-group/${videoGroupId}`,
+  THERAPY_FEEDBACK_BY_SESSION: (sessionGroupId) => `${API_VERSION}/therapy-feedback/by-session/${sessionGroupId}`,
   THERAPY_FEEDBACK_PAIN_AFTER: (feedbackId) => `${API_VERSION}/therapy-feedback/${feedbackId}/pain-after`,
 
   // Therapy History — completed count
   THERAPY_HISTORY_COMPLETED_COUNT: (groupId) => `${API_VERSION}/therapy-history/completed-count/${groupId}`,
+
+  // Therapy Session Groups
+  START_THERAPY_SESSION: `${API_VERSION}/therapy-history/start-session`,
+  THERAPY_SESSIONS_LIST: `${API_VERSION}/therapy-history/sessions`,
+  THERAPY_INCOMPLETE_SESSION: (groupId) => `${API_VERSION}/therapy-history/incomplete-session/${groupId}`,
+  COMPLETE_THERAPY_SESSION: (sessionGroupId) => `${API_VERSION}/therapy-history/sessions/${sessionGroupId}/complete`,
 
   // User Addresses
   USER_ADDRESSES: `${API_VERSION}/user-addresses`,
