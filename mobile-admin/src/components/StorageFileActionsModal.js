@@ -283,7 +283,7 @@ const StorageFileActionsModal = ({ file, onClose, onChanged }) => {
               )}
 
               <TouchableOpacity
-                style={[styles.primaryBtn, sameFolder && styles.btnBusy]}
+                style={[styles.primaryBtn, styles.moveHereBtn, sameFolder && styles.btnBusy]}
                 disabled={sameFolder}
                 onPress={() => { setMoveTarget(browsePath); setConfirming(true); }}
               >
@@ -415,6 +415,9 @@ const makeStyles = (colors) =>
     secondaryBtn: { flex: 1, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: colors.surfaceMuted },
     secondaryBtnText: { fontSize: 14, fontWeight: '700', color: colors.textSecondary },
     primaryBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, borderRadius: 10, backgroundColor: colors.primary },
+    // Standalone (non-row) primary button: must NOT flex-grow in the column,
+    // otherwise flexBasis:0 collapses its content box and clips the icon/label.
+    moveHereBtn: { flex: 0, alignSelf: 'stretch' },
     primaryBtnText: { fontSize: 14, fontWeight: '700', color: colors.white },
     btnBusy: { opacity: 0.5 },
   });
