@@ -84,3 +84,6 @@ backend/server.log*
 **/.venv/
 **/venv/
 backend/node_modules/*
+.codegraph/
+.agents/
+skills-lock.json

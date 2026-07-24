@@ -62,6 +62,34 @@ def normalize_white_balance(img_bgr: np.ndarray, p: int = 6) -> np.ndarray:
     return np.clip(out, 0, 255).astype(np.uint8)
 
 
+def normalize_exposure(img_bgr: np.ndarray, target_l: float = 150.0) -> np.ndarray:
+    """Normalize overall luminance so the same subject scores consistently across
+    bright and dim captures.
+
+    White balance (above) removes the colour *cast*, but not absolute brightness:
+    a face shot backlit, in a dim room, or in harsh sun lands at very different
+    exposures, and both colour- and luminance-based skin metrics shift with it.
+    That is the "same face, different lighting → different score" complaint. This
+    scales the CIE-L* (lightness) channel by a single gain that brings the frame's
+    mid-tone median to a fixed target, then converts back to BGR.
+
+    A *single global gain* (clipped to [0.6, 1.6]) is deliberate: it removes the
+    absolute-exposure bias while preserving *relative* contrast — under-eye vs
+    cheek darkness, redness gradients — so real signal isn't flattened. The median
+    is taken over mid-tone pixels only, so blown highlights or deep shadows don't
+    skew the reference.
+    """
+    lab = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2Lab).astype(np.float32)
+    L = lab[:, :, 0]
+    mid = L[(L > 25) & (L < 235)]
+    ref = float(np.median(mid)) if mid.size >= 50 else float(np.median(L))
+    if ref < 1e-3:
+        return img_bgr
+    gain = float(np.clip(target_l / ref, 0.6, 1.6))
+    lab[:, :, 0] = np.clip(L * gain, 0, 255)
+    return cv2.cvtColor(lab.astype(np.uint8), cv2.COLOR_Lab2BGR)
+
+
 # Individual Typology Angle (ITA°) skin-tone buckets — Chardon/Fitzpatrick proxy.
 # Higher ITA = lighter skin. Used to make tone-sensitive metrics fairer.
 _ITA_BUCKETS = [

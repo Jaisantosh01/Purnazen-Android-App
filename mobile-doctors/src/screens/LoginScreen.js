@@ -18,6 +18,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import authService from '../services/authService';
 import socialAuthService from '../services/socialAuthService';
 import useTheme from '../hooks/useTheme';
+import { isValidEmail } from '../utils/emailCheck';
 
 const LoginScreen = () => {
   const { colors } = useTheme();
@@ -62,6 +63,7 @@ const LoginScreen = () => {
 
   const handleLogin = async () => {
     if (!email.trim()) { setError('Please enter your email.'); return; }
+    if (!isValidEmail(email)) { setError('Please enter a valid email address.'); return; }
     if (!password.trim()) { setError('Please enter your password.'); return; }
     setError('');
     setIsLoading(true);
@@ -217,22 +219,7 @@ const LoginScreen = () => {
               ) : (
                 <>
                   <MCIcon name="google" size={20} color="#DB4437" />
-                  <Text style={styles.socialBtnText}>Google</Text>
-                </>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.socialBtn}
-              activeOpacity={0.8}
-              onPress={() => handleSocialLogin('github')}
-              disabled={isLoading || !!socialLoading}
-            >
-              {socialLoading === 'github' ? (
-                <ActivityIndicator size="small" color={colors.primary} />
-              ) : (
-                <>
-                  <MCIcon name="github" size={21} color={colors.textPrimary} />
-                  <Text style={styles.socialBtnText}>GitHub</Text>
+                  <Text style={styles.socialBtnText}>Continue with Google</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -243,6 +230,11 @@ const LoginScreen = () => {
             self sign-up. Social sign-in works for existing accounts (same
             email, or linked in Settings).
           </Text>
+
+          <View style={styles.poweredBy}>
+            <Text style={styles.poweredByText}>Powered by </Text>
+            <Text style={styles.poweredByBrand}>Calypsion</Text>
+          </View>
         </ScrollView>
       </View>
     </Animated.View>
@@ -382,4 +374,12 @@ const makeStyles = colors => StyleSheet.create({
     marginTop: 20,
     lineHeight: 18,
   },
+  poweredBy: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  poweredByText: { fontSize: 12, color: colors.textMuted, letterSpacing: 0.2 },
+  poweredByBrand: { fontSize: 12, fontWeight: '800', color: colors.primary, letterSpacing: 0.2 },
 });

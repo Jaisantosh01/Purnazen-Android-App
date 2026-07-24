@@ -55,9 +55,10 @@ class DoctorService:
 
     @staticmethod
     def get_doctors(
-        db: Session, page: int, limit: int, search: str, filter_key: str | None = None
+        db: Session, page: int, limit: int, search: str, filter_key: str | None = None,
+        is_active: bool | None = None,
     ):
-        return DoctorRepository.get_doctors(db, page, limit, search, filter_key)
+        return DoctorRepository.get_doctors(db, page, limit, search, filter_key, is_active)
 
     @staticmethod
     def get_doctor_by_id(db: Session, doctor_id: uuid.UUID) -> Doctor | None:

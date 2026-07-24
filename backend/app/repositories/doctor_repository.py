@@ -24,7 +24,8 @@ class DoctorRepository:
 
     @staticmethod
     def get_doctors(
-        db: Session, page: int, limit: int, search: str, filter_key: str | None = None
+        db: Session, page: int, limit: int, search: str, filter_key: str | None = None,
+        is_active: bool | None = None,
     ):
         query = db.query(Doctor)
 
@@ -32,6 +33,9 @@ class DoctorRepository:
             query = query.join(User, Doctor.user_id == User.id).filter(
                 User.full_name.ilike(f"%{search}%")
             )
+
+        if is_active is not None:
+            query = query.filter(Doctor.is_active == is_active)
 
         if filter_key == "available_today":
             query = query.filter(Doctor.is_available_today.is_(True))

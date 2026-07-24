@@ -28,6 +28,22 @@ def _center_ellipse(h: int, w: int) -> np.ndarray:
     return mask
 
 
+def tongue_coverage(img_bgr: np.ndarray) -> float:
+    """Fraction of reddish (tongue-coloured) pixels in the central capture region.
+
+    A properly extended tongue fills most of the guide outline and yields a high
+    ratio; a closed mouth / non-tongue frame yields a low one. Used to reject
+    scans where no tongue is actually present instead of returning bogus results.
+    """
+    h, w = img_bgr.shape[:2]
+    red = _reddish_mask(img_bgr)
+    x, y, rw, rh = int(w * 0.15), int(h * 0.12), int(w * 0.70), int(h * 0.76)
+    region = red[y:y + rh, x:x + rw]
+    if region.size == 0:
+        return 0.0
+    return float(region.mean())
+
+
 def segment_tongue(img_bgr: np.ndarray) -> "tuple[np.ndarray, bool]":
     """Return (binary mask uint8 {0,1}, used_fallback)."""
     h, w = img_bgr.shape[:2]

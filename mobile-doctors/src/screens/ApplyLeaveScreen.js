@@ -98,8 +98,6 @@ const ApplyLeaveScreen = ({ navigation }) => {
 
   // ── Modal visibility
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  const [timePickerTarget, setTimePickerTarget] = useState('from');
   const [showReasonPicker, setShowReasonPicker] = useState(false);
 
   // ── Invalid date dialogs
@@ -110,11 +108,6 @@ const ApplyLeaveScreen = ({ navigation }) => {
   const today = new Date();
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
-
-  // ── Temp time picker states
-  const [tempHour, setTempHour] = useState('09');
-  const [tempMinute, setTempMinute] = useState('00');
-  const [tempAmpm, setTempAmpm] = useState('AM');
 
   // ── Submit button animation
   const submitBtnOpacity = useRef(new Animated.Value(0.45)).current;
@@ -226,7 +219,7 @@ const ApplyLeaveScreen = ({ navigation }) => {
       duration: 250,
       useNativeDriver: true,
     }).start();
-  }, [isFormValid]);
+  }, [isFormValid, submitBtnOpacity]);
 
   // Keep activeDayCard in sync with startDate/endDate when isPartialDay is active
   useEffect(() => {
@@ -270,24 +263,6 @@ const ApplyLeaveScreen = ({ navigation }) => {
       setEndDate(dateStr);
     }
     setShowDatePicker(false);
-  };
-
-  const openTimePickerModal = (target) => {
-    setTimePickerTarget(target);
-    const currentTime = target === 'from' ? fromTime : toTime;
-    const [time, ampm] = currentTime.split(' ');
-    const [h, m] = time.split(':');
-    setTempHour(h);
-    setTempMinute(m);
-    setTempAmpm(ampm);
-    setShowTimePicker(true);
-  };
-
-  const handleTimeConfirm = () => {
-    const formattedTime = `${tempHour}:${tempMinute} ${tempAmpm}`;
-    if (timePickerTarget === 'from') setFromTime(formattedTime);
-    else setToTime(formattedTime);
-    setShowTimePicker(false);
   };
 
   // Legacy toggleSlot kept for backward-compat (not used by Partial Day anymore)
@@ -442,23 +417,24 @@ const ApplyLeaveScreen = ({ navigation }) => {
                 style={[
                   styles.dayCell,
                   isDisabled && styles.dayCellDisabled,
-                  isSelected && styles.dayCellActive,
                   inRange && styles.dayCellInRange,
                 ]}
                 onPress={isDisabled ? undefined : () => handleDateSelect(itemDateStr)}
                 disabled={isDisabled}
                 activeOpacity={isDisabled ? 1 : 0.7}
               >
-                <Text
-                  style={[
-                    styles.dayText,
-                    isDisabled && styles.dayTextDisabled,
-                    isSelected && styles.dayTextActive,
-                    inRange && styles.dayTextInRange,
-                  ]}
-                >
-                  {day}
-                </Text>
+                <View style={[styles.dayCircle, isSelected && styles.dayCellActive]}>
+                  <Text
+                    style={[
+                      styles.dayText,
+                      isDisabled && styles.dayTextDisabled,
+                      isSelected && styles.dayTextActive,
+                      inRange && styles.dayTextInRange,
+                    ]}
+                  >
+                    {day}
+                  </Text>
+                </View>
               </TouchableOpacity>
             );
           })}
@@ -758,73 +734,6 @@ const ApplyLeaveScreen = ({ navigation }) => {
         </View>
       </Modal>
 
-      {/* ── MODAL: TIME PICKER ─────────────────────────────────────────── */}
-      <Modal
-        visible={showTimePicker}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowTimePicker(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowTimePicker(false)} />
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {timePickerTarget === 'from' ? 'Select Start Time' : 'Select End Time'}
-              </Text>
-              <TouchableOpacity onPress={() => setShowTimePicker(false)}>
-                <MCIcon name="close" size={24} color={colors.textPrimary} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.timePickerGridContainer}>
-              <Text style={styles.timeSelectLabel}>Hour</Text>
-              <View style={styles.hourGrid}>
-                {['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'].map((h) => (
-                  <TouchableOpacity
-                    key={h}
-                    style={[styles.hourItem, tempHour === h && styles.hourItemActive]}
-                    onPress={() => setTempHour(h)}
-                  >
-                    <Text style={[styles.hourText, tempHour === h && styles.hourTextActive]}>{h}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <Text style={[styles.timeSelectLabel, { marginTop: SPACING.sm }]}>Minute</Text>
-              <View style={styles.minuteRow}>
-                {['00', '15', '30', '45'].map((m) => (
-                  <TouchableOpacity
-                    key={m}
-                    style={[styles.minuteItem, tempMinute === m && styles.minuteItemActive]}
-                    onPress={() => setTempMinute(m)}
-                  >
-                    <Text style={[styles.minuteText, tempMinute === m && styles.minuteTextActive]}>{m}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <Text style={[styles.timeSelectLabel, { marginTop: SPACING.sm }]}>Period</Text>
-              <View style={styles.periodRow}>
-                {['AM', 'PM'].map((p) => (
-                  <TouchableOpacity
-                    key={p}
-                    style={[styles.periodItem, tempAmpm === p && styles.periodItemActive]}
-                    onPress={() => setTempAmpm(p)}
-                  >
-                    <Text style={[styles.periodText, tempAmpm === p && styles.periodTextActive]}>{p}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <TouchableOpacity style={styles.confirmTimeBtn} onPress={handleTimeConfirm}>
-              <Text style={styles.confirmTimeText}>Confirm Time</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
       {/* ── MODAL: REASON SELECTOR ─────────────────────────────────────── */}
       <Modal
         visible={showReasonPicker}
@@ -927,7 +836,7 @@ export default ApplyLeaveScreen;
 // Inline style mapping for weekDaysRow because StyleSheet cannot compose dynamic arrays directly in React Native sometimes
 const weekDaysRowStyle = {
   flexDirection: 'row',
-  justifyContent: 'space-around',
+  justifyContent: 'flex-start',
   marginBottom: 8,
 };
 
@@ -1357,21 +1266,30 @@ const makeStyles = colors =>
     fontSize: 12,
     fontWeight: '800',
     color: colors.textMuted,
-    width: 32,
+    width: `${100 / 7}%`,
     textAlign: 'center',
   },
   daysGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-around',
+    justifyContent: 'flex-start',
   },
+  // Each cell is exactly 1/7 of the row so the 7 columns always fit and line up
+  // with the weekday header (previously fixed 38px cells wrapped/misaligned on
+  // narrower screens). The inner circle keeps the round selected-day highlight.
   dayCell: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: `${100 / 7}%`,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
     marginVertical: 2,
+  },
+  dayCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dayCellActive: {
     backgroundColor: colors.primary,
@@ -1398,110 +1316,6 @@ const makeStyles = colors =>
   },
   dayTextDisabled: {
     color: colors.textMuted,
-  },
-
-  timePickerGridContainer: { marginVertical: SPACING.md },
-  timeSelectLabel: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    marginBottom: 8,
-  },
-  hourGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    justifyContent: 'space-between',
-  },
-  hourItem: {
-    width: '23%',
-    paddingVertical: 8,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  hourItemActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  hourText: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: colors.textSecondary,
-  },
-  hourTextActive: {
-    color: colors.white,
-    fontWeight: '800',
-  },
-  minuteRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 6,
-  },
-  minuteItem: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-  },
-  minuteItemActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  minuteText: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: colors.textSecondary,
-  },
-  minuteTextActive: {
-    color: colors.white,
-    fontWeight: '800',
-  },
-  periodRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 6,
-  },
-  periodItem: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-  },
-  periodItemActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  periodText: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: colors.textSecondary,
-  },
-  periodTextActive: {
-    color: colors.white,
-    fontWeight: '800',
-  },
-  confirmTimeBtn: {
-    backgroundColor: colors.primary,
-    borderRadius: RADIUS.md,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginTop: SPACING.lg,
-  },
-  confirmTimeText: {
-    color: colors.white,
-    fontSize: 15,
-    fontWeight: '800',
   },
 
   reasonOption: {

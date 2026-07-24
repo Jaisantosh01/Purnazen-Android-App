@@ -41,7 +41,7 @@ class ConsultService {
   async getDoctors(activeFilter = 'All', searchQuery = '', pageNum = 1) {
     try {
       const endpointPath = FILTER_ENDPOINT_MAP[activeFilter] || ENDPOINTS.DOCTORS;
-      const params = new URLSearchParams({ page: pageNum, limit: PAGE_SIZE });
+      const params = new URLSearchParams({ page: pageNum, limit: PAGE_SIZE, is_active: 'true' });
       if (searchQuery.trim()) params.append('search', searchQuery.trim());
       const json = await this.get(`${endpointPath}?${params.toString()}`);
       return {

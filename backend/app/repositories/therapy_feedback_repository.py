@@ -1,4 +1,5 @@
 import uuid
+from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -28,6 +29,26 @@ class TherapyFeedbackRepository:
                 TherapyFeedback.video_group_id == video_group_id,
             )
             .first()
+        )
+
+    @staticmethod
+    def get_by_session(db: Session, session_group_id: uuid.UUID) -> TherapyFeedback | None:
+        return (
+            db.query(TherapyFeedback)
+            .filter(TherapyFeedback.session_group_id == session_group_id)
+            .first()
+        )
+
+    @staticmethod
+    def get_all_by_user_and_group(db: Session, user_id: uuid.UUID, video_group_id: uuid.UUID):
+        return (
+            db.query(TherapyFeedback)
+            .filter(
+                TherapyFeedback.user_id == user_id,
+                TherapyFeedback.video_group_id == video_group_id,
+            )
+            .order_by(TherapyFeedback.created_at.desc())
+            .all()
         )
 
     @staticmethod

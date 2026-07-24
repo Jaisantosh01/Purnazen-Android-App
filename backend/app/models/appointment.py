@@ -17,6 +17,7 @@ from app.db.types import GUID
 from sqlalchemy.orm import relationship
 
 from app.db.base_class import Base
+from app.utils.names import format_doctor_name
 
 
 class Appointment(Base):
@@ -100,7 +101,7 @@ class Appointment(Base):
             "doctorId": str(self.doctor_id),
             "userId": str(self.user_id),
             "userName": self.user.full_name if self.user else None,
-            "doctorName": f"Dr. {self.doctor.user.full_name}",
+            "doctorName": format_doctor_name(self.doctor.user.full_name),
             "doctorAbout": self.doctor.about if self.doctor else None,
             "specialty": self.doctor.specialty.name,
             "expertise": [mapping.expertise.name for mapping in self.doctor.expertise_mappings],

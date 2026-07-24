@@ -206,22 +206,24 @@ def delete_scan(
     return success_response("Scan deleted successfully")
 
 
-@router.get("/dashboard", summary="Skin dashboard (latest + rolling glow + trend)")
+@router.get("/dashboard", summary="Skin / tongue dashboard (latest + rolling avg + trend)")
 def get_dashboard(
+    scan_type: str = Query("face", pattern="^(face|tongue)$"),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return success_response("Dashboard fetched", ScanDashboardService.dashboard(db, user.id))
+    return success_response("Dashboard fetched", ScanDashboardService.dashboard(db, user.id, scan_type))
 
 
 @router.get("/trends", summary="Time series for a single metric")
 def get_trends(
     metric: str = Query("glow_score"),
     days: int = Query(0, ge=0, le=365),
+    scan_type: str = Query("face", pattern="^(face|tongue)$"),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    data = ScanDashboardService.trends(db, user.id, metric, days or None)
+    data = ScanDashboardService.trends(db, user.id, metric, days or None, scan_type)
     if data.get("error"):
         return error_response(data["error"], status_code=400)
     return success_response("Trends fetched", data)

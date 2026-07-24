@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 class WellnessSessionCreate(BaseModel):
     title: str
-    duration: str
+    duration: Optional[str] = None
     icon: Optional[str] = None
     video_group_id: Optional[uuid.UUID] = None
     sort_order: Optional[int] = 0

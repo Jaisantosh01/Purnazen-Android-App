@@ -32,7 +32,7 @@ function formatDate(iso) {
 }
 
 /** Lightweight glow-score trend line (no chart lib). `points` oldest→newest. */
-function GlowTrend({ points, styles, colors }) {
+function GlowTrend({ points, styles, colors, title = 'Glow score over time' }) {
   const W = 300;
   const H = 90;
   const pad = 10;
@@ -49,7 +49,7 @@ function GlowTrend({ points, styles, colors }) {
   const polyline = coords.map(c => c.join(',')).join(' ');
   return (
     <View style={styles.trendCard}>
-      <Text style={styles.trendTitle}>Glow score over time</Text>
+      <Text style={styles.trendTitle}>{title}</Text>
       <Svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`}>
         <SvgLine x1={pad} y1={H - pad} x2={W - pad} y2={H - pad} stroke={colors.border} strokeWidth={1} />
         <Polyline points={polyline} fill="none" stroke={colors.primary} strokeWidth={2.5} />
@@ -61,10 +61,19 @@ function GlowTrend({ points, styles, colors }) {
   );
 }
 
-const ScanHistoryScreen = ({ navigation }) => {
+const ScanHistoryScreen = ({ navigation, route }) => {
   const headerTop = useHeaderTopPadding();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  // Face and tongue histories are kept separate — each entry point passes its
+  // own scanType so the two report types are never mixed in one list.
+  const scanType = route?.params?.scanType === 'tongue' ? 'tongue' : 'face';
+  const isTongue = scanType === 'tongue';
+  // Score shown per row: glow for skin scans, wellness for tongue scans.
+  const scoreOf = useCallback(
+    (s) => (isTongue ? s?.overallWellnessScore : s?.glowScore),
+    [isTongue],
+  );
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -74,7 +83,7 @@ const ScanHistoryScreen = ({ navigation }) => {
 
   const load = useCallback(async () => {
     try {
-      const data = await scanService.getHistory({ scanType: 'face', limit: 50 });
+      const data = await scanService.getHistory({ scanType, limit: 50 });
       const scans = data?.scans ?? [];
       setItems(scans);
       setHistory(scans);
@@ -84,7 +93,7 @@ const ScanHistoryScreen = ({ navigation }) => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [setHistory]);
+  }, [setHistory, scanType]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -125,8 +134,8 @@ const ScanHistoryScreen = ({ navigation }) => {
     ]);
   };
 
-  const completed = items.filter(s => s.status === 'completed' && s.glowScore != null);
-  const trendPoints = [...completed].reverse().map(s => s.glowScore); // oldest→newest
+  const completed = items.filter(s => s.status === 'completed' && scoreOf(s) != null);
+  const trendPoints = [...completed].reverse().map(scoreOf); // oldest→newest
 
   return (
     <View style={styles.root}>
@@ -136,7 +145,7 @@ const ScanHistoryScreen = ({ navigation }) => {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <MCIcon name="arrow-left" size={22} color={colors.white} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Scan History</Text>
+        <Text style={styles.headerTitle}>{isTongue ? 'Tongue Scan History' : 'Skin Scan History'}</Text>
         <View style={{ width: 38 }} />
       </View>
 
@@ -146,8 +155,15 @@ const ScanHistoryScreen = ({ navigation }) => {
         <View style={styles.center}>
           <MCIcon name="history" size={48} color={colors.borderStrong} />
           <Text style={styles.emptyTitle}>No scans yet</Text>
-          <Text style={styles.emptySub}>Run a face scan to start tracking your skin over time.</Text>
-          <TouchableOpacity style={styles.scanCta} onPress={() => navigation.navigate('FaceScan', { scanType: 'face' })}>
+          <Text style={styles.emptySub}>
+            {isTongue
+              ? 'Run a tongue scan to start tracking your wellness over time.'
+              : 'Run a face scan to start tracking your skin over time.'}
+          </Text>
+          <TouchableOpacity
+            style={styles.scanCta}
+            onPress={() => navigation.navigate(isTongue ? 'TongueScan' : 'FaceScan', { scanType })}
+          >
             <Text style={styles.scanCtaText}>Start a scan</Text>
           </TouchableOpacity>
         </View>
@@ -156,32 +172,42 @@ const ScanHistoryScreen = ({ navigation }) => {
           contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#C850C0']} />}
         >
-          <GlowTrend points={trendPoints} styles={styles} colors={colors} />
+          <GlowTrend
+            points={trendPoints}
+            styles={styles}
+            colors={colors}
+            title={isTongue ? 'Wellness score over time' : 'Glow score over time'}
+          />
 
-          {items.map(item => (
-            <TouchableOpacity
-              key={item.id}
-              style={styles.row}
-              activeOpacity={0.8}
-              onPress={() => openScan(item)}
-              onLongPress={() => confirmDelete(item)}
-            >
-              <View style={[styles.scoreBadge, { borderColor: glowColor(item.glowScore, colors.textMuted) }]}>
-                <Text style={[styles.scoreNum, { color: glowColor(item.glowScore, colors.textMuted) }]}>
-                  {item.glowScore != null ? Math.round(item.glowScore) : '--'}
-                </Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.rowDate}>{formatDate(item.createdAt)}</Text>
-                <Text style={styles.rowMeta}>
-                  {item.status === 'completed'
-                    ? `Glow ${item.glowScore != null ? Math.round(item.glowScore) : '--'} · Wellness ${item.overallWellnessScore != null ? Math.round(item.overallWellnessScore) : '--'}`
-                    : item.status}
-                </Text>
-              </View>
-              <MCIcon name="chevron-right" size={22} color={colors.textMuted} />
-            </TouchableOpacity>
-          ))}
+          {items.map(item => {
+            const score = scoreOf(item);
+            return (
+              <TouchableOpacity
+                key={item.id}
+                style={styles.row}
+                activeOpacity={0.8}
+                onPress={() => openScan(item)}
+                onLongPress={() => confirmDelete(item)}
+              >
+                <View style={[styles.scoreBadge, { borderColor: glowColor(score, colors.textMuted) }]}>
+                  <Text style={[styles.scoreNum, { color: glowColor(score, colors.textMuted) }]}>
+                    {score != null ? Math.round(score) : '--'}
+                  </Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.rowDate}>{formatDate(item.createdAt)}</Text>
+                  <Text style={styles.rowMeta}>
+                    {item.status === 'completed'
+                      ? (isTongue
+                          ? `Wellness ${item.overallWellnessScore != null ? Math.round(item.overallWellnessScore) : '--'}`
+                          : `Glow ${item.glowScore != null ? Math.round(item.glowScore) : '--'} · Wellness ${item.overallWellnessScore != null ? Math.round(item.overallWellnessScore) : '--'}`)
+                      : item.status}
+                  </Text>
+                </View>
+                <MCIcon name="chevron-right" size={22} color={colors.textMuted} />
+              </TouchableOpacity>
+            );
+          })}
 
           <Text style={styles.hint}>Long-press a scan to delete it</Text>
         </ScrollView>

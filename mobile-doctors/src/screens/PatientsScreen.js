@@ -90,7 +90,10 @@ const PatientsScreen = ({ navigation }) => {
       const data = await patientService.list();
       setPatients(data);
     } catch (err) {
-      setError(err?.message || 'Failed to load patients. Please try again.');
+      // Show friendly copy, never the raw axios/API text (e.g. "Request failed
+      // with status 404") which looked like a leaked API message on screen.
+      console.warn('[PatientsScreen] load error:', err?.message);
+      setError('We couldn’t load your patients right now. Pull down to refresh or try again.');
     } finally {
       setLoading(false);
       setRefreshing(false);

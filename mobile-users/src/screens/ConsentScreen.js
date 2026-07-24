@@ -6,14 +6,15 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
-  Switch,
   ActivityIndicator,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { showConfirm } from '../utils/alert';
 import consentService from '../services/consentService';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
+import AppToggle from '../components/AppToggle';
 
 // The three GDPR consent types the backend recognises.
 const CONSENTS = [
@@ -56,7 +57,7 @@ const ConsentScreen = ({ navigation }) => {
 
   useEffect(() => { load(); }, [load]);
 
-  const toggle = async (key, next) => {
+  const applyToggle = async (key, next) => {
     setSaving(key);
     setState(prev => ({ ...prev, [key]: next })); // optimistic
     try {
@@ -66,6 +67,24 @@ const ConsentScreen = ({ navigation }) => {
     } finally {
       setSaving(null);
     }
+  };
+
+  // Turning a consent OFF is consequential — confirm first, and spell out the
+  // scan-storage impact (new scans can't be saved without it).
+  const toggle = (key, next) => {
+    if (!next) {
+      const meta = CONSENTS.find(c => c.key === key);
+      showConfirm(
+        `Turn off "${meta?.title ?? 'this consent'}"?`,
+        key === 'scan_storage'
+          ? "New face & tongue scans won't be saved and progress tracking stops until you turn this back on. Your existing scans stay untouched."
+          : 'You can turn this back on anytime.',
+        () => applyToggle(key, false),
+        { confirmLabel: 'Turn off', destructive: true },
+      );
+      return;
+    }
+    applyToggle(key, true);
   };
 
   return (
@@ -93,11 +112,9 @@ const ConsentScreen = ({ navigation }) => {
                 {saving === c.key ? (
                   <ActivityIndicator color={colors.primary} />
                 ) : (
-                  <Switch
+                  <AppToggle
                     value={!!state[c.key]}
                     onValueChange={(v) => toggle(c.key, v)}
-                    trackColor={{ false: colors.border, true: colors.primary }}
-                    thumbColor={colors.white}
                   />
                 )}
               </View>

@@ -351,3 +351,64 @@ for day in DAYS_OF_WEEK:
             "start_time": f"{hour:02d}:00:00",
             "end_time": f"{hour+1:02d}:00:00"
         })
+
+
+# ---------------------------------------------------------------------------
+# Subscription plans (catalog served to the Subscriptions screen)
+# ---------------------------------------------------------------------------
+SUBSCRIPTION_PLANS = [
+    {
+        "code": "free",
+        "name": "Free",
+        "price": 0,
+        "currency": "INR",
+        "period": "forever",
+        "badge": None,
+        "accent_color": None,          # null → neutral, theme-aware card
+        "sort_order": 0,
+        "features": [
+            {"text": "3 wellness sessions/month", "included": True},
+            {"text": "Basic yoga & meditation", "included": True},
+            {"text": "Quick relief guides", "included": True},
+            {"text": "Doctor consultations", "included": False},
+            {"text": "Personalized health plan", "included": False},
+            {"text": "Priority support", "included": False},
+        ],
+    },
+    {
+        "code": "premium",
+        "name": "Premium",
+        "price": 499,
+        "currency": "INR",
+        "period": "month",
+        "badge": "Most Popular",
+        "accent_color": "#1FA77A",
+        "sort_order": 1,
+        "features": [
+            {"text": "Unlimited wellness sessions", "included": True},
+            {"text": "All yoga & meditation programs", "included": True},
+            {"text": "Quick relief guides", "included": True},
+            {"text": "2 doctor consultations/month", "included": True},
+            {"text": "Personalized health plan", "included": True},
+            {"text": "Priority support", "included": False},
+        ],
+    },
+    {
+        "code": "pro",
+        "name": "Pro",
+        "price": 999,
+        "currency": "INR",
+        "period": "month",
+        "badge": None,
+        "accent_color": "#7C3AED",
+        "sort_order": 2,
+        "features": [
+            {"text": "Unlimited wellness sessions", "included": True},
+            {"text": "All yoga & meditation programs", "included": True},
+            {"text": "Quick relief guides", "included": True},
+            {"text": "Unlimited consultations", "included": True},
+            {"text": "Personalized health plan", "included": True},
+            {"text": "Priority 24/7 support", "included": True},
+        ],
+    },
+]

@@ -214,12 +214,14 @@ def _run_face_pipeline(db, scan, img: "np.ndarray") -> dict:
         glow_score_engine,
         toxin_indicator,
     )
-    from app.ai.image_preprocessor import normalize_white_balance, estimate_skin_tone
+    from app.ai.image_preprocessor import normalize_exposure, normalize_white_balance, estimate_skin_tone
 
-    # Colour-constancy: neutralise the lighting cast once so every colour-based
-    # analyzer (redness, pigmentation, dark circles) sees comparable colours.
-    # Detection still runs on the original image; only analysis ROIs use WB.
-    img_wb = normalize_white_balance(img)
+    # Lighting normalisation, in two stages, so the same face scores consistently
+    # regardless of capture conditions (the top accuracy complaint):
+    #   1. white balance — neutralise the colour *cast* (warm/cool/green light);
+    #   2. exposure       — normalise absolute *brightness* (dim room vs harsh sun).
+    # Detection still runs on the original image; only analysis ROIs use this.
+    img_wb = normalize_exposure(normalize_white_balance(img))
 
     # Try full MediaPipe landmark pipeline first; fall back to OpenCV Haar cascade
     landmarks = []
@@ -466,6 +468,17 @@ def run_scan_pipeline(scan_id: int, scan_type: str) -> None:
             except Exception as exc:
                 logger.warning("Tongue pipeline failed (%s); using neutral defaults", exc)
                 scores = dict(_MOCK_TONGUE_SCORES)
+
+            # Reject frames where no tongue is actually visible instead of
+            # returning bogus TCM markers (mirrors the no-face failure path).
+            if scores.get("tongue_detected") is False:
+                FaceScanRepository.set_status(
+                    db,
+                    scan,
+                    "failed",
+                    error_message="No tongue detected. Stick out your tongue to fill the outline and retake.",
+                )
+                return
 
             # Serialize the detected tongue bbox so the mobile processing screen
             # can crop+zoom to it and outline the tongue (parallels the face mesh).

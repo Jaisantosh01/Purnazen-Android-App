@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -14,6 +14,12 @@ const TYPE_CONFIG = {
 const RecommendationCard = ({ item, onPressRoutine }) => {
   const config = TYPE_CONFIG[item.type] || TYPE_CONFIG.wellness_tip;
 
+  // Collapse long descriptions to 2 lines with a "Read more" toggle. The first
+  // layout runs unconstrained so we learn the true line count, then we clamp.
+  const [expanded, setExpanded] = useState(false);
+  const [fullLines, setFullLines] = useState(null);
+  const truncatable = fullLines != null && fullLines > 2;
+
   return (
     <View style={[styles.card, { borderLeftColor: config.color }]}>
       <View style={[styles.iconBox, { backgroundColor: config.bg }]}>
@@ -22,7 +28,22 @@ const RecommendationCard = ({ item, onPressRoutine }) => {
       <View style={styles.body}>
         <Text style={styles.title}>{item.title}</Text>
         {!!item.description && (
-          <Text style={styles.description} numberOfLines={2}>{item.description}</Text>
+          <>
+            <Text
+              style={styles.description}
+              numberOfLines={fullLines == null ? undefined : (expanded ? undefined : 2)}
+              onTextLayout={fullLines == null ? (e => setFullLines(e.nativeEvent.lines.length)) : undefined}
+            >
+              {item.description}
+            </Text>
+            {truncatable && (
+              <TouchableOpacity onPress={() => setExpanded(v => !v)} activeOpacity={0.7} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                <Text style={[styles.readMore, { color: config.color }]}>
+                  {expanded ? 'Read less' : 'Read more'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </>
         )}
         {item.routineKey && onPressRoutine && (
           <TouchableOpacity
@@ -78,6 +99,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.textMuted,
     lineHeight: 17,
+  },
+  readMore: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 3,
   },
   routineBtn: {
     flexDirection: 'row',

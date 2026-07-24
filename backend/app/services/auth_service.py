@@ -16,12 +16,20 @@ from app.models.user import User
 from app.models.user_preference import UserPreference
 from app.repositories.user_repository import UserRepository
 from app.services.social_auth import SocialAuthError, verify_firebase
+from app.utils.email_validation import validate_account_email
 
 
 class AuthService:
 
     @staticmethod
     def register(db: Session, data: dict):
+        # Reject disposable/undeliverable addresses with a soft message and
+        # normalize the address before it becomes the account key.
+        check = validate_account_email(data.get("email", ""))
+        if not check["valid"]:
+            return {"success": False, "message": check["message"]}, 400
+        data["email"] = check["email"]
+
         existing_user = UserRepository.find_by_email(db, data["email"])
 
         if existing_user:

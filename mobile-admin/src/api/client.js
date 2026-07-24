@@ -96,7 +96,13 @@ function normalizeError(error) {
       ? `Request failed with status ${status}`
       : `Network error: ${error.message || error.code || 'request did not reach the server'}. Please check your connection.`);
 
-  return new Error(message);
+  // Preserve the HTTP status + response so callers can branch on it (e.g. a 409
+  // "content in use" that offers Disable-instead). Without this the original
+  // axios error shape is lost and every failure looks identical.
+  const normalized = new Error(message);
+  normalized.status = status;
+  normalized.response = error.response;
+  return normalized;
 }
 
 // 401 → silent token refresh + replay; everything else → normalized Error

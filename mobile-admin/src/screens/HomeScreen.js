@@ -131,18 +131,15 @@ const HomeScreen = ({ navigation }) => {
                   title="Scheduled Appts"
                   value={stats?.scheduled_appointments}
                   icon="calendar-clock"
+                  onPress={() => navigation.navigate('Manage', { screen: 'AppointmentsMain', params: { filterStatus: 'booked' } })}
                 />
                 <KpiCard
-                  title="Today Leaves"
-                  value={stats?.today_doctor_leaves}
-                  icon="beach"
-                  onPress={() => navigation.navigate('Manage', { screen: 'DoctorLeaveManagement' })}
-                />
-                <KpiCard
-                  title="Total Leaves"
+                  title="Pending Leaves"
                   value={stats?.total_doctor_leaves}
                   icon="calendar-remove"
-                  onPress={() => navigation.navigate('Manage', { screen: 'DoctorLeaveManagement' })}
+                  onPress={() => {
+                    navigation.navigate('Manage', { screen: 'DoctorLeaveManagement', params: { initialStatus: 'pending' } });
+                  }}
                 />
               </>
             )}

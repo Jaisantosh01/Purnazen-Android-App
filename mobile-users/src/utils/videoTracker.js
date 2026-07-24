@@ -1,30 +1,29 @@
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 
-/**
- * Utility to sync video progress with backend.
- * Backend expects: groupId, videoId, status, durationMinutes.
- */
 export const syncVideoProgress = async (
   groupId,
   videoId,
-  status, // 'Pending' | 'Completed'
+  status,
   durationMinutes,
-  sessionType = 'wellness', // Accept session type
+  sessionType = 'wellness',
   painBefore = null,
-  painAfter = null
+  painAfter = null,
+  sessionGroupId = null
 ) => {
   try {
-    await apiClient.post(ENDPOINTS.SAVE_THERAPY_SESSION, {
+    const body = {
       groupId,
       videoId,
       status,
-      durationMinutes: Math.max(1, Math.round(durationMinutes)), // Min 1 min
+      durationMinutes: Math.max(1, Math.round(durationMinutes)),
       painBefore,
       painAfter,
       isActive: true,
-      type: sessionType, // Use the provided session type
-    });
+      type: sessionType,
+    };
+    if (sessionGroupId) body.sessionGroupId = sessionGroupId;
+    await apiClient.post(ENDPOINTS.SAVE_THERAPY_SESSION, body);
   } catch (error) {
     console.error('Failed to sync video progress:', error);
   }

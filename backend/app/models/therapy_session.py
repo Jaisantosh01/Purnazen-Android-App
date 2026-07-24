@@ -14,6 +14,7 @@ class TherapySession(Base):
     group_id = Column(GUID(), ForeignKey("video_groups.id"), nullable=False)
     video_id = Column(GUID(), ForeignKey("videos.id"), nullable=False)
     session_type = Column(String(30), nullable=False)  # wellness | relief | yoga | ...
+    session_group_id = Column(GUID(), ForeignKey("therapy_session_groups.id"), nullable=True)
     duration_minutes = Column(Integer, nullable=False, default=0)
     status = Column(String(20), nullable=False, default="Completed")
     is_active = Column(Boolean, default=True)
@@ -27,9 +28,10 @@ class TherapySession(Base):
     modifier = relationship("User", foreign_keys=[updated_by])
     video_group = relationship("VideoGroups")
     video = relationship("Videos")
+    session_group = relationship("TherapySessionGroup", backref="video_progress")
 
     __table_args__ = (
-        Index("ix_therapy_sessions_user_group_video", "user_id", "group_id", "video_id"),
+        Index("ix_therapy_sessions_user_group_video_session", "user_id", "group_id", "video_id", "session_group_id"),
     )
 
     def to_dict(self):
@@ -41,6 +43,7 @@ class TherapySession(Base):
             "groupTitle": self.video_group.title if self.video_group else None,
             "videoTitle": self.video.title if self.video else None,
             "type": self.session_type,
+            "sessionGroupId": str(self.session_group_id) if self.session_group_id else None,
             "duration": f"{self.duration_minutes} min",
             "status": self.status,
             "isActive": self.is_active,

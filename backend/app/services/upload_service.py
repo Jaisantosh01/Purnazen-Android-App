@@ -45,7 +45,7 @@ def _get_azure_client():
     if not all([
         settings.AZURE_STORAGE_ACCOUNT_NAME,
         settings.AZURE_STORAGE_ACCOUNT_KEY,
-        settings.AZURE_BLOB_CONTAINER_NAME,
+        settings.AZURE_SCANS_CONTAINER_NAME,
     ]):
         return None
     from azure.storage.blob import BlobServiceClient
@@ -107,7 +107,7 @@ class UploadService:
     @staticmethod
     async def _upload_azure(client, content: bytes, user_id: int, folder_suffix: str) -> dict:
         from azure.storage.blob import ContentSettings
-        from app.utils.azure_storage import generate_sas_url
+        from app.utils.azure_storage import generate_scan_sas_url
 
         ext = _ext_from_magic(content[:8])
         mime = _mime_from_magic(content[:8])
@@ -115,7 +115,7 @@ class UploadService:
 
         try:
             blob_client = client.get_blob_client(
-                container=settings.AZURE_BLOB_CONTAINER_NAME,
+                container=settings.AZURE_SCANS_CONTAINER_NAME,
                 blob=blob_name,
             )
             blob_client.upload_blob(
@@ -124,11 +124,16 @@ class UploadService:
                 content_settings=ContentSettings(content_type=mime),
             )
         except Exception as exc:
-            logger.exception("Azure upload failed: %s", exc)
+            # Names the container: the usual cause of a hard failure here is the
+            # uploads container not existing on the storage account yet.
+            logger.exception(
+                "Azure upload failed (container=%s, blob=%s): %s",
+                settings.AZURE_SCANS_CONTAINER_NAME, blob_name, exc,
+            )
             raise HTTPException(status_code=502, detail="Image upload failed. Please try again.")
 
         return {
-            "url": generate_sas_url(blob_name),
+            "url": generate_scan_sas_url(blob_name),
             "public_id": blob_name,
             "bytes": len(content),
             "width": None,
@@ -170,13 +175,13 @@ class UploadService:
         client = _get_azure_client()
         if client:
             from azure.storage.blob import ContentSettings
-            from app.utils.azure_storage import generate_sas_url
+            from app.utils.azure_storage import generate_scan_sas_url
 
             ext = _ext_from_magic(content[:8])
             mime = _mime_from_magic(content[:8])
             blob_name = f"face_scans/{user_id}/{folder_suffix}/{uuid.uuid4().hex}{ext}"
             blob_client = client.get_blob_client(
-                container=settings.AZURE_BLOB_CONTAINER_NAME,
+                container=settings.AZURE_SCANS_CONTAINER_NAME,
                 blob=blob_name,
             )
             blob_client.upload_blob(
@@ -184,7 +189,7 @@ class UploadService:
                 overwrite=True,
                 content_settings=ContentSettings(content_type=mime),
             )
-            return {"url": generate_sas_url(blob_name), "public_id": blob_name}
+            return {"url": generate_scan_sas_url(blob_name), "public_id": blob_name}
 
         saved = UploadService._save_local(content, user_id, folder_suffix)
         return {"url": saved["url"], "public_id": saved["public_id"]}
@@ -197,7 +202,7 @@ class UploadService:
         if client:
             try:
                 blob_client = client.get_blob_client(
-                    container=settings.AZURE_BLOB_CONTAINER_NAME,
+                    container=settings.AZURE_SCANS_CONTAINER_NAME,
                     blob=public_id,
                 )
                 blob_client.delete_blob()

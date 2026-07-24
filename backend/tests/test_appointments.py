@@ -232,7 +232,7 @@ def test_get_appointments_lists_booking(client, db_session):
     assert data["total"] == 1
 
     appointment = data["appointments"][0]
-    assert appointment["doctorName"] == "Dr. Dr Sarah Chen"
+    assert appointment["doctorName"] == "Dr. Sarah Chen"
     assert appointment["isUpcoming"] is True
     assert appointment["status"] == "pending"
 

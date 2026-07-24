@@ -17,7 +17,7 @@ class VideoBase(BaseModel):
 
 
 class VideoCreate(VideoBase):
-    video_group_id: uuid.UUID = Field(alias="videoGroupId")
+    video_group_id: Optional[uuid.UUID] = Field(default=None, alias="videoGroupId")
     sort_order: int = Field(default=0, alias="sortOrder")
 
 

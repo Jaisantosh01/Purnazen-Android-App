@@ -81,6 +81,19 @@ class VideoRepository:
         return db.get(Videos, video_id)
 
     @staticmethod
+    def get_by_url(db: Session, video_url: str, active_only: bool = True) -> Videos | None:
+        """Find a video by its stored blob path (``video_url``).
+
+        Used to keep uploads idempotent (a retry updates the existing record
+        instead of creating a duplicate) and to resolve the DB record behind a
+        storage file for move/delete operations.
+        """
+        query = db.query(Videos).filter(Videos.video_url == video_url)
+        if active_only:
+            query = query.filter(Videos.is_active == True)
+        return query.order_by(Videos.created_at.desc()).first()
+
+    @staticmethod
     def get_by_group(db: Session, group_id: uuid.UUID, active_only: bool = True) -> list[Videos]:
         query = (
             db.query(Videos)

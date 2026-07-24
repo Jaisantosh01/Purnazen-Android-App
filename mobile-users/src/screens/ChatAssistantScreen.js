@@ -6,14 +6,12 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  TextInput,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import useTheme from '../hooks/useTheme';
-import AppDialog from '../components/AppDialog';
 import ScreenHeader from '../components/ScreenHeader';
 
 const ChatAssistantScreen = ({ route, navigation }) => {
@@ -27,13 +25,6 @@ const ChatAssistantScreen = ({ route, navigation }) => {
   const [currentQuestionId, setCurrentQuestionId] = useState(startQuestionId);
   const [loading, setLoading] = useState(true);
 
-  const [showPainModal, setShowPainModal] = useState(false);
-  const [painLevel, setPainLevel] = useState('5');
-  const [painDescription, setPainDescription] = useState('');
-  const [savingFeedback, setSavingFeedback] = useState(false);
-  const [pendingGroupId, setPendingGroupId] = useState(null);
-  const [checkingFeedback, setCheckingFeedback] = useState(false);
-
   const scrollViewRef = useRef();
 
   const navigateToVideos = useCallback((groupId) => {
@@ -44,56 +35,12 @@ const ChatAssistantScreen = ({ route, navigation }) => {
     }
   }, [navigation, reliefTitle]);
 
-  const handleBrowseSession = useCallback(async (finalMsg) => {
-    const groupId = finalMsg?.videoGroupId;
-    if (!groupId) {
-      navigateToVideos(null);
-      return;
-    }
-
-    setCheckingFeedback(true);
-    try {
-      await apiClient.get(ENDPOINTS.THERAPY_FEEDBACK_BY_GROUP(groupId));
-      // Feedback exists — navigate directly
-      navigateToVideos(groupId);
-    } catch (err) {
-      // 404 means no feedback yet — show popup
-      setPendingGroupId(groupId);
-      setPainLevel('5');
-      setPainDescription('');
-      setShowPainModal(true);
-    } finally {
-      setCheckingFeedback(false);
-    }
+  const handleBrowseSession = useCallback((finalMsg) => {
+    // Go straight to the recommended session. The chat has already asked about
+    // the user's symptom/severity, so we don't re-prompt for a pain level here
+    // (that duplicated "How is your pain?" popup right after the chat).
+    navigateToVideos(finalMsg?.videoGroupId || null);
   }, [navigateToVideos]);
-
-  const handleSkipPain = useCallback(() => {
-    setShowPainModal(false);
-    navigateToVideos(pendingGroupId);
-    setPendingGroupId(null);
-  }, [navigateToVideos, pendingGroupId]);
-
-  const handleSavePain = useCallback(async () => {
-    const groupId = pendingGroupId;
-    if (!groupId) return;
-
-    setSavingFeedback(true);
-    try {
-      await apiClient.post(ENDPOINTS.THERAPY_FEEDBACK, {
-        videoGroupId: groupId,
-        sessionType: 'wellness',
-        painBefore: Math.min(10, Math.max(0, parseInt(painLevel, 10) || 0)),
-        userPainDescription: painDescription.trim() || null,
-      });
-    } catch (err) {
-      // Continue navigation even if save fails
-    } finally {
-      setSavingFeedback(false);
-      setShowPainModal(false);
-      navigateToVideos(groupId);
-      setPendingGroupId(null);
-    }
-  }, [pendingGroupId, painLevel, painDescription, navigateToVideos]);
 
   useEffect(() => {
     apiClient
@@ -203,72 +150,18 @@ const ChatAssistantScreen = ({ route, navigation }) => {
 
       {history[history.length - 1]?.isFinal && (
         <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) + 4 }]}>
-           <TouchableOpacity 
+           <TouchableOpacity
             style={styles.startSessionBtn}
             onPress={() => {
               const finalMsg = history[history.length - 1];
               handleBrowseSession(finalMsg);
             }}
-            disabled={checkingFeedback}
            >
-             {checkingFeedback ? (
-               <ActivityIndicator size="small" color={colors.white} />
-             ) : (
-               <>
-                 <Text style={styles.startSessionText}>Browse Sessions</Text>
-                 <MCIcon name="arrow-right" size={20} color={colors.white} />
-               </>
-             )}
+             <Text style={styles.startSessionText}>Browse Sessions</Text>
+             <MCIcon name="arrow-right" size={20} color={colors.white} />
            </TouchableOpacity>
         </View>
       )}
-
-      <AppDialog
-        visible={showPainModal}
-        onClose={handleSkipPain}
-        onConfirm={handleSavePain}
-        confirmLabel="Save"
-        cancelLabel="Skip"
-        confirmLoading={savingFeedback}
-        icon="heart-plus-outline"
-        title="How is your pain?"
-        subtitle="Let us know your current pain level before starting the session."
-      >
-        <View style={styles.painRow}>
-          <Text style={styles.painLabel}>Pain Level: {painLevel}/10</Text>
-          <View style={styles.painBtns}>
-            {[0,1,2,3,4,5,6,7,8,9,10].map(n => (
-              <TouchableOpacity
-                key={n}
-                style={[
-                  styles.painBtn,
-                  parseInt(painLevel, 10) === n && styles.painBtnActive,
-                ]}
-                onPress={() => setPainLevel(String(n))}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.painBtnText,
-                    parseInt(painLevel, 10) === n && styles.painBtnTextActive,
-                  ]}
-                >
-                  {n}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-        <TextInput
-          style={styles.painInput}
-          placeholder="Describe your pain (optional)"
-          placeholderTextColor={colors.textMuted}
-          value={painDescription}
-          onChangeText={setPainDescription}
-          multiline
-          maxLength={500}
-        />
-      </AppDialog>
     </View>
   );
 };

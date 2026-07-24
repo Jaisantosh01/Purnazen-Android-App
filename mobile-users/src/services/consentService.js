@@ -10,8 +10,20 @@ const consentService = {
     const res = await apiClient.get(BASE);
     const list = res?.data?.consents ?? [];
     const map = {};
-    list.forEach(c => { map[c.consent_type] = !!c.granted; });
+    // The API serialises each record as `consentType` (camelCase). Accept the
+    // snake_case form too so the map is keyed correctly either way — without
+    // this the keys came out `undefined` and every toggle read as OFF.
+    list.forEach(c => {
+      const type = c.consentType ?? c.consent_type;
+      if (type) map[type] = !!c.granted;
+    });
     return map;
+  },
+
+  /** Convenience: has the user granted a specific consent type? */
+  async hasConsent(consentType) {
+    const map = await this.getConsents();
+    return !!map[consentType];
   },
 
   /** Grant or update a consent. */

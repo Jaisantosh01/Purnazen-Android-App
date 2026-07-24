@@ -12,8 +12,10 @@ loop's work is one indexed query per minute.
 
 import asyncio
 import logging
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
+from app.core.config import settings
 from app.db.session import SessionLocal
 from app.models.appointment import Appointment
 from app.models.broadcast import Broadcast
@@ -27,9 +29,21 @@ _INTERVAL_SECONDS = 60
 def send_due_reminders(now: datetime | None = None) -> int:
     """Send reminders for appointments starting within the lead window.
 
+    Appointment dates and slot start times are stored as bare wall-clock values
+    in the app timezone (``settings.APP_TIMEZONE``), so "now" is anchored to that
+    zone before comparing. Otherwise reminders fire off by the server's UTC
+    offset (~5.5h for IST on a UTC container) for both patient and doctor.
+
     Returns the number of appointments reminded (for tests/logging).
     """
-    now = now or datetime.now()
+    tz = ZoneInfo(settings.APP_TIMEZONE)
+    if now is None:
+        now = datetime.now(tz)
+    elif now.tzinfo is None:
+        # A naive caller-supplied time is taken as app-local wall clock.
+        now = now.replace(tzinfo=tz)
+    else:
+        now = now.astimezone(tz)
     db = SessionLocal()
     try:
         settings_row = NotificationService.get_settings(db)
@@ -53,7 +67,7 @@ def send_due_reminders(now: datetime | None = None) -> int:
             slot = appointment.slot_timing
             if not slot or not slot.start_time:
                 continue
-            start_dt = datetime.combine(appointment.date, slot.start_time)
+            start_dt = datetime.combine(appointment.date, slot.start_time, tzinfo=tz)
             if not (now <= start_dt <= now + lead):
                 continue
 
@@ -83,7 +97,7 @@ def send_due_reminders(now: datetime | None = None) -> int:
                     data=payload,
                 )
 
-            appointment.reminder_sent_at = now
+            appointment.reminder_sent_at = now.astimezone(timezone.utc).replace(tzinfo=None)
             db.commit()
             reminded += 1
 
@@ -120,6 +134,57 @@ def send_due_broadcasts(now: datetime | None = None) -> int:
         db.close()
 
 
+def expire_stale_holds(now: datetime | None = None) -> int:
+    """Release unpaid booking holds older than ``UNPAID_HOLD_TTL_MINUTES``.
+
+    A booking is created as ``status=pending, payment_status=pending`` — a *hold*
+    on the slot until payment completes. If the user abandons payment the hold
+    lingers and ``slot_taken`` keeps that slot blocked for *every* user (a
+    different user is never excluded, unlike the booker's own retry). This sweep
+    cancels holds whose ``created_at`` is older than the TTL, freeing the slot.
+
+    ``created_at`` is a real server timestamp (UTC on our containers), so this
+    compares against real elapsed time — unlike the wall-clock appointment date.
+    Returns the number of holds released (for tests/logging).
+    """
+    ttl = timedelta(minutes=settings.UNPAID_HOLD_TTL_MINUTES)
+    if now is None:
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+    elif now.tzinfo is not None:
+        now = now.astimezone(timezone.utc).replace(tzinfo=None)
+    cutoff = now - ttl
+
+    db = SessionLocal()
+    try:
+        stale = (
+            db.query(Appointment)
+            .filter(
+                Appointment.status == "pending",
+                Appointment.payment_status == "pending",
+                Appointment.is_active == True,  # noqa: E712
+                Appointment.created_at < cutoff,
+            )
+            .all()
+        )
+        for appointment in stale:
+            appointment.status = "cancelled"
+            NotificationService.notify_safely(
+                db, appointment.user_id, category="reminder",
+                event="hold_expired",
+                title="Booking hold released",
+                body=(
+                    f"{appointment.reference} was not paid in time, so the slot "
+                    "has been released. You can book again anytime."
+                ),
+                data={"appointmentId": str(appointment.id)},
+            )
+        if stale:
+            db.commit()
+        return len(stale)
+    finally:
+        db.close()
+
+
 async def reminder_loop() -> None:
     logger.info("Appointment reminder scheduler started (every %ss).", _INTERVAL_SECONDS)
     while True:
@@ -133,4 +198,10 @@ async def reminder_loop() -> None:
             await asyncio.to_thread(send_due_broadcasts)
         except Exception as exc:
             logger.warning("Broadcast scheduler tick failed: %s", exc)
+        try:
+            released = await asyncio.to_thread(expire_stale_holds)
+            if released:
+                logger.info("Released %s stale unpaid booking hold(s).", released)
+        except Exception as exc:
+            logger.warning("Hold-expiry scheduler tick failed: %s", exc)
         await asyncio.sleep(_INTERVAL_SECONDS)

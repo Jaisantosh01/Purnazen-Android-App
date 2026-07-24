@@ -26,7 +26,39 @@ App (logged in) ──GET /app-releases/latest?app=<slug>──> { version, forc
   - `GET /app-releases/<slug>/<version>/download` — JWT; short-lived SAS URL.
   - `POST /app-releases` — **CI only**, `X-Release-Token` header (not user auth).
 - App side: `src/services/updateService.js` (all three apps) polls these via the
-  api client; `UpdatePrompt` / Settings "Check for Updates" are unchanged.
+  api client and returns `{ version, current, forced, notes, sha256, apkUrl }`.
+
+## Client install flow (in-app background download + install)
+
+`UpdatePrompt` notifies for **any** newer version and installs it in-app instead
+of handing the SAS URL to the browser:
+
+- **Native module** `OtaUpdater` (`android/.../java/com/purnazen/otaupdater/`,
+  identical file in all three apps — the FileProvider authority is derived from
+  `context.packageName` at runtime):
+  - `download(url, version, sha256)` — enqueues the APK on Android's
+    `DownloadManager` (keeps downloading, with its own system progress
+    notification, even if the app is backgrounded), polls it to emit
+    `otaDownloadProgress`, optionally verifies the sha256, then emits
+    `otaDownloadComplete` and posts an **"Update ready to install"** notification.
+  - `install(filePath)` — launches the OS package installer via a `FileProvider`
+    content URI (`ACTION_VIEW`). The installer handles the replace/reboot.
+  - `isInstallAllowed()` / `openInstallSettings()` — gate on the sensitive
+    `REQUEST_INSTALL_PACKAGES` consent (Android 8+ "install unknown apps").
+- **JS**: `src/services/otaUpdater.js` wraps the module; `UpdatePrompt`
+  orchestrates it. **Forced** updates auto-download on launch and install as soon
+  as they land; **optional** updates offer "Download & install" (can be sent to
+  the background) then install. If "install unknown apps" is off we deep-link the
+  user to that screen and finish the install when they return; the install-ready
+  notification is the fallback entry point. Settings → **Check for Updates** uses
+  the same background flow (`startBackgroundInstall`).
+- **Manifest** (per app): `REQUEST_INSTALL_PACKAGES` permission + a
+  `${applicationId}.otaprovider` `FileProvider` (`res/xml/ota_provider_paths.xml`,
+  scoped to the app-specific external `Download/` dir). `mobile-admin` also gains
+  `POST_NOTIFICATIONS` for the install-ready notification.
+- **Fallback**: when the native module is absent (iOS, or an older native build
+  running new JS) the prompt reverts to the old `Linking.openURL(apkUrl)`
+  browser hand-off, so nothing regresses.
 
 ## One-time setup
 

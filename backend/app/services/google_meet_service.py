@@ -29,7 +29,9 @@ except ImportError:
 
 
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
-TIMEZONE = "Asia/Kolkata"
+# Meet events carry this so Google renders the naive wall-clock start/end in the
+# right zone; shared with the reminder scheduler via settings.APP_TIMEZONE.
+TIMEZONE = settings.APP_TIMEZONE
 
 
 def _get_calendar_service():

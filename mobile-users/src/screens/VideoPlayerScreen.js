@@ -9,27 +9,40 @@ import {
   ActivityIndicator,
   TextInput,
   useWindowDimensions,
+  PanResponder,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import useTheme from '../hooks/useTheme';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { syncVideoProgress } from '../utils/videoTracker';
+import therapyService from '../services/therapyService';
 import VideoPlayer from '../components/VideoPlayer';
 import AppDialog from '../components/AppDialog';
+import AppToggle from '../components/AppToggle';
+
+const AUTOPLAY_NEXT_KEY = 'video_autoplay_next';
 
 const VideoPlayerScreen = ({ route, navigation }) => {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { width: screenW } = useWindowDimensions();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const { groupId } = route.params;
+  const { groupId, sessionGroupId: routeSessionGroupId } = route.params;
+
+  const [sessionGroupId, setSessionGroupId] = useState(routeSessionGroupId || null);
+  const [incompleteSession, setIncompleteSession] = useState(null);
+  const [showSessionDialog, setShowSessionDialog] = useState(false);
+  const [sessionDialogResolved, setSessionDialogResolved] = useState(!!routeSessionGroupId);
 
   const [catalog, setCatalog] = useState(null);
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const [autoPlayNext, setAutoPlayNext] = useState(true);
 
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [hasPainBefore, setHasPainBefore] = useState(false);
@@ -38,11 +51,19 @@ const VideoPlayerScreen = ({ route, navigation }) => {
   const [savingFeedback, setSavingFeedback] = useState(false);
   const [feedbackId, setFeedbackId] = useState(null);
 
-  const watchedRef = useRef(0); // seconds watched of the current video
-  const feedbackCheckDoneRef = useRef(false); // prevent duplicate checks
+  const [showInitialFeedback, setShowInitialFeedback] = useState(false);
+  const [painBefore, setPainBefore] = useState('5');
+  const [painDescription, setPainDescription] = useState('');
+  const [savingInitial, setSavingInitial] = useState(false);
+
+  const watchedRef = useRef(0);
+  const lastFeedbackVideoRef = useRef(null);
 
   const checkAndShowFeedback = useCallback(async () => {
-    if (feedbackCheckDoneRef.current) return;
+    const video = catalog?.videos?.[currentVideoIndex];
+    if (!video) return;
+    if (lastFeedbackVideoRef.current === video.id) return;
+
     const totalVideos = catalog?.videos?.length;
     if (!totalVideos) return;
 
@@ -51,30 +72,28 @@ const VideoPlayerScreen = ({ route, navigation }) => {
       const completedCount = countRes?.data?.completedCount ?? 0;
       if (completedCount < totalVideos) return;
 
-      feedbackCheckDoneRef.current = true;
+      lastFeedbackVideoRef.current = video.id;
+    } catch {}
 
-      try {
-        const feedbackRes = await apiClient.get(ENDPOINTS.THERAPY_FEEDBACK_BY_GROUP(groupId));
-        const fb = feedbackRes?.data;
-        if (fb?.id) {
-          setFeedbackId(fb.id);
-          setHasPainBefore(fb.painBefore != null);
-        } else {
-          setFeedbackId(null);
-          setHasPainBefore(false);
-        }
-      } catch {
+    try {
+      const feedbackRes = await apiClient.get(ENDPOINTS.THERAPY_FEEDBACK_BY_SESSION(sessionGroupId));
+      const fb = feedbackRes?.data;
+      if (fb?.id) {
+        setFeedbackId(fb.id);
+        setHasPainBefore(fb.painBefore != null);
+      } else {
         setFeedbackId(null);
         setHasPainBefore(false);
       }
-
-      setPainAfter('5');
-      setUserFeedback('');
-      setShowFeedbackModal(true);
     } catch {
-      // ignore errors
+      setFeedbackId(null);
+      setHasPainBefore(false);
     }
-  }, [catalog, groupId]);
+
+    setPainAfter('5');
+    setUserFeedback('');
+    setShowFeedbackModal(true);
+  }, [catalog, groupId, sessionGroupId, currentVideoIndex]);
 
   const handleSkipFeedback = useCallback(() => {
     setShowFeedbackModal(false);
@@ -84,20 +103,23 @@ const VideoPlayerScreen = ({ route, navigation }) => {
     setSavingFeedback(true);
     try {
       const payload = {
-        painAfter: hasPainBefore ? Math.min(10, Math.max(0, parseInt(painAfter, 10) || 0)) : null,
+        painAfter: Math.min(10, Math.max(0, parseInt(painAfter, 10) || 0)),
         userFeedback: userFeedback.trim() || null,
       };
 
-      if (feedbackId) {
-        await apiClient.put(ENDPOINTS.THERAPY_FEEDBACK_PAIN_AFTER(feedbackId), payload);
+      let fbId = feedbackId;
+
+      if (fbId) {
+        await apiClient.put(ENDPOINTS.THERAPY_FEEDBACK_PAIN_AFTER(fbId), payload);
       } else {
         const created = await apiClient.post(ENDPOINTS.THERAPY_FEEDBACK, {
           videoGroupId: groupId,
           sessionType: 'wellness',
+          sessionGroupId,
         });
-        const newId = created?.data?.id;
-        if (newId) {
-          await apiClient.put(ENDPOINTS.THERAPY_FEEDBACK_PAIN_AFTER(newId), payload);
+        fbId = created?.data?.id;
+        if (fbId) {
+          await apiClient.put(ENDPOINTS.THERAPY_FEEDBACK_PAIN_AFTER(fbId), payload);
         }
       }
     } catch {
@@ -106,7 +128,64 @@ const VideoPlayerScreen = ({ route, navigation }) => {
       setSavingFeedback(false);
       setShowFeedbackModal(false);
     }
-  }, [feedbackId, hasPainBefore, painAfter, userFeedback, groupId]);
+  }, [feedbackId, hasPainBefore, painAfter, userFeedback, groupId, sessionGroupId]);
+
+  const handleSaveInitialFeedback = useCallback(async () => {
+    setSavingInitial(true);
+    try {
+      const created = await apiClient.post(ENDPOINTS.THERAPY_FEEDBACK, {
+        videoGroupId: groupId,
+        sessionType: 'wellness',
+        sessionGroupId,
+        painBefore: Math.min(10, Math.max(0, parseInt(painBefore, 10) || 0)),
+        userPainDescription: painDescription.trim() || null,
+      });
+      const newId = created?.data?.id;
+      if (newId) setFeedbackId(newId);
+    } catch {
+      // continue even if save fails
+    } finally {
+      setSavingInitial(false);
+      setShowInitialFeedback(false);
+    }
+  }, [groupId, painBefore, painDescription, sessionGroupId]);
+
+  const handleSkipInitialFeedback = useCallback(() => {
+    setShowInitialFeedback(false);
+  }, []);
+
+  const handleContinueSession = useCallback(() => {
+    if (incompleteSession) {
+      setSessionGroupId(incompleteSession.id);
+      setSessionDialogResolved(true);
+      setShowSessionDialog(false);
+    }
+  }, [incompleteSession]);
+
+  const handleStartFreshSession = useCallback(async () => {
+    setShowSessionDialog(false);
+    try {
+      const sg = await therapyService.startSession(groupId, 'wellness');
+      if (sg?.id) {
+        setSessionGroupId(sg.id);
+        setSessionDialogResolved(true);
+        setShowInitialFeedback(true);
+      }
+    } catch {
+      setSessionDialogResolved(true);
+    }
+  }, [groupId]);
+
+  useEffect(() => {
+    AsyncStorage.getItem(AUTOPLAY_NEXT_KEY)
+      .then(stored => { if (stored === '0') setAutoPlayNext(false); })
+      .catch(() => {});
+  }, []);
+
+  const handleAutoPlayNextChange = useCallback(next => {
+    setAutoPlayNext(next);
+    AsyncStorage.setItem(AUTOPLAY_NEXT_KEY, next ? '1' : '0').catch(() => {});
+  }, []);
 
   useEffect(() => {
     apiClient
@@ -116,28 +195,109 @@ const VideoPlayerScreen = ({ route, navigation }) => {
       .finally(() => setLoading(false));
   }, [groupId]);
 
+  const sliderWidthRef = useRef(0);
+
+  const painSlider = useMemo(() => ({
+    panResponder: PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: (e) => {
+        const x = e.nativeEvent.locationX;
+        const w = sliderWidthRef.current || 1;
+        setPainAfter(String(Math.min(10, Math.max(0, Math.round((x / w) * 10)))));
+      },
+      onPanResponderMove: (e) => {
+        const x = e.nativeEvent.locationX;
+        const w = sliderWidthRef.current || 1;
+        setPainAfter(String(Math.min(10, Math.max(0, Math.round((x / w) * 10)))));
+      },
+    }),
+  }), []);
+
+  const painVal = parseInt(painAfter, 10) || 5;
+  const painPct = painVal / 10;
+
+  const initialSliderWidthRef = useRef(0);
+
+  const painBeforeSlider = useMemo(() => ({
+    panResponder: PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: (e) => {
+        const x = e.nativeEvent.locationX;
+        const w = initialSliderWidthRef.current || 1;
+        setPainBefore(String(Math.min(10, Math.max(0, Math.round((x / w) * 10)))));
+      },
+      onPanResponderMove: (e) => {
+        const x = e.nativeEvent.locationX;
+        const w = initialSliderWidthRef.current || 1;
+        setPainBefore(String(Math.min(10, Math.max(0, Math.round((x / w) * 10)))));
+      },
+    }),
+  }), []);
+
+  const painBeforeVal = parseInt(painBefore, 10) || 5;
+  const painBeforePct = painBeforeVal / 10;
+
   // Mark the first video as started once the catalog is in.
   useEffect(() => {
-    if (catalog?.videos?.length) {
-      syncVideoProgress(groupId, catalog.videos[0].id, 'Pending', 0, 'wellness');
+    if (catalog?.videos?.length && sessionGroupId) {
+      syncVideoProgress(groupId, catalog.videos[0].id, 'Pending', 0, 'wellness', null, null, sessionGroupId);
     }
-  }, [catalog, groupId]);
+  }, [catalog, groupId, sessionGroupId]);
+
+  // Check for existing feedback or incomplete session on mount.
+  useEffect(() => {
+    if (!catalog || sessionDialogResolved) return;
+
+    if (sessionGroupId) {
+      apiClient.get(ENDPOINTS.THERAPY_FEEDBACK_BY_SESSION(sessionGroupId))
+        .then(res => {
+          const fb = res?.data;
+          if (fb?.id) {
+            setFeedbackId(fb.id);
+            setHasPainBefore(fb.painBefore != null);
+          }
+          setSessionDialogResolved(true);
+        })
+        .catch(() => {
+          setSessionDialogResolved(true);
+        });
+    } else {
+      therapyService.getIncompleteSession(groupId).then(sg => {
+        if (sg) {
+          setIncompleteSession(sg);
+          setShowSessionDialog(true);
+        } else {
+          therapyService.startSession(groupId, 'wellness').then(sg => {
+            if (sg?.id) {
+              setSessionGroupId(sg.id);
+              setSessionDialogResolved(true);
+              setShowInitialFeedback(true);
+            } else {
+              setSessionDialogResolved(true);
+            }
+          }).catch(() => setSessionDialogResolved(true));
+        }
+      }).catch(() => setSessionDialogResolved(true));
+    }
+  }, [catalog, groupId, sessionGroupId, sessionDialogResolved]);
 
   const onProgress = useCallback(
-    data => {
+    async data => {
       const video = catalog?.videos?.[currentVideoIndex];
       if (!video) return;
       const dur = video.duration || data.seekableDuration || 0;
       const watched = data.currentTime;
       // Fire "Completed" once when crossing 90%.
       if (dur > 0 && watched / dur > 0.9 && watchedRef.current / dur <= 0.9) {
-        syncVideoProgress(groupId, video.id, 'Completed', dur / 60, 'wellness');
+        await syncVideoProgress(groupId, video.id, 'Completed', dur / 60, 'wellness', null, null, sessionGroupId);
         checkAndShowFeedback();
       }
       watchedRef.current = watched;
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [catalog, currentVideoIndex, groupId],
+    [catalog, currentVideoIndex, groupId, sessionGroupId],
   );
 
   // Switch to a playlist item. `completedPrev` marks the outgoing video done
@@ -153,22 +313,23 @@ const VideoPlayerScreen = ({ route, navigation }) => {
           completedPrev ? 'Completed' : 'Pending',
           (completedPrev ? prev.duration : watchedRef.current) / 60,
           'wellness',
+          null, null, sessionGroupId,
         );
       }
       watchedRef.current = 0;
       setCurrentVideoIndex(index);
-      syncVideoProgress(groupId, catalog.videos[index].id, 'Pending', 0, 'wellness');
+      syncVideoProgress(groupId, catalog.videos[index].id, 'Pending', 0, 'wellness', null, null, sessionGroupId);
     },
-    [catalog, currentVideoIndex, groupId],
+    [catalog, currentVideoIndex, groupId, sessionGroupId],
   );
 
-  const handleEnd = useCallback(() => {
+  const handleEnd = useCallback(async () => {
     const video = catalog?.videos?.[currentVideoIndex];
     if (video) {
-      syncVideoProgress(groupId, video.id, 'Completed', video.duration / 60, 'wellness');
+      await syncVideoProgress(groupId, video.id, 'Completed', video.duration / 60, 'wellness', null, null, sessionGroupId);
       checkAndShowFeedback();
     }
-  }, [catalog, currentVideoIndex, groupId, checkAndShowFeedback]);
+  }, [catalog, currentVideoIndex, groupId, sessionGroupId, checkAndShowFeedback]);
 
   const hasNext = !!catalog && currentVideoIndex < catalog.videos.length - 1;
   const goNext = useCallback(() => {
@@ -224,6 +385,7 @@ const VideoPlayerScreen = ({ route, navigation }) => {
   }
 
   const currentVideo = catalog.videos[currentVideoIndex];
+  const nextVideo = catalog.videos[currentVideoIndex + 1];
 
   return (
     <View style={styles.root}>
@@ -239,6 +401,7 @@ const VideoPlayerScreen = ({ route, navigation }) => {
       {/* Player */}
       <VideoPlayer
         source={currentVideo.videoUrl ? { uri: currentVideo.videoUrl } : null}
+        sourceId={currentVideo.id}
         poster={
           <MCIcon name={currentVideo.icon || 'play-circle-outline'} size={80} color={colors.primary} />
         }
@@ -246,6 +409,12 @@ const VideoPlayerScreen = ({ route, navigation }) => {
         onEnd={handleEnd}
         onNext={goNext}
         hasNext={hasNext}
+        nextTitle={nextVideo?.title}
+        nextSubtitle={nextVideo ? `${Math.floor(nextVideo.duration / 60)} min` : null}
+        autoPlayNext={autoPlayNext}
+        // Don't count down (or advance) behind the session-feedback dialog.
+        suspendUpNext={showFeedbackModal || showInitialFeedback}
+        paused={showInitialFeedback}
       />
 
       {/* Floating back button over the player */}
@@ -277,6 +446,24 @@ const VideoPlayerScreen = ({ route, navigation }) => {
               </Text>
             </View>
           </View>
+
+          {/* Autoplay — only meaningful when the group has more than one video */}
+          {catalog.videos.length > 1 && (
+            <View style={styles.autoPlayRow}>
+              <View style={styles.autoPlayIcon}>
+                <MCIcon name="play-speed" size={18} color={colors.primary} />
+              </View>
+              <View style={styles.autoPlayInfo}>
+                <Text style={styles.autoPlayTitle}>Autoplay next session</Text>
+                <Text style={styles.autoPlaySubtitle}>
+                  {autoPlayNext
+                    ? 'Starts the next video 5 seconds after this one ends'
+                    : 'Asks before starting the next video'}
+                </Text>
+              </View>
+              <AppToggle value={autoPlayNext} onValueChange={handleAutoPlayNextChange} />
+            </View>
+          )}
         </View>
 
         {/* Playlist */}
@@ -310,6 +497,38 @@ const VideoPlayerScreen = ({ route, navigation }) => {
           })}
         </View>
       </ScrollView>
+
+      {showSessionDialog && (
+        <View style={styles.sessionDialogOverlay}>
+          <View style={[styles.sessionDialog, { backgroundColor: colors.card }]}>
+            <Text style={styles.sessionDialogTitle}>Resume Session?</Text>
+            <Text style={styles.sessionDialogSub}>
+              You have an incomplete session from{' '}
+              {incompleteSession?.createdAt
+                ? new Date(incompleteSession.createdAt).toLocaleDateString()
+                : 'earlier'}
+              .{'\n'}{incompleteSession?.completedVideos ?? 0}/{incompleteSession?.totalVideos ?? 0} videos completed.
+            </Text>
+            <View style={styles.sessionDialogActions}>
+              <TouchableOpacity
+                style={[styles.sessionDialogBtn, { backgroundColor: colors.primary }]}
+                onPress={handleContinueSession}
+                activeOpacity={0.85}
+              >
+                <Text style={[styles.sessionDialogBtnText, { color: colors.white }]}>Continue</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.sessionDialogBtn, { backgroundColor: colors.surfaceMuted }]}
+                onPress={handleStartFreshSession}
+                activeOpacity={0.85}
+              >
+                <Text style={[styles.sessionDialogBtnText, { color: colors.textPrimary }]}>Start Fresh</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
       <AppDialog
         visible={showFeedbackModal}
         onClose={handleSkipFeedback}
@@ -319,35 +538,28 @@ const VideoPlayerScreen = ({ route, navigation }) => {
         confirmLoading={savingFeedback}
         icon="clipboard-text-outline"
         title="Session Feedback"
-        subtitle={hasPainBefore ? "How is your pain now? Any feedback?" : "Share your feedback about this session."}
+        subtitle="How is your pain now? Any feedback?"
       >
-        {hasPainBefore && (
-          <View style={styles.feedbackPainRow}>
-            <Text style={styles.feedbackPainLabel}>Pain After: {painAfter}/10</Text>
-            <View style={styles.feedbackPainBtns}>
-              {[0,1,2,3,4,5,6,7,8,9,10].map(n => (
-                <TouchableOpacity
-                  key={n}
-                  style={[
-                    styles.feedbackPainBtn,
-                    parseInt(painAfter, 10) === n && styles.feedbackPainBtnActive,
-                  ]}
-                  onPress={() => setPainAfter(String(n))}
-                  activeOpacity={0.7}
-                >
-                  <Text
-                    style={[
-                      styles.feedbackPainBtnText,
-                      parseInt(painAfter, 10) === n && styles.feedbackPainBtnTextActive,
-                    ]}
-                  >
-                    {n}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+        <View style={styles.feedbackPainRow}>
+          <Text style={styles.feedbackPainLabel}>Pain After: {painAfter}/10</Text>
+          <View
+            style={styles.sliderTrack}
+            onLayout={(e) => { sliderWidthRef.current = e.nativeEvent.layout.width; }}
+            {...painSlider.panResponder.panHandlers}
+          >
+            <View style={[styles.sliderFill, { width: `${painPct * 100}%` }]} />
+            <View style={[styles.sliderThumb, { left: `${painPct * 100}%` }]} />
           </View>
-        )}
+          <View style={styles.sliderLabels}>
+            <Text style={styles.sliderLabelText}>0</Text>
+            <Text style={styles.sliderLabelText}>2</Text>
+            <Text style={styles.sliderLabelText}>4</Text>
+            <Text style={styles.sliderLabelText}>6</Text>
+            <Text style={styles.sliderLabelText}>8</Text>
+            <Text style={styles.sliderLabelText}>10</Text>
+          </View>
+        </View>
+        
         <TextInput
           style={styles.feedbackInput}
           placeholder="Write your feedback here…"
@@ -356,6 +568,46 @@ const VideoPlayerScreen = ({ route, navigation }) => {
           onChangeText={setUserFeedback}
           multiline
           maxLength={1000}
+        />
+      </AppDialog>
+      <AppDialog
+        visible={showInitialFeedback}
+        onClose={handleSkipInitialFeedback}
+        onConfirm={handleSaveInitialFeedback}
+        confirmLabel="Save"
+        cancelLabel="Skip"
+        confirmLoading={savingInitial}
+        icon="clipboard-text-outline"
+        title="Initial Pain Assessment"
+        subtitle="How severe is your pain right now?"
+      >
+        <View style={styles.feedbackPainRow}>
+          <Text style={styles.feedbackPainLabel}>Pain Level: {painBefore}/10</Text>
+          <View
+            style={styles.sliderTrack}
+            onLayout={(e) => { initialSliderWidthRef.current = e.nativeEvent.layout.width; }}
+            {...painBeforeSlider.panResponder.panHandlers}
+          >
+            <View style={[styles.sliderFill, { width: `${painBeforePct * 100}%` }]} />
+            <View style={[styles.sliderThumb, { left: `${painBeforePct * 100}%` }]} />
+          </View>
+          <View style={styles.sliderLabels}>
+              <Text style={styles.sliderLabelText}>0</Text>
+              <Text style={styles.sliderLabelText}>2</Text>
+              <Text style={styles.sliderLabelText}>4</Text>
+              <Text style={styles.sliderLabelText}>6</Text>
+              <Text style={styles.sliderLabelText}>8</Text>
+              <Text style={styles.sliderLabelText}>10</Text>
+          </View>
+        </View>
+        <TextInput
+          style={styles.feedbackInput}
+          placeholder="Describe your pain (optional)…"
+          placeholderTextColor={colors.textMuted}
+          value={painDescription}
+          onChangeText={setPainDescription}
+          multiline
+          maxLength={500}
         />
       </AppDialog>
     </View>
@@ -438,6 +690,27 @@ const makeStyles = colors => StyleSheet.create({
   },
   metaText: { fontSize: 12, color: colors.textMuted, fontWeight: '600' },
 
+  autoPlayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 18,
+    paddingTop: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  autoPlayIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primaryLight,
+  },
+  autoPlayInfo: { flex: 1 },
+  autoPlayTitle: { fontSize: 14.5, fontWeight: '700', color: colors.textPrimary },
+  autoPlaySubtitle: { fontSize: 12, color: colors.textMuted, marginTop: 2, lineHeight: 16 },
+
   playlistSection: { padding: 20 },
   sectionLabel: { fontSize: 11, fontWeight: '700', color: colors.textMuted, letterSpacing: 1, marginBottom: 16 },
   videoRow: {
@@ -478,37 +751,56 @@ const makeStyles = colors => StyleSheet.create({
 
   feedbackPainRow: {
     marginBottom: 16,
+    paddingHorizontal: 4,
   },
   feedbackPainLabel: {
     fontSize: 15,
     fontWeight: '700',
     color: colors.textPrimary,
-    marginBottom: 10,
+    marginBottom: 16,
     textAlign: 'center',
   },
-  feedbackPainBtns: {
-    flexDirection: 'row',
-    gap: 4,
-  },
-  feedbackPainBtn: {
-    flex: 1,
-    height: 38,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+  sliderTrack: {
+    height: 6,
+    borderRadius: 12,
     backgroundColor: colors.surfaceMuted,
+    justifyContent: 'center',
+    position: 'relative',
+    overflow: 'visible',
   },
-  feedbackPainBtnActive: {
+  sliderFill: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    borderRadius: 12,
     backgroundColor: colors.primary,
   },
-  feedbackPainBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textSecondary,
+  sliderThumb: {
+    position: 'absolute',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.white,
+    borderWidth: 2.5,
+    borderColor: colors.primary,
+    top: -6,
+    marginLeft: -10,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
   },
-  feedbackPainBtnTextActive: {
-    color: colors.white,
-    fontWeight: '800',
+  sliderLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 6,
+    paddingHorizontal: 2,
+  },
+  sliderLabelText: {
+    fontSize: 12,
+    color: colors.textMuted,
   },
   feedbackInput: {
     borderWidth: 1,
@@ -529,4 +821,30 @@ const makeStyles = colors => StyleSheet.create({
     borderRadius: 25,
   },
   backBtnText: { color: colors.white, fontWeight: '700' },
+
+  sessionDialogOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 50,
+  },
+  sessionDialog: {
+    width: '80%',
+    borderRadius: 20,
+    padding: 24,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+  },
+  sessionDialogTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary, marginBottom: 8, textAlign: 'center' },
+  sessionDialogSub: { fontSize: 14, color: colors.textSecondary, marginBottom: 20, textAlign: 'center', lineHeight: 20 },
+  sessionDialogActions: { flexDirection: 'row', gap: 12 },
+  sessionDialogBtn: {
+    flex: 1, paddingVertical: 12, borderRadius: 14, alignItems: 'center',
+  },
+  sessionDialogBtnText: { fontSize: 15, fontWeight: '700' },
 });
