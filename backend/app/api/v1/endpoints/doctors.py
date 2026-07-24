@@ -1,6 +1,7 @@
 from datetime import date as date_cls
 from datetime import datetime
 
+from typing import Optional
 import uuid
 
 from fastapi import APIRouter, Depends, Query
@@ -82,9 +83,9 @@ def doctor_card(doctor):
     }
 
 
-def _doctor_list(db, page, limit, search, filter_key=None):
+def _doctor_list(db, page, limit, search, filter_key=None, is_active=None):
     """Shared list/total payload for the catalog and filter endpoints."""
-    doctors, total = DoctorService.get_doctors(db, page, limit, search, filter_key)
+    doctors, total = DoctorService.get_doctors(db, page, limit, search, filter_key, is_active)
 
     return {
         "success": True,
@@ -106,9 +107,10 @@ def get_doctors(
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=10, ge=1, le=100),
     search: str = Query(default=""),
+    is_active: Optional[bool] = Query(default=None),
     db: Session = Depends(get_db),
 ):
-    return _doctor_list(db, page, limit, search)
+    return _doctor_list(db, page, limit, search, is_active=is_active)
 
 
 # NOTE: these static paths must stay registered before /doctors/{doctor_id},
@@ -122,9 +124,10 @@ def get_doctors_available_today(
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=10, ge=1, le=100),
     search: str = Query(default=""),
+    is_active: Optional[bool] = Query(default=None),
     db: Session = Depends(get_db),
 ):
-    return _doctor_list(db, page, limit, search, "available_today")
+    return _doctor_list(db, page, limit, search, "available_today", is_active)
 
 
 @router.get(
@@ -136,9 +139,10 @@ def get_doctors_video_call(
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=10, ge=1, le=100),
     search: str = Query(default=""),
+    is_active: Optional[bool] = Query(default=None),
     db: Session = Depends(get_db),
 ):
-    return _doctor_list(db, page, limit, search, "video")
+    return _doctor_list(db, page, limit, search, "video", is_active)
 
 
 @router.get(
@@ -150,9 +154,10 @@ def get_doctors_home_visit(
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=10, ge=1, le=100),
     search: str = Query(default=""),
+    is_active: Optional[bool] = Query(default=None),
     db: Session = Depends(get_db),
 ):
-    return _doctor_list(db, page, limit, search, "home")
+    return _doctor_list(db, page, limit, search, "home", is_active)
 
 
 @router.get(
@@ -164,9 +169,10 @@ def get_doctors_top_rated(
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=10, ge=1, le=100),
     search: str = Query(default=""),
+    is_active: Optional[bool] = Query(default=None),
     db: Session = Depends(get_db),
 ):
-    return _doctor_list(db, page, limit, search, "top_rated")
+    return _doctor_list(db, page, limit, search, "top_rated", is_active)
 
 
 @router.get(

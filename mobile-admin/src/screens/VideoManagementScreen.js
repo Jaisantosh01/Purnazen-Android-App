@@ -459,8 +459,8 @@ const VideoManagementScreen = ({ navigation }) => {
       {/* Add/Edit Session Modal */}
       <Modal visible={sessionModalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <ScrollView contentContainerStyle={styles.scrollModalContent}>
-            <View style={styles.modalCard}>
+          <View style={styles.modalCard}>
+            <ScrollView style={styles.sessionModalBody} contentContainerStyle={styles.sessionModalBodyContent} keyboardShouldPersistTaps="handled">
               <Text style={styles.modalTitle}>{isEditingSession ? 'Edit Session' : 'Add New Session'}</Text>
 
               <Text style={styles.label}>Title <Text style={{color: '#EF4444'}}>*</Text></Text>
@@ -480,60 +480,62 @@ const VideoManagementScreen = ({ navigation }) => {
                 <MCIcon name="chevron-down" size={20} color={colors.textMuted} />
               </TouchableOpacity>
 
-              <Text style={styles.label}>Video Group <Text style={{color: '#EF4444'}}>*</Text></Text>
-
               <TouchableOpacity style={styles.checkRow} onPress={() => setSessionIsActive(!sessionIsActive)}>
                 <MCIcon name={sessionIsActive ? 'checkbox-marked' : 'checkbox-blank-outline'} size={22} color={sessionIsActive ? colors.primary : colors.textMuted} />
                 <Text style={[styles.checkLabel, !sessionIsActive && { color: colors.textMuted }]}>Active</Text>
               </TouchableOpacity>
 
-              <View style={styles.groupPickerContainer}>
-                {groups
-                  .filter(g => g.isActive !== false)
-                  .map(g => (
-                    <TouchableOpacity
-                      key={g.id}
-                      style={[styles.groupOption, sessionVideoGroupId === g.id && styles.groupOptionSelected]}
-                      onPress={async () => {
-                        if (sessionVideoGroupId === g.id) {
-                          setSessionVideoGroupId(null);
-                          setSessionCalculatedDuration('');
-                        } else {
-                          setSessionVideoGroupId(g.id);
-                          try {
-                            const res = await apiClient.get(ENDPOINTS.VIDEO_GROUP_CATALOG(g.id));
-                            const videos = res?.data?.data?.videos || [];
-                            const totalSecs = videos.reduce((s, v) => s + (parseInt(v.duration, 10) || 0), 0);
-                            const mins = Math.floor(totalSecs / 60);
-                            const secs = totalSecs % 60;
-                            if (mins > 0 && secs > 0) setSessionCalculatedDuration(`${mins} min ${secs} sec`);
-                            else if (mins > 0) setSessionCalculatedDuration(`${mins} min`);
-                            else setSessionCalculatedDuration(`${secs} sec`);
-                          } catch {
-                            setSessionCalculatedDuration('');
-                          }
-                        }
-                      }}
-                    >
-                      <MCIcon name={g.icon || 'folder'} size={18} color={sessionVideoGroupId === g.id ? colors.white : colors.primary} />
-                      <Text style={[styles.groupOptionText, sessionVideoGroupId === g.id && styles.groupOptionTextSelected]}>{g.title}</Text>
-                      {sessionVideoGroupId === g.id && <MCIcon name="check" size={18} color={colors.white} />}
-                    </TouchableOpacity>
-                  ))}
-              </View>
+              <Text style={styles.label}>Video Group <Text style={{color: '#EF4444'}}>*</Text></Text>
 
-              <View style={styles.modalActions}>
-                <TouchableOpacity style={styles.modalBtn} onPress={() => setSessionModalVisible(false)}><Text style={{color: colors.textPrimary}}>Cancel</Text></TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.modalBtn, styles.saveBtn, (!sessionTitle.trim() || !sessionVideoGroupId) && { opacity: 0.5 }]}
-                  disabled={!sessionTitle.trim() || !sessionVideoGroupId}
-                  onPress={handleSaveSession}
-                >
-                  <Text style={{color: colors.white}}>{isEditingSession ? 'Save' : 'Add'}</Text>
-                </TouchableOpacity>
+              <View style={styles.groupPickerContainer}>
+                <ScrollView style={styles.groupPickerScroll} nestedScrollEnabled>
+                  {groups
+                    .filter(g => g.isActive !== false)
+                    .map(g => (
+                      <TouchableOpacity
+                        key={g.id}
+                        style={[styles.groupOption, sessionVideoGroupId === g.id && styles.groupOptionSelected]}
+                        onPress={async () => {
+                          if (sessionVideoGroupId === g.id) {
+                            setSessionVideoGroupId(null);
+                            setSessionCalculatedDuration('');
+                          } else {
+                            setSessionVideoGroupId(g.id);
+                            try {
+                              const res = await apiClient.get(ENDPOINTS.VIDEO_GROUP_CATALOG(g.id));
+                              const videos = res?.data?.data?.videos || [];
+                              const totalSecs = videos.reduce((s, v) => s + (parseInt(v.duration, 10) || 0), 0);
+                              const mins = Math.floor(totalSecs / 60);
+                              const secs = totalSecs % 60;
+                              if (mins > 0 && secs > 0) setSessionCalculatedDuration(`${mins} min ${secs} sec`);
+                              else if (mins > 0) setSessionCalculatedDuration(`${mins} min`);
+                              else setSessionCalculatedDuration(`${secs} sec`);
+                            } catch {
+                              setSessionCalculatedDuration('');
+                            }
+                          }
+                        }}
+                      >
+                        <MCIcon name={g.icon || 'folder'} size={18} color={sessionVideoGroupId === g.id ? colors.white : colors.primary} />
+                        <Text style={[styles.groupOptionText, sessionVideoGroupId === g.id && styles.groupOptionTextSelected]}>{g.title}</Text>
+                        {sessionVideoGroupId === g.id && <MCIcon name="check" size={18} color={colors.white} />}
+                      </TouchableOpacity>
+                    ))}
+                </ScrollView>
               </View>
+            </ScrollView>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalBtn} onPress={() => setSessionModalVisible(false)}><Text style={{color: colors.textPrimary}}>Cancel</Text></TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.saveBtn, (!sessionTitle.trim() || !sessionVideoGroupId) && { opacity: 0.5 }]}
+                disabled={!sessionTitle.trim() || !sessionVideoGroupId}
+                onPress={handleSaveSession}
+              >
+                <Text style={{color: colors.white}}>{isEditingSession ? 'Save' : 'Add'}</Text>
+              </TouchableOpacity>
             </View>
-          </ScrollView>
+          </View>
         </View>
       </Modal>
 
@@ -687,7 +689,10 @@ const makeStyles = colors => StyleSheet.create({
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 60 },
   emptyText: { marginTop: 12, fontSize: 16, color: colors.textMuted },
   scrollModalContent: { flexGrow: 1, justifyContent: 'center', padding: 20 },
+  sessionModalBody: { maxHeight: 420 },
+  sessionModalBodyContent: { paddingBottom: 8 },
   groupPickerContainer: { marginBottom: 12 },
+  groupPickerScroll: { maxHeight: 220 },
   groupOption: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: colors.border, marginBottom: 6 },
   groupOptionSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
   groupOptionText: { marginLeft: 10, flex: 1, fontSize: 14, color: colors.textPrimary },
