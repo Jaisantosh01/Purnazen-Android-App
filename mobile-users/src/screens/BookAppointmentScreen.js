@@ -670,7 +670,8 @@ const makeStyles = colors => StyleSheet.create({
   datePickerPlaceholder:{ flex: 1, fontSize: 14, color: colors.textMuted },
 
   calendarCard: {
-    backgroundColor: colors.card, borderRadius: 14, padding: 16,
+    backgroundColor: colors.card, borderRadius: 14,
+    paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8,
     shadowColor: colors.black, shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05, shadowRadius: 3, elevation: 1, marginTop: 10,
   },
@@ -683,7 +684,7 @@ const makeStyles = colors => StyleSheet.create({
   dayHeaders:    { flexDirection: 'row', marginBottom: 8 },
   dayHeader:     { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600', color: colors.textMuted },
   calendarGrid:  { flexDirection: 'row', flexWrap: 'wrap' },
-  dayCell:       { width: `${100 / 7}%`, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', marginVertical: 2 },
+  dayCell:       { width: `${100 / 7}%`, height: 40, alignItems: 'center', justifyContent: 'center', marginVertical: 1 },
   dayCellSelected: { backgroundColor: colors.primary, borderRadius: 20 },
   dayText:         { fontSize: 13, color: colors.textPrimary, fontWeight: '500' },
   dayTextFaded:    { color: colors.borderStrong },

@@ -20,11 +20,7 @@ import authService from '../services/authService';
 import socialAuthService from '../services/socialAuthService';
 import useTheme from '../hooks/useTheme';
 import { useProfileStore } from '../store/profileStore';
-
-// Proper address form: local@domain.tld with a real 2+ char TLD, no leading/
-// trailing dots or consecutive dots in either part. Rejects "a@b", "x@y.c" and
-// other malformed inputs that the previous \S+@\S+\.\S+ pattern let through.
-const EMAIL_RE = /^[a-zA-Z0-9](?:[a-zA-Z0-9._%+-]*[a-zA-Z0-9])?@(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
+import { isValidEmail } from '../utils/validators';
 
 const RegisterScreen = ({ navigation }) => {
   const { colors } = useTheme();
@@ -75,7 +71,7 @@ const RegisterScreen = ({ navigation }) => {
 
   const handleRegister = async () => {
     if (!fullName.trim())             { setError('Please enter your name.');                 return; }
-    if (!EMAIL_RE.test(email.trim())) { setError('Please enter a valid email.');             return; }
+    if (!isValidEmail(email))         { setError('Please enter a valid email.');             return; }
     if (password.length < 6)          { setError('Password must be at least 6 characters.'); return; }
     if (password !== confirm)         { setError('Passwords do not match.');                 return; }
     setError('');
