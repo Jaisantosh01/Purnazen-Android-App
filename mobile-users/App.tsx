@@ -40,6 +40,7 @@ import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 // @ts-ignore
 import ProfileCompletionScreen from './src/screens/ProfileCompletionScreen';
+import BiometricSetupScreen from './src/screens/BiometricSetupScreen';
 // @ts-ignore
 import { useProfileStore } from './src/store/profileStore';
 import HomeScreen from './src/screens/HomeScreen';
@@ -249,6 +250,7 @@ export default function App() {
     }
   }, [isLoggedIn]);
   const needsProfile = useProfileStore((s: any) => s.pendingCompletion);
+  const needsBiometric = useProfileStore((s: any) => s.pendingBiometricSetup);
   const { message, type, visible, hide } = useToastStore();
   const { colors, isDark } = useTheme();
 
@@ -279,7 +281,7 @@ export default function App() {
   // profile-completion step), request mandatory + optional permissions once and
   // mirror the location grant into server preferences so it syncs across devices.
   useEffect(() => {
-    if (!isLoggedIn || needsProfile) return;
+    if (!isLoggedIn || needsProfile || needsBiometric) return;
     (async () => {
       try {
         const result: any = await permissionsService.ensureRequested();
@@ -292,7 +294,7 @@ export default function App() {
         // never block the app on a permission flow
       }
     })();
-  }, [isLoggedIn, needsProfile]);
+  }, [isLoggedIn, needsProfile, needsBiometric]);
 
   // Feed the active palette into React Navigation so inter-screen backgrounds
   // (and any default headers) follow dark mode instead of flashing white.
@@ -321,6 +323,8 @@ export default function App() {
           // One-time post-sign-up profile completion gates the main tabs.
           needsProfile ? (
             <RootStack.Screen name="ProfileCompletion" component={ProfileCompletionScreen} />
+          ) : needsBiometric ? (
+            <RootStack.Screen name="BiometricSetup" component={BiometricSetupScreen} />
           ) : (
             <RootStack.Screen name="Main" component={MainTabs} />
           )

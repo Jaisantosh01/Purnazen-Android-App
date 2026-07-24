@@ -18,6 +18,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import authService from '../services/authService';
 import socialAuthService from '../services/socialAuthService';
+import biometricService from '../services/biometricService';
 import useTheme from '../hooks/useTheme';
 import { useProfileStore } from '../store/profileStore';
 import { quickEmailIssue } from '../utils/validators';
@@ -79,12 +80,17 @@ const RegisterScreen = ({ navigation }) => {
     setError('');
     setIsLoading(true);
     try {
-      // Show the one-time "complete your profile" step right after sign-up.
+      // Queue the one-time post-sign-up onboarding: complete-profile, then (only
+      // when the device supports it) the biometric-unlock offer. Resolve
+      // availability BEFORE the auth flip so both steps are set atomically.
+      const bioAvailable = await biometricService.isAvailable().catch(() => false);
       useProfileStore.getState().setPendingCompletion(true);
+      useProfileStore.getState().setPendingBiometricSetup(bioAvailable);
       await authService.register(fullName.trim(), email.trim(), password);
       // Navigation handled by App.tsx auth-state listener
     } catch (err) {
       useProfileStore.getState().setPendingCompletion(false);
+      useProfileStore.getState().setPendingBiometricSetup(false);
       setError(err.message || 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
@@ -104,7 +110,9 @@ const RegisterScreen = ({ navigation }) => {
       // Only prompt profile completion when the profile is actually blank —
       // the same button may have signed into an established account.
       if (user && !user.phone && !user.gender && !user.date_of_birth) {
+        const bioAvailable = await biometricService.isAvailable().catch(() => false);
         useProfileStore.getState().setPendingCompletion(true);
+        useProfileStore.getState().setPendingBiometricSetup(bioAvailable);
       }
     } catch (err) {
       setError(err.message || 'Sign-up failed. Please try again.');
