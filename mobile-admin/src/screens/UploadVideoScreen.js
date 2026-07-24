@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   FlatList,
   Alert,
+  BackHandler,
 } from 'react-native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import * as DocumentPicker from 'expo-document-picker';
@@ -154,6 +155,33 @@ const UploadVideoScreen = ({ route, navigation }) => {
       navigation.goBack();
     }
   };
+
+  // Step one folder up in the storage browser (empty = root).
+  const goUpFolder = () => {
+    const parts = currentPath.replace(/\/$/, '').split('/').filter(Boolean);
+    parts.pop();
+    setCurrentPath(parts.length ? parts.join('/') + '/' : '');
+  };
+
+  // Back = up one folder while browsing; only leaves the screen at root. This
+  // is why the header arrow no longer jumps straight out to Video Management.
+  const handleHeaderBack = () => {
+    if (currentPath) goUpFolder();
+    else leaveScreen();
+  };
+
+  // Android hardware back mirrors the header: fold up a level before exiting.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (currentPath) {
+        goUpFolder();
+        return true;
+      }
+      return false;
+    });
+    return () => sub.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPath]);
 
   const handleCreateDir = () => {
     const name = newDirName.trim().replace(/^\/+|\/+$/g, '');
@@ -494,7 +522,11 @@ const UploadVideoScreen = ({ route, navigation }) => {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Upload Videos" onBack={() => navigation.goBack()} />
+      <ScreenHeader
+        title="Upload Videos"
+        subtitle={currentPath ? currentPath.replace(/\/$/, '') : 'root'}
+        onBack={handleHeaderBack}
+      />
 
       <ScrollView style={styles.body} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
         {/* File Picker */}
@@ -559,6 +591,11 @@ const UploadVideoScreen = ({ route, navigation }) => {
             </React.Fragment>
           ))}
           <View style={{ flex: 1 }} />
+          {!!currentPath && (
+            <TouchableOpacity style={styles.createDirBtn} onPress={goUpFolder}>
+              <MCIcon name="arrow-up-left" size={18} color={colors.primary} />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity style={styles.createDirBtn} onPress={fetchDirectories}>
             <MCIcon name="refresh" size={18} color={colors.primary} />
           </TouchableOpacity>
@@ -567,16 +604,31 @@ const UploadVideoScreen = ({ route, navigation }) => {
           </TouchableOpacity>
         </View>
 
-        {/* Selected directory indicator */}
+        {/* Upload-target bar — always visible right under the breadcrumb (no
+            scrolling to a buried button). Green when a target is set, amber with
+            a one-tap "use this folder" when it's been cleared. */}
         {selectedDir ? (
           <View style={styles.selectedDirBar}>
             <MCIcon name="check-circle" size={18} color="#10B981" />
-            <Text style={styles.selectedDirText}>Uploading to: {selectedDir === '/' ? 'root' : selectedDir}</Text>
-            <TouchableOpacity onPress={clearSelectedFolder}>
+            <Text style={styles.selectedDirText} numberOfLines={1}>
+              Uploading to: {selectedDir === '/' ? 'root' : selectedDir}
+            </Text>
+            <TouchableOpacity onPress={clearSelectedFolder} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <MCIcon name="close" size={18} color={colors.textMuted} />
             </TouchableOpacity>
           </View>
-        ) : null}
+        ) : (
+          <View style={styles.noTargetBar}>
+            <MCIcon name="folder-alert-outline" size={18} color={colors.warning} />
+            <Text style={styles.noTargetText} numberOfLines={1}>No upload folder selected</Text>
+            <TouchableOpacity style={styles.useThisBtn} onPress={selectCurrentFolder}>
+              <MCIcon name="check" size={14} color={colors.white} />
+              <Text style={styles.useThisBtnText}>
+                Use {currentPath ? `"${currentPath.replace(/\/$/, '').split('/').pop()}"` : 'root'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Directory + file listing */}
         {dirsLoading ? (
@@ -607,18 +659,14 @@ const UploadVideoScreen = ({ route, navigation }) => {
             />
           </View>
         )}
-
-        <TouchableOpacity style={styles.useCurrentBtn} onPress={selectCurrentFolder}>
-          <MCIcon name="check" size={18} color={colors.white} />
-          <Text style={styles.useCurrentBtnText}>
-            {currentPath ? `Upload to "${currentPath.replace(/\/$/, '').split('/').pop()}"` : 'Upload to root'}
-          </Text>
-        </TouchableOpacity>
       </ScrollView>
 
-      {/* Upload / Back / Cancel Footer */}
+      {/* Upload / Back / Cancel Footer — only when there's something queued, so
+          an empty browser isn't dominated by a full-width Cancel. Leaving with
+          nothing queued is the header back button's job. */}
+      {items.length > 0 && (
       <View style={styles.footer}>
-        {!uploading && !!hint && items.length > 0 && (
+        {!uploading && !!hint && (
           <Text style={styles.footerHint}>{hint}</Text>
         )}
         <View style={styles.footerRow}>
@@ -679,6 +727,7 @@ const UploadVideoScreen = ({ route, navigation }) => {
           )}
         </View>
       </View>
+      )}
 
       {/* Create Directory Modal */}
       <Modal visible={createDirModal} transparent animationType="fade" onRequestClose={() => setCreateDirModal(false)}>
@@ -873,12 +922,18 @@ const makeStyles = colors => StyleSheet.create({
   },
   dirListText: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.textPrimary },
 
-  // Use current folder btn
-  useCurrentBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    paddingVertical: 10, borderRadius: 10, backgroundColor: colors.primary, marginTop: 8,
+  // No-target prompt bar (shown when the upload folder has been cleared)
+  noTargetBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    padding: 10, borderRadius: 10, marginBottom: 12,
+    backgroundColor: colors.warning + '18', borderWidth: 1, borderColor: colors.warning + '40',
   },
-  useCurrentBtnText: { fontSize: 13, fontWeight: '700', color: colors.white },
+  noTargetText: { flex: 1, fontSize: 13, fontWeight: '600', color: colors.textSecondary },
+  useThisBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8, backgroundColor: colors.primary,
+  },
+  useThisBtnText: { fontSize: 12, fontWeight: '700', color: colors.white },
 
   // Empty state
   emptyDirs: { alignItems: 'center', paddingVertical: 24 },

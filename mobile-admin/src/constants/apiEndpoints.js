@@ -78,6 +78,7 @@ export const ENDPOINTS = {
   VIDEO_UPLOAD: `${API_VERSION}/videos/upload`,
   VIDEO_STORAGE_FILE_INFO: `${API_VERSION}/videos/storage/file-info`,
   VIDEO_STORAGE_MOVE: `${API_VERSION}/videos/storage/move`,
+  VIDEO_STORAGE_RENAME: `${API_VERSION}/videos/storage/rename`,
   VIDEO_STORAGE_DELETE_FILE: `${API_VERSION}/videos/storage/file`,
 
   // Chat

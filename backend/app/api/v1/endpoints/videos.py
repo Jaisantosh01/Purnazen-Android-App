@@ -48,6 +48,12 @@ class MoveFileRequest(BaseModel):
     overwrite: bool = False
 
 
+class RenameFileRequest(BaseModel):
+    src_path: str
+    new_name: str
+    update_title: bool = True
+
+
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".avi", ".mkv", ".webm", ".ogg", ".wmv", ".flv", ".m4v", ".3gp", ".mpeg", ".mpg"}
 
 
@@ -177,6 +183,32 @@ def move_storage_file(
 ):
     response, status_code = VideoService.move_storage_file(
         db, user, body.src_path, body.dst_directory, overwrite=body.overwrite
+    )
+    if not response["success"]:
+        return error_response(response["message"], status_code)
+    return success_response(
+        response["message"],
+        {"video": response.get("video"), "dependencies": response.get("dependencies")},
+        status_code,
+    )
+
+
+@router.post(
+    "/storage/rename",
+    summary="Rename a stored video's file",
+    description=(
+        "Rename a blob within its current folder. Group/session mappings key on "
+        "the video ID, so they're untouched — only the filename and the "
+        "record's video_url change."
+    ),
+)
+def rename_storage_file(
+    body: RenameFileRequest,
+    user: User = Depends(require_role("admin")),
+    db: Session = Depends(get_db),
+):
+    response, status_code = VideoService.rename_storage_file(
+        db, user, body.src_path, body.new_name, update_title=body.update_title
     )
     if not response["success"]:
         return error_response(response["message"], status_code)

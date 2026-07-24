@@ -233,6 +233,23 @@ def create_blob_directory(path: str) -> bool:
     return True
 
 
+def preserve_empty_directory(dir_path: str) -> None:
+    """Re-create a folder's directory marker if moving/deleting its last file
+    left it empty.
+
+    Azure has no real folders — a "folder" only exists while some blob carries
+    its prefix. Move or delete the last video out of ``Knee_Pain/`` and the
+    folder silently vanishes from every listing. Dropping a zero-length ``.../``
+    marker back keeps the (now empty) folder visible so admins can refill it.
+    Root ("") needs no marker and is skipped.
+    """
+    if not dir_path:
+        return
+    dirs, files = list_blob_children(dir_path)
+    if not dirs and not files:
+        create_blob_directory(dir_path)
+
+
 def blob_exists(blob_path: str) -> bool:
     """Check if a blob exists in the container."""
     import logging

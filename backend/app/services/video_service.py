@@ -1,3 +1,4 @@
+import os
 import uuid
 
 from sqlalchemy.orm import Session
@@ -311,7 +312,7 @@ class VideoService:
         rewrite. Returns the updated video plus its dependencies so the UI can
         confirm what carried over.
         """
-        from app.utils.azure_storage import blob_exists, move_blob
+        from app.utils.azure_storage import blob_exists, move_blob, preserve_empty_directory
 
         if not blob_exists(src_path):
             return {"success": False, "message": "Source file not found in storage"}, 404
@@ -338,6 +339,10 @@ class VideoService:
         if not moved:
             return {"success": False, "message": "Azure Storage not configured"}, 503
 
+        # Keep the source folder alive even if it's now empty.
+        src_dir = src_path[: src_path.rfind("/") + 1] if "/" in src_path else ""
+        preserve_empty_directory(src_dir)
+
         video = VideoRepository.get_by_url(db, src_path)
         dependencies = None
         video_data = None
@@ -354,6 +359,69 @@ class VideoService:
         }, 200
 
     @staticmethod
+    def rename_storage_file(db: Session, user: User, src_path: str, new_name: str, update_title: bool = True):
+        """Rename a stored video's file within its current folder.
+
+        The **extension is locked** to the original: whatever the admin types is
+        reduced to a base name and the source file's extension is re-attached,
+        so an ``.mp4`` can't become an ``.mov``/``.txt``/etc. The folder and
+        every group/session mapping stay put (mappings key on the video ID).
+
+        By default the catalog record's ``title`` is also refreshed from the new
+        name so the rename shows up wherever the video appears (group catalogs,
+        sessions, video management) — not just in the storage browser.
+        """
+        from app.utils.azure_storage import blob_exists, move_blob
+
+        if not blob_exists(src_path):
+            return {"success": False, "message": "Source file not found in storage"}, 404
+
+        src_filename = src_path.rsplit("/", 1)[-1]
+        _, ext = os.path.splitext(src_filename)  # e.g. ".mp4" (kept verbatim)
+
+        raw = (new_name or "").strip().replace("\\", "/").split("/")[-1].strip()
+        base = os.path.splitext(raw)[0].strip()  # drop any extension the admin typed
+        if not base:
+            return {"success": False, "message": "Enter a file name"}, 400
+        clean = f"{base}{ext}"
+
+        src_dir = src_path[: src_path.rfind("/") + 1] if "/" in src_path else ""
+        dst_path = f"{src_dir}{clean}"
+
+        if dst_path == src_path:
+            return {"success": False, "message": "That's already the file name"}, 400
+
+        try:
+            moved = move_blob(src_path, dst_path, overwrite=False)
+        except FileExistsError:
+            return {"success": False, "message": f'"{clean}" already exists in this folder.'}, 409
+        except Exception as exc:  # noqa: BLE001
+            return {"success": False, "message": f"Failed to rename file: {exc}"}, 500
+
+        if not moved:
+            return {"success": False, "message": "Azure Storage not configured"}, 503
+
+        video = VideoRepository.get_by_url(db, src_path)
+        video_data = None
+        dependencies = None
+        if video:
+            fields = {"video_url": dst_path, "updated_by": user.id}
+            if update_title:
+                pretty = base.replace("_", " ").replace("-", " ").strip()
+                if pretty:
+                    fields["title"] = pretty
+            video = VideoRepository.update(db, video, **fields)
+            video_data = VideoService._process_video_data(video.to_dict())
+            dependencies = VideoService._video_dependencies(db, video)
+
+        return {
+            "success": True,
+            "message": f'Renamed to "{clean}"',
+            "video": video_data,
+            "dependencies": dependencies,
+        }, 200
+
+    @staticmethod
     def delete_storage_file(db: Session, path: str, hard: bool = False):
         """Delete a storage blob and reconcile its catalog record.
 
@@ -362,9 +430,10 @@ class VideoService:
         record and the blob together, and is refused with 409 when user history
         references the video.
         """
-        from app.utils.azure_storage import delete_blob
+        from app.utils.azure_storage import delete_blob, preserve_empty_directory
 
         video = VideoRepository.get_by_url(db, path)
+        src_dir = path[: path.rfind("/") + 1] if "/" in path else ""
 
         if hard:
             if video:
@@ -380,6 +449,7 @@ class VideoService:
                 db.delete(video)
                 db.commit()
             delete_blob(path)
+            preserve_empty_directory(src_dir)
             return {"success": True, "message": "Video permanently deleted"}, 200
 
         # Soft delete: deactivate the record + mappings, keep the blob.
@@ -391,6 +461,7 @@ class VideoService:
 
         # No DB record — just drop the orphan blob.
         delete_blob(path)
+        preserve_empty_directory(src_dir)
         return {"success": True, "message": "File deleted from storage"}, 200
 
     @staticmethod
