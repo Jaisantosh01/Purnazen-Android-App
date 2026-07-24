@@ -335,6 +335,23 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
       .catch(() => {});
   };
 
+  // Refetch storage + the video library whenever this screen regains focus, so
+  // renames/moves/deletes done in the upload browser (or anywhere else) show up
+  // here too. Only the library + listing refresh — the group selection is left
+  // alone so unsaved picks survive. A ref keeps the handler pointed at the
+  // latest closure (current folder), and we skip the initial focus since mount
+  // already loads everything.
+  const refreshRef = useRef(refreshStorageAndVideos);
+  refreshRef.current = refreshStorageAndVideos;
+  const focusInitRef = useRef(false);
+  useEffect(() => {
+    const unsub = navigation.addListener('focus', () => {
+      if (!focusInitRef.current) { focusInitRef.current = true; return; }
+      refreshRef.current();
+    });
+    return unsub;
+  }, [navigation]);
+
   const handleUploadAll = async () => {
     await sharedHandleUploadAll({
       items,
