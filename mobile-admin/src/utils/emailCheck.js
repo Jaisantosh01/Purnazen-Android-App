@@ -1,17 +1,18 @@
-// Shared input validators so every form checks the same way.
+// Instant, offline email sanity check for the signup/login forms.
+//
+// The backend (/auth/validate-email and /auth/register) is authoritative — it
+// also rejects non-existent domains via an MX lookup and a fuller disposable
+// list — but this gives the user soft feedback without waiting on the network.
 
 // Proper address form: local@domain.tld with a real 2+ char TLD, no leading/
-// trailing dots or consecutive dots in either part. Rejects "a@b", "x@y.c" and
-// other malformed inputs that a loose \S+@\S+\.\S+ pattern lets through.
+// trailing/consecutive dots. Rejects "a@b", "x@y.c" and other malformed input.
 export const EMAIL_RE =
   /^[a-zA-Z0-9](?:[a-zA-Z0-9._%+-]*[a-zA-Z0-9])?@(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
 
 export const isValidEmail = email => EMAIL_RE.test(String(email || '').trim());
 
 // The temp-mail services people actually reach for — a subset of the backend
-// blocklist so obvious throwaways are caught instantly, offline. The backend
-// (/auth/validate-email and /auth/register) stays authoritative: it also
-// rejects non-existent domains via an MX lookup and a fuller list.
+// blocklist so obvious throwaways are caught instantly.
 const DISPOSABLE_DOMAINS = new Set([
   'mailinator.com', 'guerrillamail.com', 'sharklasers.com', '10minutemail.com',
   'tempmail.com', 'temp-mail.org', 'temp-mail.io', 'tempmailo.com', 'yopmail.com',
@@ -21,7 +22,6 @@ const DISPOSABLE_DOMAINS = new Set([
 ]);
 
 // Returns a soft, user-facing message when the address is unusable, else null.
-// Use for instant inline feedback on signup forms.
 export const quickEmailIssue = email => {
   const value = String(email || '').trim().toLowerCase();
   if (!value) return 'Please enter your email.';
@@ -32,10 +32,3 @@ export const quickEmailIssue = email => {
   }
   return null;
 };
-
-// Phone: format check only. Real ownership verification needs an OTP/SMS round
-// trip (Firebase Phone Auth = paid SMS), so we validate the shape and leave
-// verification out. Mirrors the backend UpdateProfileRequest.phone pattern.
-export const PHONE_RE = /^[+0-9 ()-]{6,15}$/;
-
-export const isValidPhone = phone => PHONE_RE.test(String(phone || '').trim());

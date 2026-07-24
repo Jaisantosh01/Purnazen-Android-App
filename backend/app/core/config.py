@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     RATE_LIMIT_LOGIN: str = "5/minute"
     RATE_LIMIT_REGISTER: str = "3/minute"
     RATE_LIMIT_REFRESH: str = "10/minute"
+    # Soft email pre-check (called on blur/submit before registering).
+    RATE_LIMIT_EMAIL_CHECK: str = "20/minute"
 
     # Razorpay credentials (test-mode keys for the sandbox). When empty, the
     # payment provider runs in a local sandbox mode: orders are generated

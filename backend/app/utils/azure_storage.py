@@ -168,6 +168,46 @@ def list_blob_children(prefix: str = "") -> tuple[list[str], list[dict]]:
     return sorted(dirs), sorted(files, key=lambda f: f["name"])
 
 
+def list_blob_names(prefix: str = "") -> list[str]:
+    """Return the raw names of every blob under *prefix* (recursive).
+
+    Unlike ``list_all_blobs_with_sas`` this includes the zero-length ``.../``
+    directory-marker blobs and does no SAS work — it's the flat inventory the
+    folder rename/delete operations iterate over.
+    """
+    client = get_blob_service_client()
+    if not client:
+        return []
+    container = client.get_container_client(settings.AZURE_BLOB_CONTAINER_NAME)
+    return [b.name for b in container.list_blobs(name_starts_with=prefix)]
+
+
+def move_folder(src_prefix: str, dst_prefix: str, overwrite: bool = False) -> list[tuple[str, str]]:
+    """Move every blob under *src_prefix* to *dst_prefix* (a folder rename/move).
+
+    Directory-marker blobs are recreated at the destination; real files are
+    moved with ``move_blob`` (server-side copy + delete). Returns the list of
+    ``(old_name, new_name)`` pairs for the **file** blobs moved, so the caller
+    can repoint each video's ``video_url`` — group/session mappings key on the
+    video id and need no rewrite. Raises whatever ``move_blob`` raises (e.g.
+    ``FileExistsError``) on the first colliding file.
+    """
+    src_prefix = src_prefix if src_prefix.endswith("/") else src_prefix + "/"
+    dst_prefix = dst_prefix if dst_prefix.endswith("/") else dst_prefix + "/"
+    moved: list[tuple[str, str]] = []
+    for name in list_blob_names(src_prefix):
+        new_name = dst_prefix + name[len(src_prefix):]
+        if name.endswith("/"):
+            # A virtual-directory marker — recreate it at the destination.
+            create_blob_directory(new_name)
+            delete_blob(name)
+            continue
+        move_blob(name, new_name, overwrite=overwrite)
+        moved.append((name, new_name))
+    logger.info("move_folder: moved %d file(s) '%s' -> '%s'", len(moved), src_prefix, dst_prefix)
+    return moved
+
+
 def list_all_blobs_with_sas(prefix: str = "") -> list[dict]:
     """Recursively list ALL blobs under the given prefix, with SAS URLs.
 

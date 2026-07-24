@@ -80,6 +80,10 @@ export const ENDPOINTS = {
   VIDEO_STORAGE_MOVE: `${API_VERSION}/videos/storage/move`,
   VIDEO_STORAGE_RENAME: `${API_VERSION}/videos/storage/rename`,
   VIDEO_STORAGE_DELETE_FILE: `${API_VERSION}/videos/storage/file`,
+  VIDEO_STORAGE_FOLDER_INFO: `${API_VERSION}/videos/storage/folder-info`,
+  VIDEO_STORAGE_FOLDER_CREATE: `${API_VERSION}/videos/storage/folder`,
+  VIDEO_STORAGE_FOLDER_RENAME: `${API_VERSION}/videos/storage/folder/rename`,
+  VIDEO_STORAGE_FOLDER_DELETE: `${API_VERSION}/videos/storage/folder`,
 
   // Chat
   CHAT_FLOW: (startId) => `${API_VERSION}/chat/flow/${startId}`,

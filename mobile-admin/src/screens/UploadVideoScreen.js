@@ -21,6 +21,7 @@ import { DirGridSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 import StorageFileActionsModal from '../components/StorageFileActionsModal';
+import StorageFolderActionsModal from '../components/StorageFolderActionsModal';
 import useDurationProbe from '../hooks/useDurationProbe';
 import { showAlert } from '../utils/alert';
 import { handlePickFiles as sharedHandlePickFiles, uploadOne as sharedUploadOne, handleUploadAll as sharedHandleUploadAll } from '../utils/UploadHelper';
@@ -79,6 +80,7 @@ const UploadVideoScreen = ({ route, navigation }) => {
 
   // Per-file storage actions (move / delete)
   const [fileActionFor, setFileActionFor] = useState(null);
+  const [folderActionFor, setFolderActionFor] = useState(null);
 
   const cancelledRef = useRef(false);
   // Once the user explicitly clears or picks a target, stop auto-following the
@@ -301,6 +303,13 @@ const UploadVideoScreen = ({ route, navigation }) => {
       <TouchableOpacity key={dir} style={styles.dirGridItem} onPress={() => navigateInto(dir)}>
         <MCIcon name="folder" size={28} color={colors.warning} />
         <Text style={styles.dirGridText} numberOfLines={1}>{displayName}</Text>
+        <TouchableOpacity
+          style={styles.fileMoreBtn}
+          onPress={() => setFolderActionFor(dir)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <MCIcon name="dots-vertical" size={18} color="#fff" />
+        </TouchableOpacity>
       </TouchableOpacity>
     );
   };
@@ -329,6 +338,13 @@ const UploadVideoScreen = ({ route, navigation }) => {
       <TouchableOpacity style={styles.dirListItem} onPress={() => navigateInto(item)}>
         <MCIcon name="folder" size={22} color={colors.warning} />
         <Text style={styles.dirListText}>{displayName}</Text>
+        <TouchableOpacity
+          style={styles.fileMoreBtnList}
+          onPress={() => setFolderActionFor(item)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <MCIcon name="dots-vertical" size={20} color={colors.textMuted} />
+        </TouchableOpacity>
         <MCIcon name="chevron-right" size={20} color={colors.textMuted} />
       </TouchableOpacity>
     );
@@ -847,6 +863,13 @@ const UploadVideoScreen = ({ route, navigation }) => {
       <StorageFileActionsModal
         file={fileActionFor}
         onClose={() => setFileActionFor(null)}
+        onChanged={fetchDirectories}
+      />
+
+      {/* Per-folder rename / delete with dependency check */}
+      <StorageFolderActionsModal
+        folder={folderActionFor}
+        onClose={() => setFolderActionFor(null)}
         onChanged={fetchDirectories}
       />
     </View>

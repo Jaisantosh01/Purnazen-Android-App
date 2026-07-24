@@ -54,6 +54,16 @@ class RenameFileRequest(BaseModel):
     update_title: bool = True
 
 
+class CreateFolderRequest(BaseModel):
+    parent: str = ""
+    name: str
+
+
+class RenameFolderRequest(BaseModel):
+    src_path: str
+    new_name: str
+
+
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".avi", ".mkv", ".webm", ".ogg", ".wmv", ".flv", ".m4v", ".3gp", ".mpeg", ".mpg"}
 
 
@@ -236,6 +246,88 @@ def delete_storage_file(
     db: Session = Depends(get_db),
 ):
     response, status_code = VideoService.delete_storage_file(db, path, hard=hard)
+    if not response["success"]:
+        return error_response(response["message"], status_code)
+    return success_response(response["message"], None, status_code)
+
+
+# ── Folder-level operations (create / rename / delete + dependency summary) ──
+
+
+@router.get(
+    "/storage/folder-info",
+    summary="Folder dependency summary",
+    description=(
+        "Roll up everything under a storage folder — file count, the groups and "
+        "sessions its videos belong to, and total user history — so the UI can "
+        "warn before a folder rename or delete."
+    ),
+)
+def get_storage_folder_info(
+    path: str = Query(..., description="Folder prefix (e.g. 'Yoga/Morning/')"),
+    _user: User = Depends(require_role("admin")),
+    db: Session = Depends(get_db),
+):
+    info = VideoService.get_storage_folder_info(db, path)
+    return success_response("Folder info fetched successfully", info)
+
+
+@router.post(
+    "/storage/folder",
+    summary="Create a storage folder",
+    description="Create a single subfolder under the given parent. New folders reference nothing.",
+    status_code=201,
+)
+def create_storage_folder(
+    body: CreateFolderRequest,
+    _user: User = Depends(require_role("admin")),
+    db: Session = Depends(get_db),
+):
+    response, status_code = VideoService.create_storage_folder(db, body.parent, body.name)
+    if not response["success"]:
+        return error_response(response["message"], status_code)
+    return success_response(response["message"], {"path": response.get("path")}, status_code)
+
+
+@router.post(
+    "/storage/folder/rename",
+    summary="Rename a storage folder",
+    description=(
+        "Rename a folder by re-prefixing every blob under it. Each video's "
+        "video_url is repointed; group/session mappings key on the video id so "
+        "they carry over untouched. 409 if a sibling folder already uses the name."
+    ),
+)
+def rename_storage_folder(
+    body: RenameFolderRequest,
+    user: User = Depends(require_role("admin")),
+    db: Session = Depends(get_db),
+):
+    response, status_code = VideoService.rename_storage_folder(db, user, body.src_path, body.new_name)
+    if not response["success"]:
+        return error_response(response["message"], status_code)
+    return success_response(
+        response["message"],
+        {"path": response.get("path"), "updatedVideos": response.get("updatedVideos")},
+        status_code,
+    )
+
+
+@router.delete(
+    "/storage/folder",
+    summary="Delete a storage folder",
+    description=(
+        "Permanently delete a folder and every file under it, along with their "
+        "catalog records. Refused with 409 if any contained video has user "
+        "history — disable those individually first."
+    ),
+)
+def delete_storage_folder(
+    path: str = Query(..., description="Folder prefix to delete (e.g. 'Yoga/Morning/')"),
+    _user: User = Depends(require_role("admin")),
+    db: Session = Depends(get_db),
+):
+    response, status_code = VideoService.delete_storage_folder(db, path)
     if not response["success"]:
         return error_response(response["message"], status_code)
     return success_response(response["message"], None, status_code)

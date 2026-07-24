@@ -55,6 +55,11 @@ const StorageFileActionsModal = ({ file, onClose, onChanged }) => {
   const [confirming, setConfirming] = useState(false);
   const [moveTarget, setMoveTarget] = useState('');
 
+  // Move: inline "new folder" creation inside the browser.
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  const [folderName, setFolderName] = useState('');
+  const [folderBusy, setFolderBusy] = useState(false);
+
   // Rename: edit the base name only; the extension is fixed.
   const [renameValue, setRenameValue] = useState('');
 
@@ -72,6 +77,8 @@ const StorageFileActionsModal = ({ file, onClose, onChanged }) => {
       setBusy(false);
       setConfirming(false);
       setBrowseDirs([]);
+      setCreatingFolder(false);
+      setFolderName('');
       return;
     }
     setRenameValue(baseName);
@@ -110,7 +117,28 @@ const StorageFileActionsModal = ({ file, onClose, onChanged }) => {
     setView('move');
     setConfirming(false);
     setMoveTarget('');
+    setCreatingFolder(false);
+    setFolderName('');
     loadBrowse('');
+  };
+
+  const createFolder = () => {
+    const name = folderName.trim();
+    if (!name) return;
+    setFolderBusy(true);
+    apiClient
+      .post(ENDPOINTS.VIDEO_STORAGE_FOLDER_CREATE, { parent: browsePath, name })
+      .then(() => {
+        setFolderBusy(false);
+        setCreatingFolder(false);
+        setFolderName('');
+        loadBrowse(browsePath); // reveal the new subfolder at this level
+        onChanged?.(); // storage changed under the hood
+      })
+      .catch((err) => {
+        setFolderBusy(false);
+        showAlert('Could not create folder', err?.message || 'Try a different name.');
+      });
   };
 
   const doMove = () => {
@@ -266,6 +294,47 @@ const StorageFileActionsModal = ({ file, onClose, onChanged }) => {
                 </Text>
               </View>
 
+              {creatingFolder ? (
+                <View style={styles.newFolderRow}>
+                  <MCIcon name="folder-plus-outline" size={18} color={colors.primary} />
+                  <TextInput
+                    style={styles.newFolderInput}
+                    value={folderName}
+                    onChangeText={setFolderName}
+                    placeholder="New folder name"
+                    placeholderTextColor={colors.textMuted}
+                    autoFocus
+                    autoCapitalize="words"
+                    onSubmitEditing={createFolder}
+                    returnKeyType="done"
+                  />
+                  <TouchableOpacity
+                    onPress={createFolder}
+                    disabled={folderBusy || !folderName.trim()}
+                    style={styles.newFolderGo}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    {folderBusy ? (
+                      <ActivityIndicator size="small" color={colors.primary} />
+                    ) : (
+                      <MCIcon name="check" size={20} color={folderName.trim() ? colors.primary : colors.textMuted} />
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => { setCreatingFolder(false); setFolderName(''); }}
+                    style={styles.newFolderGo}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <MCIcon name="close" size={20} color={colors.textMuted} />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity style={styles.newFolderBtn} onPress={() => setCreatingFolder(true)}>
+                  <MCIcon name="folder-plus-outline" size={18} color={colors.primary} />
+                  <Text style={styles.newFolderBtnText}>New folder here</Text>
+                </TouchableOpacity>
+              )}
+
               {browseLoading ? (
                 <ActivityIndicator size="small" color={colors.primary} style={styles.spinner} />
               ) : (
@@ -388,6 +457,12 @@ const makeStyles = (colors) =>
     locUpBtn: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primaryLight },
     locUpBtnDisabled: { backgroundColor: colors.surfaceMuted },
     locationText: { flex: 1, fontSize: 13, fontWeight: '700', color: colors.textPrimary },
+
+    newFolderBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 8, borderRadius: 8, borderWidth: 1, borderColor: colors.primary, borderStyle: 'dashed', marginBottom: 8 },
+    newFolderBtnText: { fontSize: 13, fontWeight: '700', color: colors.primary },
+    newFolderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4, marginBottom: 8 },
+    newFolderInput: { flex: 1, borderWidth: 1, borderColor: colors.primary, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, color: colors.textPrimary, backgroundColor: colors.card },
+    newFolderGo: { width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
 
     dirList: { maxHeight: 240, marginBottom: 12 },
     dirOption: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 8, borderRadius: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },

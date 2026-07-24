@@ -464,6 +464,193 @@ class VideoService:
         preserve_empty_directory(src_dir)
         return {"success": True, "message": "File deleted from storage"}, 200
 
+    # ── Folder-level operations ──
+
+    @staticmethod
+    def _folder_dependencies(db: Session, prefix: str) -> dict:
+        """Aggregate every dependency under a storage folder (recursive).
+
+        Rolls up the files it contains, the distinct groups/sessions those
+        videos belong to and the total user-history rows, so the UI can warn
+        before renaming or deleting a whole folder. Mappings key on the video
+        id, so a rename/move preserves them — only a delete is destructive,
+        which is why ``canHardDelete`` reflects the history count.
+        """
+        from app.utils.azure_storage import list_blob_names
+
+        prefix = prefix if prefix.endswith("/") else prefix + "/"
+        names = [n for n in list_blob_names(prefix) if not n.endswith("/")]
+        videos = []
+        group_map: dict = {}
+        session_map: dict = {}
+        history = 0
+        catalogued = 0
+        for name in names:
+            video = VideoRepository.get_by_url(db, name)
+            leaf = name.split("/")[-1]
+            if not video:
+                videos.append({"name": leaf, "title": None, "mapped": False})
+                continue
+            catalogued += 1
+            dep = VideoService._video_dependencies(db, video)
+            for g in dep["groups"]:
+                group_map[g["id"]] = g["title"]
+            for s in dep["sessions"]:
+                session_map[s["id"]] = s["title"]
+            history += dep["historyCount"]
+            videos.append({"name": leaf, "title": video.title, "mapped": bool(dep["groups"])})
+        return {
+            "fileCount": len(names),
+            "cataloguedCount": catalogued,
+            "videos": videos,
+            "groups": [{"id": gid, "title": t} for gid, t in group_map.items()],
+            "sessions": [{"id": sid, "title": t} for sid, t in session_map.items()],
+            "historyCount": history,
+            "canHardDelete": history == 0,
+        }
+
+    @staticmethod
+    def get_storage_folder_info(db: Session, path: str) -> dict:
+        """Return a folder's rolled-up dependencies for pre-action warnings."""
+        return {"folder": path, "dependencies": VideoService._folder_dependencies(db, path)}
+
+    @staticmethod
+    def _clean_folder_segment(name: str) -> str:
+        """Reduce user input to a single, safe folder-name segment (or '')."""
+        import re
+
+        seg = (name or "").strip().replace("\\", "/").strip("/").split("/")[-1].strip()
+        seg = seg.replace("..", "").strip()
+        if not seg or not re.match(r"^[A-Za-z0-9 _\-()&]+$", seg):
+            return ""
+        return seg
+
+    @staticmethod
+    def create_storage_folder(db: Session, parent: str, name: str):
+        """Create a single subfolder under *parent*. New folders reference
+        nothing, so there's no dependency to check — only the name is validated.
+        """
+        from app.utils.azure_storage import create_blob_directory, list_blob_names
+
+        seg = VideoService._clean_folder_segment(name)
+        if not seg:
+            return {
+                "success": False,
+                "message": "Use letters, numbers, spaces, - or _ in folder names",
+            }, 400
+        parent = (parent or "").strip().lstrip("/")
+        if parent and not parent.endswith("/"):
+            parent += "/"
+        path = f"{parent}{seg}/"
+        if list_blob_names(path):
+            return {"success": False, "message": f'A folder named "{seg}" already exists here'}, 409
+        if not create_blob_directory(path):
+            return {"success": False, "message": "Azure Storage not configured"}, 503
+        return {"success": True, "message": f'Folder "{seg}" created', "path": path}, 201
+
+    @staticmethod
+    def rename_storage_folder(db: Session, user: User, src_path: str, new_name: str):
+        """Rename a folder by re-prefixing every blob under it.
+
+        Each contained file is moved to the new prefix and its ``video_url`` is
+        repointed; group/session mappings key on the video id so they carry over
+        untouched. Blocked with 409 if a sibling folder already uses the target
+        name.
+        """
+        from app.utils.azure_storage import list_blob_names, move_folder, preserve_empty_directory
+
+        src = (src_path or "").strip().lstrip("/")
+        if src and not src.endswith("/"):
+            src += "/"
+        if not src:
+            return {"success": False, "message": "Folder not specified"}, 400
+        if not list_blob_names(src):
+            return {"success": False, "message": "Folder not found in storage"}, 404
+
+        seg = VideoService._clean_folder_segment(new_name)
+        if not seg:
+            return {
+                "success": False,
+                "message": "Use letters, numbers, spaces, - or _ in folder names",
+            }, 400
+
+        parent = src[: src[:-1].rfind("/") + 1] if "/" in src[:-1] else ""
+        dst = f"{parent}{seg}/"
+        if dst == src:
+            return {"success": False, "message": "That's already the folder name"}, 400
+        if list_blob_names(dst):
+            return {"success": False, "message": f'A folder named "{seg}" already exists here'}, 409
+
+        try:
+            moved = move_folder(src, dst)
+        except FileExistsError:
+            return {
+                "success": False,
+                "message": "A file with the same name already exists at the destination",
+            }, 409
+        except Exception as exc:  # noqa: BLE001
+            return {"success": False, "message": f"Failed to rename folder: {exc}"}, 500
+
+        updated = 0
+        for old, new in moved:
+            video = VideoRepository.get_by_url(db, old)
+            if video:
+                VideoRepository.update(db, video, video_url=new, updated_by=user.id)
+                updated += 1
+
+        return {
+            "success": True,
+            "message": f'Folder renamed to "{seg}"',
+            "path": dst,
+            "updatedVideos": updated,
+        }, 200
+
+    @staticmethod
+    def delete_storage_folder(db: Session, path: str):
+        """Permanently delete a folder and everything under it.
+
+        Refused with 409 if any catalogued video inside has user history (the
+        same guard files use) — the admin must disable those individually first.
+        Otherwise the catalog records and blobs are removed together.
+        """
+        from app.utils.azure_storage import delete_blob, list_blob_names, preserve_empty_directory
+
+        prefix = (path or "").strip().lstrip("/")
+        if prefix and not prefix.endswith("/"):
+            prefix += "/"
+        if not prefix:
+            return {"success": False, "message": "Folder not specified"}, 400
+        names = list_blob_names(prefix)
+        if not names:
+            return {"success": False, "message": "Folder not found in storage"}, 404
+
+        file_names = [n for n in names if not n.endswith("/")]
+        blocked = 0
+        for n in file_names:
+            video = VideoRepository.get_by_url(db, n, active_only=False)
+            if video and VideoService._history_refs(db, video_id=video.id):
+                blocked += 1
+        if blocked:
+            return {
+                "success": False,
+                "message": (
+                    f"{blocked} video(s) in this folder have user history and can't be "
+                    "permanently deleted. Disable them individually first."
+                ),
+            }, 409
+
+        for n in file_names:
+            video = VideoRepository.get_by_url(db, n, active_only=False)
+            if video:
+                db.delete(video)
+        db.commit()
+        for n in names:
+            delete_blob(n)
+
+        parent = prefix[: prefix[:-1].rfind("/") + 1] if "/" in prefix[:-1] else ""
+        preserve_empty_directory(parent)
+        return {"success": True, "message": "Folder deleted", "deletedFiles": len(file_names)}, 200
+
     @staticmethod
     def add_videos_to_group(db: Session, group_id: uuid.UUID, video_ids: list[uuid.UUID], user: User):
         group = VideoGroupRepository.get_by_id(db, group_id)
