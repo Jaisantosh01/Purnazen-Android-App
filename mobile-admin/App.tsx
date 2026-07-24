@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { NavigationContainer, DefaultTheme, DarkTheme, CommonActions } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -48,6 +48,7 @@ import SlotManagementScreen from './src/screens/SlotManagementScreen';
 import DoctorLeaveManagementScreen from './src/screens/DoctorLeaveManagementScreen';
 import VideoManagementScreen from './src/screens/VideoManagementScreen';
 import VideoGroupDetailScreen from './src/screens/VideoGroupDetailScreen';
+import VideoGroupEditorScreen from './src/screens/VideoGroupEditorScreen';
 import UploadVideoScreen from './src/screens/UploadVideoScreen';
 import FaqManagementScreen from './src/screens/FaqManagementScreen';
 import NotificationAdminScreen from './src/screens/NotificationAdminScreen';
@@ -131,6 +132,7 @@ function ManageStackNavigator() {
       {/* Content */}
       <ManageStack.Screen name="VideoManagement" component={VideoManagementScreen} />
       <ManageStack.Screen name="VideoGroupDetail" component={VideoGroupDetailScreen} />
+      <ManageStack.Screen name="VideoGroupEditor" component={VideoGroupEditorScreen} />
       <ManageStack.Screen name="UploadVideo" component={UploadVideoScreen} />
       <ManageStack.Screen name="FaqManagement" component={FaqManagementScreen} />
       <ManageStack.Screen name="NotificationAdmin" component={NotificationAdminScreen} />
@@ -257,7 +259,11 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <NavigationContainer ref={navigationRef} theme={navTheme}>
+      <NavigationContainer
+        ref={navigationRef}
+        theme={navTheme}
+        onUnhandledAction={() => {}}
+      >
         <RootStack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
           {isLoggedIn ? (
             <RootStack.Screen name="Main" component={MainTabs} />

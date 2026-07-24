@@ -291,7 +291,7 @@ export const EditFormSkeleton = () => {
 export const DirGridSkeleton = () => {
   const { colors } = useTheme();
   return (
-  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingTop: 8 }}>
+  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingTop: 8, justifyContent: 'center' }}>
     {[1, 2, 3, 4, 5, 6].map(i => (
       <View key={i} style={{
         width: '30%', aspectRatio: 1, borderRadius: 12, borderWidth: 1, borderColor: colors.border,

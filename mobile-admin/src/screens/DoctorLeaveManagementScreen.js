@@ -8,6 +8,7 @@ import {
   TextInput,
   Modal,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
@@ -186,7 +187,7 @@ const DoctorLeaveManagementScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState(route?.params?.initialStatus || '');
 
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [draftFromDate, setDraftFromDate] = useState('');
@@ -195,11 +196,15 @@ const DoctorLeaveManagementScreen = ({ navigation, route }) => {
   const [draftTimeFrom, setDraftTimeFrom] = useState('');
   const [draftTimeTo, setDraftTimeTo] = useState('');
 
-  const [appliedFromDate, setAppliedFromDate] = useState('');
-  const [appliedToDate, setAppliedToDate] = useState('');
-  const [appliedPartialDay, setAppliedPartialDay] = useState(false);
-  const [appliedTimeFrom, setAppliedTimeFrom] = useState('');
-  const [appliedTimeTo, setAppliedTimeTo] = useState('');
+const [appliedFromDate, setAppliedFromDate] = useState(route?.params?.initialFromDate || '');
+const [appliedToDate, setAppliedToDate] = useState(route?.params?.initialToDate || '');
+const [appliedPartialDay, setAppliedPartialDay] = useState(false);
+const [appliedTimeFrom, setAppliedTimeFrom] = useState('');
+const [appliedTimeTo, setAppliedTimeTo] = useState('');
+
+const [page, setPage] = useState(1);
+const [hasMore, setHasMore] = useState(true);
+const [loadingMore, setLoadingMore] = useState(false);
 
   const [calendarModalVisible, setCalendarModalVisible] = useState(false);
   const [calendarTarget, setCalendarTarget] = useState(null);
@@ -238,13 +243,20 @@ const DoctorLeaveManagementScreen = ({ navigation, route }) => {
     return params;
   }, [debouncedSearch, statusFilter, appliedFromDate, appliedToDate, appliedPartialDay, appliedTimeFrom, appliedTimeTo]);
 
-  const fetchLeaves = useCallback(() => {
-    setLoading(true);
+  const fetchLeaves = useCallback((pageNum = 1, append = false) => {
+    if (!append) setLoading(true);
+    else setLoadingMore(true);
+    const params = { ...buildParams(), page: pageNum, per_page: 20 };
     apiClient
-      .get(ENDPOINTS.DOCTOR_LEAVES + '/admin', { params: buildParams() })
-      .then(res => setLeaves(res?.data?.leaves || []))
+      .get(ENDPOINTS.DOCTOR_LEAVES + '/admin', { params })
+      .then(res => {
+        const newLeaves = res?.data?.leaves || [];
+        setLeaves(prev => append ? [...prev, ...newLeaves] : newLeaves);
+        setHasMore(pageNum < (res?.data?.total_pages || 0));
+        setPage(pageNum);
+      })
       .catch(() => showAlert('Error', 'Failed to fetch leaves'))
-      .finally(() => setLoading(false));
+      .finally(() => { setLoading(false); setLoadingMore(false); });
   }, [buildParams]);
 
   const fetchKpiStats = useCallback(() => {
@@ -257,7 +269,7 @@ const DoctorLeaveManagementScreen = ({ navigation, route }) => {
   }, []);
 
   useEffect(() => {
-    fetchLeaves();
+    fetchLeaves(1);
     fetchKpiStats();
   }, [fetchLeaves, fetchKpiStats]);
 
@@ -405,6 +417,12 @@ const DoctorLeaveManagementScreen = ({ navigation, route }) => {
     </View>
   );
 
+  const handleLoadMore = () => {
+    if (!loading && !loadingMore && hasMore) {
+      fetchLeaves(page + 1, true);
+    }
+  };
+
   return (
     <View style={styles.root}>
       <ScreenHeader
@@ -452,7 +470,14 @@ const DoctorLeaveManagementScreen = ({ navigation, route }) => {
           ListHeaderComponent={renderHeader}
           contentContainerStyle={styles.list}
           refreshing={loading}
-          onRefresh={() => { fetchLeaves(); fetchKpiStats(); }}
+          onRefresh={() => { fetchLeaves(1); fetchKpiStats(); }}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={loadingMore ? (
+            <View style={styles.footerLoader}>
+              <ActivityIndicator size="small" color={colors.primary} />
+            </View>
+          ) : null}
           ListEmptyComponent={
             <View style={styles.empty}>
               <MCIcon name="calendar-remove" size={48} color={colors.textMuted} />
@@ -628,34 +653,39 @@ const DoctorLeaveManagementScreen = ({ navigation, route }) => {
       <Modal visible={statusModalVisible} transparent animationType="fade">
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setStatusModalVisible(false)}>
           <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>{newStatus === 'approved' ? 'Approve' : 'Reject'} Leave</Text>
-            {selectedLeave && (
-              <Text style={styles.modalSubtitle}>
-                {selectedLeave.doctorName || selectedLeave.doctorId} - {selectedLeave.leaveDate || selectedLeave.startDate || '—'}
-              </Text>
-            )}
-            {selectedLeave?.reason && (
-              <Text style={styles.modalReason}>Doctor reason: {selectedLeave.reason}</Text>
-            )}
-            <Text style={styles.inputLabel}>Admin Reason (optional)</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Enter reason..."
-              placeholderTextColor={colors.textMuted}
-              value={adminReason}
-              onChangeText={setAdminReason}
-              multiline
-            />
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={[styles.modalBtn, styles.modalCancelBtn]} onPress={() => setStatusModalVisible(false)}>
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalBtn, { backgroundColor: newStatus === 'approved' ? '#10B981' : '#EF4444' }]}
-                onPress={confirmStatusUpdate}
-              >
-                <Text style={styles.modalConfirmText}>Confirm</Text>
-              </TouchableOpacity>
+            {/* Padding lives on this body wrapper, not on modalContainer — the
+                detail modal above shares that container and needs its coloured
+                header to run edge to edge. */}
+            <View style={styles.statusModalBody}>
+              <Text style={styles.modalTitle}>{newStatus === 'approved' ? 'Approve' : 'Reject'} Leave</Text>
+              {selectedLeave && (
+                <Text style={styles.modalSubtitle}>
+                  {selectedLeave.doctorName || selectedLeave.doctorId} - {selectedLeave.leaveDate || selectedLeave.startDate || '—'}
+                </Text>
+              )}
+              {selectedLeave?.reason && (
+                <Text style={styles.modalReason}>Doctor reason: {selectedLeave.reason}</Text>
+              )}
+              <Text style={styles.inputLabel}>Admin Reason (optional)</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Enter reason..."
+                placeholderTextColor={colors.textMuted}
+                value={adminReason}
+                onChangeText={setAdminReason}
+                multiline
+              />
+              <View style={styles.modalActions}>
+                <TouchableOpacity style={[styles.modalBtn, styles.modalCancelBtn]} onPress={() => setStatusModalVisible(false)}>
+                  <Text style={styles.modalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalBtn, { backgroundColor: newStatus === 'approved' ? '#10B981' : '#EF4444' }]}
+                  onPress={confirmStatusUpdate}
+                >
+                  <Text style={styles.modalConfirmText}>Confirm</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </TouchableOpacity>
@@ -697,11 +727,29 @@ const DoctorLeaveManagementScreen = ({ navigation, route }) => {
               </View>
 
               <View style={styles.filterQuickDates}>
-                {['Today', 'This Week', 'This Month'].map(label => (
-                  <TouchableOpacity key={label} style={styles.quickDateBtn} onPress={() => setQuickDate(label)}>
-                    <Text style={styles.quickDateText}>{label}</Text>
-                  </TouchableOpacity>
-                ))}
+                {['Today', 'This Week', 'This Month'].map(label => {
+                  const now = new Date();
+                  let qdFrom, qdTo;
+                  if (label === 'Today') {
+                    qdFrom = qdTo = now.toISOString().slice(0, 10);
+                  } else if (label === 'This Week') {
+                    const start = new Date(now);
+                    start.setDate(now.getDate() - now.getDay());
+                    qdFrom = start.toISOString().slice(0, 10);
+                    const end = new Date(now);
+                    end.setDate(start.getDate() + 6);
+                    qdTo = end.toISOString().slice(0, 10);
+                  } else {
+                    qdFrom = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+                    qdTo = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+                  }
+                  const isActive = draftFromDate === qdFrom && draftToDate === qdTo;
+                  return (
+                    <TouchableOpacity key={label} style={[styles.quickDateBtn, isActive && styles.quickDateBtnActive]} onPress={() => setQuickDate(label)}>
+                      <Text style={[styles.quickDateText, isActive && styles.quickDateTextActive]}>{label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
 
               <TouchableOpacity
@@ -865,7 +913,9 @@ const makeStyles = colors => StyleSheet.create({
   filterDateSep: { fontSize: 16, fontWeight: '700', color: colors.textMuted, paddingBottom: 10 },
   filterQuickDates: { flexDirection: 'row', gap: 8, marginTop: 12 },
   quickDateBtn: { flex: 1, backgroundColor: colors.primaryLight, borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
+  quickDateBtnActive: { backgroundColor: colors.primary },
   quickDateText: { fontSize: 12, fontWeight: '600', color: colors.primary },
+  quickDateTextActive: { color: colors.white },
   partialDayRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
   checkbox: { width: 22, height: 22, borderRadius: 4, borderWidth: 2, borderColor: colors.borderStrong, justifyContent: 'center', alignItems: 'center' },
   checkboxChecked: { backgroundColor: colors.primary, borderColor: colors.primary },
@@ -893,12 +943,13 @@ const makeStyles = colors => StyleSheet.create({
   // Detail Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 20 },
   modalContainer: { backgroundColor: colors.card, borderRadius: 16, overflow: 'hidden', width: '100%', maxWidth: 560, alignSelf: 'center' },
-  modalTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary, marginBottom: 4, paddingHorizontal: 20 },
-  modalSubtitle: { fontSize: 14, color: colors.textSecondary, marginBottom: 8, paddingHorizontal: 20 },
-  modalReason: { fontSize: 13, color: colors.textMuted, marginBottom: 16, fontStyle: 'italic', paddingHorizontal: 20 },
-  inputLabel: { fontSize: 14, fontWeight: '600', color: colors.textSecondary, marginBottom: 8, paddingHorizontal: 20 },
-  modalInput: { backgroundColor: colors.surfaceMuted, borderRadius: 8, padding: 12, fontSize: 14, color: colors.textPrimary, minHeight: 80, textAlignVertical: 'top', borderWidth: 1, borderColor: colors.border, marginHorizontal: 20 },
-  modalActions: { flexDirection: 'row', gap: 10, marginTop: 20, paddingHorizontal: 20, paddingBottom: 20 },
+  statusModalBody: { padding: 20 },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary, marginBottom: 6 },
+  modalSubtitle: { fontSize: 14, color: colors.textSecondary, marginBottom: 8 },
+  modalReason: { fontSize: 13, color: colors.textMuted, marginBottom: 16, fontStyle: 'italic' },
+  inputLabel: { fontSize: 14, fontWeight: '600', color: colors.textSecondary, marginBottom: 8 },
+  modalInput: { backgroundColor: colors.surfaceMuted, borderRadius: 8, padding: 12, fontSize: 14, color: colors.textPrimary, minHeight: 80, textAlignVertical: 'top', borderWidth: 1, borderColor: colors.border },
+  modalActions: { flexDirection: 'row', gap: 10, marginTop: 20 },
   modalBtn: { flex: 1, paddingVertical: 14, borderRadius: 10, alignItems: 'center' },
   modalCancelBtn: { backgroundColor: colors.surfaceMuted },
   modalCancelText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
@@ -921,6 +972,8 @@ const makeStyles = colors => StyleSheet.create({
   detailDivider: { height: 1, backgroundColor: colors.surfaceMuted, marginVertical: 12 },
   closeDetailBtn: { backgroundColor: colors.primary, padding: 14, borderRadius: 10, alignItems: 'center', marginHorizontal: 20, marginBottom: 20 },
   closeDetailBtnText: { color: colors.white, fontWeight: '700', fontSize: 15 },
+
+  footerLoader: { paddingVertical: 20 },
 
   // Calendar Modal styles
   calendarModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 24 },

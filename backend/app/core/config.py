@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     RATE_LIMIT_LOGIN: str = "5/minute"
     RATE_LIMIT_REGISTER: str = "3/minute"
     RATE_LIMIT_REFRESH: str = "10/minute"
+    # Soft email pre-check (called on blur/submit before registering).
+    RATE_LIMIT_EMAIL_CHECK: str = "20/minute"
 
     # Razorpay credentials (test-mode keys for the sandbox). When empty, the
     # payment provider runs in a local sandbox mode: orders are generated
@@ -44,11 +46,16 @@ class Settings(BaseSettings):
     RAZORPAY_KEY_ID: str = ""
     RAZORPAY_KEY_SECRET: str = ""
 
-    # Azure Blob Storage — used for face scan images and session videos.
-    # When empty, image uploads fall back to local filesystem storage.
+    # Azure Blob Storage. When empty, image uploads fall back to local
+    # filesystem storage.
     AZURE_STORAGE_ACCOUNT_NAME: str = ""
     AZURE_STORAGE_ACCOUNT_KEY: str = ""
+    # Program/session videos only — the admin video browser lists this whole
+    # container, so nothing else belongs in it.
     AZURE_BLOB_CONTAINER_NAME: str = ""
+    # User uploads (face scan images, raw + processed). Kept apart from the
+    # video container so scans never show up in the video catalog.
+    AZURE_SCANS_CONTAINER_NAME: str = "uploads"
     # SAS token lifetime for scan images (short-lived, per-request)
     AZURE_SAS_EXPIRY_MINUTES: int = 60
     # SAS token lifetime for video streaming (needs to outlive the longest video session)

@@ -68,16 +68,20 @@ jobs:
           # not locally.
           REG_TOKEN: ${{ secrets.RELEASE_REGISTER_TOKEN }}
           REL_CONTAINER: ${{ vars.AZURE_RELEASES_CONTAINER }}
+          SCANS_CONTAINER: ${{ vars.AZURE_SCANS_CONTAINER }}
           FIREBASE_SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
         run: |
           APP="${{ vars.BACKEND_CONTAINERAPP }}"
           RG="${{ vars.AZURE_RESOURCE_GROUP }}"
-          EXTRA_ENV=""
+          # Face scan images live in their own container — the video container
+          # (AZURE_BLOB_CONTAINER_NAME) is listed wholesale by the admin video
+          # browser, so user uploads must never land there.
+          EXTRA_ENV="AZURE_SCANS_CONTAINER_NAME=${SCANS_CONTAINER:-uploads}"
           if [ -n "$REG_TOKEN" ]; then
             # Store the CI register token as a Container App secret and reference it.
             az containerapp secret set --name "$APP" --resource-group "$RG" \
               --secrets "release-register-token=$REG_TOKEN" --output none
-            EXTRA_ENV="RELEASE_REGISTER_TOKEN=secretref:release-register-token AZURE_RELEASES_CONTAINER_NAME=${REL_CONTAINER:-app-releases}"
+            EXTRA_ENV="$EXTRA_ENV RELEASE_REGISTER_TOKEN=secretref:release-register-token AZURE_RELEASES_CONTAINER_NAME=${REL_CONTAINER:-app-releases}"
           fi
           if [ -n "$FIREBASE_SA_JSON" ]; then
             # One credential powers FCM push + social-login token verification

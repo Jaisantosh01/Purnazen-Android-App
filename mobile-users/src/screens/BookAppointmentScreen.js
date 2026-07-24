@@ -7,7 +7,10 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
+  Keyboard,
+  Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { showAlert } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -32,8 +35,25 @@ const TAG_TO_VISIT_TYPE = {
 
 const BookAppointmentScreen = ({ navigation, route }) => {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { doctor } = route.params;
+
+  // The sticky footer grows and shrinks (the date/time summary lines come and
+  // go), so its height is measured rather than guessed — a fixed scroll padding
+  // left the last section, "Home Address", trapped behind it.
+  const [barHeight, setBarHeight] = useState(0);
+
+  // While the keyboard is open the footer would sit right on top of it and hide
+  // whatever the user is typing under, so it steps aside until they're done.
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const subShow = Keyboard.addListener(showEvt, () => setKeyboardOpen(true));
+    const subHide = Keyboard.addListener(hideEvt, () => setKeyboardOpen(false));
+    return () => { subShow.remove(); subHide.remove(); };
+  }, []);
 
   const today = new Date();
   const [visitTypes, setVisitTypes]         = useState([]);
@@ -283,7 +303,12 @@ const BookAppointmentScreen = ({ navigation, route }) => {
     <View style={styles.root}>
       <ScreenHeader title="Book Appointment" subtitle={doctor.name} variant="light" />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        contentContainerStyle={{ paddingBottom: (keyboardOpen ? 0 : barHeight || 120) + 24 }}
+      >
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Select Visit Type</Text>
@@ -498,7 +523,18 @@ const BookAppointmentScreen = ({ navigation, route }) => {
 
       </ScrollView>
 
-      <View style={styles.bottomBar}>
+      <View
+        style={[
+          styles.bottomBar,
+          { paddingBottom: 16 + insets.bottom },
+          keyboardOpen && styles.bottomBarHidden,
+        ]}
+        pointerEvents={keyboardOpen ? 'none' : 'auto'}
+        onLayout={e => {
+          const h = e.nativeEvent.layout.height;
+          if (h > 0) setBarHeight(h);
+        }}
+      >
         <View style={styles.summaryRow}>
           {selectedDate && (
             <View style={styles.summaryItem}>
@@ -531,11 +567,12 @@ const BookAppointmentScreen = ({ navigation, route }) => {
 
       {/* Address picker dialog */}
       <AppDialog
+        compact
         visible={showAddressPicker}
         onClose={() => setShowAddressPicker(false)}
         icon="home-map-marker"
         title="Select Address"
-        subtitle="Choose the address for your home visit"
+        subtitle="For your home visit"
         confirmLabel="Close"
         onConfirm={() => setShowAddressPicker(false)}
         showCancel={false}
@@ -633,7 +670,8 @@ const makeStyles = colors => StyleSheet.create({
   datePickerPlaceholder:{ flex: 1, fontSize: 14, color: colors.textMuted },
 
   calendarCard: {
-    backgroundColor: colors.card, borderRadius: 14, padding: 16,
+    backgroundColor: colors.card, borderRadius: 14,
+    paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8,
     shadowColor: colors.black, shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05, shadowRadius: 3, elevation: 1, marginTop: 10,
   },
@@ -646,7 +684,7 @@ const makeStyles = colors => StyleSheet.create({
   dayHeaders:    { flexDirection: 'row', marginBottom: 8 },
   dayHeader:     { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600', color: colors.textMuted },
   calendarGrid:  { flexDirection: 'row', flexWrap: 'wrap' },
-  dayCell:       { width: `${100 / 7}%`, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', marginVertical: 2 },
+  dayCell:       { width: `${100 / 7}%`, height: 40, alignItems: 'center', justifyContent: 'center', marginVertical: 1 },
   dayCellSelected: { backgroundColor: colors.primary, borderRadius: 20 },
   dayText:         { fontSize: 13, color: colors.textPrimary, fontWeight: '500' },
   dayTextFaded:    { color: colors.borderStrong },
@@ -702,16 +740,16 @@ const makeStyles = colors => StyleSheet.create({
   /* Address Picker Dialog */
   pickerAddBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    paddingVertical: 12, paddingHorizontal: 10, borderRadius: 12,
+    paddingVertical: 10, paddingHorizontal: 10, borderRadius: 12,
     borderWidth: 1.5, borderColor: colors.primary + '55', borderStyle: 'dashed',
     backgroundColor: colors.primaryFaint,
   },
-  pickerAddBtnText: { fontSize: 14, fontWeight: '600', color: colors.primary },
+  pickerAddBtnText: { fontSize: 13.5, fontWeight: '600', color: colors.primary },
   pickerEmptyText: { fontSize: 13, color: colors.textMuted, textAlign: 'center', paddingVertical: 20 },
   pickerItem: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingVertical: 12, paddingHorizontal: 10, borderRadius: 12,
-    borderWidth: 1, borderColor: 'transparent', marginBottom: 6,
+    paddingVertical: 11, paddingHorizontal: 10, borderRadius: 12,
+    borderWidth: 1, borderColor: 'transparent', marginBottom: 8,
     backgroundColor: colors.surfaceMuted,
   },
   pickerItemActive: { borderColor: colors.primary, backgroundColor: colors.primaryFaint },
@@ -747,6 +785,7 @@ const makeStyles = colors => StyleSheet.create({
     borderTopWidth: 1, borderTopColor: colors.surfaceMuted, elevation: 10,
     shadowColor: colors.black, shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.06, shadowRadius: 6,
   },
+  bottomBarHidden: { display: 'none' },
   summaryRow:    { marginBottom: 10, gap: 4 },
   summaryItem:   { flexDirection: 'row', alignItems: 'center', gap: 6 },
   summaryIcon:   { fontSize: 13 },

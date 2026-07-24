@@ -17,9 +17,9 @@ class SessionCatalogService:
         return data
 
     @staticmethod
-    def get_wellness_sessions(db: Session) -> list[dict]:
+    def get_wellness_sessions(db: Session, active_only: bool = True) -> list[dict]:
         # to_dict() in WellnessSession now returns videoGroupId
-        return [s.to_dict() for s in WellnessSessionRepository.get_all(db)]
+        return [s.to_dict() for s in WellnessSessionRepository.get_all(db, active_only)]
 
     @staticmethod
     def get_relief_sessions(db: Session) -> list[dict]:

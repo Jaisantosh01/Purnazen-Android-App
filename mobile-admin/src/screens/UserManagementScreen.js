@@ -1,14 +1,16 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   TextInput,
   ScrollView,
-  Modal,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
+import { SwipeListView } from 'react-native-swipe-list-view';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
@@ -30,56 +32,79 @@ const UserManagementScreen = ({ navigation }) => {
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedRole, setSelectedRole] = useState('All');
-  
-  // Menu state
-  const [menuVisible, setMenuVisible] = useState(null);
-  const [menuPosition, setMenuPosition] = useState({ top: 0, right: 20 });
-  const [isMenuOpenTop, setIsMenuOpenTop] = useState(false);
-  const menuButtonRefs = useRef({});
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    const timer = setTimeout(() => setDebouncedSearch(search), 400);
+    return () => clearTimeout(timer);
+  }, [search]);
 
-  const fetchData = () => {
-    setLoading(true);
-    Promise.all([
-      apiClient.get(ENDPOINTS.USERS),
-      apiClient.get(ENDPOINTS.ROLES),
-    ])
+  const fetchData = useCallback((pageNum = 1, append = false) => {
+    if (!append) setLoading(true);
+    else setLoadingMore(true);
+
+    const params = { page: pageNum, per_page: 20 };
+    if (debouncedSearch) params.search = debouncedSearch;
+    if (selectedRole !== 'All') params.role = selectedRole;
+
+    const promises = [apiClient.get(ENDPOINTS.USERS, { params })];
+    if (pageNum === 1) promises.push(apiClient.get(ENDPOINTS.ROLES));
+
+    Promise.all(promises)
       .then(([usersRes, rolesRes]) => {
-        setUsers(usersRes?.data || []);
-        setRoles([{ name: 'All', icon: 'account-group' }, ...(rolesRes?.data || [])]);
+        const newUsers = usersRes?.data?.users || [];
+        setUsers(prev => append ? [...prev, ...newUsers] : newUsers);
+        setHasMore(pageNum < (usersRes?.data?.total_pages || 0));
+        setPage(pageNum);
+        if (rolesRes) {
+          setRoles([{ name: 'All', icon: 'account-group' }, ...(rolesRes?.data || [])]);
+        }
       })
       .catch((err) => {
         console.error('Fetch error:', err);
         setUsers([]);
-        setRoles([{ name: 'All', icon: 'account-group' }]);
       })
-      .finally(() => setLoading(false));
-  };
+      .finally(() => { setLoading(false); setLoadingMore(false); });
+  }, [debouncedSearch, selectedRole]);
 
-  const openMenu = (userId) => {
-    menuButtonRefs.current[userId]?.measure((x, y, width, height, pageX, pageY) => {
-      const screenHeight = 800; // Approximate
-      const showTop = pageY > screenHeight / 2;
-      setMenuPosition({ top: showTop ? pageY - 100 : pageY + height });
-      setIsMenuOpenTop(showTop);
-      setMenuVisible(userId);
-    });
-  };
-
-  const filteredUsers = users.filter(u => 
-    (selectedRole === 'All' || (u.role && u.role.toLowerCase() === selectedRole.toLowerCase())) &&
-    (u.full_name?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase()))
+  useFocusEffect(
+    useCallback(() => {
+      fetchData(1);
+    }, [fetchData])
   );
+
+  const handleEdit = (item, rowMap) => {
+    if (rowMap?.[item.id]) rowMap[item.id].closeRow();
+    navigation.navigate('EditUser', { user: item });
+  };
+
+  const handleDelete = (item, rowMap) => {
+    if (rowMap?.[item.id]) rowMap[item.id].closeRow();
+    Alert.alert('Delete User', `Are you sure you want to delete ${item.full_name}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => {
+        apiClient.delete(`${ENDPOINTS.USERS}/${item.id}`)
+          .then(() => { showAlert('Success', 'User deleted'); fetchData(); })
+          .catch(() => showAlert('Error', 'Failed to delete user'));
+      }},
+    ]);
+  };
+
+  const handleLoadMore = () => {
+    if (!loading && !loadingMore && hasMore) {
+      fetchData(page + 1, true);
+    }
+  };
 
   return (
     <View style={styles.root}>
       {/* Header removed from here as it is now in UnifiedUserDoctorScreen */}
 
-      {loading && filteredUsers.length === 0 ? (
+      {loading && users.length === 0 ? (
         <View>
           <View style={styles.searchContainer}>
             <MCIcon name="magnify" size={20} color={colors.textMuted} style={styles.searchIcon} />
@@ -94,9 +119,12 @@ const UserManagementScreen = ({ navigation }) => {
           <ListSkeleton count={5} />
         </View>
       ) : (
-      <FlatList
-        data={filteredUsers}
+      <SwipeListView
+        data={users}
         keyExtractor={item => item.id.toString()}
+        leftOpenValue={80}
+        rightOpenValue={-80}
+        disableRightSwipe={false}
         ListHeaderComponent={
           <>
             <View style={styles.searchContainer}>
@@ -142,7 +170,7 @@ const UserManagementScreen = ({ navigation }) => {
           return (
             <TouchableOpacity
               style={styles.userCard}
-              activeOpacity={0.8}
+              activeOpacity={1}
               onPress={() => navigation.navigate('EditUser', { user: item })}
             >
               <View style={[styles.avatar, { backgroundColor: colors.primaryLight }]}>
@@ -154,46 +182,37 @@ const UserManagementScreen = ({ navigation }) => {
                 </View>
                 <Text style={styles.userEmail}>{item.email}</Text>
               </View>
-              <TouchableOpacity
-                ref={(ref) => menuButtonRefs.current[item.id] = ref}
-                onPress={() => openMenu(item.id)}
-                style={styles.menuButton}
-              >
-                <MCIcon name="dots-vertical" size={24} color={colors.textMuted} />
-              </TouchableOpacity>
             </TouchableOpacity>
           );
         }}
+        renderHiddenItem={(data, rowMap) => (
+          <View style={styles.rowBack}>
+            <TouchableOpacity style={[styles.backBtn, styles.editBack]} onPress={() => handleEdit(data.item, rowMap)}>
+              <MCIcon name="pencil" size={22} color="#fff" />
+              <Text style={styles.backBtnText}>Edit</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.backBtn, styles.deleteBack]} onPress={() => handleDelete(data.item, rowMap)}>
+              <MCIcon name="delete" size={22} color="#fff" />
+              <Text style={styles.backBtnText}>Delete</Text>
+            </TouchableOpacity>
+          </View>
+        )}
         style={styles.list}
         contentContainerStyle={styles.listContainer}
         refreshing={loading}
-        onRefresh={fetchData}
+        onRefresh={() => fetchData(1)}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={loadingMore ? (
+          <View style={styles.footerLoader}>
+            <ActivityIndicator size="small" color={colors.primary} />
+          </View>
+        ) : null}
+        closeOnRowPress={true}
+        closeOnRowOpen={true}
+        closeOnRowBeginSwipe={true}
       />
       )}
-
-      {/* Single row-action menu (hoisted out of the list rows so mounting a
-          Modal per row can't hurt performance or block list scrolling). */}
-      <Modal transparent visible={!!menuVisible} onRequestClose={() => setMenuVisible(null)}>
-        <TouchableOpacity style={styles.modalOverlay} onPress={() => setMenuVisible(null)} activeOpacity={1}>
-          <View style={[styles.menu, { top: menuPosition.top, right: 12 }]}>
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => {
-                const u = users.find(x => x.id === menuVisible);
-                setMenuVisible(null);
-                if (u) navigation.navigate('EditUser', { user: u });
-              }}
-            >
-              <MCIcon name="pencil" size={18} color={colors.primary} />
-              <Text style={styles.menuItemText}>Edit</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuVisible(null); showAlert('Delete', 'Delete user coming soon'); }}>
-              <MCIcon name="delete" size={18} color="#FF4D4D" />
-              <Text style={[styles.menuItemText, { color: colors.danger }]}>Delete</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
     </View>
   );
 };
@@ -250,11 +269,32 @@ const makeStyles = colors => StyleSheet.create({
   userNameContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
   userName: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
   userEmail: { fontSize: 13, color: colors.textMuted },
-  menuButton: { padding: 4 },
-  menu: { position: 'absolute', backgroundColor: colors.card, borderRadius: 8, padding: 8, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, zIndex: 10 },
-  menuItem: { flexDirection: 'row', alignItems: 'center', padding: 8, gap: 8 },
-  menuItemText: { fontSize: 14, fontWeight: '500' },
-  modalOverlay: { flex: 1, backgroundColor: 'transparent' }
+  rowBack: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginHorizontal: 12,
+    marginBottom: 12,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    justifyContent: 'center',
+    width: 75,
+    height: '100%',
+  },
+  editBack: {
+    backgroundColor: '#3B82F6',
+  },
+  deleteBack: {
+    backgroundColor: '#EF4444',
+  },
+  backBtnText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  footerLoader: { paddingVertical: 20, alignItems: 'center' },
 });
 
 export default UserManagementScreen;
