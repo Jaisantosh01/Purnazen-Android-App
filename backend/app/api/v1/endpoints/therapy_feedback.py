@@ -17,19 +17,35 @@ router = APIRouter(prefix="/therapy-feedback", tags=["Therapy Feedback"])
 
 @router.get(
     "/by-group/{video_group_id}",
-    summary="Get therapy feedback by user and video group",
-    description="Returns the therapy feedback record for the authenticated user and the specified "
-    "`videoGroupId`, or 404 if none exists. Used by the mobile app to determine whether to show "
-    "the pain-before prompt.",
+    summary="Get all therapy feedbacks by user and video group",
+    description="Returns all therapy feedback records for the authenticated user and the specified "
+    "`videoGroupId`, ordered newest first. Used by the mobile app to check if feedback exists.",
 )
 def get_feedback_by_group(
     video_group_id: uuid.UUID,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    result = TherapyFeedbackService.get_by_user_and_group(db, user.id, video_group_id)
-    if result is None:
+    result = TherapyFeedbackService.get_all_by_user_and_group(db, user.id, video_group_id)
+    if not result:
         return error_response("Therapy feedback not found", 404)
+    return success_response("Therapy feedback found", result)
+
+
+@router.get(
+    "/by-session/{session_group_id}",
+    summary="Get therapy feedback by session group",
+    description="Returns the therapy feedback record for a specific session group, "
+    "or 404 if none exists.",
+)
+def get_feedback_by_session(
+    session_group_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    result = TherapyFeedbackService.get_by_session(db, session_group_id)
+    if result is None:
+        return error_response("Therapy feedback not found for this session", 404)
     return success_response("Therapy feedback found", result)
 
 

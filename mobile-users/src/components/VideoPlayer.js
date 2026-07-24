@@ -65,6 +65,7 @@ export default function VideoPlayer({
   sourceId,
   poster = null,
   autoPlay = true,
+  paused: externalPaused = false,
   onProgress,
   onEnd,
   onNext,
@@ -392,7 +393,7 @@ export default function VideoPlayer({
           ref={videoRef}
           source={source}
           style={{ width: '100%', height: overlayH }}
-          paused={paused}
+          paused={paused || externalPaused}
           muted={muted}
           resizeMode="contain"
           repeat={false}

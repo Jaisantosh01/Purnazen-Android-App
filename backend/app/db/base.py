@@ -20,6 +20,7 @@ from app.models.quick_relief import QuickRelief  # noqa: E402,F401
 from app.models.appointment import Appointment  # noqa: E402,F401
 from app.models.therapy_feedback import TherapyFeedback  # noqa: E402,F401
 from app.models.therapy_session import TherapySession  # noqa: E402,F401
+from app.models.therapy_session_group import TherapySessionGroup  # noqa: E402,F401
 from app.models.wellness_session import WellnessSession  # noqa: E402,F401
 from app.models.relief_session import ReliefSession  # noqa: E402,F401
 from app.models.payment import Payment  # noqa: E402,F401

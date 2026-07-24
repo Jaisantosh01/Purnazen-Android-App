@@ -13,6 +13,7 @@ class TherapyFeedback(Base):
     user_id = Column(GUID(), ForeignKey("users.id"), nullable=False)
     video_group_id = Column(GUID(), ForeignKey("video_groups.id"), nullable=False)
     session_type = Column(String(30), nullable=False)
+    session_group_id = Column(GUID(), ForeignKey("therapy_session_groups.id"), nullable=True)
     pain_before = Column(Integer)
     pain_after = Column(Integer)
     user_pain_description = Column(String(500))
@@ -33,6 +34,7 @@ class TherapyFeedback(Base):
     modifier = relationship("User", foreign_keys=[updated_by])
     doctor_feedback_user = relationship("User", foreign_keys=[doctor_feedback_by])
     admin_feedback_user = relationship("User", foreign_keys=[admin_feedback_by])
+    session_group = relationship("TherapySessionGroup", backref="feedbacks")
 
     def to_dict(self):
         return {
@@ -40,6 +42,7 @@ class TherapyFeedback(Base):
             "userId": str(self.user_id) if self.user_id else None,
             "videoGroupId": str(self.video_group_id) if self.video_group_id else None,
             "sessionType": self.session_type,
+            "sessionGroupId": str(self.session_group_id) if self.session_group_id else None,
             "painBefore": self.pain_before,
             "painAfter": self.pain_after,
             "userPainDescription": self.user_pain_description,

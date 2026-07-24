@@ -1,4 +1,5 @@
 import uuid
+from typing import Optional
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -13,21 +14,20 @@ class TherapySessionRepository:
 
     @staticmethod
     def upsert(db: Session, user_id: uuid.UUID, data: dict) -> TherapySession:
-        # Map 'type' to 'session_type' for the model
         if "type" in data:
             data["session_type"] = data.pop("type")
 
-        # Find if session exists for this user, group, video, and type
-        session = (
-            db.query(TherapySession)
-            .filter(
-                TherapySession.user_id == user_id,
-                TherapySession.group_id == data["group_id"],
-                TherapySession.video_id == data["video_id"],
-                TherapySession.session_type == data["session_type"],
-            )
-            .first()
-        )
+        f = [
+            TherapySession.user_id == user_id,
+            TherapySession.group_id == data["group_id"],
+            TherapySession.video_id == data["video_id"],
+            TherapySession.session_type == data["session_type"],
+        ]
+        session_group_id = data.get("session_group_id")
+        if session_group_id:
+            f.append(TherapySession.session_group_id == session_group_id)
+
+        session = db.query(TherapySession).filter(*f).first()
 
         if session:
             for key, value in data.items():
