@@ -15,6 +15,7 @@ import { ROLE_ICONS } from '../constants/icons';
 import { ListSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
+import SwipeRowActions, { SWIPE_LEFT_OPEN, SWIPE_RIGHT_OPEN } from '../components/SwipeRowActions';
 import { showAlert } from '../utils/alert';
 
 const MetadataManagementScreen = ({ route, navigation }) => {
@@ -106,19 +107,15 @@ const MetadataManagementScreen = ({ route, navigation }) => {
     </View>
   );
 
-  // Single-direction reveal (swipe right→left) shows Edit + Delete together on
-  // the right. A symmetric two-way swipe let rows rest half-open ("not closing").
+  // Swipe right reveals Edit (left), swipe left reveals Delete (right) — the
+  // same gesture the Users/Doctors lists use (see SwipeRowActions).
   const renderHiddenItem = (data, rowMap) => (
-    <View style={styles.rowBack}>
-      <TouchableOpacity style={[styles.backBtn, styles.editBack]} onPress={() => { rowMap[data.item.id]?.closeRow(); startEdit(data.item); }}>
-        <MCIcon name="pencil" size={22} color="#fff" />
-        <Text style={styles.backBtnText}>Edit</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={[styles.backBtn, styles.deleteBack]} onPress={() => { rowMap[data.item.id]?.closeRow(); handleDelete(data.item.id); }}>
-        <MCIcon name="delete" size={22} color="#fff" />
-        <Text style={styles.backBtnText}>Delete</Text>
-      </TouchableOpacity>
-    </View>
+    <SwipeRowActions
+      containerStyle={styles.rowBack}
+      onClose={() => rowMap[data.item.id]?.closeRow()}
+      onEdit={() => startEdit(data.item)}
+      onDelete={() => handleDelete(data.item.id)}
+    />
   );
 
   return (
@@ -141,9 +138,8 @@ const MetadataManagementScreen = ({ route, navigation }) => {
           keyExtractor={item => item.id.toString()}
           renderItem={renderItem}
           renderHiddenItem={renderHiddenItem}
-          disableRightSwipe
-          rightOpenValue={-150}
-          stopRightSwipe={-150}
+          leftOpenValue={SWIPE_LEFT_OPEN}
+          rightOpenValue={SWIPE_RIGHT_OPEN}
           contentContainerStyle={styles.listContainer}
           refreshing={loading}
           onRefresh={fetchItems}
@@ -197,11 +193,8 @@ const makeStyles = colors => StyleSheet.create({
   listContainer: { padding: 16 },
   itemCard: { backgroundColor: colors.card, padding: 16, borderRadius: 12, marginBottom: 8, flexDirection: 'row', alignItems: 'center' },
   itemName: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
-  rowBack: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 8, borderRadius: 12, overflow: 'hidden', flex: 1 },
-  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, justifyContent: 'center', width: 75, height: '100%' },
-  editBack: { backgroundColor: '#3B82F6' },
-  deleteBack: { backgroundColor: '#EF4444' },
-  backBtnText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  // Only spacing/rounding here — the swipe layer itself lives in SwipeRowActions.
+  rowBack: { marginBottom: 8, borderRadius: 12 },
   emptyText: { textAlign: 'center', marginTop: 20, color: colors.textMuted },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   modalContent: { backgroundColor: colors.card, borderRadius: 12, padding: 20 },

@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
-  Switch,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -14,6 +13,7 @@ import preferencesService from '../services/preferencesService';
 import { COLORS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
+import AppToggle from '../components/AppToggle';
 
 // Icon backgrounds are a translucent wash of the icon hue so the tint reads
 // correctly over both light and dark cards (matches SettingsScreen).
@@ -96,12 +96,7 @@ const NotificationsScreen = ({ navigation }) => {
               <Text style={styles.masterSub}>Enable or disable everything at once</Text>
             </View>
           </View>
-          <Switch
-            value={allEnabled}
-            onValueChange={toggleAll}
-            trackColor={{ false: colors.border, true: colors.primary }}
-            thumbColor={colors.white}
-          />
+          <AppToggle value={allEnabled} onValueChange={toggleAll} />
         </View>
 
         {NOTIFICATION_GROUPS.map(group => (
@@ -118,12 +113,10 @@ const NotificationsScreen = ({ navigation }) => {
                       <Text style={styles.rowTitle}>{item.title}</Text>
                       <Text style={styles.rowSub}>{item.subtitle}</Text>
                     </View>
-                    <Switch
+                    <AppToggle
                       value={allEnabled ? enabled[item.id] : false}
                       onValueChange={() => toggle(item.id)}
                       disabled={!allEnabled}
-                      trackColor={{ false: colors.border, true: colors.primary }}
-                      thumbColor={colors.white}
                     />
                   </View>
                   {index < group.items.length - 1 && <View style={styles.divider} />}

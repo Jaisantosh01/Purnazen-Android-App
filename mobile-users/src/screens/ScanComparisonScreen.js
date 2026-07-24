@@ -34,6 +34,11 @@ function fmtDate(iso) {
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
+function pretty(v) {
+  if (v == null) return '—';
+  return String(v).replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase());
+}
+
 const ScanComparisonScreen = ({ navigation, route }) => {
   const headerTop = useHeaderTopPadding();
   const { colors } = useTheme();
@@ -79,6 +84,61 @@ const ScanComparisonScreen = ({ navigation, route }) => {
     );
   };
 
+  const isTongue = data?.scanType === 'tongue';
+
+  const renderTongueBody = () => {
+    const delta = data?.wellnessDelta;
+    const improved = delta != null && delta > 0;
+    const worse = delta != null && delta < 0;
+    const color = delta == null || delta === 0 ? colors.textMuted : improved ? '#22c55e' : '#ef4444';
+    const cur = data?.current?.results?.overallWellnessScore;
+
+    return (
+      <>
+        {/* Wellness hero */}
+        <View style={styles.wellnessCard}>
+          <Text style={styles.wellnessLabel}>Overall wellness</Text>
+          <View style={styles.wellnessRow}>
+            <Text style={styles.wellnessNum}>{cur != null ? Math.round(cur) : '--'}</Text>
+            {delta != null && (
+              <View style={[styles.deltaPill, { backgroundColor: `${color}1a` }]}>
+                <MCIcon name={delta === 0 ? 'minus' : delta > 0 ? 'arrow-up' : 'arrow-down'} size={13} color={color} />
+                <Text style={[styles.deltaText, { color }]}>{Math.abs(delta).toFixed(0)}</Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.muted}>
+            {delta == null || delta === 0 ? 'No change vs previous scan'
+              : improved ? 'Higher than your previous scan'
+              : 'Lower than your previous scan'}
+          </Text>
+        </View>
+
+        {/* Per-marker before → after */}
+        <Text style={styles.subhead}>TCM markers</Text>
+        <View style={styles.card}>
+          {(data?.markerChanges || []).map((m, i) => (
+            <View key={m.key} style={[styles.markerRow, i > 0 && styles.markerDivider]}>
+              <Text style={styles.metricLabel}>{m.label}</Text>
+              <View style={styles.markerValues}>
+                <Text style={styles.baseVal}>{pretty(m.baseline)}</Text>
+                <MCIcon name="arrow-right-thin" size={16} color={colors.textMuted} />
+                <Text style={[styles.curVal, m.changed && { color: '#C850C0' }]}>{pretty(m.current)}</Text>
+              </View>
+              <MCIcon
+                name={m.changed ? 'swap-horizontal' : 'equal'}
+                size={16}
+                color={m.changed ? '#C850C0' : colors.textMuted}
+                style={styles.markerFlag}
+              />
+            </View>
+          ))}
+        </View>
+        <Text style={styles.hint}>Purple = a marker that shifted since your previous scan</Text>
+      </>
+    );
+  };
+
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor="#C850C0" />
@@ -98,15 +158,23 @@ const ScanComparisonScreen = ({ navigation, route }) => {
         <View style={styles.center}>
           <MCIcon name="compare" size={46} color={colors.borderStrong} />
           <Text style={styles.emptyTitle}>Nothing to compare yet</Text>
-          <Text style={styles.muted}>This is your first scan. Scan again later to track progress.</Text>
+          <Text style={styles.muted}>
+            This is your first {isTongue ? 'tongue ' : ''}scan. Scan again later to track progress.
+          </Text>
         </View>
       ) : (
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
           <Text style={styles.caption}>
             {fmtDate(data?.baseline?.createdAt)} → {fmtDate(data?.current?.createdAt)}
           </Text>
-          <View style={styles.card}>{Object.keys(METRICS).map(renderRow)}</View>
-          <Text style={styles.hint}>Green = improvement vs your previous scan</Text>
+          {isTongue ? (
+            renderTongueBody()
+          ) : (
+            <>
+              <View style={styles.card}>{Object.keys(METRICS).map(renderRow)}</View>
+              <Text style={styles.hint}>Green = improvement vs your previous scan</Text>
+            </>
+          )}
         </ScrollView>
       )}
     </View>
@@ -151,4 +219,22 @@ const makeStyles = colors => StyleSheet.create({
   },
   deltaText: { fontSize: 13, fontWeight: '800' },
   hint: { fontSize: 12, color: colors.textMuted, textAlign: 'center', marginTop: 10 },
+
+  // Tongue comparison
+  wellnessCard: {
+    backgroundColor: colors.card, borderRadius: 16, padding: 18, alignItems: 'center', gap: 4,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border,
+    elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4,
+  },
+  wellnessLabel: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
+  wellnessRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  wellnessNum: { fontSize: 40, fontWeight: '900', color: colors.textPrimary },
+  subhead: { fontSize: 15, fontWeight: '700', color: colors.textPrimary, marginTop: 20, marginBottom: 10 },
+  markerRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 13, paddingHorizontal: 10,
+  },
+  markerDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  markerValues: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, justifyContent: 'center' },
+  markerFlag: { width: 24, textAlign: 'right' },
 });

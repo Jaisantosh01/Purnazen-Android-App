@@ -9,6 +9,12 @@ class RegisterRequest(BaseModel):
     password: str
 
 
+class EmailCheckRequest(BaseModel):
+    # Plain str (not EmailStr) so a malformed address returns a soft message
+    # instead of a 422 — the apps use this to validate as the user types.
+    email: str
+
+
 class AdminCreateUserRequest(BaseModel):
     full_name: str
     email: EmailStr

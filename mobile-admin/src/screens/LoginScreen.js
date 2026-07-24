@@ -18,6 +18,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import authService from '../services/authService';
 import socialAuthService from '../services/socialAuthService';
 import useTheme from '../hooks/useTheme';
+import { isValidEmail } from '../utils/emailCheck';
 
 const LoginScreen = ({ navigation }) => {
   const { colors } = useTheme();
@@ -62,6 +63,7 @@ const LoginScreen = ({ navigation }) => {
 
   const handleLogin = async () => {
     if (!email.trim()) { setError('Please enter your email.'); return; }
+    if (!isValidEmail(email)) { setError('Please enter a valid email address.'); return; }
     if (!password.trim()) { setError('Please enter your password.'); return; }
     setError('');
     setIsLoading(true);

@@ -14,14 +14,14 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import authService from '../services/authService';
 import useTheme from '../hooks/useTheme';
-
-const EMAIL_RE = /^\S+@\S+\.\S+$/;
+import { quickEmailIssue } from '../utils/emailCheck';
 
 const RegisterScreen = ({ navigation }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [fullName, setFullName]         = useState('');
   const [email, setEmail]               = useState('');
+  const [emailHint, setEmailHint]       = useState('');
   const [password, setPassword]         = useState('');
   const [confirm, setConfirm]           = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -30,7 +30,8 @@ const RegisterScreen = ({ navigation }) => {
 
   const handleRegister = async () => {
     if (!fullName.trim())          { setError('Please enter your name.');                 return; }
-    if (!EMAIL_RE.test(email.trim())) { setError('Please enter a valid email.');          return; }
+    const emailIssue = quickEmailIssue(email);
+    if (emailIssue)                { setError(emailIssue); setEmailHint(emailIssue);      return; }
     if (password.length < 6)       { setError('Password must be at least 6 characters.'); return; }
     if (password !== confirm)      { setError('Passwords do not match.');                 return; }
     setError('');
@@ -88,18 +89,25 @@ const RegisterScreen = ({ navigation }) => {
           </View>
 
           <Text style={styles.label}>Email</Text>
-          <View style={styles.inputContainer}>
+          <View style={[styles.inputContainer, !!emailHint && styles.inputContainerError]}>
             <MCIcon name="email-outline" size={20} color={colors.textMuted} style={styles.inputIcon} />
             <TextInput
               style={styles.input}
               placeholder="Enter your email"
               placeholderTextColor={colors.textMuted}
               value={email}
-              onChangeText={text => { setEmail(text); setError(''); }}
+              onChangeText={text => { setEmail(text); setError(''); setEmailHint(''); }}
+              onBlur={() => setEmailHint(quickEmailIssue(email) || '')}
               keyboardType="email-address"
               autoCapitalize="none"
             />
           </View>
+          {!!emailHint && (
+            <View style={styles.emailHintRow}>
+              <MCIcon name="information-outline" size={14} color={colors.warning} />
+              <Text style={styles.emailHintText}>{emailHint}</Text>
+            </View>
+          )}
 
           <Text style={styles.label}>Password</Text>
           <View style={styles.inputContainer}>
@@ -247,6 +255,7 @@ const makeStyles = colors => StyleSheet.create({
     paddingVertical: 14,
     marginBottom: 18,
   },
+  inputContainerError: { borderWidth: 1, borderColor: colors.warning },
   inputIcon: { marginRight: 10 },
   input: {
     flex: 1,
@@ -255,6 +264,16 @@ const makeStyles = colors => StyleSheet.create({
     padding: 0,
   },
   eyeBtn: { padding: 4 },
+
+  emailHintRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: -10,
+    marginBottom: 14,
+    paddingHorizontal: 2,
+  },
+  emailHintText: { flex: 1, fontSize: 12, color: colors.warning },
 
   registerBtn: {
     backgroundColor: colors.primary,

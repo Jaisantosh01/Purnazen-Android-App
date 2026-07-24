@@ -8,7 +8,6 @@ import {
   StatusBar,
   ActivityIndicator,
   TextInput,
-  Switch,
   useWindowDimensions,
   PanResponder,
 } from 'react-native';
@@ -22,6 +21,7 @@ import { syncVideoProgress } from '../utils/videoTracker';
 import therapyService from '../services/therapyService';
 import VideoPlayer from '../components/VideoPlayer';
 import AppDialog from '../components/AppDialog';
+import AppToggle from '../components/AppToggle';
 
 const AUTOPLAY_NEXT_KEY = 'video_autoplay_next';
 
@@ -461,12 +461,7 @@ const VideoPlayerScreen = ({ route, navigation }) => {
                     : 'Asks before starting the next video'}
                 </Text>
               </View>
-              <Switch
-                value={autoPlayNext}
-                onValueChange={handleAutoPlayNextChange}
-                trackColor={{ false: colors.border, true: colors.primary }}
-                thumbColor={colors.white}
-              />
+              <AppToggle value={autoPlayNext} onValueChange={handleAutoPlayNextChange} />
             </View>
           )}
         </View>

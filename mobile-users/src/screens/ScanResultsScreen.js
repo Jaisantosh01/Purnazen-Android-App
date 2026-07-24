@@ -279,7 +279,7 @@ const ScanResultsScreen = ({ navigation, route }) => {
             <MCIcon name="share-variant" size={18} color="#C850C0" />
             <Text style={styles.shareBtnText}>Share report</Text>
           </TouchableOpacity>
-          {!isTongue && scan?.scan_id != null && (
+          {scan?.scan_id != null && (
             <TouchableOpacity
               style={[styles.shareBtn, { marginTop: 10 }]}
               onPress={() => navigation.navigate('ScanComparison', { scanId: scan.scan_id })}

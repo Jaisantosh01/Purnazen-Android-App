@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Switch,
   Modal,
   TextInput,
   ActivityIndicator,
@@ -23,6 +22,11 @@ import { resetToLogin } from '../navigation/navigationRef';
 import { useAuthStore } from '../store/authStore';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
+import ThemeToggle from '../components/ThemeToggle';
+import AppToggle from '../components/AppToggle';
+import GenderSelect from '../components/GenderSelect';
+import DobInput, { isoToParts, validateDobParts } from '../components/DobInput';
+import { isValidEmail, isValidPhone } from '../utils/validators';
 
 // Shared toggle ids with NotificationsScreen (user_preferences.notifications)
 const PREF_KEYS = {
@@ -165,7 +169,7 @@ const makeStyles = colors => StyleSheet.create({
 
 const SettingsScreen = ({ navigation }) => {
   const user = useAuthStore(state => state.user);
-  const { colors, isDark, setMode } = useTheme();
+  const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   // Features that are designed but not yet functional get an honest placeholder
@@ -192,13 +196,7 @@ const SettingsScreen = ({ navigation }) => {
           <Text style={styles.settingTitle}>{title}</Text>
           {subtitle ? <Text style={styles.settingSubtitle}>{subtitle}</Text> : null}
         </View>
-        <Switch
-          value={value}
-          onValueChange={onToggle}
-          disabled={disabled}
-          trackColor={{ false: colors.border, true: colors.primary }}
-          thumbColor={colors.white}
-        />
+        <AppToggle value={value} onValueChange={onToggle} disabled={disabled} />
       </View>
     );
   };
@@ -306,9 +304,6 @@ const SettingsScreen = ({ navigation }) => {
     }
   };
 
-  // Dark mode is global — drives the persisted theme store via useTheme().
-  const toggleDarkMode = value => setMode(value ? 'dark' : 'light');
-
   // Biometric login uses the device keystore biometric prompt to enrol/disenrol.
   const toggleBiometric = async value => {
     setBiometricBusy(true);
@@ -332,6 +327,8 @@ const SettingsScreen = ({ navigation }) => {
   // Edit profile modal
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [fullName, setFullName]               = useState('');
+  const [gender, setGender]                   = useState('');
+  const [dob, setDob]                         = useState({ dd: '', mm: '', yyyy: '' });
   // Edit phone modal
   const [showEditPhone, setShowEditPhone] = useState(false);
   const [phone, setPhone]                 = useState('');
@@ -356,6 +353,8 @@ const SettingsScreen = ({ navigation }) => {
 
   const openEditProfile = () => {
     setFullName(user?.full_name || '');
+    setGender(user?.gender || '');
+    setDob(isoToParts(user?.date_of_birth));
     setFormError('');
     setShowEditProfile(true);
   };
@@ -368,7 +367,7 @@ const SettingsScreen = ({ navigation }) => {
 
   const handleSavePhone = async () => {
     const trimmed = phone.trim();
-    if (trimmed && !/^[+0-9 ()-]{6,15}$/.test(trimmed)) {
+    if (trimmed && !isValidPhone(trimmed)) {
       setFormError('Enter a valid phone number.');
       return;
     }
@@ -393,7 +392,7 @@ const SettingsScreen = ({ navigation }) => {
 
   const handleSaveEmail = async () => {
     const trimmed = newEmail.trim().toLowerCase();
-    if (!/^\S+@\S+\.\S+$/.test(trimmed)) {
+    if (!isValidEmail(trimmed)) {
       setFormError('Enter a valid email address.');
       return;
     }
@@ -470,11 +469,17 @@ const SettingsScreen = ({ navigation }) => {
 
   const handleSaveProfile = async () => {
     if (!fullName.trim()) { setFormError('Name cannot be empty.'); return; }
+    const parsedDob = validateDobParts(dob);
+    if (!parsedDob.ok) { setFormError('Enter a valid date of birth.'); return; }
     setIsSubmitting(true);
     try {
-      await authService.updateProfile({ fullName: fullName.trim() });
+      await authService.updateProfile({
+        fullName: fullName.trim(),
+        gender: gender || undefined,
+        dateOfBirth: parsedDob.iso,
+      });
       setShowEditProfile(false);
-      showAlert('Profile Updated', 'Your name has been updated.');
+      showAlert('Profile Updated', 'Your details have been saved.');
     } catch (err) {
       setFormError(err.message || 'Profile update failed.');
     } finally {
@@ -522,7 +527,7 @@ const SettingsScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Settings" subtitle="Manage your preferences" />
+      <ScreenHeader title="Settings" subtitle="Manage your preferences" right={<ThemeToggle />} />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
 
@@ -533,7 +538,7 @@ const SettingsScreen = ({ navigation }) => {
             <ArrowRow
               icon="account-edit-outline"
               title="Edit Profile"
-              subtitle="Update name, photo & bio"
+              subtitle="Update name, gender & date of birth"
               onPress={openEditProfile}
             />
             <View style={styles.rowDivider} />
@@ -628,15 +633,6 @@ const SettingsScreen = ({ navigation }) => {
           <SectionHeader title="Appearance & Security" />
           <View style={styles.card}>
             <ToggleRow
-              icon="weather-night"
-              hue={colors.textSecondary}
-              title="Dark Mode"
-              subtitle="Switch to dark theme"
-              value={isDark}
-              onToggle={toggleDarkMode}
-            />
-            <View style={styles.rowDivider} />
-            <ToggleRow
               icon="fingerprint"
               title="Biometric Login"
               subtitle="Use fingerprint or Face ID"
@@ -729,6 +725,10 @@ const SettingsScreen = ({ navigation }) => {
               placeholderTextColor={colors.textMuted}
               autoCapitalize="words"
             />
+            <Text style={styles.modalLabel}>Gender</Text>
+            <GenderSelect value={gender} onChange={v => { setGender(v); setFormError(''); }} />
+            <Text style={styles.modalLabel}>Date of Birth</Text>
+            <DobInput value={dob} onChange={d => { setDob(d); setFormError(''); }} />
             {formError ? <Text style={styles.modalError}>{formError}</Text> : null}
             <View style={styles.modalActions}>
               <TouchableOpacity style={[styles.modalBtn, styles.modalBtnCancel]} onPress={() => setShowEditProfile(false)}>

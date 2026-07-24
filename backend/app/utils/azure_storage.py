@@ -1,6 +1,9 @@
+import logging
+import time
 from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 
+from azure.core.exceptions import ResourceNotFoundError
 from azure.storage.blob import (
     BlobPrefix,
     BlobServiceClient,
@@ -10,6 +13,8 @@ from azure.storage.blob import (
 )
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 def get_blob_service_client() -> BlobServiceClient | None:
@@ -163,6 +168,46 @@ def list_blob_children(prefix: str = "") -> tuple[list[str], list[dict]]:
     return sorted(dirs), sorted(files, key=lambda f: f["name"])
 
 
+def list_blob_names(prefix: str = "") -> list[str]:
+    """Return the raw names of every blob under *prefix* (recursive).
+
+    Unlike ``list_all_blobs_with_sas`` this includes the zero-length ``.../``
+    directory-marker blobs and does no SAS work — it's the flat inventory the
+    folder rename/delete operations iterate over.
+    """
+    client = get_blob_service_client()
+    if not client:
+        return []
+    container = client.get_container_client(settings.AZURE_BLOB_CONTAINER_NAME)
+    return [b.name for b in container.list_blobs(name_starts_with=prefix)]
+
+
+def move_folder(src_prefix: str, dst_prefix: str, overwrite: bool = False) -> list[tuple[str, str]]:
+    """Move every blob under *src_prefix* to *dst_prefix* (a folder rename/move).
+
+    Directory-marker blobs are recreated at the destination; real files are
+    moved with ``move_blob`` (server-side copy + delete). Returns the list of
+    ``(old_name, new_name)`` pairs for the **file** blobs moved, so the caller
+    can repoint each video's ``video_url`` — group/session mappings key on the
+    video id and need no rewrite. Raises whatever ``move_blob`` raises (e.g.
+    ``FileExistsError``) on the first colliding file.
+    """
+    src_prefix = src_prefix if src_prefix.endswith("/") else src_prefix + "/"
+    dst_prefix = dst_prefix if dst_prefix.endswith("/") else dst_prefix + "/"
+    moved: list[tuple[str, str]] = []
+    for name in list_blob_names(src_prefix):
+        new_name = dst_prefix + name[len(src_prefix):]
+        if name.endswith("/"):
+            # A virtual-directory marker — recreate it at the destination.
+            create_blob_directory(new_name)
+            delete_blob(name)
+            continue
+        move_blob(name, new_name, overwrite=overwrite)
+        moved.append((name, new_name))
+    logger.info("move_folder: moved %d file(s) '%s' -> '%s'", len(moved), src_prefix, dst_prefix)
+    return moved
+
+
 def list_all_blobs_with_sas(prefix: str = "") -> list[dict]:
     """Recursively list ALL blobs under the given prefix, with SAS URLs.
 
@@ -228,6 +273,23 @@ def create_blob_directory(path: str) -> bool:
     return True
 
 
+def preserve_empty_directory(dir_path: str) -> None:
+    """Re-create a folder's directory marker if moving/deleting its last file
+    left it empty.
+
+    Azure has no real folders — a "folder" only exists while some blob carries
+    its prefix. Move or delete the last video out of ``Knee_Pain/`` and the
+    folder silently vanishes from every listing. Dropping a zero-length ``.../``
+    marker back keeps the (now empty) folder visible so admins can refill it.
+    Root ("") needs no marker and is skipped.
+    """
+    if not dir_path:
+        return
+    dirs, files = list_blob_children(dir_path)
+    if not dirs and not files:
+        create_blob_directory(dir_path)
+
+
 def blob_exists(blob_path: str) -> bool:
     """Check if a blob exists in the container."""
     import logging
@@ -269,3 +331,71 @@ def upload_blob_file(file_data: bytes, blob_path: str, content_type: str = "vide
         overwrite=True,
     )
     return blob_path
+
+
+def delete_blob(blob_path: str) -> bool:
+    """Delete a blob from the video container.
+
+    Returns ``True`` when the blob was deleted (or was already gone), ``False``
+    only when Azure isn't configured. A missing blob is treated as success so
+    callers can keep the DB and storage in sync without special-casing it.
+    """
+    client = get_blob_service_client()
+    if not client:
+        logger.warning("delete_blob: Azure Storage not configured")
+        return False
+    container = client.get_container_client(settings.AZURE_BLOB_CONTAINER_NAME)
+    try:
+        container.get_blob_client(blob_path).delete_blob()
+        logger.info("delete_blob: deleted '%s'", blob_path)
+    except ResourceNotFoundError:
+        logger.info("delete_blob: '%s' already absent", blob_path)
+    return True
+
+
+def move_blob(src_path: str, dst_path: str, overwrite: bool = False) -> str | None:
+    """Move a blob within the video container via a server-side copy + delete.
+
+    The copy is issued with ``start_copy_from_url`` using a short-lived read SAS
+    on the source, so the file bytes never round-trip through this process
+    (important for large videos). The source is deleted only after the copy
+    reports success.
+
+    Returns the destination path on success, ``None`` when Azure isn't
+    configured. Raises ``FileExistsError`` when ``dst_path`` already exists and
+    ``overwrite`` is False, and ``RuntimeError`` if the copy doesn't complete.
+    """
+    if src_path == dst_path:
+        return dst_path
+    client = get_blob_service_client()
+    if not client:
+        logger.warning("move_blob: Azure Storage not configured")
+        return None
+    container = client.get_container_client(settings.AZURE_BLOB_CONTAINER_NAME)
+    dst_client = container.get_blob_client(dst_path)
+
+    if not overwrite:
+        try:
+            dst_client.get_blob_properties()
+            raise FileExistsError(dst_path)
+        except ResourceNotFoundError:
+            pass
+
+    src_url = generate_sas_url(src_path)
+    dst_client.start_copy_from_url(src_url)
+
+    status = "pending"
+    for _ in range(120):  # up to ~60s for the copy to settle
+        props = dst_client.get_blob_properties()
+        status = (props.copy.status or "").lower()
+        if status != "pending":
+            break
+        time.sleep(0.5)
+
+    if status != "success":
+        logger.error("move_blob: copy '%s' -> '%s' ended in status '%s'", src_path, dst_path, status)
+        raise RuntimeError(f"Copy did not complete (status: {status or 'unknown'})")
+
+    container.get_blob_client(src_path).delete_blob()
+    logger.info("move_blob: moved '%s' -> '%s'", src_path, dst_path)
+    return dst_path

@@ -18,13 +18,10 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import authService from '../services/authService';
 import socialAuthService from '../services/socialAuthService';
+import biometricService from '../services/biometricService';
 import useTheme from '../hooks/useTheme';
 import { useProfileStore } from '../store/profileStore';
-
-// Proper address form: local@domain.tld with a real 2+ char TLD, no leading/
-// trailing dots or consecutive dots in either part. Rejects "a@b", "x@y.c" and
-// other malformed inputs that the previous \S+@\S+\.\S+ pattern let through.
-const EMAIL_RE = /^[a-zA-Z0-9](?:[a-zA-Z0-9._%+-]*[a-zA-Z0-9])?@(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
+import { quickEmailIssue } from '../utils/validators';
 
 const RegisterScreen = ({ navigation }) => {
   const { colors } = useTheme();
@@ -32,6 +29,7 @@ const RegisterScreen = ({ navigation }) => {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [fullName, setFullName]         = useState('');
   const [email, setEmail]               = useState('');
+  const [emailHint, setEmailHint]       = useState('');
   const [password, setPassword]         = useState('');
   const [confirm, setConfirm]           = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -75,18 +73,24 @@ const RegisterScreen = ({ navigation }) => {
 
   const handleRegister = async () => {
     if (!fullName.trim())             { setError('Please enter your name.');                 return; }
-    if (!EMAIL_RE.test(email.trim())) { setError('Please enter a valid email.');             return; }
+    const emailIssue = quickEmailIssue(email);
+    if (emailIssue)                   { setError(emailIssue); setEmailHint(emailIssue);      return; }
     if (password.length < 6)          { setError('Password must be at least 6 characters.'); return; }
     if (password !== confirm)         { setError('Passwords do not match.');                 return; }
     setError('');
     setIsLoading(true);
     try {
-      // Show the one-time "complete your profile" step right after sign-up.
+      // Queue the one-time post-sign-up onboarding: complete-profile, then (only
+      // when the device supports it) the biometric-unlock offer. Resolve
+      // availability BEFORE the auth flip so both steps are set atomically.
+      const bioAvailable = await biometricService.isAvailable().catch(() => false);
       useProfileStore.getState().setPendingCompletion(true);
+      useProfileStore.getState().setPendingBiometricSetup(bioAvailable);
       await authService.register(fullName.trim(), email.trim(), password);
       // Navigation handled by App.tsx auth-state listener
     } catch (err) {
       useProfileStore.getState().setPendingCompletion(false);
+      useProfileStore.getState().setPendingBiometricSetup(false);
       setError(err.message || 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
@@ -106,7 +110,9 @@ const RegisterScreen = ({ navigation }) => {
       // Only prompt profile completion when the profile is actually blank —
       // the same button may have signed into an established account.
       if (user && !user.phone && !user.gender && !user.date_of_birth) {
+        const bioAvailable = await biometricService.isAvailable().catch(() => false);
         useProfileStore.getState().setPendingCompletion(true);
+        useProfileStore.getState().setPendingBiometricSetup(bioAvailable);
       }
     } catch (err) {
       setError(err.message || 'Sign-up failed. Please try again.');
@@ -190,7 +196,11 @@ const RegisterScreen = ({ navigation }) => {
           <Text style={styles.label}>Email</Text>
           <Pressable
             onPress={() => emailRef.current?.focus()}
-            style={[styles.inputContainer, focused === 'email' && styles.inputFocused]}
+            style={[
+              styles.inputContainer,
+              focused === 'email' && styles.inputFocused,
+              !!emailHint && styles.inputError,
+            ]}
           >
             <MCIcon name="email-outline" size={20} color={focused === 'email' ? colors.primary : colors.textMuted} style={styles.inputIcon} />
             <TextInput
@@ -199,16 +209,22 @@ const RegisterScreen = ({ navigation }) => {
               placeholder="you@example.com"
               placeholderTextColor={colors.textMuted}
               value={email}
-              onChangeText={text => { setEmail(text); setError(''); }}
+              onChangeText={text => { setEmail(text); setError(''); setEmailHint(''); }}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
               returnKeyType="next"
               onSubmitEditing={() => passwordRef.current?.focus()}
               onFocus={() => setFocused('email')}
-              onBlur={() => setFocused(null)}
+              onBlur={() => { setFocused(null); setEmailHint(quickEmailIssue(email) || ''); }}
             />
           </Pressable>
+          {!!emailHint && (
+            <View style={styles.emailHintRow}>
+              <MCIcon name="information-outline" size={14} color={colors.warning} />
+              <Text style={styles.emailHintText}>{emailHint}</Text>
+            </View>
+          )}
 
           {/* Password */}
           <Text style={styles.label}>Password</Text>
@@ -436,6 +452,15 @@ const makeStyles = colors => StyleSheet.create({
   },
   inputFocused: { borderColor: colors.primary, backgroundColor: colors.primaryFaint },
   inputError: { borderColor: colors.danger },
+  emailHintRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: -10,
+    marginBottom: 14,
+    paddingHorizontal: 2,
+  },
+  emailHintText: { flex: 1, fontSize: 12, color: colors.warning },
   inputIcon: { marginRight: 4 },
   input: { flex: 1, fontSize: 15, color: colors.textPrimary, padding: 0, includeFontPadding: false },
   eyeBtn: { padding: 4 },
