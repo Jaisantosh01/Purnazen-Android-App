@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
-  Switch,
   Platform,
   KeyboardAvoidingView,
   Modal,
@@ -19,6 +18,7 @@ import { CONTENT_TABS, FORMAT_ACTIONS } from '../constants/content';
 import { renderRichText, normalizeHtml } from '../utils/richText';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
+import AppToggle from '../components/AppToggle';
 
 // Inline styles wrap the selected text; line styles wrap whole lines.
 const INLINE_ACTIONS = {
@@ -259,7 +259,7 @@ const ContentEditorScreen = ({ route, navigation }) => {
 
           <View style={styles.switchRow}>
             <Text style={styles.switchLabel}>Active</Text>
-            <Switch value={isActive} onValueChange={setIsActive} trackColor={{ false: colors.borderStrong, true: '#22C55E' }} thumbColor={isActive ? '#22C55E' : '#f4f3f4'} />
+            <AppToggle value={isActive} onValueChange={setIsActive} />
           </View>
 
           <View style={styles.modalButtons}>

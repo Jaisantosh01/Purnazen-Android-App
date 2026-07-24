@@ -74,6 +74,11 @@ export const ENDPOINTS = {
   // Consent
   CONSENT: `${API_VERSION}/consent`,
 
+  // Subscriptions
+  SUBSCRIPTION_PLANS: `${API_VERSION}/subscriptions/plans`,
+  SUBSCRIPTION_ME: `${API_VERSION}/subscriptions/me`,
+  SUBSCRIPTION_SUBSCRIBE: `${API_VERSION}/subscriptions/subscribe`,
+
   // Content Pages (terms, privacy — admin-configured)
   ROLES: `${API_VERSION}/roles`,
   CONTENT_PAGES: `${API_VERSION}/content-pages`,

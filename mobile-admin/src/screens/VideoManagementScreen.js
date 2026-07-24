@@ -28,6 +28,9 @@ const VideoManagementScreen = ({ navigation }) => {
   const [sessions, setSessions] = useState([]);
   const [sessionsLoading, setSessionsLoading] = useState(true);
   const [groupsLoading, setGroupsLoading] = useState(true);
+  // Blocks the screen with a loader while a delete/disable is in flight, so no
+  // second operation can start and the row can't be tapped mid-request.
+  const [deleting, setDeleting] = useState(false);
 
   const [groupModalVisible, setGroupModalVisible] = useState(false);
   const [isEditingGroup, setIsEditingGroup] = useState(false);
@@ -67,7 +70,7 @@ const VideoManagementScreen = ({ navigation }) => {
 
   const fetchVideoGroups = () => {
     setGroupsLoading(true);
-    apiClient.get(ENDPOINTS.VIDEO_GROUPS, { params: { active_only: false } })
+    return apiClient.get(ENDPOINTS.VIDEO_GROUPS, { params: { active_only: false } })
       .then(res => setGroups(res.data?.groups || []))
       .catch(() => showAlert('Error', 'Failed to fetch video groups'))
       .finally(() => setGroupsLoading(false));
@@ -75,7 +78,7 @@ const VideoManagementScreen = ({ navigation }) => {
 
   const fetchSessions = () => {
     setSessionsLoading(true);
-    apiClient.get(ENDPOINTS.ALL_SESSIONS, { params: { active_only: false } })
+    return apiClient.get(ENDPOINTS.ALL_SESSIONS, { params: { active_only: false } })
       .then(res => setSessions(res.data?.sessions || []))
       .catch(() => showAlert('Error', 'Failed to fetch sessions'))
       .finally(() => setSessionsLoading(false));
@@ -104,33 +107,47 @@ const VideoManagementScreen = ({ navigation }) => {
    * content — destroying it would take watch history and feedback with it. In
    * that case we don't dead-end: the follow-up offers to disable instead,
    * which hides it from the apps and leaves the row visibly disabled here.
+   *
+   * While the request is in flight a blocking overlay (`deleting`) is shown so
+   * the user can't fire a second action. On success the row is dropped from
+   * local state immediately (optimistic) AND the list is re-fetched — the
+   * optimistic drop guarantees the deleted item disappears without waiting on,
+   * or being defeated by, a slow/stale refetch.
    */
-  const confirmHardDelete = ({ kind, name, url, refresh }) => {
+  const confirmHardDelete = ({ kind, id, name, url, remove, refresh }) => {
     showConfirm(
       `Delete ${kind}`,
       `Permanently delete "${name}"? This cannot be undone.`,
       async () => {
+        setDeleting(true);
         try {
           await apiClient.delete(url, { params: { hard: true } });
-          refresh();
+          remove(id);
+          await refresh();
         } catch (err) {
-          if (err?.response?.status === 409) {
+          if (err?.response?.status === 409 || err?.status === 409) {
+            setDeleting(false);
             showConfirm(
               'Cannot delete permanently',
               err.response?.data?.message || `This ${kind.toLowerCase()} is in use.`,
               async () => {
+                setDeleting(true);
                 try {
                   await apiClient.delete(url);
-                  refresh();
+                  await refresh();
                 } catch {
                   showAlert('Error', `Failed to disable ${kind.toLowerCase()}`);
+                } finally {
+                  setDeleting(false);
                 }
               },
               { confirmLabel: 'Disable instead' },
             );
             return;
           }
-          showAlert('Error', err?.response?.data?.message || `Failed to delete ${kind.toLowerCase()}`);
+          showAlert('Error', err?.response?.data?.message || err?.message || `Failed to delete ${kind.toLowerCase()}`);
+        } finally {
+          setDeleting(false);
         }
       },
       { confirmLabel: 'Delete', destructive: true },
@@ -140,8 +157,10 @@ const VideoManagementScreen = ({ navigation }) => {
   const handleDeleteGroup = (group) =>
     confirmHardDelete({
       kind: 'Group',
+      id: group.id,
       name: group.title,
       url: `${ENDPOINTS.VIDEO_GROUPS}/${group.id}`,
+      remove: (gid) => setGroups(prev => prev.filter(g => g.id !== gid)),
       refresh: fetchVideoGroups,
     });
 
@@ -189,8 +208,10 @@ const VideoManagementScreen = ({ navigation }) => {
   const handleDeleteSession = (session) =>
     confirmHardDelete({
       kind: 'Session',
+      id: session.id,
       name: session.title,
       url: `${ENDPOINTS.ALL_SESSIONS}/${session.id}`,
+      remove: (sid) => setSessions(prev => prev.filter(s => s.id !== sid)),
       refresh: fetchSessions,
     });
 
@@ -596,6 +617,17 @@ const VideoManagementScreen = ({ navigation }) => {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Blocking delete overlay — intercepts all touches so no other operation
+          can start until the request resolves. */}
+      <Modal visible={deleting} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.blockingOverlay}>
+          <View style={styles.blockingCard}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.blockingText}>Deleting…</Text>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -699,6 +731,17 @@ const makeStyles = colors => StyleSheet.create({
   sortSaveBtnDisabled: { backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
   sortSaveText: { color: colors.white, fontWeight: '600', fontSize: 14 },
   sortSaveTextDisabled: { color: colors.textMuted },
+  blockingOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
+  blockingCard: {
+    backgroundColor: colors.card,
+    borderRadius: 18,
+    paddingVertical: 26,
+    paddingHorizontal: 34,
+    alignItems: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  blockingText: { marginTop: 14, fontSize: 14, fontWeight: '600', color: colors.textPrimary },
 });
 
 export default VideoManagementScreen;

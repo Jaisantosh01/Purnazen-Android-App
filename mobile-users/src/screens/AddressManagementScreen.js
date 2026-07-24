@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   TextInput,
   FlatList,
-  Switch,
   ActivityIndicator,
   PermissionsAndroid,
   Platform,
@@ -21,6 +20,7 @@ import { WebView } from 'react-native-webview';
 import Geolocation from '@react-native-community/geolocation';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
+import AppToggle from '../components/AppToggle';
 import consultService from '../services/consultService';
 
 const NOMINATIM_SEARCH = 'https://nominatim.openstreetmap.org/search';
@@ -547,12 +547,7 @@ const AddressManagementScreen = ({ navigation }) => {
 
             <View style={styles.defaultRow}>
               <Text style={styles.defaultLabel}>Mark as default address</Text>
-              <Switch
-                value={isDefault}
-                onValueChange={setIsDefault}
-                trackColor={{ false: colors.border, true: colors.primaryLight }}
-                thumbColor={isDefault ? colors.primary : colors.textMuted}
-              />
+              <AppToggle value={isDefault} onValueChange={setIsDefault} />
             </View>
           </View>
 

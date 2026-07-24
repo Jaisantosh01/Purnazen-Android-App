@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Switch,
   Modal,
   TextInput,
   ActivityIndicator,
@@ -21,6 +20,8 @@ import { APP_VERSION } from '../config';
 import { useAuthStore } from '../store/authStore';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
+import ThemeToggle from '../components/ThemeToggle';
+import AppToggle from '../components/AppToggle';
 
 // Shared toggle ids with the backend user_preferences.notifications dict.
 const PREF_KEYS = {
@@ -53,7 +54,7 @@ const languageLabel = code => (LANGUAGES.find(l => l.code === code) || LANGUAGES
 
 const SettingsScreen = ({ navigation }) => {
   const doctor = useAuthStore(state => state.doctor);
-  const { colors, isDark, setMode } = useTheme();
+  const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const tint = hue => hue || colors.primary;
@@ -73,13 +74,7 @@ const SettingsScreen = ({ navigation }) => {
           <Text style={styles.settingTitle}>{title}</Text>
           {subtitle ? <Text style={styles.settingSubtitle}>{subtitle}</Text> : null}
         </View>
-        <Switch
-          value={value}
-          onValueChange={onToggle}
-          disabled={disabled}
-          trackColor={{ false: colors.border, true: colors.primary }}
-          thumbColor={colors.white}
-        />
+        <AppToggle value={value} onValueChange={onToggle} disabled={disabled} />
       </View>
     );
   };
@@ -144,9 +139,6 @@ const SettingsScreen = ({ navigation }) => {
     setShowLanguage(false);
     savePreference({ language: code });
   };
-
-  // Dark mode is global — drives the persisted theme store via useTheme().
-  const toggleDarkMode = value => setMode(value ? 'dark' : 'light');
 
   // Biometric login uses the device keystore biometric prompt to enrol/disenrol.
   const toggleBiometric = async value => {
@@ -334,7 +326,7 @@ const SettingsScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Settings" subtitle="Manage your preferences" />
+      <ScreenHeader title="Settings" subtitle="Manage your preferences" right={<ThemeToggle />} />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
 
@@ -421,15 +413,6 @@ const SettingsScreen = ({ navigation }) => {
         <View style={styles.section}>
           <SectionHeader title="Appearance & Security" />
           <View style={styles.card}>
-            <ToggleRow
-              icon="weather-night"
-              hue={colors.textSecondary}
-              title="Dark Mode"
-              subtitle="Switch to dark theme"
-              value={isDark}
-              onToggle={toggleDarkMode}
-            />
-            <View style={styles.rowDivider} />
             <ToggleRow
               icon="fingerprint"
               title="Biometric Login"

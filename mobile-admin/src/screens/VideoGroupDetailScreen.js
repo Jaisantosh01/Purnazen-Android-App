@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Switch, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput } from 'react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
 import { useFocusEffect } from '@react-navigation/native';
@@ -11,6 +11,7 @@ import { SessionPlayerSkeleton } from '../components/SkeletonLoader';
 import VideoPlayer from '../components/VideoPlayer';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
+import AppToggle from '../components/AppToggle';
 import SwipeRowActions, { SWIPE_LEFT_OPEN, SWIPE_RIGHT_OPEN } from '../components/SwipeRowActions';
 import { showAlert, showConfirm } from '../utils/alert';
 
@@ -274,12 +275,7 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
                         : 'Asks before starting the next video'}
                     </Text>
                   </View>
-                  <Switch
-                    value={autoPlayNext}
-                    onValueChange={handleAutoPlayNextChange}
-                    trackColor={{ false: colors.border, true: colors.primary }}
-                    thumbColor={colors.white}
-                  />
+                  <AppToggle value={autoPlayNext} onValueChange={handleAutoPlayNextChange} />
                 </View>
               )}
 
