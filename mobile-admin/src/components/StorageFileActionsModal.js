@@ -47,6 +47,7 @@ const StorageFileActionsModal = ({ file, onClose, onChanged }) => {
   const [infoLoading, setInfoLoading] = useState(false);
   const [view, setView] = useState('menu'); // 'menu' | 'move' | 'rename'
   const [busy, setBusy] = useState(false);
+  const [busyLabel, setBusyLabel] = useState('');
 
   // Move: a small navigable folder browser + a confirm step.
   const [browsePath, setBrowsePath] = useState('');
@@ -143,6 +144,7 @@ const StorageFileActionsModal = ({ file, onClose, onChanged }) => {
 
   const doMove = () => {
     setBusy(true);
+    setBusyLabel('Moving…');
     apiClient
       .post(ENDPOINTS.VIDEO_STORAGE_MOVE, { src_path: path, dst_directory: moveTarget })
       .then((res) => afterChange(res?.message || 'File moved.'))
@@ -154,6 +156,7 @@ const StorageFileActionsModal = ({ file, onClose, onChanged }) => {
 
   const doRename = () => {
     setBusy(true);
+    setBusyLabel('Renaming…');
     apiClient
       .post(ENDPOINTS.VIDEO_STORAGE_RENAME, { src_path: path, new_name: renameValue.trim() })
       .then((res) => afterChange(res?.message || 'File renamed.'))
@@ -170,6 +173,7 @@ const StorageFileActionsModal = ({ file, onClose, onChanged }) => {
       `Permanently delete "${fileName}" and its file from storage? This cannot be undone.${usedLine}`,
       () => {
         setBusy(true);
+        setBusyLabel('Deleting…');
         apiClient
           .delete(ENDPOINTS.VIDEO_STORAGE_DELETE_FILE, { params: { path, hard: true } })
           .then(() => afterChange(`"${fileName}" was deleted.`))
@@ -181,6 +185,7 @@ const StorageFileActionsModal = ({ file, onClose, onChanged }) => {
                 err.message,
                 () => {
                   setBusy(true);
+                  setBusyLabel('Disabling…');
                   apiClient
                     .delete(ENDPOINTS.VIDEO_STORAGE_DELETE_FILE, { params: { path, hard: false } })
                     .then(() => afterChange(`"${fileName}" was disabled and hidden from the apps.`))
@@ -231,8 +236,8 @@ const StorageFileActionsModal = ({ file, onClose, onChanged }) => {
   const sameFolder = browsePath === currentDir;
 
   return (
-    <Modal visible={!!file} transparent animationType="fade" onRequestClose={onClose}>
-      <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
+    <Modal visible={!!file} transparent animationType="fade" onRequestClose={busy ? undefined : onClose}>
+      <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => { if (!busy) onClose?.(); }}>
         <TouchableOpacity activeOpacity={1} style={styles.card}>
           {/* ── MENU ── */}
           {view === 'menu' && (
@@ -429,6 +434,15 @@ const StorageFileActionsModal = ({ file, onClose, onChanged }) => {
               </View>
             </>
           )}
+
+          {/* In-flight action — blocks the card and shows what's happening so the
+              menu never just sits there silently until the result lands. */}
+          {busy && (
+            <View style={styles.busyOverlay}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              {!!busyLabel && <Text style={styles.busyOverlayText}>{busyLabel}</Text>}
+            </View>
+          )}
         </TouchableOpacity>
       </TouchableOpacity>
     </Modal>
@@ -495,6 +509,15 @@ const makeStyles = (colors) =>
     moveHereBtn: { flex: 0, alignSelf: 'stretch' },
     primaryBtnText: { fontSize: 14, fontWeight: '700', color: colors.white },
     btnBusy: { opacity: 0.5 },
+    busyOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: colors.card,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 12,
+    },
+    busyOverlayText: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
   });
 
 export default StorageFileActionsModal;

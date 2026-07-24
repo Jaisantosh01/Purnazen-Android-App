@@ -38,6 +38,7 @@ const StorageFolderActionsModal = ({ folder, onClose, onChanged }) => {
   const [infoLoading, setInfoLoading] = useState(false);
   const [view, setView] = useState('menu'); // 'menu' | 'rename'
   const [busy, setBusy] = useState(false);
+  const [busyLabel, setBusyLabel] = useState('');
   const [renameValue, setRenameValue] = useState('');
 
   const folderName = leafOf(folder);
@@ -74,6 +75,7 @@ const StorageFolderActionsModal = ({ folder, onClose, onChanged }) => {
 
   const doRename = () => {
     setBusy(true);
+    setBusyLabel('Renaming…');
     apiClient
       .post(ENDPOINTS.VIDEO_STORAGE_FOLDER_RENAME, { src_path: folder, new_name: renameValue.trim() })
       .then((res) => {
@@ -100,6 +102,7 @@ const StorageFolderActionsModal = ({ folder, onClose, onChanged }) => {
       `Permanently delete "${folderName}" and everything inside it? This cannot be undone.${line}${histLine}`,
       () => {
         setBusy(true);
+        setBusyLabel('Deleting…');
         apiClient
           .delete(ENDPOINTS.VIDEO_STORAGE_FOLDER_DELETE, { params: { path: folder } })
           .then(() => afterChange(`"${folderName}" was deleted.`))
@@ -131,8 +134,8 @@ const StorageFolderActionsModal = ({ folder, onClose, onChanged }) => {
   const nameChanged = renameValue.trim() && renameValue.trim() !== folderName;
 
   return (
-    <Modal visible={!!folder} transparent animationType="fade" onRequestClose={onClose}>
-      <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
+    <Modal visible={!!folder} transparent animationType="fade" onRequestClose={busy ? undefined : onClose}>
+      <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => { if (!busy) onClose?.(); }}>
         <TouchableOpacity activeOpacity={1} style={styles.card}>
           {/* ── MENU ── */}
           {view === 'menu' && (
@@ -219,6 +222,15 @@ const StorageFolderActionsModal = ({ folder, onClose, onChanged }) => {
               </View>
             </>
           )}
+
+          {/* In-flight action — blocks the card and shows what's happening so the
+              menu never just sits there silently until the result lands. */}
+          {busy && (
+            <View style={styles.busyOverlay}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              {!!busyLabel && <Text style={styles.busyOverlayText}>{busyLabel}</Text>}
+            </View>
+          )}
         </TouchableOpacity>
       </TouchableOpacity>
     </Modal>
@@ -254,6 +266,15 @@ const makeStyles = (colors) =>
     primaryBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, borderRadius: 10, backgroundColor: colors.primary },
     primaryBtnText: { fontSize: 14, fontWeight: '700', color: colors.white },
     btnBusy: { opacity: 0.5 },
+    busyOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: colors.card,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 12,
+    },
+    busyOverlayText: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
   });
 
 export default StorageFolderActionsModal;
