@@ -76,6 +76,9 @@ export const ENDPOINTS = {
   VIDEO_STORAGE_DIRECTORIES: `${API_VERSION}/videos/storage/directories`,
   VIDEO_ADD_FOLDER: `${API_VERSION}/videos/storage/add-folder`,
   VIDEO_UPLOAD: `${API_VERSION}/videos/upload`,
+  VIDEO_STORAGE_FILE_INFO: `${API_VERSION}/videos/storage/file-info`,
+  VIDEO_STORAGE_MOVE: `${API_VERSION}/videos/storage/move`,
+  VIDEO_STORAGE_DELETE_FILE: `${API_VERSION}/videos/storage/file`,
 
   // Chat
   CHAT_FLOW: (startId) => `${API_VERSION}/chat/flow/${startId}`,

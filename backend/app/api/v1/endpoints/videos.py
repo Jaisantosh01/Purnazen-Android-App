@@ -42,6 +42,12 @@ class AddFolderRequest(BaseModel):
     prefix: str
 
 
+class MoveFileRequest(BaseModel):
+    src_path: str
+    dst_directory: str
+    overwrite: bool = False
+
+
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".avi", ".mkv", ".webm", ".ogg", ".wmv", ".flv", ".m4v", ".3gp", ".mpeg", ".mpg"}
 
 
@@ -136,6 +142,73 @@ def create_directory(
     return success_response("Directory created successfully", {"path": body.path}, 201)
 
 
+@router.get(
+    "/storage/file-info",
+    summary="Storage file catalog info + dependencies",
+    description=(
+        "Given a raw blob path, return the catalog video record backing it (if "
+        "any) along with the groups, sessions and history that depend on it. "
+        "Used to warn before moving or deleting a stored video."
+    ),
+)
+def get_storage_file_info(
+    path: str = Query(..., description="Raw blob path (video_url), not a SAS URL"),
+    _user: User = Depends(require_role("admin")),
+    db: Session = Depends(get_db),
+):
+    info = VideoService.get_storage_file_info(db, path)
+    return success_response("File info fetched successfully", info)
+
+
+@router.post(
+    "/storage/move",
+    summary="Move a stored video to another folder",
+    description=(
+        "Move a blob to a different storage folder. Group/session mappings key "
+        "on the video ID, so they carry over automatically — only the blob path "
+        "and the record's video_url change. Returns 409 if a file of the same "
+        "name already exists at the destination (unless overwrite is set)."
+    ),
+)
+def move_storage_file(
+    body: MoveFileRequest,
+    user: User = Depends(require_role("admin")),
+    db: Session = Depends(get_db),
+):
+    response, status_code = VideoService.move_storage_file(
+        db, user, body.src_path, body.dst_directory, overwrite=body.overwrite
+    )
+    if not response["success"]:
+        return error_response(response["message"], status_code)
+    return success_response(
+        response["message"],
+        {"video": response.get("video"), "dependencies": response.get("dependencies")},
+        status_code,
+    )
+
+
+@router.delete(
+    "/storage/file",
+    summary="Delete a stored video",
+    description=(
+        "Delete a stored video by blob path. A soft delete deactivates the "
+        "catalog record and keeps the blob; a hard delete removes the record "
+        "and the blob together, and is refused with 409 when user history "
+        "references the video."
+    ),
+)
+def delete_storage_file(
+    path: str = Query(..., description="Raw blob path (video_url) to delete"),
+    hard: bool = Query(False, description="Permanently delete record + blob instead of deactivating."),
+    _user: User = Depends(require_role("admin")),
+    db: Session = Depends(get_db),
+):
+    response, status_code = VideoService.delete_storage_file(db, path, hard=hard)
+    if not response["success"]:
+        return error_response(response["message"], status_code)
+    return success_response(response["message"], None, status_code)
+
+
 @router.post(
     "/upload",
     summary="Upload video to blob storage",
@@ -200,7 +273,9 @@ async def upload_video(
         videoGroupId=parsed_group_id,
         sortOrder=sort_order,
     )
-    response, status_code = VideoService.upsert_video(db, user, create_data)
+    # Keyed on the blob path so a retried upload updates the existing record
+    # instead of creating a duplicate catalog row (see the service docstring).
+    response, status_code = VideoService.create_or_update_uploaded_video(db, user, create_data)
     if not response["success"]:
         return error_response(response["message"], status_code)
     return success_response(response["message"], response["video"], status_code)

@@ -9,6 +9,7 @@ import { ROLE_ICONS, WELLNESS_ICONS } from '../constants/icons';
 import { ListSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
+import SwipeRowActions, { SWIPE_LEFT_OPEN, SWIPE_RIGHT_OPEN } from '../components/SwipeRowActions';
 import { showAlert, showConfirm } from '../utils/alert';
 import { ICONS_PER_PAGE } from '../constants/icons';
 
@@ -245,24 +246,13 @@ const VideoManagementScreen = ({ navigation }) => {
    */
   const renderSwipeActions = (item, rowMap, { onEdit, onDelete }) => {
     if (!item) return <View style={styles.rowBack} />;
-    const close = () => rowMap[item.id]?.closeRow();
     return (
-      <View style={styles.rowBack}>
-        <TouchableOpacity
-          style={[styles.backBtn, styles.editBack]}
-          onPress={() => { close(); onEdit(item); }}
-        >
-          <MCIcon name="pencil" size={22} color="#fff" />
-          <Text style={styles.backBtnText}>Edit</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.backBtn, styles.deleteBack]}
-          onPress={() => { close(); onDelete(item); }}
-        >
-          <MCIcon name="delete" size={22} color="#fff" />
-          <Text style={styles.backBtnText}>Delete</Text>
-        </TouchableOpacity>
-      </View>
+      <SwipeRowActions
+        containerStyle={styles.rowBack}
+        onClose={() => rowMap[item.id]?.closeRow()}
+        onEdit={() => onEdit(item)}
+        onDelete={() => onDelete(item)}
+      />
     );
   };
 
@@ -284,9 +274,18 @@ const VideoManagementScreen = ({ navigation }) => {
         onBack={() => navigation.goBack()}
         underColor={colors.card}
         right={
-          <TouchableOpacity style={styles.addBtn} onPress={activeTab === 'sessions' ? openAddSessionModal : openAddGroupModal}>
-            <MCIcon name="plus" size={24} color={colors.headerText} />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.addBtn}
+              onPress={() => navigation.navigate('UploadVideo', {})}
+              accessibilityLabel="Upload or manage program videos"
+            >
+              <MCIcon name="cloud-upload-outline" size={22} color={colors.headerText} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.addBtn} onPress={activeTab === 'sessions' ? openAddSessionModal : openAddGroupModal}>
+              <MCIcon name="plus" size={24} color={colors.headerText} />
+            </TouchableOpacity>
+          </View>
         }
       />
 
@@ -370,8 +369,8 @@ const VideoManagementScreen = ({ navigation }) => {
               onDelete: handleDeleteSession,
             })
           }
-          leftOpenValue={SWIPE_WIDTH}
-          rightOpenValue={-SWIPE_WIDTH}
+          leftOpenValue={SWIPE_LEFT_OPEN}
+          rightOpenValue={SWIPE_RIGHT_OPEN}
           closeOnRowPress={true}
           closeOnRowOpen={true}
           closeOnRowBeginSwipe={true}
@@ -411,8 +410,8 @@ const VideoManagementScreen = ({ navigation }) => {
               onDelete: handleDeleteGroup,
             })
           }
-          leftOpenValue={SWIPE_WIDTH}
-          rightOpenValue={-SWIPE_WIDTH}
+          leftOpenValue={SWIPE_LEFT_OPEN}
+          rightOpenValue={SWIPE_RIGHT_OPEN}
           closeOnRowPress={true}
           closeOnRowOpen={true}
           closeOnRowBeginSwipe={true}
@@ -601,10 +600,6 @@ const VideoManagementScreen = ({ navigation }) => {
   );
 };
 
-// Reveal width for the swipe actions — shared with the action button width so
-// an open row sits exactly flush against it.
-const SWIPE_WIDTH = 88;
-
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   list: { padding: 16 },
@@ -648,23 +643,10 @@ const makeStyles = colors => StyleSheet.create({
     textTransform: 'uppercase',
     color: colors.textMuted,
   },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   addBtn: { backgroundColor: 'rgba(255,255,255,0.2)', width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  // Swipe layer. justify-content space-between is the fix: without it both
-  // actions pack against the left edge, so the delete sat under the card and
-  // swiping left revealed nothing you could press.
-  rowBack: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'stretch',
-    marginBottom: 12,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  backBtn: { width: SWIPE_WIDTH, alignItems: 'center', justifyContent: 'center', gap: 4 },
-  editBack: { backgroundColor: colors.primary },
-  deleteBack: { backgroundColor: colors.danger },
-  backBtnText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  // Only spacing/rounding here — the swipe layer itself lives in SwipeRowActions.
+  rowBack: { marginBottom: 12, borderRadius: 12 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', padding: 20 },
   modalCard: {
   backgroundColor: colors.card,

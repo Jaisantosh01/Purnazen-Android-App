@@ -1,6 +1,9 @@
+import logging
+import time
 from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 
+from azure.core.exceptions import ResourceNotFoundError
 from azure.storage.blob import (
     BlobPrefix,
     BlobServiceClient,
@@ -10,6 +13,8 @@ from azure.storage.blob import (
 )
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 def get_blob_service_client() -> BlobServiceClient | None:
@@ -269,3 +274,71 @@ def upload_blob_file(file_data: bytes, blob_path: str, content_type: str = "vide
         overwrite=True,
     )
     return blob_path
+
+
+def delete_blob(blob_path: str) -> bool:
+    """Delete a blob from the video container.
+
+    Returns ``True`` when the blob was deleted (or was already gone), ``False``
+    only when Azure isn't configured. A missing blob is treated as success so
+    callers can keep the DB and storage in sync without special-casing it.
+    """
+    client = get_blob_service_client()
+    if not client:
+        logger.warning("delete_blob: Azure Storage not configured")
+        return False
+    container = client.get_container_client(settings.AZURE_BLOB_CONTAINER_NAME)
+    try:
+        container.get_blob_client(blob_path).delete_blob()
+        logger.info("delete_blob: deleted '%s'", blob_path)
+    except ResourceNotFoundError:
+        logger.info("delete_blob: '%s' already absent", blob_path)
+    return True
+
+
+def move_blob(src_path: str, dst_path: str, overwrite: bool = False) -> str | None:
+    """Move a blob within the video container via a server-side copy + delete.
+
+    The copy is issued with ``start_copy_from_url`` using a short-lived read SAS
+    on the source, so the file bytes never round-trip through this process
+    (important for large videos). The source is deleted only after the copy
+    reports success.
+
+    Returns the destination path on success, ``None`` when Azure isn't
+    configured. Raises ``FileExistsError`` when ``dst_path`` already exists and
+    ``overwrite`` is False, and ``RuntimeError`` if the copy doesn't complete.
+    """
+    if src_path == dst_path:
+        return dst_path
+    client = get_blob_service_client()
+    if not client:
+        logger.warning("move_blob: Azure Storage not configured")
+        return None
+    container = client.get_container_client(settings.AZURE_BLOB_CONTAINER_NAME)
+    dst_client = container.get_blob_client(dst_path)
+
+    if not overwrite:
+        try:
+            dst_client.get_blob_properties()
+            raise FileExistsError(dst_path)
+        except ResourceNotFoundError:
+            pass
+
+    src_url = generate_sas_url(src_path)
+    dst_client.start_copy_from_url(src_url)
+
+    status = "pending"
+    for _ in range(120):  # up to ~60s for the copy to settle
+        props = dst_client.get_blob_properties()
+        status = (props.copy.status or "").lower()
+        if status != "pending":
+            break
+        time.sleep(0.5)
+
+    if status != "success":
+        logger.error("move_blob: copy '%s' -> '%s' ended in status '%s'", src_path, dst_path, status)
+        raise RuntimeError(f"Copy did not complete (status: {status or 'unknown'})")
+
+    container.get_blob_client(src_path).delete_blob()
+    logger.info("move_blob: moved '%s' -> '%s'", src_path, dst_path)
+    return dst_path

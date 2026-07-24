@@ -173,6 +173,56 @@ class VideoService:
                 return {"success": True, "message": "Video created", "video": VideoService._process_video_data(video.to_dict())}, 201
 
     @staticmethod
+    def create_or_update_uploaded_video(db: Session, user: User, data: VideoCreate):
+        """Idempotent upsert keyed on ``video_url`` for the upload flow.
+
+        A connection dropped mid-upload can leave the blob written but the
+        client unaware; the retry re-uploads with ``overwrite=True``. Keying the
+        catalog record on the blob path means that retry updates the existing
+        row (and reactivates/creates its group mapping) instead of piling up a
+        duplicate entry under the same file — the "new row below the failed one"
+        the retries used to produce.
+        """
+        existing = VideoRepository.get_by_url(db, data.video_url) if data.video_url else None
+        if not existing:
+            return VideoService.upsert_video(db, user, data)
+
+        VideoRepository.update(
+            db,
+            existing,
+            title=data.title,
+            description=data.description,
+            duration=data.duration,
+            icon=data.icon,
+            updated_by=user.id,
+        )
+
+        if data.video_group_id:
+            if not VideoGroupRepository.get_by_id(db, data.video_group_id):
+                return {"success": False, "message": "Video group not found"}, 404
+            mapping = VideoGroupMappingRepository.get_mapping(db, data.video_group_id, existing.id)
+            if mapping:
+                if not mapping.is_active:
+                    VideoGroupMappingRepository.update(
+                        db, mapping, is_active=True, updated_by=user.id
+                    )
+            else:
+                VideoGroupMappingRepository.create(
+                    db,
+                    video_group_id=data.video_group_id,
+                    video_id=existing.id,
+                    sort_order=data.sort_order,
+                    created_by=user.id,
+                    updated_by=user.id,
+                )
+
+        return {
+            "success": True,
+            "message": "Existing video updated from upload",
+            "video": VideoService._process_video_data(existing.to_dict()),
+        }, 200
+
+    @staticmethod
     def delete_video(db: Session, video_id: uuid.UUID, hard: bool = False):
         video = VideoRepository.get_by_id(db, video_id)
         if not video:
@@ -200,6 +250,148 @@ class VideoService:
 
         VideoRepository.delete(db, video)
         return {"success": True, "message": "Video deleted (deactivated)"}, 200
+
+    @staticmethod
+    def _video_dependencies(db: Session, video) -> dict:
+        """Describe everything that references a video: the groups it's mapped
+        to, the wellness sessions linked to those groups, and how many user
+        history rows point at it. The frontend uses this to warn before a move
+        or delete and to explain why a hard delete is refused.
+        """
+        from app.models.wellness_session import WellnessSession
+
+        mappings = [m for m in video.group_mappings if m.is_active]
+        groups = []
+        group_ids = []
+        for m in mappings:
+            group = VideoGroupRepository.get_by_id(db, m.video_group_id)
+            if group and group.is_active:
+                groups.append({"id": group.id, "title": group.title})
+                group_ids.append(group.id)
+
+        sessions = []
+        if group_ids:
+            rows = (
+                db.query(WellnessSession)
+                .filter(
+                    WellnessSession.video_group_id.in_(group_ids),
+                    WellnessSession.is_active == True,
+                )
+                .all()
+            )
+            sessions = [{"id": s.id, "title": s.title} for s in rows]
+
+        history = VideoService._history_refs(db, video_id=video.id)
+        return {
+            "groups": groups,
+            "sessions": sessions,
+            "historyCount": history,
+            "canHardDelete": history == 0,
+        }
+
+    @staticmethod
+    def get_storage_file_info(db: Session, path: str) -> dict:
+        """Return the DB video (if any) behind a storage blob path plus its
+        dependencies. ``path`` is the raw blob path (``video_url``), not a SAS URL.
+        """
+        video = VideoRepository.get_by_url(db, path)
+        if not video:
+            return {"video": None, "dependencies": None}
+        return {
+            "video": VideoService._process_video_data(video.to_dict()),
+            "dependencies": VideoService._video_dependencies(db, video),
+        }
+
+    @staticmethod
+    def move_storage_file(db: Session, user: User, src_path: str, dst_directory: str, overwrite: bool = False):
+        """Move a blob to another folder and keep the catalog consistent.
+
+        Group/session mappings reference the video by ID, so moving the file and
+        repointing ``video_url`` leaves every mapping intact — nothing to
+        rewrite. Returns the updated video plus its dependencies so the UI can
+        confirm what carried over.
+        """
+        from app.utils.azure_storage import blob_exists, move_blob
+
+        if not blob_exists(src_path):
+            return {"success": False, "message": "Source file not found in storage"}, 404
+
+        dir_path = (dst_directory or "").strip().lstrip("/")
+        if dir_path and not dir_path.endswith("/"):
+            dir_path += "/"
+        filename = src_path.split("/")[-1]
+        dst_path = f"{dir_path}{filename}"
+
+        if dst_path == src_path:
+            return {"success": False, "message": "The file is already in that folder"}, 400
+
+        try:
+            moved = move_blob(src_path, dst_path, overwrite=overwrite)
+        except FileExistsError:
+            return {
+                "success": False,
+                "message": f'"{filename}" already exists in the destination folder.',
+            }, 409
+        except Exception as exc:  # noqa: BLE001 — surface a clean message to the client
+            return {"success": False, "message": f"Failed to move file: {exc}"}, 500
+
+        if not moved:
+            return {"success": False, "message": "Azure Storage not configured"}, 503
+
+        video = VideoRepository.get_by_url(db, src_path)
+        dependencies = None
+        video_data = None
+        if video:
+            video = VideoRepository.update(db, video, video_url=dst_path, updated_by=user.id)
+            dependencies = VideoService._video_dependencies(db, video)
+            video_data = VideoService._process_video_data(video.to_dict())
+
+        return {
+            "success": True,
+            "message": f'Moved "{filename}" to {dir_path or "root"}',
+            "video": video_data,
+            "dependencies": dependencies,
+        }, 200
+
+    @staticmethod
+    def delete_storage_file(db: Session, path: str, hard: bool = False):
+        """Delete a storage blob and reconcile its catalog record.
+
+        A soft delete deactivates the video (and its mappings) but leaves the
+        blob in place, mirroring ``delete_video``. A hard delete removes the DB
+        record and the blob together, and is refused with 409 when user history
+        references the video.
+        """
+        from app.utils.azure_storage import delete_blob
+
+        video = VideoRepository.get_by_url(db, path)
+
+        if hard:
+            if video:
+                refs = VideoService._history_refs(db, video_id=video.id)
+                if refs:
+                    return {
+                        "success": False,
+                        "message": (
+                            f"This video has {refs} user history record(s) and cannot be permanently "
+                            "deleted. Disable it instead — it will disappear from the apps."
+                        ),
+                    }, 409
+                db.delete(video)
+                db.commit()
+            delete_blob(path)
+            return {"success": True, "message": "Video permanently deleted"}, 200
+
+        # Soft delete: deactivate the record + mappings, keep the blob.
+        if video:
+            for mapping in video.group_mappings:
+                mapping.is_active = False
+            VideoRepository.delete(db, video)
+            return {"success": True, "message": "Video deactivated (file kept in storage)"}, 200
+
+        # No DB record — just drop the orphan blob.
+        delete_blob(path)
+        return {"success": True, "message": "File deleted from storage"}, 200
 
     @staticmethod
     def add_videos_to_group(db: Session, group_id: uuid.UUID, video_ids: list[uuid.UUID], user: User):
