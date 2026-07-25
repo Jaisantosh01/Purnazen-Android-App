@@ -92,7 +92,7 @@ const VideoManagementScreen = ({ navigation }) => {
     if (isEditingGroup && editingGroup) {
       apiClient.put(`${ENDPOINTS.VIDEO_GROUPS}/${editingGroup.id}`, payload)
         .then(() => { setGroupModalVisible(false); setIsEditingGroup(false); setEditingGroup(null); fetchVideoGroups(); })
-        .catch(() => showAlert('Error', 'Failed to update'));
+        .catch((err) => showAlert('Error', err?.message || 'Failed to update'));
     } else {
       apiClient.post(ENDPOINTS.VIDEO_GROUPS, payload)
         .then(() => { setGroupModalVisible(false); fetchVideoGroups(); })
@@ -197,11 +197,11 @@ const VideoManagementScreen = ({ navigation }) => {
     if (isEditingSession && editingSession) {
       apiClient.put(`${ENDPOINTS.ALL_SESSIONS}/${editingSession.id}`, payload)
         .then(() => { setSessionModalVisible(false); setIsEditingSession(false); setEditingSession(null); fetchSessions(); })
-        .catch(() => showAlert('Error', 'Failed to update session'));
+        .catch((err) => showAlert('Error', err?.message || 'Failed to update session'));
     } else {
       apiClient.post(ENDPOINTS.ALL_SESSIONS, payload)
         .then(() => { setSessionModalVisible(false); fetchSessions(); })
-        .catch(() => showAlert('Error', 'Failed to add session'));
+        .catch((err) => showAlert('Error', err?.message || 'Failed to add session'));
     }
   };
 
@@ -324,34 +324,52 @@ const VideoManagementScreen = ({ navigation }) => {
               data={sortedSessions}
               onDragEnd={({ data }) => setSortedSessions(data)}
               keyExtractor={item => item.id.toString()}
-              renderItem={({ item, drag, isActive, getIndex }) => (
+              renderItem={({ item, drag, isActive, getIndex }) => {
+              const disabled = item.isActive === false;
+              return (
                 <ScaleDecorator>
                   <TouchableOpacity activeOpacity={1} onLongPress={drag} delayLongPress={0}>
-                    <View style={[styles.card, isActive && { backgroundColor: colors.primaryLight }]}>
-                      <View style={styles.iconContainer}><MCIcon name={item.icon || 'meditation'} size={24} color={colors.primary} /></View>
-                      <View style={styles.cardContent}>
-                        <Text style={styles.groupTitle}>{item.title}</Text>
-                        <Text style={styles.groupDescription}>{item.duration}</Text>
+                    <View style={[styles.card, disabled && styles.cardDisabled, isActive && { backgroundColor: colors.primaryLight }]}>
+                      <View style={styles.cardMain}>
+                        <View style={[styles.iconContainer, disabled && styles.iconContainerDisabled]}>
+                          <MCIcon name={item.icon || 'meditation'} size={24} color={disabled ? colors.textMuted : colors.primary} />
+                        </View>
+                        <View style={styles.cardContent}>
+                          <View style={styles.titleRow}>
+                            <Text style={[styles.groupTitle, disabled && styles.textDisabled]} numberOfLines={1}>{item.title}</Text>
+                            {disabled && <DisabledBadge styles={styles} />}
+                          </View>
+                          <Text style={[styles.groupDescription, disabled && styles.textDisabled]}>{item.duration}</Text>
+                        </View>
+                        <MCIcon name="drag-variant" size={24} color={colors.textMuted} />
                       </View>
-                      <MCIcon name="drag-variant" size={24} color={colors.textMuted} style={{ paddingHorizontal: 12 }} />
                     </View>
                   </TouchableOpacity>
                 </ScaleDecorator>
-              )}
-              contentContainerStyle={styles.list}
+              );
+            }}
+              containerStyle={{ flex: 1 }}
+              style={{ flex: 1 }}
+              contentContainerStyle={[styles.list, { paddingBottom: 56 }]}
             />
-            <View style={styles.sortFooter}>
+            <View style={[styles.sortFooter, { position: 'absolute', bottom: 0, left: 0, right: 0 }]}>
               <Text style={styles.sortFooterText}>{sortedSessions.length} session{sortedSessions.length !== 1 ? 's' : ''}</Text>
-              <TouchableOpacity
-                style={[styles.sortSaveBtn, !hasSessionSortChanges && styles.sortSaveBtnDisabled]}
-                disabled={!hasSessionSortChanges}
-                onPress={saveSessionOrder}
-              >
-                <MCIcon name="content-save" size={18} color={hasSessionSortChanges ? colors.white : colors.textMuted} />
-                <Text style={[styles.sortSaveText, !hasSessionSortChanges && styles.sortSaveTextDisabled]}>
-                  Save Order
-                </Text>
-              </TouchableOpacity>
+              <View style={styles.sortFooterActions}>
+                <TouchableOpacity style={styles.sortCancelBtn} onPress={toggleSessionSortMode}>
+                  <MCIcon name="close" size={18} color="#EF4444" />
+                  <Text style={styles.sortCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.sortSaveBtn, !hasSessionSortChanges && styles.sortSaveBtnDisabled]}
+                  disabled={!hasSessionSortChanges}
+                  onPress={saveSessionOrder}
+                >
+                  <MCIcon name="content-save" size={18} color={hasSessionSortChanges ? colors.white : colors.textMuted} />
+                  <Text style={[styles.sortSaveText, !hasSessionSortChanges && styles.sortSaveTextDisabled]}>
+                    Save Order
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         ) : (
@@ -725,6 +743,9 @@ const makeStyles = colors => StyleSheet.create({
   dragHandle: { paddingHorizontal: 12, paddingVertical: 16, justifyContent: 'center', alignItems: 'center' },
   sortFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.border },
   sortFooterText: { fontSize: 13, color: colors.textMuted },
+  sortFooterActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sortCancelBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceMuted },
+  sortCancelText: { color: colors.textPrimary, fontWeight: '600', fontSize: 14 },
   sortSaveBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
   // Same reasoning as cardDisabled: a real surface + muted content, not an
   // opacity fade that turns to mud on the dark palette.

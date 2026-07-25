@@ -17,11 +17,7 @@ class WellnessSessionRepository:
 
     @staticmethod
     def get_by_id(db: Session, session_id: uuid.UUID) -> WellnessSession | None:
-        return (
-            db.query(WellnessSession)
-            .filter(WellnessSession.id == session_id, WellnessSession.is_active.is_(True))
-            .first()
-        )
+        return db.query(WellnessSession).filter(WellnessSession.id == session_id).first()
 
     @staticmethod
     def create(db: Session, session: WellnessSession) -> WellnessSession:
