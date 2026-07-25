@@ -31,6 +31,6 @@ class SupportFaqRepository:
         db_obj = self.get_by_id(db, faq_id)
         if not db_obj:
             return False
-        db_obj.is_active = False
+        db.delete(db_obj)
         db.commit()
         return True
