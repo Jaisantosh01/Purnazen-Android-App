@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
@@ -114,30 +115,39 @@ const ContentViewerScreen = ({ route, navigation }) => {
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [version, setVersion] = useState(null);
 
-  useEffect(() => {
-    setLoading(true);
-    apiClient.get(ENDPOINTS.ROLES)
-      .then(res => {
-        const roles = Array.isArray(res?.data) ? res.data : [];
-        const patientRole = roles.find(r => r.name?.toLowerCase() === 'patient');
-        const params = {};
-        if (patientRole?.id) params.role_id = patientRole.id;
-        return apiClient.get(`${ENDPOINTS.CONTENT_PAGES}/${type}`, { params });
-      })
-      .then(res => {
-        const item = res?.data;
-        setData(item ? [item] : []);
-      })
-      .catch(() => setData([]))
-      .finally(() => setLoading(false));
+  const fetchData = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
+    try {
+      const rolesRes = await apiClient.get(ENDPOINTS.ROLES);
+      const roles = Array.isArray(rolesRes?.data) ? rolesRes.data : [];
+      const patientRole = roles.find(r => r.name?.toLowerCase() === 'patient');
+      const params = {};
+      if (patientRole?.id) params.role_id = patientRole.id;
+      const contentRes = await apiClient.get(`${ENDPOINTS.CONTENT_PAGES}/${type}`, { params });
+      const item = contentRes?.data;
+      setData(item ? [item] : []);
+      setVersion(item?.version || null);
+    } catch {
+      setData([]);
+      setVersion(null);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, [type]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   return (
     <View style={styles.root}>
       <ScreenHeader
         title={meta.title}
         subtitle={meta.subtitle}
+        subtitleRight={version ? `v${version}` : null}
         onBack={() => navigation.goBack()}
       />
       {loading ? (
@@ -145,7 +155,8 @@ const ContentViewerScreen = ({ route, navigation }) => {
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchData(true)} colors={[colors.primary]} tintColor={colors.primary} />}>
           {data.length === 0 ? (
             <View style={styles.emptyBox}>
               <MCIcon name="file-document-outline" size={48} color={colors.border} />
@@ -154,12 +165,6 @@ const ContentViewerScreen = ({ route, navigation }) => {
           ) : (
             data.map((item) => (
               <View key={item.id} style={styles.contentCard}>
-                <Text style={styles.contentTitle}>{item.title || meta.title}</Text>
-                {item.version && (
-                  <View style={styles.versionBadge}>
-                    <Text style={styles.versionText}>v{item.version}</Text>
-                  </View>
-                )}
                 {item.content && (
                   <View style={styles.contentBody}>
                     {renderStyledContent(item.content, colors)}
@@ -189,9 +194,6 @@ const makeStyles = colors => StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
-  contentTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginBottom: 6 },
-  versionBadge: { alignSelf: 'flex-start', marginBottom: 12 },
-  versionText: { fontSize: 11, color: colors.textMuted, backgroundColor: colors.surfaceMuted, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, overflow: 'hidden' },
   contentBody: { marginTop: 4 },
 });
 
