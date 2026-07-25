@@ -25,6 +25,7 @@ import useTheme from '../hooks/useTheme';
  * Props:
  *   title         (string, required)
  *   subtitle      (string)
+ *   hideTitle     (boolean) if true, the title text is not rendered
  *   subtitleRight (string) text rendered at the trailing edge of the subtitle row
  *   variant       'brand' (solid hero, default) | 'light' (surface card)
  *   showBack      force-show/hide the back button (defaults to canGoBack())
@@ -50,6 +51,7 @@ export default function ScreenHeader({
   title,
   subtitle,
   subtitleRight = null,
+  hideTitle = false,
   variant = 'brand',
   showBack,
   onBack,
@@ -119,9 +121,11 @@ export default function ScreenHeader({
         )}
 
         <View style={styles.titleWrap}>
-          <Text style={[styles.title, { color: fg }]} numberOfLines={1}>
-            {title}
-          </Text>
+          {!hideTitle && (
+            <Text style={[styles.title, { color: fg }]} numberOfLines={1}>
+              {title}
+            </Text>
+          )}
           {subtitle || subtitleRight ? (
             <View style={styles.subtitleRow}>
               {subtitle ? (

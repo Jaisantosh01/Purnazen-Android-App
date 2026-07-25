@@ -31,6 +31,7 @@ const ContentViewerScreen = ({ route, navigation }) => {
   const [loading, setLoading] = useState(true);
   const [expandedIds, setExpandedIds] = useState({});
   const [refreshing, setRefreshing] = useState(false);
+  const [version, setVersion] = useState(null);
 
   const fetchData = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -46,10 +47,13 @@ const ContentViewerScreen = ({ route, navigation }) => {
         const params = { type, is_active: true };
         if (adminRole?.id) params.role_id = adminRole.id;
         const contentRes = await apiClient.get(ENDPOINTS.CONTENT_PAGES, { params });
-        setData(Array.isArray(contentRes?.data) ? contentRes.data : []);
+        const items = Array.isArray(contentRes?.data) ? contentRes.data : [];
+        setData(items);
+        setVersion(items[0]?.version || null);
       }
     } catch {
       setData([]);
+      setVersion(null);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -67,6 +71,7 @@ const ContentViewerScreen = ({ route, navigation }) => {
       <ScreenHeader
         title={meta.title}
         subtitle={meta.subtitle}
+        subtitleRight={version ? `v${version}` : null}
         onBack={() => navigation.goBack()}
       />
 
@@ -111,14 +116,6 @@ const ContentViewerScreen = ({ route, navigation }) => {
           ) : (
             data.map((item) => (
               <View key={item.id} style={styles.contentCard}>
-                <View style={styles.versionTopRow}>
-                  <View style={{ flex: 1 }} />
-                  <View style={styles.contentVersion}>
-                    <Text style={styles.contentVersionText}>v{item.version || '1.0'}</Text>
-                    <View style={[styles.activeDot, { backgroundColor: item.isActive ? '#22C55E' : colors.textMuted }]} />
-                    <Text style={styles.contentStatus}>{item.isActive ? 'Active' : 'Inactive'}</Text>
-                  </View>
-                </View>
                 {item.content && (
                   <View style={styles.contentBody}>
                     {renderRichText(item.content, colors)}
@@ -165,11 +162,6 @@ const makeStyles = colors => StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
-  versionTopRow: { flexDirection: 'row', marginBottom: 12 },
-  contentVersion: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  contentVersionText: { fontSize: 12, color: colors.textMuted },
-  activeDot: { width: 8, height: 8, borderRadius: 4 },
-  contentStatus: { fontSize: 12, color: colors.textMuted },
   contentBody: { marginTop: 4 },
 });
 

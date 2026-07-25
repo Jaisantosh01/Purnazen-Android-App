@@ -148,6 +148,7 @@ const ContentViewerScreen = ({ route, navigation }) => {
         title={meta.title}
         subtitle={meta.subtitle}
         subtitleRight={version ? `v${version}` : null}
+        hideTitle
         onBack={() => navigation.goBack()}
       />
       {loading ? (
