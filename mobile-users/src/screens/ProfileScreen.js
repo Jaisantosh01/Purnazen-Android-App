@@ -85,7 +85,7 @@ const ProfileScreen = ({ navigation }) => {
             );
             showAlert(
               'Downloading update',
-              `Version ${u.version} is downloading in the background. You'll be prompted to install once it's ready.`,
+              `Version ${u.version} is downloading in the background. It will install as soon as it's ready — the app may restart to finish.`,
             );
           }
         : openApk;

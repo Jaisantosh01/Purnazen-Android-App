@@ -10,6 +10,10 @@
  *  - otaDownloadProgress  { progress: 0..100 | -1, bytesDownloaded, bytesTotal }
  *  - otaDownloadComplete  { filePath }
  *  - otaDownloadError     { message }
+ *  - otaInstallStatus     { status: 'pending_user_action'|'success'|'error', message? }
+ *
+ * Note that a successful install is the one outcome JS usually never sees: the OS
+ * kills this process to replace the app. The native side relaunches us afterwards.
  */
 import { NativeModules, NativeEventEmitter, Platform } from 'react-native';
 
@@ -19,6 +23,7 @@ export const OTA_EVENTS = {
   PROGRESS: 'otaDownloadProgress',
   COMPLETE: 'otaDownloadComplete',
   ERROR: 'otaDownloadError',
+  INSTALL: 'otaInstallStatus',
 };
 
 const emitter = OtaUpdater ? new NativeEventEmitter(OtaUpdater) : null;
@@ -58,10 +63,31 @@ export async function downloadUpdate(url, version, sha256) {
   return OtaUpdater.download(url, String(version), sha256 || null);
 }
 
-/** Launch the OS installer for a completed download (path optional; last used otherwise). */
+/**
+ * Install a completed download (path optional; last used otherwise).
+ *
+ * Resolves when the install has been handed to the OS, NOT when it finishes —
+ * on Android 12+ this can replace the app with no dialog, so the next thing that
+ * happens is usually the process dying. Watch OTA_EVENTS.INSTALL for anything the
+ * user still has to do (or for a failure).
+ */
 export async function installUpdate(filePath) {
   if (!OtaUpdater) return false;
   return OtaUpdater.install(filePath || null);
+}
+
+/**
+ * Dismiss leftover "update ready" / "update installed" notifications. Called on
+ * app start: the post-update relaunch notification is only a fallback for devices
+ * that block the automatic restart, so if we're running it has done its job.
+ */
+export async function clearUpdateNotifications() {
+  if (!OtaUpdater?.clearUpdateNotifications) return false;
+  try {
+    return await OtaUpdater.clearUpdateNotifications();
+  } catch {
+    return false;
+  }
 }
 
 /** Subscribe to a lifecycle event; returns a subscription with `.remove()`. */
@@ -73,24 +99,38 @@ export function onOtaEvent(event, handler) {
 /**
  * One-shot background update for call sites without their own progress UI
  * (e.g. Settings → Check for Updates). Downloads the APK in the background and,
- * once it lands, launches the installer — guiding the user to grant "install
- * unknown apps" first when it's missing (the install-ready notification is the
- * fallback entry point if they grant later). Returns a cleanup fn. The system
- * DownloadManager notification tracks progress meanwhile.
+ * once it lands, installs it — guiding the user to grant "install unknown apps"
+ * first when it's missing (the install-ready notification is the fallback entry
+ * point if they grant later). Returns a cleanup fn. The system DownloadManager
+ * notification tracks progress meanwhile.
+ *
+ * A successful install ends this process, so the only terminal outcome that ever
+ * reaches `onError` is a failure.
  */
 export function startBackgroundInstall({ url, version, sha256 }, handlers = {}) {
   if (!OtaUpdater) return () => {};
   const { onProgress, onComplete, onError } = handlers;
-  const subs = [];
-  const cleanup = () => { subs.forEach(s => s.remove()); subs.length = 0; };
-  subs.push(onOtaEvent(OTA_EVENTS.PROGRESS, e => onProgress && onProgress(e)));
-  subs.push(onOtaEvent(OTA_EVENTS.ERROR, e => { cleanup(); onError && onError(e); }));
-  subs.push(onOtaEvent(OTA_EVENTS.COMPLETE, async (e) => {
-    cleanup();
-    if (onComplete) onComplete(e);
-    if (await canInstall()) await installUpdate(e && e.filePath);
-    else await openInstallSettings();
-  }));
+  let subs = [];
+  const drop = (list) => { list.forEach(s => s.remove()); };
+  const cleanup = () => { drop(subs); subs = []; };
+  const fail = (e) => { cleanup(); if (onError) onError(e); };
+  // Install outcomes land after the download is done, so this subscription has to
+  // outlive the download ones rather than being torn down alongside them.
+  const installSub = onOtaEvent(OTA_EVENTS.INSTALL, (e) => {
+    if (e && e.status === 'error') fail(e);
+  });
+  const downloadSubs = [
+    onOtaEvent(OTA_EVENTS.PROGRESS, e => onProgress && onProgress(e)),
+    onOtaEvent(OTA_EVENTS.ERROR, fail),
+    onOtaEvent(OTA_EVENTS.COMPLETE, async (e) => {
+      drop(downloadSubs);
+      subs = [installSub];
+      if (onComplete) onComplete(e);
+      if (await canInstall()) await installUpdate(e && e.filePath);
+      else await openInstallSettings();
+    }),
+  ];
+  subs = [...downloadSubs, installSub];
   (async () => {
     try {
       await downloadUpdate(url, version, sha256);

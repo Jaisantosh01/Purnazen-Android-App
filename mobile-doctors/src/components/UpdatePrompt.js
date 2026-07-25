@@ -10,10 +10,14 @@
  *    starts automatically in the background and installs as soon as it lands.
  *
  * The heavy lifting is the native `OtaUpdater` module (Android DownloadManager +
- * FileProvider install intent). Installing needs the OS "install unknown apps"
- * consent; if it's missing we deep-link the user to that screen and finish the
- * install when they return. When the native module is unavailable we fall back
- * to the old browser hand-off so nothing regresses.
+ * PackageInstaller). Installing needs the OS "install unknown apps" consent; if
+ * it's missing we deep-link the user to that screen and finish the install when
+ * they return. When the native module is unavailable we fall back to the old
+ * browser hand-off so nothing regresses.
+ *
+ * The install replaces this process, so there is no "done" state to render here:
+ * the app is killed mid-`installing` and the native receiver relaunches it into
+ * the new version.
  */
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import {
@@ -25,7 +29,7 @@ import { useAuthStore } from '../store/authStore';
 import { checkForUpdate, FORCE_MARKER } from '../services/updateService';
 import {
   isOtaSupported, canInstall, openInstallSettings, downloadUpdate, installUpdate,
-  onOtaEvent, OTA_EVENTS,
+  clearUpdateNotifications, onOtaEvent, OTA_EVENTS,
 } from '../services/otaUpdater';
 import useTheme from '../hooks/useTheme';
 
@@ -41,6 +45,8 @@ export default function UpdatePrompt() {
   const [phase, setPhase] = useState('prompt');
   const [progress, setProgress] = useState(-1);
   const [errorMsg, setErrorMsg] = useState('');
+  // Android 12+ can install silently; only flip this when the OS actually asks.
+  const [awaitingConfirm, setAwaitingConfirm] = useState(false);
 
   const infoRef = useRef(null);
   const fileRef = useRef(null);   // downloaded APK path (from the complete event)
@@ -70,6 +76,7 @@ export default function UpdatePrompt() {
       return;
     }
     try {
+      setAwaitingConfirm(false);
       setPhase('installing');
       await installUpdate(filePath || fileRef.current);
     } catch {
@@ -126,9 +133,21 @@ export default function UpdatePrompt() {
         setErrorMsg(e?.message || 'Download failed');
         setPhase('error');
       }),
+      // A successful install never lands here — the OS replaces the process
+      // first, and the native side relaunches the app once it's done.
+      onOtaEvent(OTA_EVENTS.INSTALL, (e) => {
+        if (e?.status === 'pending_user_action') { setAwaitingConfirm(true); return; }
+        if (e?.status === 'error') {
+          setErrorMsg(e?.message || 'Install failed');
+          setPhase('error');
+        }
+      }),
     ];
     return () => subs.forEach(s => s.remove());
   }, [native, maybeInstall]);
+
+  // If the post-update relaunch notification is still up, we're clearly running.
+  useEffect(() => { clearUpdateNotifications(); }, []);
 
   // ── Retry the install when the user returns from the settings screen ───────
   useEffect(() => {
@@ -211,10 +230,14 @@ export default function UpdatePrompt() {
             <View style={styles.spinnerRow}>
               <ActivityIndicator color={colors.primary || '#1FA77A'} />
               <Text style={[styles.statusText, { marginBottom: 0, marginLeft: 10 }]}>
-                Opening installer…
+                {awaitingConfirm ? 'Opening installer…' : 'Installing update…'}
               </Text>
             </View>
-            <Text style={styles.hintText}>Follow the system prompt to finish updating.</Text>
+            <Text style={styles.hintText}>
+              {awaitingConfirm
+                ? 'Follow the system prompt to finish updating.'
+                : 'The app will restart automatically when this is done.'}
+            </Text>
             <TouchableOpacity style={styles.secondaryBtn} onPress={() => maybeInstall(fileRef.current)} activeOpacity={0.7}>
               <Text style={styles.secondaryText}>Install again</Text>
             </TouchableOpacity>
