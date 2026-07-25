@@ -177,3 +177,13 @@ class AppointmentRepository:
             .count()
         )
 
+    @staticmethod
+    def clinic_in_use(db: Session, clinic_id: uuid.UUID) -> bool:
+        """True when any appointment still references this clinic (blocks delete)."""
+        return (
+            db.query(Appointment.id)
+            .filter(Appointment.clinic_id == clinic_id)
+            .first()
+            is not None
+        )
+

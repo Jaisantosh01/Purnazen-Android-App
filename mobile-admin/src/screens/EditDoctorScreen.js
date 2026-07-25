@@ -8,6 +8,7 @@ import {
   TextInput,
   Modal,
   FlatList,
+  Linking,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -16,7 +17,12 @@ import { ENDPOINTS } from '../constants/apiEndpoints';
 import { EditFormSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
-import { showAlert } from '../utils/alert';
+import { showAlert, showConfirm } from '../utils/alert';
+import { mapsUrl, parseCoordinates, validateClinicLocation } from '../utils/geo';
+
+/** A clinic row is only "done" once the columns the API requires are filled. */
+const isClinicComplete = clinic =>
+  !!(clinic?.name?.trim() && clinic?.address?.trim() && clinic?.city?.trim());
 
 const SelectionModal = ({ visible, onClose, title, data, selectedIds, onToggle }) => {
   const { colors } = useTheme();
@@ -59,6 +65,8 @@ const EditDoctorScreen = ({ route, navigation }) => {
   const [allLanguages, setAllLanguages] = useState([]);
   const [slotTimingsByDay, setSlotTimingsByDay] = useState([]);
   const [selectedSlotIds, setSelectedSlotIds] = useState([]);
+  // Per-clinic scratch field for the "paste a maps link" helper (index -> text)
+  const [locationPastes, setLocationPastes] = useState({});
 
   useEffect(() => {
     if (!doctorId) {
@@ -120,18 +128,47 @@ const EditDoctorScreen = ({ route, navigation }) => {
   }, [doctorId]);
 
   const handleSave = () => {
-    setLoading(true);
-
     if (!doctorId && (!editedDoctor.email || !editedDoctor.password || !editedDoctor.name)) {
         showAlert('Validation Error', 'Full Name, Email, and Password are required');
-        setLoading(false);
         return;
     }
+
+    const clinicList = editedDoctor.clinics || [];
+    const incompleteIndex = clinicList.findIndex(clinic => !isClinicComplete(clinic));
+    if (incompleteIndex !== -1) {
+        showAlert(
+          'Incomplete clinic',
+          `Clinic ${incompleteIndex + 1} is missing a name, address or city. Complete it or remove it before saving.`,
+        );
+        return;
+    }
+
+    const badLocationIndex = clinicList.findIndex(
+      clinic => validateClinicLocation(clinic.latitude, clinic.longitude),
+    );
+    if (badLocationIndex !== -1) {
+        showAlert(
+          'Invalid location',
+          `Clinic ${badLocationIndex + 1}: ${validateClinicLocation(
+            clinicList[badLocationIndex].latitude,
+            clinicList[badLocationIndex].longitude,
+          )}`,
+        );
+        return;
+    }
+
+    setLoading(true);
 
     const payload = {
         ...editedDoctor,
         specialty_ids: editedDoctor.specialty_ids || [],
-        slot_timing_ids: selectedSlotIds
+        slot_timing_ids: selectedSlotIds,
+        // Lat/long come off text inputs — send numbers (or null), not strings.
+        clinics: clinicList.map(clinic => ({
+          ...clinic,
+          latitude: clinic.latitude === '' || clinic.latitude == null ? null : Number(clinic.latitude),
+          longitude: clinic.longitude === '' || clinic.longitude == null ? null : Number(clinic.longitude),
+        })),
     };
 
     const request = doctorId
@@ -189,15 +226,68 @@ const EditDoctorScreen = ({ route, navigation }) => {
   };
 
   const removeAward = (index) => {
-    const updatedAwards = (editedDoctor.awards || []).filter((_, i) => i !== index);
-    setEditedDoctor({ ...editedDoctor, awards: updatedAwards });
+    const award = (editedDoctor.awards || [])[index];
+    showConfirm(
+      'Remove award',
+      `Remove ${award?.title ? `"${award.title}"` : 'this award'}? It is deleted when you save.`,
+      () => {
+        const updatedAwards = (editedDoctor.awards || []).filter((_, i) => i !== index);
+        setEditedDoctor({ ...editedDoctor, awards: updatedAwards });
+      },
+      { confirmLabel: 'Remove', destructive: true },
+    );
   };
 
+  const clinics = editedDoctor?.clinics || [];
+  // Guard against stacking up half-filled clinic cards: the last one has to be
+  // finished (or removed) before another can be started.
+  const pendingClinicIndex = clinics.findIndex(clinic => !isClinicComplete(clinic));
+  const canAddClinic = pendingClinicIndex === -1;
+
   const addClinic = () => {
+    if (!canAddClinic) {
+      showAlert(
+        'Finish this clinic first',
+        'Fill in the clinic name, address and city before adding another clinic.',
+      );
+      return;
+    }
     setEditedDoctor({
       ...editedDoctor,
-      clinics: [...(editedDoctor.clinics || []), { name: '', address: '', city: '', phone: '', is_primary: false }]
+      clinics: [
+        ...clinics,
+        { name: '', address: '', city: '', phone: '', latitude: '', longitude: '', is_primary: false },
+      ],
     });
+  };
+
+  const applyPastedLocation = (index, text) => {
+    const coords = parseCoordinates(text);
+    if (!coords) {
+      showAlert(
+        'No location found',
+        'Paste a Google Maps link (the full link, not a maps.app.goo.gl short link) or coordinates like "12.9716, 77.5946".',
+      );
+      return;
+    }
+    const updated = [...clinics];
+    updated[index] = {
+      ...updated[index],
+      latitude: String(coords.latitude),
+      longitude: String(coords.longitude),
+    };
+    setEditedDoctor({ ...editedDoctor, clinics: updated });
+  };
+
+  const previewClinicLocation = clinic => {
+    const error = validateClinicLocation(clinic.latitude, clinic.longitude);
+    if (error || clinic.latitude === '' || clinic.latitude == null) {
+      showAlert('Location not set', error || 'Add a latitude and longitude first.');
+      return;
+    }
+    Linking.openURL(mapsUrl(Number(clinic.latitude), Number(clinic.longitude))).catch(() =>
+      showAlert('Error', 'Could not open the maps app.'),
+    );
   };
 
   const updateClinic = (index, key, value) => {
@@ -207,8 +297,34 @@ const EditDoctorScreen = ({ route, navigation }) => {
   };
 
   const removeClinic = (index) => {
-    const updatedClinics = (editedDoctor.clinics || []).filter((_, i) => i !== index);
-    setEditedDoctor({ ...editedDoctor, clinics: updatedClinics });
+    const clinic = (editedDoctor.clinics || [])[index];
+    const drop = () => {
+      const updatedClinics = (editedDoctor.clinics || []).filter((_, i) => i !== index);
+      setEditedDoctor({ ...editedDoctor, clinics: updatedClinics });
+      // The paste-helper scratch text is keyed by index — shift it down with the
+      // list so it doesn't reattach to the wrong clinic.
+      setLocationPastes(prev => {
+        const next = {};
+        Object.keys(prev).forEach(key => {
+          const i = Number(key);
+          if (i < index) next[i] = prev[key];
+          else if (i > index) next[i - 1] = prev[key];
+        });
+        return next;
+      });
+    };
+
+    // An untouched blank card is not worth a dialog — just drop it.
+    if (!clinic?.name?.trim() && !clinic?.address?.trim() && !clinic?.city?.trim()) {
+      drop();
+      return;
+    }
+    showConfirm(
+      'Remove clinic',
+      `Remove ${clinic?.name ? `"${clinic.name}"` : 'this clinic'}? It is deleted when you save. Clinics with existing appointments are deactivated instead of deleted.`,
+      drop,
+      { confirmLabel: 'Remove', destructive: true },
+    );
   };
 
   if (loading) return (
@@ -346,8 +462,11 @@ const EditDoctorScreen = ({ route, navigation }) => {
         </TouchableOpacity>
 
         <Text style={styles.sectionLabel}>Clinics</Text>
-        {editedDoctor.clinics?.map((clinic, index) => (
-          <View key={index} style={styles.awardInputCard}>
+        {clinics.map((clinic, index) => {
+          const locationError = validateClinicLocation(clinic.latitude, clinic.longitude);
+          const incomplete = !isClinicComplete(clinic);
+          return (
+          <View key={index} style={[styles.awardInputCard, incomplete && styles.cardIncomplete]}>
             <View style={styles.clinicHeaderRow}>
               <Text style={styles.label}>Clinic Name</Text>
               <TouchableOpacity onPress={() => updateClinic(index, 'is_primary', !clinic.is_primary)}>
@@ -374,15 +493,81 @@ const EditDoctorScreen = ({ route, navigation }) => {
               </View>
             </View>
 
-            <TouchableOpacity style={styles.removeBtn} onPress={() => removeClinic(index)}>
-              <Text style={{color: colors.danger, fontWeight: '600'}}>Remove Clinic</Text>
-            </TouchableOpacity>
+            <Text style={styles.label}>Location</Text>
+            <Text style={styles.subLabel}>
+              Paste a Google Maps link or "lat, long" to fill both fields at once.
+            </Text>
+            <View style={styles.pasteRow}>
+              <TextInput
+                style={[styles.input, {flex: 1}]}
+                placeholder="Paste maps link or 12.9716, 77.5946"
+                placeholderTextColor={colors.textMuted}
+                value={locationPastes[index] || ''}
+                onChangeText={(val) => setLocationPastes(prev => ({...prev, [index]: val}))}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <TouchableOpacity
+                style={styles.pasteBtn}
+                onPress={() => applyPastedLocation(index, locationPastes[index] || '')}
+              >
+                <Text style={styles.pasteBtnText}>Use</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.row}>
+              <View style={{flex: 1}}>
+                <Text style={styles.label}>Latitude</Text>
+                <TextInput
+                  style={[styles.input, locationError && styles.inputError]}
+                  placeholder="e.g. 12.9716"
+                  placeholderTextColor={colors.textMuted}
+                  value={clinic.latitude != null ? String(clinic.latitude) : ''}
+                  onChangeText={(val) => updateClinic(index, 'latitude', val)}
+                  keyboardType="numbers-and-punctuation"
+                />
+              </View>
+              <View style={{flex: 1, marginLeft: 8}}>
+                <Text style={styles.label}>Longitude</Text>
+                <TextInput
+                  style={[styles.input, locationError && styles.inputError]}
+                  placeholder="e.g. 77.5946"
+                  placeholderTextColor={colors.textMuted}
+                  value={clinic.longitude != null ? String(clinic.longitude) : ''}
+                  onChangeText={(val) => updateClinic(index, 'longitude', val)}
+                  keyboardType="numbers-and-punctuation"
+                />
+              </View>
+            </View>
+            {locationError ? <Text style={styles.errorText}>{locationError}</Text> : null}
+
+            <View style={styles.clinicFooterRow}>
+              <TouchableOpacity onPress={() => previewClinicLocation(clinic)}>
+                <View style={styles.mapPreviewBtn}>
+                  <MCIcon name="map-marker-outline" size={16} color={colors.primary} />
+                  <Text style={styles.mapPreviewText}>Preview on map</Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.removeBtn} onPress={() => removeClinic(index)}>
+                <Text style={{color: colors.danger, fontWeight: '600'}}>Remove Clinic</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        ))}
-        <TouchableOpacity style={styles.addBtn} onPress={addClinic}>
-            <MCIcon name="plus" size={18} color={colors.primary} style={{marginRight: 8}} />
-            <Text style={{color: colors.primary, fontWeight: '700'}}>Add Clinic</Text>
+          );
+        })}
+        <TouchableOpacity
+          style={[styles.addBtn, !canAddClinic && styles.addBtnDisabled]}
+          onPress={addClinic}
+          disabled={!canAddClinic}
+        >
+            <MCIcon name="plus" size={18} color={canAddClinic ? colors.primary : colors.textMuted} style={{marginRight: 8}} />
+            <Text style={{color: canAddClinic ? colors.primary : colors.textMuted, fontWeight: '700'}}>Add Clinic</Text>
         </TouchableOpacity>
+        {!canAddClinic ? (
+          <Text style={styles.addHint}>
+            Complete the clinic above (name, address and city) before adding another.
+          </Text>
+        ) : null}
 
       </ScrollView>
 
@@ -418,8 +603,8 @@ const makeStyles = colors => StyleSheet.create({
   tag: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: colors.primaryLight, borderRadius: 16, marginRight: 8 },
   tagText: { color: colors.primary, fontSize: 13, fontWeight: '500' },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: colors.card, borderRadius: 12, padding: 15, maxHeight: '80%' },
+  modalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', padding: 20 },
+  modalContent: { backgroundColor: colors.modalSurface, borderRadius: 12, padding: 15, maxHeight: '80%' , borderWidth: 1, borderColor: colors.modalBorder, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 16, elevation: 12},
   modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, paddingHorizontal: 5, color: colors.textPrimary },
   modalItem: { 
       flexDirection: 'row', 
@@ -440,10 +625,21 @@ const makeStyles = colors => StyleSheet.create({
   cancelButtonText: { color: colors.textPrimary, fontWeight: 'bold' },
   saveButtonText: { color: colors.white, fontWeight: 'bold' },
   awardInputCard: { backgroundColor: colors.surfaceMuted, padding: 12, borderRadius: 8, marginBottom: 12, borderWidth: 1, borderColor: colors.border },
+  cardIncomplete: { borderColor: colors.primary },
   subLabel: { fontSize: 12, fontWeight: '600', color: colors.textSecondary, marginBottom: 4 },
   row: { flexDirection: 'row' },
   removeBtn: { marginTop: 8, alignSelf: 'flex-end' },
   addBtn: { padding: 12, backgroundColor: colors.surfaceMuted, borderRadius: 8, alignItems: 'center', marginBottom: 20, flexDirection: 'row', justifyContent: 'center' },
+  addBtnDisabled: { opacity: 0.6, marginBottom: 6 },
+  addHint: { fontSize: 12, color: colors.textSecondary, textAlign: 'center', marginBottom: 20 },
+  inputError: { borderColor: colors.danger },
+  errorText: { fontSize: 12, color: colors.danger, marginTop: 6 },
+  pasteRow: { flexDirection: 'row', alignItems: 'center' },
+  pasteBtn: { marginLeft: 8, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8, backgroundColor: colors.primary },
+  pasteBtnText: { color: colors.white, fontWeight: '700', fontSize: 13 },
+  clinicFooterRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
+  mapPreviewBtn: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
+  mapPreviewText: { color: colors.primary, fontWeight: '600', marginLeft: 4, fontSize: 13 },
   daySection: { marginBottom: 12 },
   dayLabel: { fontSize: 14, fontWeight: '700', color: colors.textPrimary, marginBottom: 6, marginTop: 4 },
   slotRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },

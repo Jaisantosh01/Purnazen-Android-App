@@ -113,6 +113,24 @@ const STATUS_CONFIG = {
 
 const STATUS_FILTERS = ['all', 'pending', 'booked', 'completed', 'cancelled'];
 
+// Consultation-type filter. `consultationType` comes back as the display name
+// ("Clinic Visit"), but older rows only carry the `visit_type` slug — match both.
+const VISIT_FILTERS = [
+  { key: 'all',    label: 'All Types',    icon: 'format-list-bulleted', names: null },
+  { key: 'clinic', label: 'Clinic Visit', icon: 'hospital-building',    names: ['clinic visit', 'clinic'] },
+  { key: 'home',   label: 'Home Visit',   icon: 'home-outline',         names: ['home visit', 'home'] },
+  { key: 'video',  label: 'Video Call',   icon: 'video-outline',        names: ['video call', 'video'] },
+];
+
+const SHEET_TITLES = { status: 'Filter by Status', type: 'Consultation Type', time: 'Time of Day' };
+
+const TIME_FILTERS = [
+  { key: 'all',       label: 'Any Time',   icon: 'clock-outline' },
+  { key: 'morning',   label: 'Morning',    icon: 'weather-sunset-up' },
+  { key: 'afternoon', label: 'Afternoon',  icon: 'weather-sunny' },
+  { key: 'evening',   label: 'Evening',    icon: 'weather-night' },
+];
+
 // Multi-day range views so the doctor isn't limited to a single day / one week.
 // `days` counts from today inclusive (today + N-1).
 const RANGE_OPTIONS = [
@@ -263,6 +281,22 @@ const DatePill = ({ date, selected, onPress }) => {
   );
 };
 
+// ─── Filter chip ───────────────────────────────────────────────────────────────
+const FilterChip = ({ icon, label, active, onPress }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
+    <TouchableOpacity
+      style={[styles.filterChip, active && styles.filterChipOn]}
+      activeOpacity={0.85}
+      onPress={onPress}>
+      <MCIcon name={icon} size={14} color={active ? colors.white : colors.primary} />
+      <Text style={[styles.filterChipText, active && styles.filterChipTextOn]} numberOfLines={1}>{label}</Text>
+      <MCIcon name="chevron-down" size={14} color={active ? colors.white : colors.primary} />
+    </TouchableOpacity>
+  );
+};
+
 // ─── Empty State ───────────────────────────────────────────────────────────────
 const EmptyState = ({ selectedDate, onClear }) => {
   const { colors } = useTheme();
@@ -317,7 +351,10 @@ const AppointmentsScreen = ({ navigation }) => {
   const [selectedRange, setSelectedRange] = useState(null); // null | '7' | '10' | 'month'
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedTime, setSelectedTime] = useState(getDefaultTimeSlot());
-  const [showStatusFilter, setShowStatusFilter] = useState(false);
+  const [selectedVisit, setSelectedVisit] = useState('all');
+  // Which filter sheet is open: 'status' | 'type' | 'time' | null. One sheet
+  // serves all three so the header stays a single row of chips.
+  const [activeSheet, setActiveSheet] = useState(null);
 
   // Calendar states
   const [showCalendarModal, setShowCalendarModal] = useState(false);
@@ -495,6 +532,9 @@ const AppointmentsScreen = ({ navigation }) => {
   const statusLabel = selectedStatus === 'all'
     ? 'All Status'
     : STATUS_CONFIG[selectedStatus]?.label ?? selectedStatus;
+  const visitLabel = VISIT_FILTERS.find(v => v.key === selectedVisit)?.label ?? 'All Types';
+  const timeLabel = TIME_FILTERS.find(t => t.key === selectedTime)?.label ?? 'Any Time';
+  const filtersDirty = selectedStatus !== 'all' || selectedVisit !== 'all' || selectedTime !== 'all';
 
   // Date window for a selected multi-day range (today .. today + days-1).
   const rangeBounds = useMemo(() => {
@@ -517,8 +557,16 @@ const AppointmentsScreen = ({ navigation }) => {
     return d >= rangeBounds.start && d <= rangeBounds.end;
   };
 
+  const visitMatches = (appt) => {
+    const opt = VISIT_FILTERS.find(v => v.key === selectedVisit);
+    if (!opt?.names) return true;
+    const value = String(appt.consultationType || appt.visit_type || '').toLowerCase();
+    return opt.names.includes(value);
+  };
+
   const filteredAppointments = appointments.filter(appt => {
     if (!apptInRange(appt)) return false;
+    if (!visitMatches(appt)) return false;
     if (selectedTime === 'all') return true;
     const mins = parseTimeToMinutes(appt.time);
     if (mins === -1) return false;
@@ -672,49 +720,55 @@ const AppointmentsScreen = ({ navigation }) => {
         </ScrollView>
       </View>
 
-      {/* Filter row */}
-      <View style={styles.filterRow}>
-        <TouchableOpacity
-          style={styles.filterLeft}
-          activeOpacity={0.7}
-          onPress={() => {
-            const baseDate = selectedDate ? new Date(selectedDate + 'T00:00:00') : new Date();
-            setCurrentMonth(baseDate.getMonth());
-            setCurrentYear(baseDate.getFullYear());
-            setShowCalendarModal(true);
-          }}>
-          <MCIcon name="calendar-range" size={14} color={colors.primary} />
-          <Text style={styles.filterLabel}>{todayLabel}</Text>
-        </TouchableOpacity>
+      {/* Filter bar — one scrollable row of dropdown chips. This used to be two
+          stacked rows (a date label + status chip, then four full-width time
+          chips) which ate a third of the screen before a single appointment
+          showed. */}
+      <View style={styles.filterBar}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterBarInner}>
+          <TouchableOpacity
+            style={styles.filterChip}
+            activeOpacity={0.85}
+            onPress={() => {
+              const baseDate = selectedDate ? new Date(selectedDate + 'T00:00:00') : new Date();
+              setCurrentMonth(baseDate.getMonth());
+              setCurrentYear(baseDate.getFullYear());
+              setShowCalendarModal(true);
+            }}>
+            <MCIcon name="calendar-range" size={14} color={colors.primary} />
+            <Text style={styles.filterChipText} numberOfLines={1}>{todayLabel}</Text>
+            <MCIcon name="chevron-down" size={14} color={colors.primary} />
+          </TouchableOpacity>
 
-        {/* Status filter chip */}
-        <TouchableOpacity
-          style={styles.filterChip}
-          activeOpacity={0.85}
-          onPress={() => setShowStatusFilter(true)}>
-          <MCIcon name="filter-variant" size={14} color={colors.primary} />
-          <Text style={styles.filterChipText}>{statusLabel}</Text>
-          <MCIcon name="chevron-down" size={14} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
+          <FilterChip
+            icon="filter-variant"
+            label={statusLabel}
+            active={selectedStatus !== 'all'}
+            onPress={() => setActiveSheet('status')}
+          />
+          <FilterChip
+            icon="stethoscope"
+            label={visitLabel}
+            active={selectedVisit !== 'all'}
+            onPress={() => setActiveSheet('type')}
+          />
+          <FilterChip
+            icon="clock-outline"
+            label={timeLabel}
+            active={selectedTime !== 'all'}
+            onPress={() => setActiveSheet('time')}
+          />
 
-      {/* Time filter chips */}
-      <View style={styles.timeFilterRow}>
-        {['all', 'morning', 'afternoon', 'evening'].map(t => {
-          const isActive = selectedTime === t;
-          const label = t.charAt(0).toUpperCase() + t.slice(1);
-          return (
+          {filtersDirty && (
             <TouchableOpacity
-              key={t}
-              style={[styles.timeChip, isActive && styles.timeChipActive]}
+              style={styles.clearChip}
               activeOpacity={0.85}
-              onPress={() => setSelectedTime(t)}>
-              <Text style={[styles.timeChipText, isActive && styles.timeChipTextActive]}>
-                {label}
-              </Text>
+              onPress={() => { setSelectedStatus('all'); setSelectedVisit('all'); setSelectedTime('all'); }}>
+              <MCIcon name="close" size={14} color={colors.danger} />
+              <Text style={styles.clearChipText}>Clear</Text>
             </TouchableOpacity>
-          );
-        })}
+          )}
+        </ScrollView>
       </View>
 
       {/* Summary bar */}
@@ -729,7 +783,7 @@ const AppointmentsScreen = ({ navigation }) => {
       ) : filteredAppointments.length === 0 ? (
         <EmptyState
           selectedDate={selectedDate}
-          onClear={() => { setSelectedDate(null); setSelectedRange(null); setSelectedStatus('all'); setSelectedTime('all'); }}
+          onClear={() => { setSelectedDate(null); setSelectedRange(null); setSelectedStatus('all'); setSelectedVisit('all'); setSelectedTime('all'); }}
         />
       ) : (
         <FlatList
@@ -751,27 +805,28 @@ const AppointmentsScreen = ({ navigation }) => {
         />
       )}
 
-      {/* Status filter modal */}
+      {/* Filter sheet — shared by the status / type / time chips */}
       <Modal
-        visible={showStatusFilter}
+        visible={!!activeSheet}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowStatusFilter(false)}>
+        onRequestClose={() => setActiveSheet(null)}>
         <TouchableOpacity
           style={styles.modalOverlay}
           activeOpacity={1}
-          onPress={() => setShowStatusFilter(false)}>
+          onPress={() => setActiveSheet(null)}>
           <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>Filter by Status</Text>
-            {STATUS_FILTERS.map(s => {
-              const cfg = s === 'all' ? null : STATUS_CONFIG[s];
-              const active = selectedStatus === s;
+            <Text style={styles.modalTitle}>{SHEET_TITLES[activeSheet] ?? ''}</Text>
+
+            {activeSheet === 'status' && STATUS_FILTERS.map(key => {
+              const cfg = key === 'all' ? null : STATUS_CONFIG[key];
+              const active = selectedStatus === key;
               return (
                 <TouchableOpacity
-                  key={s}
+                  key={key}
                   style={[styles.modalOption, active && styles.modalOptionActive]}
                   activeOpacity={0.85}
-                  onPress={() => { setSelectedStatus(s); setShowStatusFilter(false); }}>
+                  onPress={() => { setSelectedStatus(key); setActiveSheet(null); }}>
                   {cfg ? (
                     <View style={[styles.statusDot, { backgroundColor: cfg.dot }]} />
                   ) : (
@@ -780,6 +835,36 @@ const AppointmentsScreen = ({ navigation }) => {
                   <Text style={[styles.modalOptionText, active && { color: colors.white }]}>
                     {cfg?.label ?? 'All Status'}
                   </Text>
+                  {active && <MCIcon name="check" size={16} color={colors.white} style={{ marginLeft: 'auto' }} />}
+                </TouchableOpacity>
+              );
+            })}
+
+            {activeSheet === 'type' && VISIT_FILTERS.map(opt => {
+              const active = selectedVisit === opt.key;
+              return (
+                <TouchableOpacity
+                  key={opt.key}
+                  style={[styles.modalOption, active && styles.modalOptionActive]}
+                  activeOpacity={0.85}
+                  onPress={() => { setSelectedVisit(opt.key); setActiveSheet(null); }}>
+                  <MCIcon name={opt.icon} size={16} color={active ? colors.white : colors.textSecondary} />
+                  <Text style={[styles.modalOptionText, active && { color: colors.white }]}>{opt.label}</Text>
+                  {active && <MCIcon name="check" size={16} color={colors.white} style={{ marginLeft: 'auto' }} />}
+                </TouchableOpacity>
+              );
+            })}
+
+            {activeSheet === 'time' && TIME_FILTERS.map(opt => {
+              const active = selectedTime === opt.key;
+              return (
+                <TouchableOpacity
+                  key={opt.key}
+                  style={[styles.modalOption, active && styles.modalOptionActive]}
+                  activeOpacity={0.85}
+                  onPress={() => { setSelectedTime(opt.key); setActiveSheet(null); }}>
+                  <MCIcon name={opt.icon} size={16} color={active ? colors.white : colors.textSecondary} />
+                  <Text style={[styles.modalOptionText, active && { color: colors.white }]}>{opt.label}</Text>
                   {active && <MCIcon name="check" size={16} color={colors.white} style={{ marginLeft: 'auto' }} />}
                 </TouchableOpacity>
               );
@@ -866,65 +951,45 @@ const makeStyles = colors => StyleSheet.create({
   todayDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.primary, marginTop: 2 },
 
   // Filter row
-  filterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: 10,
+  // Single scrollable row of dropdown chips
+  filterBar: {
     backgroundColor: colors.card,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  filterLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  filterLabel: { fontSize: 13, fontWeight: '700', color: colors.textPrimary },
+  filterBarInner: {
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: 10,
+    gap: SPACING.sm,
+    alignItems: 'center',
+  },
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: RADIUS.pill,
     borderWidth: 1.5,
     borderColor: colors.primary,
     backgroundColor: colors.primaryFaint,
+    maxWidth: 210,
   },
-  filterChipText: { fontSize: 12, fontWeight: '700', color: colors.primary },
-
-  // Time filter row
-  timeFilterRow: {
+  filterChipOn: { backgroundColor: colors.primary },
+  filterChipText: { fontSize: 12, fontWeight: '700', color: colors.primary, flexShrink: 1 },
+  filterChipTextOn: { color: colors.white },
+  clearChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: 10,
-    backgroundColor: colors.card,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    gap: SPACING.sm,
-  },
-  timeChip: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
     borderRadius: RADIUS.pill,
-    backgroundColor: colors.surfaceMuted,
     borderWidth: 1.5,
-    borderColor: 'transparent',
+    borderColor: colors.danger,
+    backgroundColor: 'transparent',
   },
-  timeChipActive: {
-    backgroundColor: colors.primaryFaint,
-    borderColor: colors.primary,
-  },
-  timeChipText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  timeChipTextActive: {
-    color: colors.primary,
-    fontWeight: '700',
-  },
+  clearChipText: { fontSize: 12, fontWeight: '700', color: colors.danger },
 
   // Summary bar
   summaryBar: {

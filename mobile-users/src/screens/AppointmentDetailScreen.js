@@ -96,7 +96,7 @@ const AppointmentDetailScreen = ({ navigation, route }) => {
                   {appointment.location ? (
                     <View style={styles.metaItem}>
                       <MCIcon name="map-marker-outline" size={13} color={colors.textMuted} />
-                      <Text style={styles.metaText} numberOfLines={1}>{appointment.location}</Text>
+                      <Text style={styles.metaText} numberOfLines={1}>{appointment.location.name}</Text>
                     </View>
                   ) : null}
                 </View>
@@ -124,7 +124,7 @@ const AppointmentDetailScreen = ({ navigation, route }) => {
             <DetailRow label="Consultation Type" value={appointment.consultationType} />
 
 
-            {appointment.consultationType?.toLowerCase().includes('video') && appointment.meetingLink ? (
+            {(appointment.consultationType || '').toLowerCase().includes('video') && appointment.meetingLink ? (
               <View style={styles.meetingSection}>
                 <View style={styles.meetingHeader}>
                   <MCIcon name="video-outline" size={16} color={colors.primary} style={styles.meetingIcon} />

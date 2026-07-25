@@ -9,7 +9,6 @@ import {
   ScrollView,
   ActivityIndicator,
   FlatList,
-  Alert,
   BackHandler,
 } from 'react-native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -314,20 +313,26 @@ const UploadVideoScreen = ({ route, navigation }) => {
     );
   };
 
+  // Media box on top (the only place floating controls live) with the name and
+  // size in normal flow below, so the "more" button can't cover the metadata.
   const renderGridFile = (file) => {
     const displayName = file.name.split('/').pop() || file.name;
     return (
       <View key={file.name} style={[styles.dirGridItem, styles.fileGridItem]}>
-        <MCIcon name="movie-outline" size={26} color={colors.primary} />
-        <Text style={styles.dirGridText} numberOfLines={2}>{displayName}</Text>
-        {!!file.size && <Text style={styles.fileSizeText}>{formatBytes(file.size)}</Text>}
-        <TouchableOpacity
-          style={styles.fileMoreBtn}
-          onPress={() => setFileActionFor(file)}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <MCIcon name="dots-vertical" size={18} color="#fff" />
-        </TouchableOpacity>
+        <View style={styles.gridMedia}>
+          <MCIcon name="movie-outline" size={26} color={colors.white} />
+          <TouchableOpacity
+            style={styles.fileMoreBtn}
+            onPress={() => setFileActionFor(file)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <MCIcon name="dots-vertical" size={18} color="#fff" />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.gridMeta}>
+          <Text style={styles.dirGridText} numberOfLines={2}>{displayName}</Text>
+          {!!file.size && <Text style={styles.fileSizeText}>{formatBytes(file.size)}</Text>}
+        </View>
       </View>
     );
   };
@@ -699,7 +704,7 @@ const UploadVideoScreen = ({ route, navigation }) => {
               style={styles.cancelBtn}
               onPress={() => {
                 if (items.length > 0 && items.some(it => it.status !== 'done')) {
-                  Alert.alert(
+                  showAlert(
                     'Cancel Upload',
                     'Are you sure you want to cancel? Your selected videos will be lost.',
                     [
@@ -925,16 +930,28 @@ const makeStyles = colors => StyleSheet.create({
   selectedDirText: { flex: 1, fontSize: 13, fontWeight: '600', color: '#10B981' },
 
   // Directory grid mode
-  dirsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' },
+  // Rows start at the left edge — a centred wrap left the last (partial) row
+  // floating in the middle of the folder, out of line with the rows above it.
+  dirsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'flex-start' },
+  // Taller than it is wide: the square tile had no room for the filename plus
+  // its size, so the floating "more" button sat on top of the text.
   dirGridItem: {
-    width: '30%', aspectRatio: 1, borderRadius: 12, borderWidth: 1, borderColor: colors.border,
+    width: '31%', minHeight: 132, borderRadius: 12, borderWidth: 1, borderColor: colors.border,
     backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', padding: 8,
   },
-  fileGridItem: { backgroundColor: colors.surfaceMuted },
-  dirGridText: { fontSize: 11, fontWeight: '600', color: colors.textPrimary, marginTop: 6, textAlign: 'center' },
+  fileGridItem: { backgroundColor: colors.surfaceMuted, alignItems: 'stretch', justifyContent: 'flex-start', padding: 0, overflow: 'hidden' },
+  gridMedia: {
+    height: 62,
+    backgroundColor: colors.black,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  gridMeta: { paddingHorizontal: 8, paddingVertical: 6, flex: 1 },
+  dirGridText: { fontSize: 11, fontWeight: '600', color: colors.textPrimary, marginTop: 0, textAlign: 'left' },
   fileSizeText: { fontSize: 10, color: colors.textMuted, marginTop: 2 },
   // Per-file move/delete entry point (opens StorageFileActionsModal).
-  fileMoreBtn: { position: 'absolute', top: 6, right: 6, width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
+  fileMoreBtn: { position: 'absolute', top: 4, right: 4, width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
   fileMoreBtnList: { paddingHorizontal: 6, paddingVertical: 4 },
 
   // Directory list mode
@@ -975,19 +992,19 @@ const makeStyles = colors => StyleSheet.create({
   uploadBtnText: { fontSize: 16, fontWeight: '700', color: colors.white },
   overwriteRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, paddingVertical: 6 },
   overwriteLabel: { fontSize: 13, fontWeight: '500', color: colors.textMuted, flex: 1 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', padding: 20 },
-  modalCard: { backgroundColor: colors.card, padding: 20, borderRadius: 16 },
+  modalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', padding: 20 },
+  modalCard: { backgroundColor: colors.modalSurface, padding: 20, borderRadius: 16 , borderWidth: 1, borderColor: colors.modalBorder, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 16, elevation: 12},
   modalTitle: { fontSize: 16, fontWeight: '800', marginBottom: 12, color: colors.textPrimary },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 10 },
   modalBtn: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 8, backgroundColor: colors.surfaceMuted },
   saveBtn: { backgroundColor: colors.primary },
-  modalOverlayCentered: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center', padding: 30 },
-  targetPickerCard: { backgroundColor: colors.card, borderRadius: 16, padding: 16, maxWidth: 420, width: '100%' },
+  modalOverlayCentered: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', alignItems: 'center', padding: 30 },
+  targetPickerCard: { backgroundColor: colors.modalSurface, borderRadius: 16, padding: 16, maxWidth: 420, width: '100%'  , borderWidth: 1, borderColor: colors.modalBorder, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 16, elevation: 12},
   targetSection: { fontSize: 12, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase', marginBottom: 6 },
   targetEmpty: { fontSize: 12, color: colors.textMuted, marginBottom: 6 },
   targetOption: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 10, borderRadius: 10, marginBottom: 2 },
   targetOptionText: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
-  iconPickerCard: { backgroundColor: colors.card, borderRadius: 16, padding: 16, maxWidth: 400, width: '100%' },
+  iconPickerCard: { backgroundColor: colors.modalSurface, borderRadius: 16, padding: 16, maxWidth: 400, width: '100%'  , borderWidth: 1, borderColor: colors.modalBorder, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 16, elevation: 12},
   iconPagination: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border },
   iconPageBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, padding: 8 },
   iconPageText: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },

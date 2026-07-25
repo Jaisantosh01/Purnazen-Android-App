@@ -239,8 +239,8 @@ const StorageFolderActionsModal = ({ folder, onClose, onChanged }) => {
 
 const makeStyles = (colors) =>
   StyleSheet.create({
-    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', padding: 24 },
-    card: { backgroundColor: colors.card, borderRadius: 16, padding: 16, width: '100%', maxWidth: 420 },
+    overlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', alignItems: 'center', padding: 24 },
+    card: { backgroundColor: colors.modalSurface, borderRadius: 16, padding: 16, width: '100%', maxWidth: 420, borderWidth: 1, borderColor: colors.modalBorder, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 16, elevation: 12 },
     header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
     title: { flex: 1, fontSize: 15, fontWeight: '800', color: colors.textPrimary },
     loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12 },

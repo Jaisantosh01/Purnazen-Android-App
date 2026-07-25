@@ -5,9 +5,18 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.api.deps import get_db
+from app.core.config import settings
 from app.core.limiter import limiter
 from app.db.base import Base, Role
 from app.main import app
+
+# Registration does a live MX lookup on the email domain. The fixtures below
+# (and most test files) sign up with placeholder domains like `@test.com` and
+# `@t.com`, which genuinely have no mail server — with the check on, every
+# register call 400s and the dependent tests fail with `KeyError: 'data'`.
+# Turning it off also keeps the suite deterministic: it no longer depends on the
+# CI runner being able to resolve DNS.
+settings.EMAIL_CHECK_DELIVERABILITY = False
 
 engine = create_engine(
     "sqlite://",

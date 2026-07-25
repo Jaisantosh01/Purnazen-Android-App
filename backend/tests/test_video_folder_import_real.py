@@ -1,6 +1,19 @@
-"""Test add-folder endpoint against REAL Azure storage (no mock)."""
+"""Test add-folder endpoint against REAL Azure storage (no mock).
 
+Integration test: it needs live Azure credentials AND the `Knee_Pain/` folder to
+actually contain blobs. CI has neither (no secrets are exposed to the test job),
+where it failed on `count > 0` rather than being skipped. It now skips unless
+the storage account is configured — run it locally with a populated `.env`.
+"""
+import pytest
 from fastapi.testclient import TestClient
+
+from app.core.config import settings
+
+pytestmark = pytest.mark.skipif(
+    not (settings.AZURE_STORAGE_ACCOUNT_NAME and settings.AZURE_STORAGE_ACCOUNT_KEY),
+    reason="Azure storage is not configured — this test talks to real blob storage",
+)
 
 REGISTER_PAYLOAD = {
     "full_name": "Test Admin",

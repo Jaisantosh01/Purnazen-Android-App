@@ -75,6 +75,7 @@ export default function VideoPlayer({
   suspendUpNext = false,
   onFullscreenChange,
   allowFullscreen = true,
+  maxHeightRatio = 0.62,
 }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -358,14 +359,17 @@ export default function VideoPlayer({
   );
 
   // Frame height from the video's aspect ratio: never shorter than a 16:9 strip
-  // (so landscape clips look right) and never taller than ~62% of the screen
-  // (so the playlist below stays reachable). Portrait clips fill that height.
+  // (so landscape clips look right) and never taller than `maxHeightRatio` of
+  // the screen (so the playlist below stays reachable). Portrait clips fill that
+  // height. Screens that pair the player with a long list pass a smaller ratio.
   // Measured width, not the window's, so a player embedded in a narrower card
   // doesn't get sized for the full screen and letterbox itself.
   const baseW = frameW || screenW;
   const minH = (baseW * 9) / 16;
-  const maxH = screenH * 0.62;
-  const playerH = Math.min(Math.max(baseW / aspect, minH), maxH);
+  const maxH = screenH * maxHeightRatio;
+  // A portrait clip capped hard can end up shorter than the 16:9 floor; the cap
+  // has to win, or the frame overflows the space the screen budgeted for it.
+  const playerH = Math.min(Math.max(baseW / aspect, Math.min(minH, maxH)), maxH);
 
   // Every overlay gets this explicit height: absolute boxes that rely on
   // top+bottom insets collapse to the top on this setup (see styles.controls).

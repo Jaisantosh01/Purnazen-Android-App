@@ -15,6 +15,7 @@ import { useAuthStore } from '../store/authStore';
 import authService from '../services/authService';
 import therapyService from '../services/therapyService';
 import { StatsSkeleton } from '../components/SkeletonLoader';
+import AppVersionFooter from '../components/AppVersionFooter';
 import { COLORS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
 import { useHeaderTopPadding } from '../components/ScreenHeader';
@@ -29,6 +30,7 @@ const soft = hex => `${hex}22`;
 const MENU_ITEMS = [
   { icon: 'calendar-clock',      iconColor: '#0891B2',           title: 'Appointments',    subtitle: 'View appointment history',  screen: 'AppointmentHistory' },
   { icon: 'history',             iconColor: COLORS.primary,      title: 'Therapy History', subtitle: 'View past sessions',        screen: 'TherapyHistory' },
+  { icon: 'clipboard-pulse-outline', iconColor: '#DC2626',       title: 'My Health Report', subtitle: 'Vitals, therapy & scan summary', screen: 'HealthReport' },
   { icon: 'map-marker-outline',  iconColor: '#16a34a',           title: 'My Addresses',    subtitle: 'Manage saved addresses',    screen: 'AddressManagement' },
   { icon: 'credit-card',         iconColor: COLORS.accent,       title: 'Subscriptions',   subtitle: 'Manage your plan',          screen: 'Subscriptions' },
   { icon: 'bell-outline',        iconColor: '#ea580c',           title: 'Notifications',   subtitle: 'Manage alerts',             screen: 'Notifications' },
@@ -46,9 +48,17 @@ const ProfileScreen = ({ navigation }) => {
   const [statsLoading, setStatsLoading] = useState(true);
 
   useEffect(() => {
-    therapyService
-      .getTherapyHistory()
-      .then(data => setStats(data?.stats ?? null))
+    Promise.all([
+      therapyService.getTherapyHistory(),
+      therapyService.getSessionGroups(),
+    ])
+      .then(([historyData, groupData]) => {
+        setStats({
+          sessions: groupData?.total ?? groupData?.sessions?.length ?? 0,
+          minutes: historyData?.stats?.minutes ?? 0,
+          avgRelief: historyData?.stats?.avgRelief ?? null,
+        });
+      })
       .catch(() => setStats(null))
       .finally(() => setStatsLoading(false));
   }, []);
@@ -75,7 +85,7 @@ const ProfileScreen = ({ navigation }) => {
             );
             showAlert(
               'Downloading update',
-              `Version ${u.version} is downloading in the background. You'll be prompted to install once it's ready.`,
+              `Version ${u.version} is downloading in the background. It will install as soon as it's ready — the app may restart to finish.`,
             );
           }
         : openApk;
@@ -215,6 +225,8 @@ const ProfileScreen = ({ navigation }) => {
           <MCIcon name="logout" size={18} color={colors.danger} style={{ marginRight: 8 }} />
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
+
+        <AppVersionFooter />
 
       </ScrollView>
     </View>

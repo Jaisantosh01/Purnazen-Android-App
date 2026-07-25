@@ -232,6 +232,28 @@ def change_password(
     )
 
 
+@router.post(
+    "/me/deletion-request",
+    summary="Request account deletion",
+    description=(
+        "Raises a deletion request for the authenticated user and notifies the "
+        "admins. Nothing is removed — an admin actions the request from the "
+        "console. This is what the patient app calls; `DELETE /me` stays for "
+        "admin/back-office use."
+    ),
+)
+def request_account_deletion(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    response, status_code = AuthService.request_account_deletion(db, user)
+
+    if not response["success"]:
+        return error_response(response["message"], status_code)
+
+    return success_response(response["message"], None, status_code)
+
+
 @router.delete(
     "/me",
     summary="Delete account",

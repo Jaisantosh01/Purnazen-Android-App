@@ -16,7 +16,7 @@ import { ListSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 import SwipeRowActions, { SWIPE_LEFT_OPEN, SWIPE_RIGHT_OPEN } from '../components/SwipeRowActions';
-import { showAlert } from '../utils/alert';
+import { showAlert, showConfirm } from '../utils/alert';
 
 const MetadataManagementScreen = ({ route, navigation }) => {
   const { colors } = useTheme();
@@ -83,18 +83,17 @@ const MetadataManagementScreen = ({ route, navigation }) => {
   }
 
   const handleDelete = (id) => {
-    showAlert('Delete', 'Are you sure?', [
-      { text: 'Cancel' },
-      {
-        text: 'Delete',
-        onPress: () => {
-          apiClient
-            .delete(`${endpoint}/${id}`)
-            .then(fetchItems)
-            .catch(() => showAlert('Error', 'Failed to delete'));
-        },
+    showConfirm(
+      'Delete entry',
+      'This entry will be permanently deleted. Doctors already tagged with it lose the tag.',
+      () => {
+        apiClient
+          .delete(`${endpoint}/${id}`)
+          .then(fetchItems)
+          .catch(() => showAlert('Error', 'Failed to delete'));
       },
-    ]);
+      { confirmLabel: 'Delete', destructive: true },
+    );
   };
 
   const renderItem = ({ item }) => (
@@ -196,8 +195,8 @@ const makeStyles = colors => StyleSheet.create({
   // Only spacing/rounding here — the swipe layer itself lives in SwipeRowActions.
   rowBack: { marginBottom: 8, borderRadius: 12 },
   emptyText: { textAlign: 'center', marginTop: 20, color: colors.textMuted },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: colors.card, borderRadius: 12, padding: 20 },
+  modalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', padding: 20 },
+  modalContent: { backgroundColor: colors.modalSurface, borderRadius: 12, padding: 20 , borderWidth: 1, borderColor: colors.modalBorder, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 16, elevation: 12},
   modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, color: colors.textPrimary },
   modalInput: { backgroundColor: colors.background, borderRadius: 8, paddingHorizontal: 12, height: 44, marginBottom: 15, borderWidth: 1, borderColor: colors.borderStrong, color: colors.textPrimary },
   iconPicker: { marginBottom: 15 },

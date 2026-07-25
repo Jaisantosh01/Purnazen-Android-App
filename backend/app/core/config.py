@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     # forever. 15 min is comfortably longer than a payment flow takes.
     UNPAID_HOLD_TTL_MINUTES: int = 15
 
+    # Registration runs an MX/deliverability lookup on the email domain. It is a
+    # live DNS call, so the automated tests turn it off (see tests/conftest.py):
+    # otherwise every fixture using a placeholder domain like `@test.com` is
+    # rejected, and the suite's result depends on the runner's DNS.
+    EMAIL_CHECK_DELIVERABILITY: bool = True
+
     # Comma-separated list of allowed origins; "*" allows all (dev only)
     CORS_ORIGINS: str = "*"
 

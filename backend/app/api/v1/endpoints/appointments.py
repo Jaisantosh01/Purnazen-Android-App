@@ -108,6 +108,10 @@ def get_all_appointments_admin(
             joinedload(Appointment.doctor).joinedload(Doctor.specialty),
             joinedload(Appointment.consultation_type),
             joinedload(Appointment.user),
+            # The admin detail popup renders the clinic / home-visit address,
+            # so eager-load both instead of lazy-loading per row.
+            joinedload(Appointment.clinic),
+            joinedload(Appointment.user_address),
         )
         .order_by(Appointment.date.desc())
         .all()

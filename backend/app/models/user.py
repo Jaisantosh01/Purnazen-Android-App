@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, func
 from sqlalchemy.orm import relationship
 from app.db.types import GUID
 import uuid
@@ -20,6 +20,15 @@ class User(Base):
     gender = Column(String(10), nullable=True)       # Male | Female | Other
     phone = Column(String(15), nullable=True)
     date_of_birth = Column(Date, nullable=True)
+
+    # Health profile — self-reported, feeds the in-app health report and is
+    # visible to the treating doctor. All optional.
+    blood_group = Column(String(5), nullable=True)   # A+ | O- | ...
+    height_cm = Column(Numeric(5, 1), nullable=True)
+    weight_kg = Column(Numeric(5, 1), nullable=True)
+    allergies = Column(Text, nullable=True)
+    conditions = Column(Text, nullable=True)
+    medications = Column(Text, nullable=True)
 
     # Social sign-in provider the account was created/linked through
     # (google | github); null for password-only accounts. Informational —
@@ -44,6 +53,31 @@ class User(Base):
     role = relationship("Role", foreign_keys=[role_id])
 
     @property
+    def avatar(self):
+        """Loadable avatar URL.
+
+        The column holds either a full URL (social sign-in hands us one) or a
+        blob path (in-app upload). generate_sas_url passes full URLs through
+        untouched and returns the input unchanged when Azure isn't configured,
+        so this is safe for both.
+        """
+        if not self.avatar_url:
+            return None
+        from app.utils.azure_storage import generate_sas_url
+
+        return generate_sas_url(self.avatar_url)
+
+    @property
+    def bmi(self):
+        """Body-mass index to one decimal, or None when height/weight is unset."""
+        if not self.height_cm or not self.weight_kg:
+            return None
+        metres = float(self.height_cm) / 100
+        if metres <= 0:
+            return None
+        return round(float(self.weight_kg) / (metres * metres), 1)
+
+    @property
     def age(self):
         """Calculate age dynamically from date_of_birth."""
         if not self.date_of_birth:
@@ -56,12 +90,19 @@ class User(Base):
         return {
             "id": self.id,
             "full_name": self.full_name,
-            "avatar_url": self.avatar_url,
+            "avatar_url": self.avatar,
             "email": self.email,
             "phone": self.phone,
             "gender": self.gender,
             "date_of_birth": self.date_of_birth.isoformat() if self.date_of_birth else None,
             "age": self.age,
+            "blood_group": self.blood_group,
+            "height_cm": float(self.height_cm) if self.height_cm is not None else None,
+            "weight_kg": float(self.weight_kg) if self.weight_kg is not None else None,
+            "bmi": self.bmi,
+            "allergies": self.allergies,
+            "conditions": self.conditions,
+            "medications": self.medications,
             "auth_provider": self.auth_provider,
             "social_linked": bool(self.firebase_uid),
             "role_id": self.role_id,

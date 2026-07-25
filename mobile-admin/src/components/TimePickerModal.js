@@ -120,8 +120,19 @@ const TimePickerModal = ({ visible, onClose, onSelect, initialTime }) => {
 };
 
 const makeStyles = colors => StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 24 },
-  container: { backgroundColor: colors.card, borderRadius: 16, padding: 20 },
+  overlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', padding: 24 },
+  container: {
+    backgroundColor: colors.modalSurface,
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: colors.modalBorder,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    elevation: 12,
+  },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 16 },
   title: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
   cols: { flexDirection: 'row', gap: 10 },

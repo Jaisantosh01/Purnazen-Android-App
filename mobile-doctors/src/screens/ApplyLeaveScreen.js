@@ -32,6 +32,8 @@ const LEAVE_MODES = [
 
 const REASONS = ['Vacation', 'Medical', 'Conference', 'Personal', 'Emergency', 'Other'];
 
+const HIT = { top: 8, bottom: 8, left: 8, right: 8 };
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const getTodayStr = () => {
@@ -265,11 +267,6 @@ const ApplyLeaveScreen = ({ navigation }) => {
     setShowDatePicker(false);
   };
 
-  // Legacy toggleSlot kept for backward-compat (not used by Partial Day anymore)
-  const toggleSlot = (slotId) => {
-    // no-op — Partial Day uses togglePartialSlot instead
-  };
-
   // Toggle a slot for the currently active day card
   const togglePartialSlot = (dateStr, slotId) => {
     setSlotSelections((prev) => {
@@ -278,6 +275,17 @@ const ApplyLeaveScreen = ({ navigation }) => {
         ? current.filter((id) => id !== slotId)
         : [...current, slotId];
       return { ...prev, [dateStr]: updated };
+    });
+  };
+
+  // Select/clear every slot on one day — ticking 8 slots one at a time across a
+  // week of dates was the slowest part of applying for partial leave.
+  const toggleAllSlotsForDay = (dateStr) => {
+    const available = getSlotsForDate(dateStr);
+    setSlotSelections((prev) => {
+      const current = prev[dateStr] || [];
+      const allOn = available.length > 0 && current.length === available.length;
+      return { ...prev, [dateStr]: allOn ? [] : available.map((s) => s.id) };
     });
   };
 
@@ -580,6 +588,10 @@ const ApplyLeaveScreen = ({ navigation }) => {
     }
 
     const currentActiveDay = activeDayCard || startDate;
+    const daySlots = getSlotsForDate(currentActiveDay);
+    const allDaySlotsSelected =
+      daySlots.length > 0 &&
+      (slotSelections[currentActiveDay] || []).length === daySlots.length;
 
     return (
       <View style={styles.partialDayContainer}>
@@ -595,19 +607,15 @@ const ApplyLeaveScreen = ({ navigation }) => {
               const selectedSlots = slotSelections[dStr] || [];
               const available = getSlotsForDate(dStr);
               
-              let badgeText = '';
-              let badgeStyle = styles.dayCardBadge;
-              if (selectedSlots.length > 0) {
-                if (selectedSlots.length === available.length && available.length > 0) {
-                  badgeText = 'Full Day';
-                  badgeStyle = [styles.dayCardBadge, styles.dayCardBadgeFull];
-                } else {
-                  badgeText = `${selectedSlots.length} Slot${selectedSlots.length > 1 ? 's' : ''}`;
-                  badgeStyle = [styles.dayCardBadge, styles.dayCardBadgeSelected];
-                }
-              } else {
-                badgeText = 'No Slots';
-              }
+              // Badge copy is kept to one short line — "3 Slots" used to wrap in
+              // the 82px card, so cards in the strip ended up different heights.
+              const isFull = available.length > 0 && selectedSlots.length === available.length;
+              const badgeText = selectedSlots.length === 0
+                ? 'None'
+                : isFull ? 'All' : `${selectedSlots.length}`;
+              const badgeHue = selectedSlots.length === 0
+                ? colors.textMuted
+                : isFull ? colors.success : colors.primary;
 
               return (
                 <TouchableOpacity
@@ -617,15 +625,23 @@ const ApplyLeaveScreen = ({ navigation }) => {
                   onPress={() => setActiveDayCard(dStr)}
                   disabled={submitting}
                 >
-                  <Text style={[styles.dayCardDayText, isActive && styles.dayCardTextActive]}>
+                  <Text style={[styles.dayCardDayText, isActive && styles.dayCardTextActive]} numberOfLines={1}>
                     {dayAbbr}
                   </Text>
-                  <Text style={[styles.dayCardDateText, isActive && styles.dayCardTextActive]}>
+                  <Text style={[styles.dayCardDateText, isActive && styles.dayCardTextActive]} numberOfLines={1}>
                     {dateLabel}
                   </Text>
-                  <Text style={[badgeStyle, isActive && styles.dayCardBadgeActive]}>
-                    {badgeText}
-                  </Text>
+                  <View style={[
+                    styles.dayCardBadge,
+                    { backgroundColor: isActive ? 'rgba(255,255,255,0.22)' : `${badgeHue}22` },
+                  ]}>
+                    <Text
+                      style={[styles.dayCardBadgeText, { color: isActive ? colors.white : badgeHue }]}
+                      numberOfLines={1}
+                    >
+                      {badgeText}
+                    </Text>
+                  </View>
                 </TouchableOpacity>
               );
             })}
@@ -635,42 +651,52 @@ const ApplyLeaveScreen = ({ navigation }) => {
         <View style={styles.activeDayPanel}>
           <View style={styles.activeDayPanelHeader}>
             <MCIcon name="calendar-clock" size={16} color={colors.primary} />
-            <Text style={styles.activeDayPanelTitle}>
-              Available Slots for {formatDateStr(currentActiveDay)}
+            <Text style={styles.activeDayPanelTitle} numberOfLines={1}>
+              {formatDateStr(currentActiveDay)}
             </Text>
+            {daySlots.length > 0 && (
+              <TouchableOpacity
+                onPress={() => toggleAllSlotsForDay(currentActiveDay)}
+                disabled={submitting}
+                activeOpacity={0.7}
+                hitSlop={HIT}
+              >
+                <Text style={styles.selectAllText}>{allDaySlotsSelected ? 'Clear' : 'Select all'}</Text>
+              </TouchableOpacity>
+            )}
           </View>
           <View style={styles.activeDayDivider} />
 
-          {getSlotsForDate(currentActiveDay).length === 0 ? (
+          {daySlots.length === 0 ? (
             <View style={styles.noSlotsRow}>
               <MCIcon name="calendar-remove" size={20} color={colors.textMuted} />
               <Text style={styles.noSlotsText}>No slots configured for this day.</Text>
             </View>
           ) : (
             <View style={styles.slotsGrid}>
-              {getSlotsForDate(currentActiveDay).map((slot, index) => {
+              {daySlots.map((slot) => {
                 const selectedForDay = slotSelections[currentActiveDay] || [];
                 const isSlotActive = selectedForDay.includes(slot.id);
                 const timeLabel = `${formatTime12h(slot.start_time)} – ${formatTime12h(slot.end_time)}`;
-                const isRightCol = index % 2 === 1;
                 return (
                   <TouchableOpacity
                     key={slot.id}
-                    style={[
-                      styles.slotCard,
-                      isSlotActive && styles.slotCardActive,
-                      isRightCol && styles.slotCardRightCol,
-                    ]}
+                    style={[styles.slotCard, isSlotActive && styles.slotCardActive]}
                     activeOpacity={0.8}
                     onPress={() => togglePartialSlot(currentActiveDay, slot.id)}
                     disabled={submitting}
                   >
                     <MCIcon
                       name={isSlotActive ? 'check-circle' : 'clock-outline'}
-                      size={18}
+                      size={16}
                       color={isSlotActive ? colors.white : colors.primary}
                     />
-                    <Text style={[styles.slotText, isSlotActive && styles.slotTextActive]}>
+                    <Text
+                      style={[styles.slotText, isSlotActive && styles.slotTextActive]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.85}
+                    >
                       {timeLabel}
                     </Text>
                   </TouchableOpacity>
@@ -970,6 +996,7 @@ const makeStyles = colors =>
   },
   dayCard: {
     width: 82,
+    minHeight: 84,
     paddingVertical: 10,
     paddingHorizontal: 8,
     backgroundColor: colors.card,
@@ -1005,20 +1032,16 @@ const makeStyles = colors =>
     color: colors.white,
   },
   dayCardBadge: {
+    marginTop: 4,
+    minWidth: 30,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: RADIUS.pill,
+    alignItems: 'center',
+  },
+  dayCardBadgeText: {
     fontSize: 10,
-    fontWeight: '700',
-    color: colors.textMuted,
-    marginTop: 2,
-    textAlign: 'center',
-  },
-  dayCardBadgeActive: {
-    color: 'rgba(255,255,255,0.85)',
-  },
-  dayCardBadgeSelected: {
-    color: colors.primary,
-  },
-  dayCardBadgeFull: {
-    color: colors.success,
+    fontWeight: '800',
   },
   // Active day slots panel
   activeDayPanel: {
@@ -1041,9 +1064,16 @@ const makeStyles = colors =>
     marginBottom: SPACING.xs,
   },
   activeDayPanelTitle: {
+    flex: 1,
+    minWidth: 0,
     fontSize: 13.5,
     fontWeight: '800',
     color: colors.textPrimary,
+  },
+  selectAllText: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: colors.primary,
   },
   activeDayDivider: {
     height: 1,
@@ -1061,35 +1091,37 @@ const makeStyles = colors =>
     color: colors.textMuted,
     fontStyle: 'italic',
   },
-  // Two-column slot grid
+  // Two-column slot grid. The columns used to be `width: 48.5%` with a `3%`
+  // left margin on the odd ones — 48.5 + 3 + 48.5 = exactly 100%, so a single
+  // rounded-up pixel wrapped the second card onto its own line and the grid
+  // came out ragged. A real `gap` leaves the widths free of the gutter maths.
   slotsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: SPACING.sm,
   },
   slotCard: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
-    // Each card occupies exactly half the row minus half the gutter
-    width: '48.5%',
-    marginBottom: SPACING.sm,
+    flexGrow: 1,
+    flexBasis: '45%',
+    minHeight: 42,
     backgroundColor: colors.card,
     borderWidth: 1.5,
     borderColor: colors.border,
     borderRadius: RADIUS.md,
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-  },
-  // Right-column cards get a left margin to create the gutter
-  slotCardRightCol: {
-    marginLeft: '3%',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
   },
   slotCardActive: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
   slotText: {
-    fontSize: 13,
+    flexShrink: 1,
+    fontSize: 12.5,
     fontWeight: '700',
     color: colors.textSecondary,
   },

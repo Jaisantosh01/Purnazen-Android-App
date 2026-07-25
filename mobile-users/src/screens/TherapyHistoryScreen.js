@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  StatusBar,
   ActivityIndicator,
   RefreshControl,
   TextInput,
@@ -22,12 +21,16 @@ const TherapyHistoryScreen = ({ navigation }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [sessions, setSessions] = useState(null);
+  const [stats, setStats] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const [completingSessionId, setCompletingSessionId] = useState(null);
+  // Wellness programmes aren't pain-relief routines, so they only collect a
+  // written note — the pain score stays for relief/acupressure sessions.
+  const [asksPain, setAsksPain] = useState(true);
   const [painAfter, setPainAfter] = useState('5');
   const [completeFeedback, setCompleteFeedback] = useState('');
   const [savingComplete, setSavingComplete] = useState(false);
@@ -58,8 +61,12 @@ const TherapyHistoryScreen = ({ navigation }) => {
     else setIsLoading(true);
     setError(null);
     try {
-      const data = await therapyService.getSessionGroups();
-      setSessions(data?.sessions ?? []);
+      const [groupData, historyData] = await Promise.all([
+        therapyService.getSessionGroups(),
+        therapyService.getTherapyHistory(),
+      ]);
+      setSessions(groupData?.sessions ?? []);
+      setStats(historyData?.stats ?? null);
     } catch (err) {
       setError(err.message || 'Something went wrong');
     } finally {
@@ -73,9 +80,7 @@ const TherapyHistoryScreen = ({ navigation }) => {
   }, [fetchSessions]);
 
   const totalSessions = sessions?.length ?? 0;
-  const totalMinutes = (sessions ?? []).reduce(
-    (sum, s) => sum + (s.completedVideos || 0) * 5, 0
-  );
+  const totalMinutes = stats?.minutes ?? 0;
 
   const handleContinue = (session) => {
     if (session.sessionType === 'wellness') {
@@ -88,6 +93,7 @@ const TherapyHistoryScreen = ({ navigation }) => {
 
   const handleComplete = (session) => {
     setCompletingSessionId(session.id);
+    setAsksPain(session.sessionType !== 'wellness');
     setPainAfter('5');
     setCompleteFeedback('');
     setShowCompleteDialog(true);
@@ -99,7 +105,7 @@ const TherapyHistoryScreen = ({ navigation }) => {
     try {
       await therapyService.completeSession(
         completingSessionId,
-        Math.min(10, Math.max(0, parseInt(painAfter, 10) || 0)),
+        asksPain ? Math.min(10, Math.max(0, parseInt(painAfter, 10) || 0)) : null,
         completeFeedback.trim() || null,
       );
       setShowCompleteDialog(false);
@@ -147,10 +153,13 @@ const TherapyHistoryScreen = ({ navigation }) => {
       >
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
+            <MCIcon name="playlist-check" size={17} color={colors.primary} />
             <Text style={styles.statValue}>{totalSessions}</Text>
             <Text style={styles.statLabel}>Sessions</Text>
           </View>
+          <View style={styles.statDivider} />
           <View style={styles.statBox}>
+            <MCIcon name="timer-outline" size={17} color={colors.primary} />
             <Text style={styles.statValue}>{totalMinutes}</Text>
             <Text style={styles.statLabel}>Est. Minutes</Text>
           </View>
@@ -259,27 +268,29 @@ const TherapyHistoryScreen = ({ navigation }) => {
         confirmLoading={savingComplete}
         icon="clipboard-text-outline"
         title="Session Feedback"
-        subtitle="How severe is your pain now?"
+        subtitle={asksPain ? 'How severe is your pain now?' : 'How did this session go?'}
       >
-        <View style={styles.feedbackPainRow}>
-          <Text style={styles.feedbackPainLabel}>Pain After: {painAfter}/10</Text>
-          <View
-            style={styles.sliderTrack}
-            onLayout={(e) => { sliderWidthRef.current = e.nativeEvent.layout.width; }}
-            {...painSlider.panResponder.panHandlers}
-          >
-            <View style={[styles.sliderFill, { width: `${painPct * 100}%` }]} />
-            <View style={[styles.sliderThumb, { left: `${painPct * 100}%` }]} />
+        {asksPain && (
+          <View style={styles.feedbackPainRow}>
+            <Text style={styles.feedbackPainLabel}>Pain After: {painAfter}/10</Text>
+            <View
+              style={styles.sliderTrack}
+              onLayout={(e) => { sliderWidthRef.current = e.nativeEvent.layout.width; }}
+              {...painSlider.panResponder.panHandlers}
+            >
+              <View style={[styles.sliderFill, { width: `${painPct * 100}%` }]} />
+              <View style={[styles.sliderThumb, { left: `${painPct * 100}%` }]} />
+            </View>
+            <View style={styles.sliderLabels}>
+              <Text style={styles.sliderLabelText}>0</Text>
+              <Text style={styles.sliderLabelText}>2</Text>
+              <Text style={styles.sliderLabelText}>4</Text>
+              <Text style={styles.sliderLabelText}>6</Text>
+              <Text style={styles.sliderLabelText}>8</Text>
+              <Text style={styles.sliderLabelText}>10</Text>
+            </View>
           </View>
-          <View style={styles.sliderLabels}>
-            <Text style={styles.sliderLabelText}>0</Text>
-            <Text style={styles.sliderLabelText}>2</Text>
-            <Text style={styles.sliderLabelText}>4</Text>
-            <Text style={styles.sliderLabelText}>6</Text>
-            <Text style={styles.sliderLabelText}>8</Text>
-            <Text style={styles.sliderLabelText}>10</Text>
-          </View>
-        </View>
+        )}
         <TextInput
           style={styles.feedbackInput}
           placeholder="Write your feedback here…"
@@ -314,19 +325,24 @@ const makeStyles = colors => StyleSheet.create({
   },
   retryText: { fontSize: 14, fontWeight: '700', color: colors.white },
 
+  // One compact strip rather than two tall stacked tiles — the old layout burned
+  // ~100px of vertical space on two numbers. Kept tight to the header and the
+  // list: the numbers are a glance, not the point of the screen.
   statsRow: {
-    flexDirection: 'row', marginHorizontal: 16, marginTop: 20, marginBottom: 8, gap: 16,
-  },
-  statBox: {
-    flex: 1, alignItems: 'center', paddingVertical: 16,
-    backgroundColor: colors.card, borderRadius: 14,
+    flexDirection: 'row', alignItems: 'center',
+    marginHorizontal: 16, marginTop: 8, marginBottom: 0,
+    backgroundColor: colors.card, borderRadius: 12, paddingVertical: 7,
     elevation: 2, shadowColor: colors.black, shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05, shadowRadius: 4,
   },
-  statValue: { fontSize: 22, fontWeight: '700', color: colors.primary, marginBottom: 4 },
-  statLabel: { fontSize: 12, color: colors.textPrimary },
+  statBox: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+  },
+  statDivider: { width: StyleSheet.hairlineWidth, alignSelf: 'stretch', backgroundColor: colors.border },
+  statValue: { fontSize: 16, fontWeight: '700', color: colors.primary },
+  statLabel: { fontSize: 12, color: colors.textSecondary },
 
-  sessionList: { paddingHorizontal: 16, marginTop: 16 },
+  sessionList: { paddingHorizontal: 16, marginTop: 8 },
   sessionCard: {
     padding: 16, borderRadius: 14, marginBottom: 16,
     elevation: 2, shadowColor: colors.black,

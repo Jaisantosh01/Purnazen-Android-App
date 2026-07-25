@@ -15,6 +15,7 @@ import { SPACING, RADIUS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
 import appointmentService from '../services/appointmentService';
 import { showAlert } from '../utils/alert';
+import LocationCard from '../components/LocationCard';
 
 // ─── Status config (mirrors AppointmentsScreen) ────────────────────────────────
 const STATUS_CONFIG = {
@@ -325,48 +326,53 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
         {/* ── Status Actions (Fixed to Bottom) ── */}
         {(isPending || isBooked) && (
           <View style={styles.fixedActionBlock}>
-            {isPending && (
+            <View style={styles.actionRow}>
+
               <TouchableOpacity
-                style={[styles.actionBtn, styles.acceptBtn]}
+                style={[styles.actionBtn, styles.cancelBtn, styles.actionBtnHalf]}
                 activeOpacity={0.8}
-                onPress={handleAccept}>
-                <MCIcon name="check" size={18} color={colors.white} style={{ marginRight: 6 }} />
-                <Text style={styles.acceptBtnText}>Accept Appointment</Text>
+                onPress={handleCancel}>
+                <MCIcon name="close-circle-outline" size={18} color={colors.danger} style={{ marginRight: 6 }} />
+                <Text style={styles.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
-            )}
 
-            {isBooked && (() => {
-              const apptOver = isAppointmentOver(appointment.date, appointment.endTime || appointment.time);
-              return (
+              
+              {isPending ? (
                 <TouchableOpacity
-                  style={[
-                    styles.actionBtn,
-                    styles.completeBtn,
-                    !apptOver && { backgroundColor: colors.borderStrong, borderColor: colors.borderStrong }
-                  ]}
-                  disabled={!apptOver}
+                  style={[styles.actionBtn, styles.acceptBtn, styles.actionBtnHalf]}
                   activeOpacity={0.8}
-                  onPress={handleComplete}>
-                  <MCIcon
-                    name="check-decagram"
-                    size={18}
-                    color={apptOver ? colors.white : '#9CA3AF'}
-                    style={{ marginRight: 6 }}
-                  />
-                  <Text style={[styles.completeBtnText, !apptOver && { color: '#9CA3AF' }]}>
-                    Mark as Completed
-                  </Text>
+                  onPress={handleAccept}>
+                  <MCIcon name="check" size={18} color={colors.white} style={{ marginRight: 6 }} />
+                  <Text style={styles.acceptBtnText}>Accept</Text>
                 </TouchableOpacity>
-              );
-            })()}
+              ) : (() => {
+                const apptOver = isAppointmentOver(appointment.date, appointment.endTime || appointment.time);
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.actionBtn,
+                      styles.completeBtn,
+                      styles.actionBtnHalf,
+                      !apptOver && { backgroundColor: colors.borderStrong, borderColor: colors.borderStrong }
+                    ]}
+                    disabled={!apptOver}
+                    activeOpacity={0.8}
+                    onPress={handleComplete}>
+                    <MCIcon
+                      name="check-decagram"
+                      size={18}
+                      color={apptOver ? colors.white : '#9CA3AF'}
+                      style={{ marginRight: 6 }}
+                    />
+                    <Text style={[styles.completeBtnText, !apptOver && { color: '#9CA3AF' }]}>
+                      Complete
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })()}
 
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.cancelBtn]}
-              activeOpacity={0.8}
-              onPress={handleCancel}>
-              <MCIcon name="close-circle-outline" size={18} color={colors.danger} style={{ marginRight: 6 }} />
-              <Text style={styles.cancelBtnText}>Cancel Appointment</Text>
-            </TouchableOpacity>
+              
+            </View>
           </View>
         )}
       </View>
@@ -512,7 +518,14 @@ const makeStyles = colors =>
     paddingVertical: SPACING.md,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    gap: SPACING.md,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+  },
+  actionBtnHalf: {
+    flex: 1,
+    paddingVertical: 12,
   },
   actionBtn: {
     flexDirection: 'row',

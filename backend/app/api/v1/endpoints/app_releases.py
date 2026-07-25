@@ -1,12 +1,11 @@
 import hmac
 
-from fastapi import APIRouter, Depends, Header, Query
+from fastapi import APIRouter, Header, Query, Depends
 from sqlalchemy.orm import Session
 from typing import Optional
 
-from app.api.deps import get_db, get_current_user
+from app.api.deps import get_db
 from app.core.config import settings
-from app.models.user import User
 from app.schemas.app_release import APP_SLUGS, RegisterAppReleaseRequest
 from app.services.app_release_service import AppReleaseService
 from app.utils.responses import error_response, success_response
@@ -14,10 +13,15 @@ from app.utils.responses import error_response, success_response
 router = APIRouter(prefix="/app-releases", tags=["App Releases (OTA)"])
 
 
+# Both read endpoints are deliberately unauthenticated. A build old enough to be
+# force-updated may not be able to reach the login screen at all, and the
+# updater runs before any session exists — behind a token these 401'd, which the
+# api client then turned into a "session expired" reset. `/download` still only
+# ever hands out the *current* build for a slug (see below), so this doesn't
+# expose the archive of past releases.
 @router.get("/latest", summary="Latest release for an app (in-app updater)")
 def latest_release(
     app: str = Query(..., description="App slug: mobile-users | mobile-admin | mobile-doctors"),
-    user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     if app not in APP_SLUGS:
@@ -35,11 +39,15 @@ def latest_release(
 def download_release(
     app_slug: str,
     version: str,
-    user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     if app_slug not in APP_SLUGS:
         return error_response("Unknown app", 400)
+    # Only the version `/latest` just advertised is downloadable, so an
+    # anonymous caller can't walk back through older builds.
+    latest = AppReleaseService.get_latest(db, app_slug)
+    if not latest or latest.get("version") != version:
+        return error_response("Release not found", 404)
     url = AppReleaseService.get_download_url(db, app_slug, version)
     if not url:
         return error_response("Release not found", 404)

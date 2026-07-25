@@ -8,6 +8,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageInstaller
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -38,8 +39,13 @@ import java.security.MessageDigest
  *    backgrounded. We poll it and emit `otaDownloadProgress` for an in-app bar,
  *    optionally verify the sha256, then emit `otaDownloadComplete` and post an
  *    "Update ready to install" notification whose tap fires the installer.
- *  - [install] launches the package-installer via a {@link FileProvider} content
- *    URI (ACTION_VIEW). The OS installer handles the replace/"reboot to update".
+ *  - [install] streams the APK into a {@link PackageInstaller} session. On
+ *    Android 12+ that can replace us with *no* confirmation dialog once we're our
+ *    own installer of record (which we become the first time this path runs);
+ *    otherwise the OS asks, via [OtaInstallReceiver]. Either way the install kills
+ *    this process, and the receiver brings the app back up afterwards. Sessions
+ *    fail on some OEM builds, so the old FileProvider ACTION_VIEW hand-off stays
+ *    as the fallback.
  *  - [isInstallAllowed] / [openInstallSettings] gate on the sensitive
  *    REQUEST_INSTALL_PACKAGES consent (Android 8+ "install unknown apps").
  *
@@ -50,6 +56,12 @@ class OtaUpdaterModule(private val reactContext: ReactApplicationContext) :
   ReactContextBaseJavaModule(reactContext) {
 
   override fun getName() = NAME
+
+  init {
+    // OtaInstallReceiver runs without a module instance of its own; this lets it
+    // reach the bridge while it's still alive (see [emitInstallStatus]).
+    live = this
+  }
 
   private val mainHandler = Handler(Looper.getMainLooper())
   private var downloadId: Long = -1L
@@ -254,20 +266,109 @@ class OtaUpdaterModule(private val reactContext: ReactApplicationContext) :
   }
 
   // ── Install ─────────────────────────────────────────────────────────────────
+  /**
+   * Resolves once the install has been *handed off*, not once it succeeds: a
+   * self-update tears this process down, so the real outcome only ever arrives
+   * as an `otaInstallStatus` event (or not at all, because we're already gone).
+   */
   @ReactMethod
   fun install(filePath: String?, promise: Promise) {
-    try {
-      val file = if (!filePath.isNullOrBlank()) File(filePath) else downloadedFile
-      if (file == null || !file.exists()) {
-        promise.reject("E_NO_FILE", "No downloaded update to install")
-        return
+    val file = if (!filePath.isNullOrBlank()) File(filePath) else downloadedFile
+    if (file == null || !file.exists()) {
+      promise.reject("E_NO_FILE", "No downloaded update to install")
+      return
+    }
+    cancelInstallNotification()
+    markRelaunchPending()
+    // Streaming ~100 MB into the session would block the caller's thread.
+    Thread {
+      try {
+        installViaSession(file)
+        promise.resolve(true)
+      } catch (sessionError: Exception) {
+        // Some OEM builds reject sessions outright — fall back to the installer
+        // activity, which is what shipped before and still works everywhere.
+        try {
+          (reactContext.currentActivity ?: reactContext).startActivity(installIntent(file))
+          promise.resolve(true)
+        } catch (e: Exception) {
+          promise.reject("E_INSTALL", e.message ?: sessionError.message, e)
+        }
       }
-      cancelInstallNotification()
-      val intent = installIntent(file)
-      (reactContext.currentActivity ?: reactContext).startActivity(intent)
+    }.start()
+  }
+
+  /**
+   * Write the APK into a PackageInstaller session and commit it.
+   *
+   * `USER_ACTION_NOT_REQUIRED` is what makes a forced update actually silent, but
+   * the OS only honours it when we're the installer of record for ourselves —
+   * true from the *second* OTA install onwards (the first one, over a manually
+   * sideloaded build, still shows the confirmation). Asking for it when it can't
+   * be granted is not an error: the system just replies STATUS_PENDING_USER_ACTION
+   * and [OtaInstallReceiver] shows the dialog.
+   */
+  private fun installViaSession(file: File) {
+    val installer = reactContext.packageManager.packageInstaller
+    val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+      params.setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
+    }
+    val sessionId = installer.createSession(params)
+    try {
+      installer.openSession(sessionId).use { session ->
+        session.openWrite(SESSION_NAME, 0, file.length()).use { out ->
+          FileInputStream(file).use { input -> input.copyTo(out, DEFAULT_BUFFER_SIZE) }
+          session.fsync(out)
+        }
+        session.commit(statusIntentSender(sessionId))
+      }
+    } catch (e: Exception) {
+      try { installer.abandonSession(sessionId) } catch (_: Exception) {}
+      throw e
+    }
+  }
+
+  /**
+   * Leave a note for [OtaInstallReceiver], which runs in a fresh process after the
+   * install and has no other way to tell our own update apart from any other
+   * replacement (a manual sideload, say) — only ours should yank the user back
+   * into the app. Written with `commit()` because the install can kill us before
+   * an async write lands.
+   */
+  private fun markRelaunchPending() {
+    try {
+      reactContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        .edit()
+        .putBoolean(KEY_RELAUNCH, true)
+        .commit()
+    } catch (_: Exception) {
+      // Worst case we skip the auto-restart; the install itself still proceeds.
+    }
+  }
+
+  /** Where the OS reports back to; must be mutable so it can fill in the status. */
+  private fun statusIntentSender(sessionId: Int) = PendingIntent.getBroadcast(
+    reactContext,
+    sessionId,
+    // Explicit component: an implicit broadcast would need its own intent-filter
+    // and could be picked up by the sibling apps sharing this package name.
+    Intent(reactContext, OtaInstallReceiver::class.java).setAction(ACTION_INSTALL_STATUS),
+    PendingIntent.FLAG_UPDATE_CURRENT or
+      (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0),
+  ).intentSender
+
+  /** Drop any leftover update notifications — called by JS when the app starts. */
+  @ReactMethod
+  fun clearUpdateNotifications(promise: Promise) {
+    try {
+      notificationManager(reactContext)?.apply {
+        cancel(NOTIF_ID)
+        cancel(NOTIF_ID_RELAUNCH)
+      }
       promise.resolve(true)
     } catch (e: Exception) {
-      promise.reject("E_INSTALL", e.message, e)
+      promise.resolve(false)
     }
   }
 
@@ -285,7 +386,7 @@ class OtaUpdaterModule(private val reactContext: ReactApplicationContext) :
   // ── "Update ready" notification (background/fallback install path) ──────────
   private fun postInstallNotification(file: File) {
     try {
-      ensureChannel()
+      ensureChannel(reactContext)
       val flags = PendingIntent.FLAG_UPDATE_CURRENT or
         (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
       val pending = PendingIntent.getActivity(reactContext, 0, installIntent(file), flags)
@@ -297,7 +398,7 @@ class OtaUpdaterModule(private val reactContext: ReactApplicationContext) :
         .setPriority(NotificationCompat.PRIORITY_HIGH)
         .setContentIntent(pending)
         .build()
-      (reactContext.getSystemService(NotificationManager::class.java))?.notify(NOTIF_ID, notif)
+      notificationManager(reactContext)?.notify(NOTIF_ID, notif)
     } catch (_: Exception) {
       // POST_NOTIFICATIONS not granted (Android 13+) — foreground install still works.
     }
@@ -305,19 +406,8 @@ class OtaUpdaterModule(private val reactContext: ReactApplicationContext) :
 
   private fun cancelInstallNotification() {
     try {
-      reactContext.getSystemService(NotificationManager::class.java)?.cancel(NOTIF_ID)
+      notificationManager(reactContext)?.cancel(NOTIF_ID)
     } catch (_: Exception) {}
-  }
-
-  private fun ensureChannel() {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-    val mgr = reactContext.getSystemService(NotificationManager::class.java) ?: return
-    if (mgr.getNotificationChannel(CHANNEL_ID) == null) {
-      mgr.createNotificationChannel(
-        NotificationChannel(CHANNEL_ID, "App updates", NotificationManager.IMPORTANCE_HIGH)
-          .apply { description = "Update download and install" },
-      )
-    }
   }
 
   // ── Housekeeping ────────────────────────────────────────────────────────────
@@ -338,6 +428,7 @@ class OtaUpdaterModule(private val reactContext: ReactApplicationContext) :
 
   override fun invalidate() {
     super.invalidate()
+    if (live === this) live = null
     cleanup()
   }
 
@@ -361,12 +452,55 @@ class OtaUpdaterModule(private val reactContext: ReactApplicationContext) :
 
   companion object {
     const val NAME = "OtaUpdater"
+    const val CHANNEL_ID = "updates"
+    const val NOTIF_ID_RELAUNCH = 424243
+    const val ACTION_INSTALL_STATUS = "com.purnazen.otaupdater.INSTALL_STATUS"
+    const val PREFS = "purnazen_ota"
+    const val KEY_RELAUNCH = "relaunch_after_install"
     private const val APK_MIME = "application/vnd.android.package-archive"
-    private const val CHANNEL_ID = "updates"
     private const val NOTIF_ID = 424242
     private const val POLL_MS = 600L
+    private const val SESSION_NAME = "purnazen-update"
     private const val EVENT_PROGRESS = "otaDownloadProgress"
     private const val EVENT_COMPLETE = "otaDownloadComplete"
     private const val EVENT_ERROR = "otaDownloadError"
+    private const val EVENT_INSTALL = "otaInstallStatus"
+
+    /**
+     * The live module, if the bridge is up. [OtaInstallReceiver] is instantiated by
+     * the system with no handle on it — and during a self-update there may be no
+     * bridge left at all, which is why every install outcome that matters is also
+     * recoverable from a notification.
+     */
+    @Volatile
+    private var live: OtaUpdaterModule? = null
+
+    @JvmStatic
+    fun emitInstallStatus(status: String, message: String?) {
+      val module = live ?: return
+      module.emit(
+        EVENT_INSTALL,
+        Arguments.createMap().apply {
+          putString("status", status)
+          if (message != null) putString("message", message)
+        },
+      )
+    }
+
+    @JvmStatic
+    fun notificationManager(context: Context): NotificationManager? =
+      context.getSystemService(NotificationManager::class.java)
+
+    @JvmStatic
+    fun ensureChannel(context: Context) {
+      if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+      val mgr = notificationManager(context) ?: return
+      if (mgr.getNotificationChannel(CHANNEL_ID) == null) {
+        mgr.createNotificationChannel(
+          NotificationChannel(CHANNEL_ID, "App updates", NotificationManager.IMPORTANCE_HIGH)
+            .apply { description = "Update download and install" },
+        )
+      }
+    }
   }
 }

@@ -16,10 +16,12 @@ import authService from '../services/authService';
 import socialAuthService from '../services/socialAuthService';
 import preferencesService from '../services/preferencesService';
 import biometricService from '../services/biometricService';
-import { APP_VERSION } from '../config';
 import { useAuthStore } from '../store/authStore';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
+import AppVersionFooter from '../components/AppVersionFooter';
+import GenderSelect from '../components/GenderSelect';
+import DobInput, { isoToParts, validateDobParts } from '../components/DobInput';
 import ThemeToggle from '../components/ThemeToggle';
 import AppToggle from '../components/AppToggle';
 
@@ -35,22 +37,14 @@ const HUES = {
   purple: '#7C3AED',
   blue: '#0284C7',
   amber: '#F59E0B',
-  orange: '#EA580C',
   rose: '#E11D48',
 };
 const soft = hex => `${hex}22`;
 
-// Supported app languages. The selected code persists to user_preferences;
-// full UI translation (i18n) is wired separately.
-const LANGUAGES = [
-  { code: 'en', label: 'English',  native: 'English'   },
-  { code: 'hi', label: 'Hindi',    native: 'हिन्दी'    },
-  { code: 'mr', label: 'Marathi',  native: 'मराठी'     },
-  { code: 'ta', label: 'Tamil',    native: 'தமிழ்'      },
-  { code: 'te', label: 'Telugu',   native: 'తెలుగు'     },
-  { code: 'bn', label: 'Bengali',  native: 'বাংলা'      },
-];
-const languageLabel = code => (LANGUAGES.find(l => l.code === code) || LANGUAGES[0]).label;
+// NOTE: the "App Language" picker used to live here. It wrote a code to
+// user_preferences but no UI was ever translated, so choosing another language
+// changed nothing on screen. Removed rather than left as a lie — bring it back
+// together with real i18n (the `language` preference column is still there).
 
 const SettingsScreen = ({ navigation }) => {
   const doctor = useAuthStore(state => state.doctor);
@@ -101,7 +95,6 @@ const SettingsScreen = ({ navigation }) => {
   const [appointmentAlerts, setAppointmentAlerts] = useState(true);
   const [biometric, setBiometric]                 = useState(false);
   const [biometricBusy, setBiometricBusy]         = useState(false);
-  const [language, setLanguage]                   = useState('en');
 
   // Hydrate toggles/values from the server (defaults kept offline).
   React.useEffect(() => {
@@ -111,7 +104,6 @@ const SettingsScreen = ({ navigation }) => {
         if (typeof prefs.pushEnabled === 'boolean') setNotifications(prefs.pushEnabled);
         const saved = prefs.notifications || {};
         if (PREF_KEYS.appointmentAlerts in saved) setAppointmentAlerts(saved[PREF_KEYS.appointmentAlerts]);
-        if (prefs.language) setLanguage(prefs.language);
       })
       .catch(err => console.log('Preferences fetch failed:', err.message));
 
@@ -131,13 +123,6 @@ const SettingsScreen = ({ navigation }) => {
   const makeToggle = (setter, prefKey) => value => {
     setter(value);
     savePreference({ notifications: { [prefKey]: value } });
-  };
-
-  // Language — persist immediately on select.
-  const selectLanguage = code => {
-    setLanguage(code);
-    setShowLanguage(false);
-    savePreference({ language: code });
   };
 
   // Biometric login uses the device keystore biometric prompt to enrol/disenrol.
@@ -163,6 +148,8 @@ const SettingsScreen = ({ navigation }) => {
   // Edit profile modal
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [fullName, setFullName]               = useState('');
+  const [gender, setGender]                   = useState('');
+  const [dob, setDob]                         = useState({ dd: '', mm: '', yyyy: '' });
   // Edit phone modal
   const [showEditPhone, setShowEditPhone] = useState(false);
   const [phone, setPhone]                 = useState('');
@@ -171,8 +158,6 @@ const SettingsScreen = ({ navigation }) => {
   const [newEmail, setNewEmail]           = useState('');
   const [emailPassword, setEmailPassword] = useState('');
   const [linkBusy, setLinkBusy]           = useState(false);
-  // Language modal
-  const [showLanguage, setShowLanguage]   = useState(false);
   // Change password modal
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [currentPassword, setCurrentPassword]       = useState('');
@@ -184,6 +169,8 @@ const SettingsScreen = ({ navigation }) => {
 
   const openEditProfile = () => {
     setFullName(doctor?.full_name || '');
+    setGender(doctor?.gender || '');
+    setDob(isoToParts(doctor?.date_of_birth));
     setFormError('');
     setShowEditProfile(true);
   };
@@ -278,11 +265,17 @@ const SettingsScreen = ({ navigation }) => {
 
   const handleSaveProfile = async () => {
     if (!fullName.trim()) { setFormError('Name cannot be empty.'); return; }
+    const parsedDob = validateDobParts(dob);
+    if (!parsedDob.ok) { setFormError('Enter a valid date of birth.'); return; }
     setIsSubmitting(true);
     try {
-      await authService.updateProfile({ fullName: fullName.trim() });
+      await authService.updateProfile({
+        fullName: fullName.trim(),
+        gender: gender || undefined,
+        dateOfBirth: parsedDob.iso,
+      });
       setShowEditProfile(false);
-      showAlert('Profile Updated', 'Your name has been updated.');
+      showAlert('Profile Updated', 'Your details have been saved.');
     } catch (err) {
       setFormError(err.message || 'Profile update failed.');
     } finally {
@@ -337,7 +330,7 @@ const SettingsScreen = ({ navigation }) => {
             <ArrowRow
               icon="account-edit-outline"
               title="Edit Profile"
-              subtitle="Update your name"
+              subtitle="Update name, gender & date of birth"
               onPress={openEditProfile}
             />
             <View style={styles.rowDivider} />
@@ -421,19 +414,10 @@ const SettingsScreen = ({ navigation }) => {
               onToggle={toggleBiometric}
               disabled={biometricBusy}
             />
-            <View style={styles.rowDivider} />
-            <ArrowRow
-              icon="translate"
-              hue={HUES.orange}
-              title="Language"
-              subtitle="App display language"
-              valueText={languageLabel(language)}
-              onPress={() => setShowLanguage(true)}
-            />
           </View>
         </View>
 
-        <Text style={styles.version}>Purnazen Doctor v{APP_VERSION}</Text>
+        <AppVersionFooter />
       </ScrollView>
 
       {/* Edit Profile modal */}
@@ -451,6 +435,10 @@ const SettingsScreen = ({ navigation }) => {
               placeholderTextColor={colors.textMuted}
               autoCapitalize="words"
             />
+            <Text style={styles.modalLabel}>Gender</Text>
+            <GenderSelect value={gender} onChange={v => { setGender(v); setFormError(''); }} />
+            <Text style={styles.modalLabel}>Date of Birth</Text>
+            <DobInput value={dob} onChange={d => { setDob(d); setFormError(''); }} />
             {formError ? <Text style={styles.modalError}>{formError}</Text> : null}
             <View style={styles.modalActions}>
               <TouchableOpacity style={[styles.modalBtn, styles.modalBtnCancel]} onPress={() => setShowEditProfile(false)}>
@@ -582,37 +570,6 @@ const SettingsScreen = ({ navigation }) => {
         </View>
       </Modal>
 
-      {/* Language selector modal */}
-      <Modal visible={showLanguage} transparent animationType="fade"
-        onRequestClose={() => setShowLanguage(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>App Language</Text>
-            {LANGUAGES.map(l => {
-              const active = language === l.code;
-              return (
-                <TouchableOpacity
-                  key={l.code}
-                  style={[styles.langRow, active && styles.langRowActive]}
-                  onPress={() => selectLanguage(l.code)}
-                  activeOpacity={0.8}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.langLabel}>{l.label}</Text>
-                    <Text style={styles.langNative}>{l.native}</Text>
-                  </View>
-                  {active ? <MCIcon name="check-circle" size={20} color={colors.primary} /> : null}
-                </TouchableOpacity>
-              );
-            })}
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnCancel]} onPress={() => setShowLanguage(false)}>
-                <Text style={styles.modalBtnCancelText}>Close</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 };
@@ -666,30 +623,7 @@ const makeStyles = colors => StyleSheet.create({
   settingSubtitle: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
   valueText: { fontSize: 13, color: colors.textMuted, fontWeight: '500' },
 
-  // Language selector rows
-  langRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceMuted,
-    marginBottom: 8,
-  },
-  langRowActive: { borderColor: colors.primary, backgroundColor: colors.primaryFaint },
-  langLabel: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
-  langNative: { fontSize: 12.5, color: colors.textMuted, marginTop: 1 },
-
-  version: {
-    textAlign: 'center',
-    fontSize: 12,
-    color: colors.borderStrong,
-    marginTop: 28,
-  },
-
-  // Plain-modal forms (edit profile / phone / password / language).
+  // Plain-modal forms (edit profile / phone / password).
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',

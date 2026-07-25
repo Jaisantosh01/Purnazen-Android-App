@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Alert,
   Modal,
 } from 'react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
@@ -13,6 +12,7 @@ import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { CONTENT_TABS } from '../constants/content';
 import useTheme from '../hooks/useTheme';
+import { showAlert, showConfirm } from '../utils/alert';
 import ScreenHeader from '../components/ScreenHeader';
 
 const ContentManagementScreen = ({ navigation }) => {
@@ -59,12 +59,18 @@ const ContentManagementScreen = ({ navigation }) => {
 
   const handleDelete = (id, rowMap) => {
     if (rowMap?.[id]) rowMap[id].closeRow();
-    Alert.alert('Deactivate', 'Are you sure?', [
-      { text: 'Cancel' },
-      { text: 'Deactivate', style: 'destructive', onPress: () => {
-        apiClient.delete(`${ENDPOINTS.CONTENT_PAGES}/${id}`).then(fetchPages).catch(() => Alert.alert('Error', 'Failed to deactivate'));
-      }},
-    ]);
+    // Themed dialog (AppAlertHost), matching every other destructive action.
+    showConfirm(
+      'Deactivate page',
+      'This page will be hidden from the apps. You can re-enable it from the editor.',
+      () => {
+        apiClient
+          .delete(`${ENDPOINTS.CONTENT_PAGES}/${id}`)
+          .then(fetchPages)
+          .catch(() => showAlert('Error', 'Failed to deactivate'));
+      },
+      { confirmLabel: 'Deactivate', destructive: true },
+    );
   };
 
   const handleCardPress = (item) => navigation.navigate('ContentDetail', { item });
@@ -239,8 +245,8 @@ const makeStyles = colors => StyleSheet.create({
   editBack: { backgroundColor: '#3B82F6' },
   backBtnText: { color: '#fff', fontSize: 12, fontWeight: '600' },
 
-  pickerModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', paddingHorizontal: 32 },
-  pickerModalContent: { backgroundColor: colors.card, borderRadius: 14, padding: 16, maxHeight: '70%' },
+  pickerModalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', paddingHorizontal: 32 },
+  pickerModalContent: { backgroundColor: colors.modalSurface, borderRadius: 14, padding: 16, maxHeight: '70%'  , borderWidth: 1, borderColor: colors.modalBorder, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 16, elevation: 12},
   pickerModalTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary, marginBottom: 12, textAlign: 'center' },
   pickerDivider: { height: 1, backgroundColor: colors.border, marginVertical: 4 },
   pickerOption: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 12, borderRadius: 10, marginBottom: 4 },

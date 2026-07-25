@@ -17,60 +17,8 @@ import ScreenHeader from '../components/ScreenHeader';
 import { SPACING, RADIUS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
 import patientService from '../services/patientService';
-
-const FILTER_CHIPS = ['All', 'Male', 'Female', 'Others', 'Recent'];
-
-// ─── Patient Card Component ───────────────────────────────────────────────────
-const PatientCard = ({ item, onPress }) => {
-  const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
-  const initials = item.name
-    ? item.name
-        .split(' ')
-        .map(part => part[0])
-        .join('')
-        .toUpperCase()
-        .slice(0, 2)
-    : '';
-
-  return (
-    <TouchableOpacity
-      style={styles.card}
-      activeOpacity={0.88}
-      onPress={() => onPress(item)}>
-      
-      {/* Circular Avatar */}
-      <View style={styles.avatarCircle}>
-        <Text style={styles.avatarText}>{initials}</Text>
-      </View>
-
-      {/* Patient details */}
-      <View style={styles.cardBody}>
-        <Text style={styles.cardName}>{item.name}</Text>
-        <Text style={styles.cardMeta}>{item.gender} • {item.ageStr || `${item.age} Years`}</Text>
-        
-        <Text style={styles.consultationsCount}>{item.totalConsultations} Consultations</Text>
-        
-        <View style={styles.lastVisitSection}>
-          <Text style={styles.lastVisitLabel}>Last Visit:</Text>
-          <Text style={styles.lastVisitValue}>{item.lastVisit}</Text>
-        </View>
-      </View>
-
-      {/* Right chevron icon */}
-      <View style={styles.chevronWrap}>
-        <MCIcon name="chevron-right" size={24} color={colors.textMuted} />
-      </View>
-
-    </TouchableOpacity>
-  );
-};
-
-const PatientSeparator = () => {
-  const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
-  return <View style={styles.separator} />;
-};
+import { PatientCard, PatientSeparator } from '../components/PatientCard';
+import { FILTER_CHIPS } from '../constants/patients';
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 const PatientsScreen = ({ navigation }) => {
@@ -299,72 +247,8 @@ const makeStyles = colors =>
     fontWeight: '700',
   },
 
-  // List & Cards
+  // List
   list: { padding: SPACING.lg, paddingBottom: 40 },
-  card: {
-    flexDirection: 'row',
-    backgroundColor: colors.card,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: SPACING.md,
-    alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.07,
-    shadowRadius: 4,
-  },
-  avatarCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    color: colors.primary,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  cardBody: {
-    flex: 1,
-    marginLeft: SPACING.md,
-    gap: 4,
-  },
-  cardName: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: colors.textPrimary,
-  },
-  cardMeta: {
-    fontSize: 12.5,
-    color: colors.textSecondary,
-  },
-  consultationsCount: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.primary,
-    marginTop: 4,
-  },
-  lastVisitSection: {
-    marginTop: 6,
-  },
-  lastVisitLabel: {
-    fontSize: 11,
-    color: colors.textMuted,
-    fontWeight: '600',
-  },
-  lastVisitValue: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginTop: 1,
-  },
-  chevronWrap: {
-    paddingLeft: SPACING.xs,
-  },
 
   // Empty State
   emptyContainer: {
@@ -384,9 +268,6 @@ const makeStyles = colors =>
     fontSize: 13,
     color: colors.textSecondary,
     textAlign: 'center',
-  },
-  separator: {
-    height: SPACING.md,
   },
   center: {
     flex: 1,

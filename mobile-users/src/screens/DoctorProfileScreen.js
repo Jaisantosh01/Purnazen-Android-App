@@ -56,11 +56,15 @@ const DoctorBasicCard = ({ doctor, visitTypes, styles, colors }) => (
         : doctor.specialty || doctor.speciality || doctor.specialties || ''}
     </Text>
 
-    <View style={styles.ratingRow}>
-      <MCIcon name="star" size={15} color={colors.warning} style={styles.star} />
-      <Text style={styles.rating}>{doctor.rating}</Text>
-      <Text style={styles.reviews}>({doctor.reviews} reviews)</Text>
-    </View>
+    {/* Hidden until the doctor actually has reviews — the backend defaults
+        average_rating to 0, which rendered as a one-star-looking "0". */}
+    {doctor.reviews > 0 && (
+      <View style={styles.ratingRow}>
+        <MCIcon name="star" size={15} color={colors.warning} style={styles.star} />
+        <Text style={styles.rating}>{Number(doctor.rating).toFixed(1)}</Text>
+        <Text style={styles.reviews}>({doctor.reviews} reviews)</Text>
+      </View>
+    )}
 
     {!!doctor.location && (
       <View style={styles.locationRow}>
@@ -175,9 +179,11 @@ const DoctorProfileScreen = ({ navigation, route }) => {
                   <MCIcon name="school" size={20} color={colors.primary} style={styles.educationIcon} />
                   <View style={styles.educationInfo}>
                     <Text style={styles.educationDegree}>{detailData.education}</Text>
-                    <Text style={styles.educationExp}>
-                      {detailData.experience} years of experience
-                    </Text>
+                    {detailData.experience > 0 ? (
+                      <Text style={styles.educationExp}>
+                        {detailData.experience} {detailData.experience === 1 ? 'year' : 'years'} of experience
+                      </Text>
+                    ) : null}
                   </View>
                 </View>
               </View>

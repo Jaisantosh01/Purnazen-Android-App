@@ -17,11 +17,11 @@ class WellnessSessionRepository:
 
     @staticmethod
     def get_by_id(db: Session, session_id: uuid.UUID) -> WellnessSession | None:
-        return (
-            db.query(WellnessSession)
-            .filter(WellnessSession.id == session_id, WellnessSession.is_active.is_(True))
-            .first()
-        )
+        # Deliberately NOT filtered on is_active: this backs the admin edit/
+        # delete/reorder paths, and an inactive session must stay reachable —
+        # otherwise re-activating one (or reordering a list that contains one)
+        # 404s with "Wellness session not found".
+        return db.query(WellnessSession).filter(WellnessSession.id == session_id).first()
 
     @staticmethod
     def create(db: Session, session: WellnessSession) -> WellnessSession:

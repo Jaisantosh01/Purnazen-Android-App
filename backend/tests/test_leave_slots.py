@@ -1,5 +1,5 @@
 import pytest
-from datetime import date, time
+from datetime import date, time, timedelta
 import uuid
 
 from tests.test_doctors import next_weekday
@@ -275,7 +275,10 @@ def test_duplicate_leave_prevention(client, db_session):
 
     app.dependency_overrides[get_current_user] = override_get_current_user
 
-    test_date = date(2026, 7, 20)
+    # Relative, not a fixed calendar date: create_leave rejects a start_date in
+    # the past, so the hardcoded 2026-07-20 this used to carry turned CI red on
+    # its own the day it elapsed.
+    test_date = date.today() + timedelta(days=7)
 
     # 1. Apply for leave first time (pending) -> Should succeed
     leave_payload = {

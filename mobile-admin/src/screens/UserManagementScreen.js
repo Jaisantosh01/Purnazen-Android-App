@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
@@ -17,7 +16,7 @@ import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { ListSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
-import { showAlert } from '../utils/alert';
+import { showAlert, showConfirm } from '../utils/alert';
 
 const ROLE_COLORS = {
   'admin': '#FF4D4D',
@@ -84,14 +83,18 @@ const UserManagementScreen = ({ navigation }) => {
 
   const handleDelete = (item, rowMap) => {
     if (rowMap?.[item.id]) rowMap[item.id].closeRow();
-    Alert.alert('Delete User', `Are you sure you want to delete ${item.full_name}?`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => {
+    // Themed dialog (AppAlertHost) rather than the OS Alert, so the confirm
+    // follows the app theme like every other destructive action.
+    showConfirm(
+      'Delete User',
+      `Delete ${item.full_name}? This cannot be undone.`,
+      () => {
         apiClient.delete(`${ENDPOINTS.USERS}/${item.id}`)
           .then(() => { showAlert('Success', 'User deleted'); fetchData(); })
           .catch(() => showAlert('Error', 'Failed to delete user'));
-      }},
-    ]);
+      },
+      { confirmLabel: 'Delete', destructive: true },
+    );
   };
 
   const handleLoadMore = () => {

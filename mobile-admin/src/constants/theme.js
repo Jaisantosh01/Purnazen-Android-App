@@ -40,6 +40,14 @@ export const LIGHT_COLORS = {
   border: '#FED7AA',         // soft orange border
   borderStrong: '#FDBA74',
 
+  // Modal/dialog surfaces. In light mode a plain white card on a dimmed page
+  // already separates itself; the tokens exist so dark mode can lift the card
+  // above the background instead of matching it.
+  overlay: 'rgba(0,0,0,0.4)',
+  overlayStrong: 'rgba(0,0,0,0.55)',
+  modalSurface: '#FFFFFF',
+  modalBorder: '#FED7AA',
+
   // Header card — keeps the brand-orange hero on both schemes
   headerBg: '#EA580C',
   headerText: '#FFFFFF',
@@ -68,6 +76,14 @@ export const DARK_COLORS = {
   surfaceMuted: '#2A211A',
   border: '#352A20',
   borderStrong: '#43352A',
+
+  // A dark card at `card` on a dimmed `background` is nearly the same value —
+  // popups read as part of the page. Lift the modal surface a step and dim the
+  // page harder so the dialog has an unmistakable edge.
+  overlay: 'rgba(0,0,0,0.7)',
+  overlayStrong: 'rgba(0,0,0,0.78)',
+  modalSurface: '#2E241C',
+  modalBorder: '#53412F',
 
   headerBg: '#3A1E0E',
   headerText: '#F3F4F6',
