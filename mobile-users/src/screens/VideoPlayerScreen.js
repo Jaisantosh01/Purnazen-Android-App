@@ -128,7 +128,7 @@ const VideoPlayerScreen = ({ route, navigation }) => {
       setSavingFeedback(false);
       setShowFeedbackModal(false);
     }
-  }, [feedbackId, hasPainBefore, painAfter, userFeedback, groupId, sessionGroupId]);
+  }, [feedbackId, painAfter, userFeedback, groupId, sessionGroupId]);
 
   const handleSaveInitialFeedback = useCallback(async () => {
     setSavingInitial(true);
