@@ -45,12 +45,12 @@ const ContentEditorScreen = ({ route, navigation }) => {
   const [version, setVersion] = useState('1.0');
   const [isActive, setIsActive] = useState(true);
   const [roles, setRoles] = useState(allRoles || []);
-  const [contentTypePicker, setContentTypePicker] = useState(false);
   const [rolePicker, setRolePicker] = useState(false);
   const [editorTab, setEditorTab] = useState('write');
   const [saving, setSaving] = useState(false);
 
   const selRef = useRef({ start: 0, end: 0 });
+  const [selectionOverride, setSelectionOverride] = useState(null);
 
   useEffect(() => {
     if (editingItem) {
@@ -92,9 +92,10 @@ const ContentEditorScreen = ({ route, navigation }) => {
   const applyInline = ({ open, close }) => {
     const { start, end } = clampSelection();
     if (start === end) {
-      // No selection: insert a placeholder the user can overwrite.
-      const insertion = `${open}text${close}`;
+      const insertion = `${open}${close}`;
       setContent(content.substring(0, start) + insertion + content.substring(end));
+      setSelectionOverride({ start: start + open.length, end: start + open.length });
+      setTimeout(() => setSelectionOverride(null), 100);
       return;
     }
     const selected = content.substring(start, end);
@@ -187,11 +188,9 @@ const ContentEditorScreen = ({ route, navigation }) => {
 
         <ScrollView style={styles.modalContent} keyboardShouldPersistTaps="handled">
           <Text style={styles.label}>Content Type <Text style={{ color: '#EF4444' }}>*</Text></Text>
-          <TouchableOpacity style={styles.picker} onPress={() => setContentTypePicker(true)}>
-            <MCIcon name={contentType === 'terms' ? 'file-document-outline' : 'shield-lock-outline'} size={18} color={colors.textPrimary} />
+          <View style={styles.picker}>
             <Text style={styles.pickerText}>{CONTENT_TABS.find(t => t.key === contentType)?.label || contentType}</Text>
-            <MCIcon name="chevron-down" size={18} color={colors.textMuted} />
-          </TouchableOpacity>
+          </View>
 
           <Text style={styles.label}>Target Roles <Text style={{ color: '#EF4444' }}>*</Text></Text>
           <TouchableOpacity style={styles.picker} onPress={() => setRolePicker(true)}>
@@ -201,10 +200,19 @@ const ContentEditorScreen = ({ route, navigation }) => {
           </TouchableOpacity>
 
           <Text style={styles.label}>Title <Text style={{ color: '#EF4444' }}>*</Text></Text>
-          <TextInput style={styles.input} placeholder="e.g. Terms & Conditions v2" placeholderTextColor={colors.textMuted} value={title} onChangeText={setTitle} />
+          <TextInput style={styles.input} placeholder={contentType === 'terms' ? 'e.g. Terms & Conditions v2' : 'e.g. Privacy Policy v2'} placeholderTextColor={colors.textMuted} value={title} onChangeText={setTitle} />
 
-          <Text style={styles.label}>Version</Text>
-          <TextInput style={[styles.input, { width: 120 }]} placeholder="1.0" placeholderTextColor={colors.textMuted} value={version} onChangeText={setVersion} />
+          <View style={styles.versionRow}>
+            <View>
+              <Text style={styles.label}>Version</Text>
+              <TextInput style={[styles.input, { width: 100 }]} placeholder="1.0" placeholderTextColor={colors.textMuted} value={version} onChangeText={setVersion} />
+            </View>
+            <View style={{ flex: 1 }} />
+            <View style={styles.switchRow}>
+              <Text style={styles.switchLabel}>Active</Text>
+              <AppToggle value={isActive} onValueChange={setIsActive} />
+            </View>
+          </View>
 
           <Text style={styles.label}>Content <Text style={{ color: '#EF4444' }}>*</Text></Text>
 
@@ -237,6 +245,7 @@ const ContentEditorScreen = ({ route, navigation }) => {
                 value={content}
                 onChangeText={setContent}
                 onSelectionChange={handleSelectionChange}
+                selection={selectionOverride}
                 placeholder="Write content here..."
                 placeholderTextColor={colors.textMuted}
                 multiline
@@ -257,11 +266,6 @@ const ContentEditorScreen = ({ route, navigation }) => {
             </View>
           )}
 
-          <View style={styles.switchRow}>
-            <Text style={styles.switchLabel}>Active</Text>
-            <AppToggle value={isActive} onValueChange={setIsActive} />
-          </View>
-
           <View style={styles.modalButtons}>
             <TouchableOpacity style={[styles.btn, styles.cancelBtn]} onPress={() => navigation.goBack()}>
               <Text style={styles.cancelBtnText}>Cancel</Text>
@@ -275,21 +279,6 @@ const ContentEditorScreen = ({ route, navigation }) => {
             </TouchableOpacity>
           </View>
         </ScrollView>
-
-        <Modal visible={contentTypePicker} transparent={true} animationType="fade" onRequestClose={() => setContentTypePicker(false)}>
-          <TouchableOpacity style={styles.pickerModalOverlay} activeOpacity={1} onPress={() => setContentTypePicker(false)}>
-            <View style={styles.pickerModalContent}>
-              {CONTENT_TABS.map(tab => (
-                <TouchableOpacity key={tab.key} style={[styles.pickerOption, contentType === tab.key && styles.pickerOptionActive]}
-                  onPress={() => { setContentType(tab.key); setContentTypePicker(false); }}>
-                  <MCIcon name={tab.icon} size={20} color={contentType === tab.key ? colors.primary : colors.textPrimary} />
-                  <Text style={[styles.pickerOptionText, contentType === tab.key && { color: colors.primary, fontWeight: '700' }]}>{tab.label}</Text>
-                  {contentType === tab.key && <MCIcon name="check" size={20} color={colors.primary} />}
-                </TouchableOpacity>
-              ))}
-            </View>
-          </TouchableOpacity>
-        </Modal>
 
         <Modal visible={rolePicker} transparent={true} animationType="fade" onRequestClose={() => setRolePicker(false)}>
           <TouchableOpacity style={styles.pickerModalOverlay} activeOpacity={1} onPress={() => setRolePicker(false)}>
@@ -350,9 +339,10 @@ const makeStyles = colors => StyleSheet.create({
   editorHint: { fontSize: 11, color: colors.textMuted, marginTop: 6 },
   previewBox: { backgroundColor: colors.surfaceMuted, borderRadius: 8, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 12, paddingVertical: 10, minHeight: 180 },
 
-  switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 },
+  versionRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 12 },
+  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   switchLabel: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
-  modalButtons: { flexDirection: 'row', gap: 10, marginTop: 20, marginBottom: 16 },
+  modalButtons: { flexDirection: 'row', gap: 10, marginTop: 20, marginBottom: 40 },
   btn: { flex: 1, padding: 14, borderRadius: 10, alignItems: 'center' },
   cancelBtn: { backgroundColor: colors.surfaceMuted },
   saveBtn: { backgroundColor: colors.primary },
