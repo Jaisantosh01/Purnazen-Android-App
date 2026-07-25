@@ -24,13 +24,6 @@ import { useAuthStore } from '../store/authStore';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 
-// Shared toggle ids with NotificationsScreen (user_preferences.notifications)
-const PREF_KEYS = {
-  sessionReminders: 'session_reminder',
-  appointmentAlerts: 'appointment',
-  promotionalEmails: 'offers',
-};
-
 // Per-row accent hues. The icon background is a translucent wash of the same
 // hue (`soft()`), so the tint reads correctly over both light and dark cards
 // instead of the old fixed pastel fills that glowed in dark mode.
@@ -221,10 +214,6 @@ const SettingsScreen = ({ navigation }) => {
     );
   };
 
-  const [notifications, setNotifications]         = useState(true);
-  const [sessionReminders, setSessionReminders]   = useState(true);
-  const [appointmentAlerts, setAppointmentAlerts] = useState(true);
-  const [promotionalEmails, setPromotionalEmails] = useState(false);
   const [biometric, setBiometric]                 = useState(false);
   const [biometricBusy, setBiometricBusy]         = useState(false);
   const [locationAccess, setLocationAccess]       = useState(false);
@@ -235,11 +224,6 @@ const SettingsScreen = ({ navigation }) => {
   React.useEffect(() => {
     preferencesService.getPreferences()
       .then(prefs => {
-        setNotifications(prefs.pushEnabled);
-        const saved = prefs.notifications || {};
-        if (PREF_KEYS.sessionReminders in saved) setSessionReminders(saved[PREF_KEYS.sessionReminders]);
-        if (PREF_KEYS.appointmentAlerts in saved) setAppointmentAlerts(saved[PREF_KEYS.appointmentAlerts]);
-        if (PREF_KEYS.promotionalEmails in saved) setPromotionalEmails(saved[PREF_KEYS.promotionalEmails]);
         if (prefs.language) setLanguage(prefs.language);
         if (typeof prefs.locationEnabled === 'boolean') setLocationAccess(prefs.locationEnabled);
       })
@@ -251,16 +235,6 @@ const SettingsScreen = ({ navigation }) => {
   const savePreference = payload => {
     preferencesService.updatePreferences(payload)
       .catch(err => console.log('Preference save failed:', err.message));
-  };
-
-  const togglePush = value => {
-    setNotifications(value);
-    savePreference({ pushEnabled: value });
-  };
-
-  const makeToggle = (setter, prefKey) => value => {
-    setter(value);
-    savePreference({ notifications: { [prefKey]: value } });
   };
 
   // Language — persist immediately on select.
@@ -565,47 +539,6 @@ const SettingsScreen = ({ navigation }) => {
                   : 'Not linked'
               }
               onPress={handleLinkedAccount}
-            />
-          </View>
-        </View>
-
-        {/* Notifications */}
-        <View style={styles.section}>
-          <SectionHeader title="Notifications" />
-          <View style={styles.card}>
-            <ToggleRow
-              icon="bell-outline"
-              title="Push Notifications"
-              subtitle="Enable all app notifications"
-              value={notifications}
-              onToggle={togglePush}
-            />
-            <View style={styles.rowDivider} />
-            <ToggleRow
-              icon="yoga"
-              hue={HUES.purple}
-              title="Session Reminders"
-              subtitle="Daily wellness session alerts"
-              value={sessionReminders}
-              onToggle={makeToggle(setSessionReminders, PREF_KEYS.sessionReminders)}
-            />
-            <View style={styles.rowDivider} />
-            <ToggleRow
-              icon="calendar-clock"
-              hue={HUES.blue}
-              title="Appointment Alerts"
-              subtitle="Reminders before consultations"
-              value={appointmentAlerts}
-              onToggle={makeToggle(setAppointmentAlerts, PREF_KEYS.appointmentAlerts)}
-            />
-            <View style={styles.rowDivider} />
-            <ToggleRow
-              icon="tag-outline"
-              hue={HUES.amber}
-              title="Promotional Emails"
-              subtitle="Offers, tips & newsletters"
-              value={promotionalEmails}
-              onToggle={makeToggle(setPromotionalEmails, PREF_KEYS.promotionalEmails)}
             />
           </View>
         </View>
