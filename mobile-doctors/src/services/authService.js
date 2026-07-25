@@ -129,10 +129,12 @@ class AuthService {
   }
 
   /** Update profile (full name / phone); keeps the cached user and store in sync. */
-  async updateProfile({ fullName, phone } = {}) {
+  async updateProfile({ fullName, phone, gender, dateOfBirth } = {}) {
     const payload = {};
     if (fullName !== undefined) payload.fullName = fullName;
     if (phone !== undefined) payload.phone = phone;
+    if (gender !== undefined) payload.gender = gender;
+    if (dateOfBirth !== undefined) payload.dateOfBirth = dateOfBirth;
     const response = await apiClient.put(ENDPOINTS.ME, payload);
 
     if (!response.success) {

@@ -18,6 +18,8 @@ Every rejection returns a soft, human message the apps can show inline.
 
 from email_validator import EmailNotValidError, validate_email
 
+from app.core.config import settings
+
 # Common disposable / temporary email domains. Not exhaustive — it catches the
 # services people actually reach for. Lowercase, bare domains.
 DISPOSABLE_DOMAINS: frozenset[str] = frozenset({
@@ -57,15 +59,21 @@ def _domain_of(email: str) -> str:
     return email.rsplit("@", 1)[-1].strip().lower().rstrip(".")
 
 
-def validate_account_email(email: str, check_deliverability: bool = True) -> dict:
+def validate_account_email(email: str, check_deliverability: bool | None = None) -> dict:
     """Validate an email for account use.
 
     Returns a dict ``{"valid": bool, "email": normalized_or_input,
     "message": str | None}``. ``message`` is a soft explanation when invalid.
 
-    ``check_deliverability`` adds an MX lookup (best-effort — network failures
-    are ignored so they never block a legitimate signup).
+    ``check_deliverability`` adds an MX lookup (best-effort — a DNS outage is
+    reported as "unknown" by email-validator rather than raising, so it never
+    blocks a legitimate signup). Leave it as ``None`` to follow
+    ``settings.EMAIL_CHECK_DELIVERABILITY``, which the test suite turns off so
+    results don't depend on the runner having working DNS.
     """
+    if check_deliverability is None:
+        check_deliverability = settings.EMAIL_CHECK_DELIVERABILITY
+
     raw = (email or "").strip()
     if not raw:
         return {"valid": False, "email": raw, "message": MSG_INVALID}

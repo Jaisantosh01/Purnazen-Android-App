@@ -21,6 +21,7 @@ import {
   ActivityIndicator, AppState,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuthStore } from '../store/authStore';
 import { checkForUpdate, FORCE_MARKER } from '../services/updateService';
 import {
   isOtaSupported, canInstall, openInstallSettings, downloadUpdate, installUpdate,
@@ -77,25 +78,37 @@ export default function UpdatePrompt() {
     }
   }, []);
 
-  // ── Initial check ──────────────────────────────────────────────────────────
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const u = await checkForUpdate();
-      if (!u || cancelled) return;
-      if (!u.forced) {
-        const skipped = await AsyncStorage.getItem(SKIP_KEY);
-        if (skipped === u.version) return; // "Later" already chosen for this version
-      }
-      if (cancelled) return;
-      infoRef.current = u;
-      setInfo(u);
-      setVisible(true);
-      // Forced update: pull it down in the background straight away.
-      if (u.forced && native && u.apkUrl) beginDownload(u);
-    })();
-    return () => { cancelled = true; };
+  // ── Update check ───────────────────────────────────────────────────────────
+  // Runs at launch (signed in or not — /app-releases/latest is public), again
+  // whenever the auth state flips, and whenever the app returns to the
+  // foreground. Previously this fired exactly once on mount: at the login
+  // screen the call 401'd, and nothing ever re-checked afterwards, so a forced
+  // release only ever surfaced through the manual "Check for Updates" button.
+  const runCheck = useCallback(async () => {
+    if (infoRef.current) return; // already prompted for a version this session
+    const u = await checkForUpdate();
+    if (!u || infoRef.current) return;
+    if (!u.forced) {
+      const skipped = await AsyncStorage.getItem(SKIP_KEY);
+      if (skipped === u.version) return; // "Later" already chosen for this version
+    }
+    if (infoRef.current) return;
+    infoRef.current = u;
+    setInfo(u);
+    setVisible(true);
+    // Forced update: pull it down in the background straight away.
+    if (u.forced && native && u.apkUrl) beginDownload(u);
   }, [native, beginDownload]);
+
+  const isLoggedIn = useAuthStore(s => s.isLoggedIn);
+  useEffect(() => { runCheck(); }, [runCheck, isLoggedIn]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active') runCheck();
+    });
+    return () => sub.remove();
+  }, [runCheck]);
 
   // ── Native download lifecycle ──────────────────────────────────────────────
   useEffect(() => {

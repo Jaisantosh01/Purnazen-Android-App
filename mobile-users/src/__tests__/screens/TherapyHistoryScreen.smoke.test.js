@@ -3,10 +3,16 @@ import { act } from 'react-test-renderer';
 import renderer from 'react-test-renderer';
 import TherapyHistoryScreen from '../../screens/TherapyHistoryScreen';
 
-// The screen loads session groups via getSessionGroups() and derives its stats
-// from the returned sessions (session-groups refactor). Cards are titled by
-// session type — a 'yoga' session renders as "Yoga Session".
+// The screen loads session groups via getSessionGroups() for the cards AND
+// getTherapyHistory() for the minutes KPI — both in one Promise.all, so a
+// missing mock rejects the pair and drops the screen into its error state.
+// (getTherapyHistory was absent here, which is why the two stats assertions
+// below were failing on `getTherapyHistory is not a function`.)
+// Cards are titled by session type — a 'yoga' session renders as "Yoga Session".
 jest.mock('../../services/therapyService', () => ({
+  getTherapyHistory: jest.fn().mockResolvedValue({
+    stats: { sessions: 2, minutes: 45, avgRelief: 30 },
+  }),
   getSessionGroups: jest.fn().mockResolvedValue({
     sessions: [
       {

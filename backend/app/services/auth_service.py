@@ -244,6 +244,12 @@ class AuthService:
             user.gender = data["gender"]
         if data.get("date_of_birth") is not None:
             user.date_of_birth = data["date_of_birth"]
+        for field in ("blood_group", "height_cm", "weight_kg", "allergies", "conditions", "medications"):
+            if data.get(field) is not None:
+                value = data[field]
+                # An empty string is how the app clears a free-text field.
+                user_value = value.strip() or None if isinstance(value, str) else value
+                setattr(user, field, user_value)
         db.commit()
         db.refresh(user)
 
@@ -268,6 +274,47 @@ class AuthService:
             "message": "Password changed successfully",
             "access_token": create_access_token(str(user.id), user.token_version),
             "refresh_token": create_refresh_token(str(user.id), user.token_version),
+        }, 200
+
+    @staticmethod
+    def request_account_deletion(db: Session, user: User):
+        """Raise a deletion *request* for an admin to action.
+
+        Patients no longer wipe their own account from the app — the data has
+        clinical value (appointments, therapy history, scans) and the call is
+        the clinic's to make. This notifies every admin and leaves the account
+        untouched; the actual removal happens from the admin console.
+        """
+        from app.models.role import Role
+        from app.services.notification_service import NotificationService
+
+        if db.query(Doctor).filter_by(user_id=user.id).first():
+            return {
+                "success": False,
+                "message": "Doctor accounts cannot be deleted from the app",
+            }, 400
+
+        admin_ids = [
+            row[0]
+            for row in db.query(User.id)
+            .join(Role, User.role_id == Role.id)
+            .filter(Role.name == "admin", User.is_active.is_(True))
+            .all()
+        ]
+        for admin_id in admin_ids:
+            NotificationService.notify_safely(
+                db,
+                admin_id,
+                "system",
+                "account_deletion_requested",
+                "Account deletion requested",
+                f"{user.full_name} ({user.email}) has asked for their account to be deleted.",
+                {"userId": str(user.id), "email": user.email},
+            )
+
+        return {
+            "success": True,
+            "message": "Deletion request submitted",
         }, 200
 
     @staticmethod

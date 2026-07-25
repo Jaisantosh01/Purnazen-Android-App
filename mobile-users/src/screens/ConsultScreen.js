@@ -148,12 +148,24 @@ const ConsultScreen = ({ navigation }) => {
           <Text style={styles.doctorName} numberOfLines={1}>{doctor.name}</Text>
           <Text style={styles.doctorSpecialty} numberOfLines={1}>{doctor.specialties || ''}</Text>
 
+          {/* There is no review system yet, so `rating`/`reviews` come back as
+              0 for every doctor — showing "★ 0.0 (0)" read as a bad score. The
+              stars only appear once real reviews exist; experience is genuine
+              admin-entered data and stands on its own. */}
           <View style={styles.ratingRow}>
-            <MCIcon name="star" size={14} color={colors.warning} />
-            <Text style={styles.rating}> {doctor.rating}</Text>
-            <Text style={styles.reviews}> ({doctor.reviews})</Text>
-            <Text style={styles.separator}>  •  </Text>
-            <Text style={styles.experience}>{doctor.experience} years</Text>
+            {doctor.reviews > 0 && (
+              <>
+                <MCIcon name="star" size={14} color={colors.warning} />
+                <Text style={styles.rating}> {Number(doctor.rating).toFixed(1)}</Text>
+                <Text style={styles.reviews}> ({doctor.reviews})</Text>
+                {doctor.experience > 0 && <Text style={styles.separator}>  •  </Text>}
+              </>
+            )}
+            {doctor.experience > 0 && (
+              <Text style={styles.experience}>
+                {doctor.experience} {doctor.experience === 1 ? 'year' : 'years'} experience
+              </Text>
+            )}
           </View>
 
           {!!doctor.location && (

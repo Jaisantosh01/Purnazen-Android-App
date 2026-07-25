@@ -15,6 +15,7 @@ import { useAuthStore } from '../store/authStore';
 import authService from '../services/authService';
 import appointmentService from '../services/appointmentService';
 import useTheme from '../hooks/useTheme';
+import AppVersionFooter from '../components/AppVersionFooter';
 import { useHeaderTopPadding } from '../components/ScreenHeader';
 import { checkForUpdate, FORCE_MARKER } from '../services/updateService';
 import { isOtaSupported, startBackgroundInstall } from '../services/otaUpdater';
@@ -131,9 +132,9 @@ const ProfileScreen = ({ navigation }) => {
     );
   };
 
+  // Leave lives under Schedule → Leave; the duplicate shortcuts that used to sit
+  // here were removed so there's one place to apply for / review leave.
   const MENU_ITEMS = [
-    { icon: 'calendar-plus',       iconColor: '#16A34A', title: 'Apply for Leave',   subtitle: 'Request time off',   onPress: () => navigation.navigate('ApplyLeave') },
-    { icon: 'calendar-clock',      iconColor: '#7C3AED', title: 'Leave Requests',    subtitle: 'View your leaves',   onPress: () => navigation.navigate('LeaveHistory', { filter: 'all' }) },
     { icon: 'cog-outline',         iconColor: '#6B7280', title: 'Settings',          subtitle: 'App preferences', onPress: () => navigation.navigate('Settings') },
     { icon: 'cloud-download-outline', iconColor: '#0D9488', title: 'Check for Updates', subtitle: null,          onPressKey: 'checkUpdate' },
     { icon: 'help-circle-outline', iconColor: '#0284c7', title: 'Help & Support',    subtitle: 'Get assistance', onPress: () => navigation.navigate('HelpSupport') },
@@ -168,20 +169,28 @@ const ProfileScreen = ({ navigation }) => {
             </View>
           </View>
 
-          {/* ── Trackers ── */}
+          {/* ── Trackers ──
+              These are appointment counts, which the bare "Today / Upcoming /
+              Completed" labels never said. Captioned, spelled out, and tapping
+              any of them opens the Appointments tab so the numbers are
+              traceable to a list. */}
+          <Text style={styles.statsCaption}>MY APPOINTMENTS</Text>
           <View style={styles.statsRow}>
-            <View style={[styles.statBox, styles.statBorder]}>
-              <Text style={styles.statValue}>{statsLoading ? '·' : (stats?.today ?? '—')}</Text>
-              <Text style={styles.statLabel}>Today</Text>
-            </View>
-            <View style={[styles.statBox, styles.statBorder]}>
-              <Text style={styles.statValue}>{statsLoading ? '·' : (stats?.upcoming ?? '—')}</Text>
-              <Text style={styles.statLabel}>Upcoming</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={styles.statValue}>{statsLoading ? '·' : (stats?.completed ?? '—')}</Text>
-              <Text style={styles.statLabel}>Completed</Text>
-            </View>
+            {[
+              { key: 'today',     value: stats?.today,     label: 'Today' },
+              { key: 'upcoming',  value: stats?.upcoming,  label: 'Upcoming' },
+              { key: 'completed', value: stats?.completed, label: 'Completed' },
+            ].map((s, i, arr) => (
+              <TouchableOpacity
+                key={s.key}
+                style={[styles.statBox, i < arr.length - 1 && styles.statBorder]}
+                activeOpacity={0.7}
+                onPress={() => navigation.getParent()?.navigate('Appointments')}
+              >
+                <Text style={styles.statValue}>{statsLoading ? '·' : (s.value ?? '—')}</Text>
+                <Text style={styles.statLabel}>{s.label}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
 
@@ -218,6 +227,8 @@ const ProfileScreen = ({ navigation }) => {
           <MCIcon name="logout" size={18} color={colors.danger} style={{ marginRight: 8 }} />
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
+
+        <AppVersionFooter />
 
       </ScrollView>
     </View>
@@ -283,6 +294,13 @@ const makeStyles = colors => StyleSheet.create({
     fontWeight: '600',
   },
 
+  statsCaption: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1,
+    color: 'rgba(255,255,255,0.7)',
+    marginBottom: 8,
+  },
   statsRow: {
     flexDirection: 'row',
     backgroundColor: 'rgba(255,255,255,0.15)',

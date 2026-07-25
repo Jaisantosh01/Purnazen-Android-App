@@ -16,6 +16,7 @@ export const ENDPOINTS = {
   LOGOUT: `${API_VERSION}/auth/logout`,
   REFRESH: `${API_VERSION}/auth/refresh`,
   ME: `${API_VERSION}/auth/me`,
+  ACCOUNT_DELETION_REQUEST: `${API_VERSION}/auth/me/deletion-request`,
   CHANGE_PASSWORD: `${API_VERSION}/auth/change-password`,
 
   // App releases (OTA) — backend-brokered update check + short-lived SAS download
@@ -25,6 +26,8 @@ export const ENDPOINTS = {
 
   // User preferences
   PREFERENCES: `${API_VERSION}/users/me/preferences`,
+  HEALTH_REPORT: `${API_VERSION}/users/me/health-report`,
+  AVATAR_UPLOAD: `${API_VERSION}/users/me/avatar`,
 
   // Notifications
   NOTIFICATIONS: `${API_VERSION}/notifications`,

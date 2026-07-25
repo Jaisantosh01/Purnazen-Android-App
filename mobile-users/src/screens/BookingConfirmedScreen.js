@@ -14,6 +14,16 @@ const BookingConfirmedScreen = ({ navigation, route }) => {
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
+  // "Back to Home" only switched the *tab*; this screen stayed on top of the
+  // Consult stack, so re-opening Consult landed back on the confirmation.
+  // Switch tabs first (so the pop happens off-screen), then unwind the stack.
+  const goHome = () => {
+    const parent = navigation.getParent();
+    if (parent) parent.navigate('Home');
+    else navigation.navigate('Home');
+    navigation.popToTop();
+  };
+
   return (
     <View style={styles.root}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
@@ -88,7 +98,7 @@ const BookingConfirmedScreen = ({ navigation, route }) => {
 
         <TouchableOpacity
           style={styles.homeBtn}
-          onPress={() => navigation.navigate('Home')}
+          onPress={goHome}
           activeOpacity={0.85}
         >
           <Text style={styles.homeBtnText}>Back to Home</Text>

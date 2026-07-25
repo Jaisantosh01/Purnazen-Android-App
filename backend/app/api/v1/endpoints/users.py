@@ -1,7 +1,7 @@
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, Query, UploadFile
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -12,8 +12,14 @@ from app.models.user import User
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth import AdminCreateUserRequest
 from app.schemas.preferences import UpdatePreferencesRequest
+from app.services.health_report_service import HealthReportService
 from app.services.preference_service import PreferenceService
+from app.utils.azure_storage import upload_blob_file
 from app.utils.responses import error_response, success_response
+
+# Avatars are small; anything larger is a mis-picked original from the gallery.
+MAX_AVATAR_BYTES = 5 * 1024 * 1024
+ALLOWED_AVATAR_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -115,6 +121,57 @@ def update_preferences(
     return success_response(
         "Preferences updated successfully", PreferenceService.update(db, user, body)
     )
+
+@router.get(
+    "/me/health-report",
+    summary="Consolidated health report",
+    description="Read-only roll-up of the authenticated user's profile vitals, "
+    "medical background, therapy totals, appointment history and latest "
+    "face/tongue scan. Aggregates existing rows — nothing is stored.",
+)
+def get_health_report(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return success_response(
+        "Health report generated successfully", HealthReportService.build(db, user)
+    )
+
+
+@router.post(
+    "/me/avatar",
+    summary="Upload a profile photo",
+    description="Stores the image in blob storage and points the account's "
+    "`avatar_url` at it. Returns the refreshed user.",
+)
+async def upload_avatar(
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if file.content_type not in ALLOWED_AVATAR_TYPES:
+        return error_response("Please choose a JPEG, PNG or WebP image", 400)
+
+    data = await file.read()
+    if not data:
+        return error_response("The selected file is empty", 400)
+    if len(data) > MAX_AVATAR_BYTES:
+        return error_response("Please choose an image under 5 MB", 400)
+
+    extension = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}[file.content_type]
+    blob_path = upload_blob_file(
+        data, f"avatars/{user.id}.{extension}", content_type=file.content_type
+    )
+    if not blob_path:
+        return error_response("Image storage is unavailable right now", 503)
+
+    user.avatar_url = blob_path
+    db.commit()
+    db.refresh(user)
+
+    # to_dict() already resolves avatar_url through generate_sas_url.
+    return success_response("Profile photo updated successfully", {"user": user.to_dict()})
+
 
 @router.get("/{user_id}", summary="Get user details")
 def get_user(

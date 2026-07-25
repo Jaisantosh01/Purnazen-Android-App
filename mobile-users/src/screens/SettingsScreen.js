@@ -8,7 +8,9 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
+  Image,
 } from 'react-native';
+import { launchImageLibrary } from 'react-native-image-picker';
 import { showAlert } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -17,16 +19,17 @@ import socialAuthService from '../services/socialAuthService';
 import preferencesService from '../services/preferencesService';
 import biometricService from '../services/biometricService';
 import permissionsService from '../services/permissionsService';
-import { APP_VERSION } from '../config';
-import { resetToLogin } from '../navigation/navigationRef';
 import { useAuthStore } from '../store/authStore';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
+import AppVersionFooter from '../components/AppVersionFooter';
 import ThemeToggle from '../components/ThemeToggle';
 import AppToggle from '../components/AppToggle';
 import GenderSelect from '../components/GenderSelect';
 import DobInput, { isoToParts, validateDobParts } from '../components/DobInput';
 import { isValidEmail, isValidPhone } from '../utils/validators';
+
+const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
 // Per-row accent hues. The icon background is a translucent wash of the same
 // hue (`soft()`), so the tint reads correctly over both light and dark cards
@@ -36,22 +39,14 @@ const HUES = {
   purple: '#7C3AED',
   blue: '#0284C7',
   amber: '#F59E0B',
-  orange: '#EA580C',
   rose: '#E11D48',
 };
 const soft = hex => `${hex}22`;
 
-// Supported app languages. The selected code persists to user_preferences;
-// full UI translation (i18n) is wired separately.
-const LANGUAGES = [
-  { code: 'en', label: 'English',  native: 'English'   },
-  { code: 'hi', label: 'Hindi',    native: 'हिन्दी'    },
-  { code: 'mr', label: 'Marathi',  native: 'मराठी'     },
-  { code: 'ta', label: 'Tamil',    native: 'தமிழ்'      },
-  { code: 'te', label: 'Telugu',   native: 'తెలుగు'     },
-  { code: 'bn', label: 'Bengali',  native: 'বাংলা'      },
-];
-const languageLabel = code => (LANGUAGES.find(l => l.code === code) || LANGUAGES[0]).label;
+// NOTE: the "App Language" picker used to live here. It wrote a code to
+// user_preferences but no UI was ever translated, so choosing Hindi/Tamil/…
+// changed nothing on screen. Removed rather than left as a lie — bring it back
+// together with real i18n (the `language` preference column is still there).
 
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
@@ -100,29 +95,6 @@ const makeStyles = colors => StyleSheet.create({
   settingSubtitle: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
   valueText: { fontSize: 13, color: colors.textMuted, fontWeight: '500' },
 
-  // Language selector rows (inside AppDialog)
-  langRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceMuted,
-    marginBottom: 8,
-  },
-  langRowActive: { borderColor: colors.primary, backgroundColor: colors.primaryFaint },
-  langLabel: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
-  langNative: { fontSize: 12.5, color: colors.textMuted, marginTop: 1 },
-
-  version: {
-    textAlign: 'center',
-    fontSize: 12,
-    color: colors.borderStrong,
-    marginTop: 28,
-  },
-
   // Plain-modal forms (edit profile / phone / password / language / address) —
   // standardized on the admin app's modal style.
   modalOverlay: {
@@ -139,6 +111,38 @@ const makeStyles = colors => StyleSheet.create({
     borderColor: colors.border,
   },
   modalTitle: { fontSize: 17, fontWeight: '700', color: colors.textPrimary, marginBottom: 16 },
+  // Capped in pixels: a percentage max-height has nothing to resolve against
+  // inside a content-sized modal overlay and Yoga silently drops it.
+  modalScroll: { maxHeight: 420 },
+  modalSectionLabel: {
+    fontSize: 11, fontWeight: '800', letterSpacing: 0.8,
+    color: colors.textMuted, marginTop: 20, marginBottom: 4,
+  },
+  modalHint: { fontSize: 11.5, lineHeight: 16, color: colors.textMuted, marginTop: 10 },
+
+  avatarPicker: { alignItems: 'center', gap: 8, marginBottom: 6 },
+  avatarCircle: {
+    width: 72, height: 72, borderRadius: 36, overflow: 'hidden',
+    backgroundColor: colors.primaryFaint,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: colors.border,
+  },
+  avatarImage: { width: '100%', height: '100%' },
+  avatarLetter: { fontSize: 28, fontWeight: '800', color: colors.primary },
+  avatarAction: { fontSize: 12.5, fontWeight: '700', color: colors.primary },
+
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  bloodChip: {
+    minWidth: 52, alignItems: 'center',
+    paddingVertical: 8, paddingHorizontal: 10, borderRadius: 12,
+    borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.surfaceMuted,
+  },
+  bloodChipActive: { borderColor: colors.primary, backgroundColor: colors.primary },
+  bloodChipText: { fontSize: 13, fontWeight: '700', color: colors.textSecondary },
+  bloodChipTextActive: { color: colors.white },
+
+  measureRow: { flexDirection: 'row', gap: 12 },
+  measureCol: { flex: 1 },
   modalLabel: { fontSize: 12, fontWeight: '600', color: colors.textSecondary, marginBottom: 6, marginTop: 8 },
   modalInput: {
     borderWidth: 1,
@@ -216,13 +220,11 @@ const SettingsScreen = ({ navigation }) => {
   const [biometricBusy, setBiometricBusy]         = useState(false);
   const [locationAccess, setLocationAccess]       = useState(false);
   const [locationBusy, setLocationBusy]           = useState(false);
-  const [language, setLanguage]                   = useState('en');
 
   // Hydrate the toggles/values from the server (defaults kept offline)
   React.useEffect(() => {
     preferencesService.getPreferences()
       .then(prefs => {
-        if (prefs.language) setLanguage(prefs.language);
         if (typeof prefs.locationEnabled === 'boolean') setLocationAccess(prefs.locationEnabled);
       })
       .catch(err => console.log('Preferences fetch failed:', err.message));
@@ -233,13 +235,6 @@ const SettingsScreen = ({ navigation }) => {
   const savePreference = payload => {
     preferencesService.updatePreferences(payload)
       .catch(err => console.log('Preference save failed:', err.message));
-  };
-
-  // Language — persist immediately on select.
-  const selectLanguage = code => {
-    setLanguage(code);
-    setShowLanguage(false);
-    savePreference({ language: code });
   };
 
   // Location — request the real OS permission, then persist the enabled flag.
@@ -292,6 +287,14 @@ const SettingsScreen = ({ navigation }) => {
   const [fullName, setFullName]               = useState('');
   const [gender, setGender]                   = useState('');
   const [dob, setDob]                         = useState({ dd: '', mm: '', yyyy: '' });
+  // Health profile — all optional, and all shown in My Health Report.
+  const [bloodGroup, setBloodGroup]           = useState('');
+  const [heightCm, setHeightCm]               = useState('');
+  const [weightKg, setWeightKg]               = useState('');
+  const [allergies, setAllergies]             = useState('');
+  const [conditions, setConditions]           = useState('');
+  const [medications, setMedications]         = useState('');
+  const [avatarBusy, setAvatarBusy]           = useState(false);
   // Edit phone modal
   const [showEditPhone, setShowEditPhone] = useState(false);
   const [phone, setPhone]                 = useState('');
@@ -301,8 +304,6 @@ const SettingsScreen = ({ navigation }) => {
   const [emailPassword, setEmailPassword] = useState('');
   // Social account linking
   const [linkBusy, setLinkBusy]           = useState(false);
-  // Language selector modal
-  const [showLanguage, setShowLanguage]   = useState(false);
   // Change password modal
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [currentPassword, setCurrentPassword]       = useState('');
@@ -316,8 +317,30 @@ const SettingsScreen = ({ navigation }) => {
     setFullName(user?.full_name || '');
     setGender(user?.gender || '');
     setDob(isoToParts(user?.date_of_birth));
+    setBloodGroup(user?.blood_group || '');
+    setHeightCm(user?.height_cm != null ? String(user.height_cm) : '');
+    setWeightKg(user?.weight_kg != null ? String(user.weight_kg) : '');
+    setAllergies(user?.allergies || '');
+    setConditions(user?.conditions || '');
+    setMedications(user?.medications || '');
     setFormError('');
     setShowEditProfile(true);
+  };
+
+  const pickAvatar = () => {
+    if (avatarBusy) return;
+    launchImageLibrary({ mediaType: 'photo', quality: 0.85, maxWidth: 1024, maxHeight: 1024 }, async (resp) => {
+      const uri = resp?.assets?.[0]?.uri;
+      if (resp?.didCancel || !uri) return;
+      setAvatarBusy(true);
+      try {
+        await authService.uploadAvatar(uri);
+      } catch (err) {
+        setFormError(err.message || 'Could not upload the photo.');
+      } finally {
+        setAvatarBusy(false);
+      }
+    });
   };
 
   const openEditPhone = () => {
@@ -428,16 +451,41 @@ const SettingsScreen = ({ navigation }) => {
     setShowChangePassword(true);
   };
 
+  // "" clears a stored measurement; anything else must parse to a sane number
+  // (the backend also range-checks, this just gives a friendlier message).
+  const parseMeasure = (raw, label, min, max) => {
+    const trimmed = String(raw).trim();
+    if (!trimmed) return { ok: true, value: null };
+    const num = Number(trimmed);
+    if (!Number.isFinite(num) || num < min || num > max) {
+      return { ok: false, message: `Enter a ${label} between ${min} and ${max}.` };
+    }
+    return { ok: true, value: num };
+  };
+
   const handleSaveProfile = async () => {
     if (!fullName.trim()) { setFormError('Name cannot be empty.'); return; }
     const parsedDob = validateDobParts(dob);
     if (!parsedDob.ok) { setFormError('Enter a valid date of birth.'); return; }
+
+    const height = parseMeasure(heightCm, 'height in cm', 30, 280);
+    if (!height.ok) { setFormError(height.message); return; }
+    const weight = parseMeasure(weightKg, 'weight in kg', 2, 500);
+    if (!weight.ok) { setFormError(weight.message); return; }
+
     setIsSubmitting(true);
     try {
       await authService.updateProfile({
         fullName: fullName.trim(),
         gender: gender || undefined,
         dateOfBirth: parsedDob.iso,
+        bloodGroup: bloodGroup || undefined,
+        // undefined leaves the stored value alone; the API treats "" as a clear.
+        heightCm: height.value ?? undefined,
+        weightKg: weight.value ?? undefined,
+        allergies: allergies.trim(),
+        conditions: conditions.trim(),
+        medications: medications.trim(),
       });
       setShowEditProfile(false);
       showAlert('Profile Updated', 'Your details have been saved.');
@@ -464,21 +512,26 @@ const SettingsScreen = ({ navigation }) => {
     }
   };
 
-  const handleDeleteAccount = () => {
+  // The account isn't removed from here — the request goes to the admins, who
+  // action it from the console once the clinical record can be released.
+  const handleRequestAccountDeletion = () => {
     showAlert(
-      'Delete Account',
-      'This will permanently delete your account and all your data. This action cannot be undone.',
+      'Request Account Deletion',
+      'We’ll send your request to the Purnazen team. They’ll verify it and remove your account and data. You’ll stay signed in until then.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete',
+          text: 'Send Request',
           style: 'destructive',
           onPress: async () => {
             try {
-              await authService.deleteAccount();
-              resetToLogin();
+              await authService.requestAccountDeletion();
+              showAlert(
+                'Request Sent',
+                'The Purnazen team has been notified and will get in touch about your account.',
+              );
             } catch (err) {
-              showAlert('Deletion Failed', err.message || 'Please try again later.');
+              showAlert('Request Failed', err.message || 'Please try again later.');
             }
           },
         },
@@ -560,15 +613,6 @@ const SettingsScreen = ({ navigation }) => {
               onToggle={toggleBiometric}
               disabled={biometricBusy}
             />
-            <View style={styles.rowDivider} />
-            <ArrowRow
-              icon="translate"
-              hue={HUES.orange}
-              title="Language"
-              subtitle="App display language"
-              valueText={languageLabel(language)}
-              onPress={() => setShowLanguage(true)}
-            />
           </View>
         </View>
 
@@ -610,36 +654,139 @@ const SettingsScreen = ({ navigation }) => {
           <View style={styles.card}>
             <ArrowRow
               icon="delete-outline"
-              title="Delete Account"
-              subtitle="Permanently remove all your data"
-              onPress={handleDeleteAccount}
+              title="Request Account Deletion"
+              subtitle="Ask the Purnazen team to remove your account"
+              onPress={handleRequestAccountDeletion}
               danger
             />
           </View>
         </View>
 
-        <Text style={styles.version}>Purnazen v{APP_VERSION}</Text>
+        <AppVersionFooter />
       </ScrollView>
 
-      {/* Edit Profile modal */}
+      {/* Edit Profile modal — the form outgrew a static card once the health
+          fields landed, so the body scrolls and the actions stay pinned. */}
       <Modal visible={showEditProfile} transparent animationType="fade"
         onRequestClose={() => setShowEditProfile(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Edit Profile</Text>
-            <Text style={styles.modalLabel}>Full Name</Text>
-            <TextInput
-              style={styles.modalInput}
-              value={fullName}
-              onChangeText={text => { setFullName(text); setFormError(''); }}
-              placeholder="Your name"
-              placeholderTextColor={colors.textMuted}
-              autoCapitalize="words"
-            />
-            <Text style={styles.modalLabel}>Gender</Text>
-            <GenderSelect value={gender} onChange={v => { setGender(v); setFormError(''); }} />
-            <Text style={styles.modalLabel}>Date of Birth</Text>
-            <DobInput value={dob} onChange={d => { setDob(d); setFormError(''); }} />
+
+            <ScrollView
+              style={styles.modalScroll}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Profile photo */}
+              <TouchableOpacity style={styles.avatarPicker} onPress={pickAvatar} activeOpacity={0.8} disabled={avatarBusy}>
+                <View style={styles.avatarCircle}>
+                  {avatarBusy ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : user?.avatar_url ? (
+                    <Image source={{ uri: user.avatar_url }} style={styles.avatarImage} />
+                  ) : (
+                    <Text style={styles.avatarLetter}>{(user?.full_name || '?').charAt(0).toUpperCase()}</Text>
+                  )}
+                </View>
+                <Text style={styles.avatarAction}>
+                  {avatarBusy ? 'Uploading\u2026' : user?.avatar_url ? 'Change photo' : 'Add a photo'}
+                </Text>
+              </TouchableOpacity>
+
+              <Text style={styles.modalLabel}>Full Name</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={fullName}
+                onChangeText={text => { setFullName(text); setFormError(''); }}
+                placeholder="Your name"
+                placeholderTextColor={colors.textMuted}
+                autoCapitalize="words"
+              />
+              <Text style={styles.modalLabel}>Gender</Text>
+              <GenderSelect value={gender} onChange={v => { setGender(v); setFormError(''); }} />
+              <Text style={styles.modalLabel}>Date of Birth</Text>
+              <DobInput value={dob} onChange={d => { setDob(d); setFormError(''); }} />
+
+              <Text style={styles.modalSectionLabel}>HEALTH DETAILS</Text>
+
+              <Text style={styles.modalLabel}>Blood Group</Text>
+              <View style={styles.chipWrap}>
+                {BLOOD_GROUPS.map(bg => {
+                  const active = bloodGroup === bg;
+                  return (
+                    <TouchableOpacity
+                      key={bg}
+                      style={[styles.bloodChip, active && styles.bloodChipActive]}
+                      onPress={() => { setBloodGroup(active ? '' : bg); setFormError(''); }}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.bloodChipText, active && styles.bloodChipTextActive]}>{bg}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <View style={styles.measureRow}>
+                <View style={styles.measureCol}>
+                  <Text style={styles.modalLabel}>Height (cm)</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    value={heightCm}
+                    onChangeText={text => { setHeightCm(text.replace(/[^0-9.]/g, '')); setFormError(''); }}
+                    placeholder="170"
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="decimal-pad"
+                  />
+                </View>
+                <View style={styles.measureCol}>
+                  <Text style={styles.modalLabel}>Weight (kg)</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    value={weightKg}
+                    onChangeText={text => { setWeightKg(text.replace(/[^0-9.]/g, '')); setFormError(''); }}
+                    placeholder="65"
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="decimal-pad"
+                  />
+                </View>
+              </View>
+
+              <Text style={styles.modalLabel}>Allergies</Text>
+              <TextInput
+                style={[styles.modalInput, styles.modalInputMultiline]}
+                value={allergies}
+                onChangeText={text => { setAllergies(text); setFormError(''); }}
+                placeholder="e.g. penicillin, peanuts"
+                placeholderTextColor={colors.textMuted}
+                multiline
+                maxLength={1000}
+              />
+              <Text style={styles.modalLabel}>Existing Conditions</Text>
+              <TextInput
+                style={[styles.modalInput, styles.modalInputMultiline]}
+                value={conditions}
+                onChangeText={text => { setConditions(text); setFormError(''); }}
+                placeholder="e.g. asthma, hypertension"
+                placeholderTextColor={colors.textMuted}
+                multiline
+                maxLength={1000}
+              />
+              <Text style={styles.modalLabel}>Current Medication</Text>
+              <TextInput
+                style={[styles.modalInput, styles.modalInputMultiline]}
+                value={medications}
+                onChangeText={text => { setMedications(text); setFormError(''); }}
+                placeholder="e.g. metformin 500mg, daily"
+                placeholderTextColor={colors.textMuted}
+                multiline
+                maxLength={1000}
+              />
+              <Text style={styles.modalHint}>
+                Health details are optional and shared with the doctor treating you.
+              </Text>
+            </ScrollView>
+
             {formError ? <Text style={styles.modalError}>{formError}</Text> : null}
             <View style={styles.modalActions}>
               <TouchableOpacity style={[styles.modalBtn, styles.modalBtnCancel]} onPress={() => setShowEditProfile(false)}>
@@ -765,38 +912,6 @@ const SettingsScreen = ({ navigation }) => {
               </TouchableOpacity>
               <TouchableOpacity style={[styles.modalBtn, styles.modalBtnSave]} onPress={handleChangePassword} disabled={isSubmitting}>
                 {isSubmitting ? <ActivityIndicator size="small" color={colors.white} /> : <Text style={styles.modalBtnSaveText}>Update</Text>}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Language selector modal */}
-      <Modal visible={showLanguage} transparent animationType="fade"
-        onRequestClose={() => setShowLanguage(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>App Language</Text>
-            {LANGUAGES.map(l => {
-              const active = language === l.code;
-              return (
-                <TouchableOpacity
-                  key={l.code}
-                  style={[styles.langRow, active && styles.langRowActive]}
-                  onPress={() => selectLanguage(l.code)}
-                  activeOpacity={0.8}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.langLabel}>{l.label}</Text>
-                    <Text style={styles.langNative}>{l.native}</Text>
-                  </View>
-                  {active ? <MCIcon name="check-circle" size={20} color={colors.primary} /> : null}
-                </TouchableOpacity>
-              );
-            })}
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnCancel]} onPress={() => setShowLanguage(false)}>
-                <Text style={styles.modalBtnCancelText}>Close</Text>
               </TouchableOpacity>
             </View>
           </View>

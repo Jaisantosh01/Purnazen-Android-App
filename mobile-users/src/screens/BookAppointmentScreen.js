@@ -429,9 +429,20 @@ const BookAppointmentScreen = ({ navigation, route }) => {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Select Time</Text>
-          {slotsLoading ? (
+          {!selectedDate ? (
+            /* Without this the heading sat above a blank gap until a date was picked. */
+            <TouchableOpacity
+              style={styles.noSlotsCard}
+              activeOpacity={0.8}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <MCIcon name="calendar-clock" size={28} color={colors.textMuted} />
+              <Text style={styles.noSlotsTitle}>Pick a date first</Text>
+              <Text style={styles.noSlotsText}>Choose a date above to see the slots this doctor has open.</Text>
+            </TouchableOpacity>
+          ) : slotsLoading ? (
             <ActivityIndicator size="small" color={colors.primary} style={{ paddingVertical: 20 }} />
-          ) : timeSlots.length === 0 && selectedDate ? (
+          ) : timeSlots.length === 0 ? (
             <View style={styles.noSlotsCard}>
               <MCIcon name="clock-off-outline" size={28} color={colors.textMuted} />
               <Text style={styles.noSlotsTitle}>No Slots Available</Text>
