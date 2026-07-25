@@ -81,7 +81,29 @@ export const handlePickFiles = async (
   }
 };
 
-export const uploadOne = async (item, selectedDir) => {
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// A transient failure is one where the request never got a reply from the
+// server — a dropped connection, DNS/TLS hiccup or client-side abort. Those are
+// the "first upload fails, next one works" cases and are safe to retry. A real
+// HTTP response (e.g. 409 duplicate, 400 bad file) is NOT transient — retrying
+// would just fail the same way, so we surface it immediately.
+const isTransientUploadError = (err) => {
+  if (err?.response) return false;
+  const code = err?.code;
+  const msg = (err?.message || '').toLowerCase();
+  return (
+    code === 'ECONNABORTED' ||
+    code === 'ERR_NETWORK' ||
+    msg.includes('network') ||
+    msg.includes('timeout') ||
+    msg.includes('aborted') ||
+    // apiClient normalizes no-response failures to this prefix
+    msg.includes('did not reach the server')
+  );
+};
+
+const buildUploadForm = (item, selectedDir) => {
   const formData = new FormData();
   formData.append('file', {
     uri: item.file.uri,
@@ -96,10 +118,40 @@ export const uploadOne = async (item, selectedDir) => {
   formData.append('video_group_id', item.groupId);
   formData.append('sort_order', '0');
   formData.append('overwrite', item.overwrite ? 'true' : 'false');
-  await apiClient.post(ENDPOINTS.VIDEO_UPLOAD, formData, {
-    timeout: 600000,
-    headers: { 'Content-Type': null },
-  });
+  return formData;
+};
+
+// Number of extra attempts after the first, for transient network failures.
+const UPLOAD_MAX_RETRIES = 2;
+
+export const uploadOne = async (item, selectedDir) => {
+  let attempt = 0;
+  // A fresh FormData per attempt: an already-consumed multipart body can't be
+  // replayed on React Native, so reusing one is itself a source of the
+  // mysterious second-attempt failures.
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    try {
+      await apiClient.post(ENDPOINTS.VIDEO_UPLOAD, buildUploadForm(item, selectedDir), {
+        timeout: 600000,
+        headers: { 'Content-Type': null },
+      });
+      return;
+    } catch (err) {
+      const transient = isTransientUploadError(err);
+      // Surface the real cause — these used to fail with no trace in the logs.
+      console.warn(
+        `[upload] "${item.saveAs || item.file?.name}" attempt ${attempt + 1} failed` +
+          ` (transient=${transient}, code=${err?.code || 'n/a'}): ${err?.message || err}`,
+      );
+      if (transient && attempt < UPLOAD_MAX_RETRIES) {
+        attempt += 1;
+        await sleep(1000 * attempt); // 1s, then 2s backoff
+        continue;
+      }
+      throw err;
+    }
+  }
 };
 
 export const handleUploadAll = async ({

@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Switch,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -17,6 +16,7 @@ import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
+import AppToggle from '../components/AppToggle';
 import { showAlert, showConfirm } from '../utils/alert';
 
 import { AUDIENCES, SEGMENTS, CATEGORIES, GLOBAL_SWITCHES, STATUS_CHIP, PRESETS, toDateText, toTimeText, formatWhen } from '../constants/notifications';
@@ -443,10 +443,9 @@ const NotificationAdminScreen = ({ navigation }) => {
                     <Text style={styles.switchTitle}>{row.title}</Text>
                     <Text style={styles.switchSub}>{row.sub}</Text>
                   </View>
-                  <Switch
+                  <AppToggle
                     value={!!settings[row.key]}
                     onValueChange={() => toggle(row.key)}
-                    trackColor={{ false: colors.borderStrong, true: colors.primary }}
                     disabled={saving}
                   />
                 </View>

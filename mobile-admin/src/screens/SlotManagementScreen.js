@@ -7,6 +7,7 @@ import { ENDPOINTS } from '../constants/apiEndpoints';
 import { ITEM_HEIGHT } from '../constants/slots';
 import ScreenHeader from '../components/ScreenHeader';
 import { ListSkeleton } from '../components/SkeletonLoader';
+import SwipeRowActions, { SWIPE_LEFT_OPEN, SWIPE_RIGHT_OPEN } from '../components/SwipeRowActions';
 import useTheme from '../hooks/useTheme';
 // import ScreenHeader from '../components/ScreenHeader';
 import { showAlert } from '../utils/alert';
@@ -161,10 +162,12 @@ const SlotManagementScreen = ({ navigation }) => {
   );
 
   const renderHiddenItem = (data, rowMap) => (
-    <View style={styles.rowBack}>
-      <TouchableOpacity style={[styles.backBtn, styles.editBack]} onPress={() => { openEditModal(data.item); rowMap[data.item.id]?.closeRow(); }}><MCIcon name="pencil" size={24} color={colors.white} /></TouchableOpacity>
-      <TouchableOpacity style={[styles.backBtn, styles.deleteBack]} onPress={() => { handleDeleteSlot(data.item.id); rowMap[data.item.id]?.closeRow(); }}><MCIcon name="delete" size={24} color={colors.white} /></TouchableOpacity>
-    </View>
+    <SwipeRowActions
+      containerStyle={styles.rowBack}
+      onClose={() => rowMap[data.item.id]?.closeRow()}
+      onEdit={() => openEditModal(data.item)}
+      onDelete={() => handleDeleteSlot(data.item.id)}
+    />
   );
 
   return (
@@ -218,8 +221,11 @@ const SlotManagementScreen = ({ navigation }) => {
               </TouchableOpacity>
             )}
             renderHiddenItem={renderHiddenItem}
-            leftOpenValue={75}
-            rightOpenValue={-75}
+            leftOpenValue={SWIPE_LEFT_OPEN}
+            rightOpenValue={SWIPE_RIGHT_OPEN}
+            closeOnRowPress
+            closeOnRowOpen
+            closeOnRowBeginSwipe
           />
         </View>
       </View>}
@@ -328,10 +334,8 @@ timeText: {
   fontWeight: '600',
   color: colors.textPrimary,
 },
-  rowBack: { flexDirection: 'row', justifyContent: 'space-between', flex: 1, alignItems: 'center', marginBottom: 12, height: SLOT_CARD_HEIGHT, borderRadius: 14, overflow: 'hidden' },
-  backBtn: { width: 75, height: '100%', justifyContent: 'center', alignItems: 'center' },
-  editBack: { backgroundColor: colors.primary },
-  deleteBack: { backgroundColor: colors.danger },
+  // Height must match slotCard so the revealed Edit/Delete line up behind it.
+  rowBack: { marginBottom: 12, height: SLOT_CARD_HEIGHT, borderRadius: 14 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', padding: 20 },
   modalCard: { backgroundColor: colors.card, padding: 20, borderRadius: 16, maxHeight: '80%' },
   modalTitle: { fontSize: 18, fontWeight: '800', marginBottom: 16, color: colors.textPrimary },

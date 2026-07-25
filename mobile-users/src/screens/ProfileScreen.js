@@ -19,6 +19,7 @@ import { COLORS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
 import { useHeaderTopPadding } from '../components/ScreenHeader';
 import { checkForUpdate, FORCE_MARKER } from '../services/updateService';
+import { isOtaSupported, startBackgroundInstall } from '../services/otaUpdater';
 import { APP_VERSION } from '../config';
 
 // Icon backgrounds are a translucent wash of the icon hue so the tint reads
@@ -72,6 +73,20 @@ const ProfileScreen = ({ navigation }) => {
         return;
       }
       const openApk = () => { Linking.openURL(u.apkUrl).catch(() => {}); };
+      // Prefer the in-app background download + install; fall back to the browser
+      // hand-off when the native OTA module isn't present.
+      const startUpdate = isOtaSupported()
+        ? () => {
+            startBackgroundInstall(
+              { url: u.apkUrl, version: u.version, sha256: u.sha256 },
+              { onError: () => showAlert('Update', 'The update download failed. Please try again later.') },
+            );
+            showAlert(
+              'Downloading update',
+              `Version ${u.version} is downloading in the background. You'll be prompted to install once it's ready.`,
+            );
+          }
+        : openApk;
       const notes = (u.notes || '')
         .split('\n')
         .filter(l => !l.includes(FORCE_MARKER))
@@ -82,10 +97,10 @@ const ProfileScreen = ({ navigation }) => {
         (u.forced ? '\n\nThis is a critical update and is required to continue.' : '') +
         (notes ? `\n\n${notes}` : '');
       const buttons = u.forced
-        ? [{ text: 'Update now', onPress: openApk }]
+        ? [{ text: 'Update now', onPress: startUpdate }]
         : [
             { text: 'Later', style: 'cancel' },
-            { text: 'Update now', onPress: openApk },
+            { text: 'Update now', onPress: startUpdate },
           ];
       showAlert(
         u.forced ? 'Update required' : 'Update available',

@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   TextInput,
   Modal,
-  Switch,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -19,6 +18,7 @@ import { ENDPOINTS } from '../constants/apiEndpoints';
 import { ListSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
+import AppToggle from '../components/AppToggle';
 
 const FaqManagementScreen = ({ navigation }) => {
   const { colors } = useTheme();
@@ -282,7 +282,7 @@ const FaqManagementScreen = ({ navigation }) => {
             />
             <View style={styles.modalSwitchRow}>
               <Text style={styles.modalSwitchLabel}>Active</Text>
-              <Switch value={isActive} onValueChange={setIsActive} trackColor={{ false: colors.borderStrong, true: colors.primary }} />
+              <AppToggle value={isActive} onValueChange={setIsActive} />
             </View>
             <View style={styles.modalButtons}>
               <TouchableOpacity style={[styles.btn, styles.cancelBtn]} onPress={() => setModalVisible(false)}>

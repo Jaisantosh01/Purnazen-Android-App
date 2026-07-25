@@ -5,13 +5,12 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  Alert,
   ActivityIndicator,
   ScrollView,
   Modal,
 } from 'react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
-import { showAlert } from '../utils/alert';
+import { showAlert, showConfirm } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
@@ -179,14 +178,18 @@ const DoctorManagementScreen = ({ navigation }) => {
 
   const handleDelete = (item, rowMap) => {
     if (rowMap?.[item.id]) rowMap[item.id].closeRow();
-    Alert.alert('Deactivate Doctor', `Are you sure you want to deactivate ${item.name}?`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Deactivate', style: 'destructive', onPress: () => {
+    // Themed dialog (AppAlertHost) instead of the OS Alert so it matches the
+    // rest of the app. This deactivates rather than deletes — the copy says so.
+    showConfirm(
+      'Deactivate Doctor',
+      `${item.name} will be hidden from the apps and stop taking new bookings. You can reactivate them anytime from Edit.`,
+      () => {
         apiClient.delete(ENDPOINTS.DOCTOR_DETAIL(item.id))
-          .then(() => { showAlert('Success', `${item.name} has been deactivated`); fetchData(); })
+          .then(() => { showAlert('Deactivated', `${item.name} has been deactivated.`); fetchData(); })
           .catch((err) => { showAlert('Error', err.message || 'Failed to deactivate doctor'); });
-      }},
-    ]);
+      },
+      { confirmLabel: 'Deactivate', destructive: true },
+    );
   };
 
   const renderDoctorItem = ({ item }) => {

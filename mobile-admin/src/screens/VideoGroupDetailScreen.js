@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Switch, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput } from 'react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
 import { useFocusEffect } from '@react-navigation/native';
@@ -11,6 +11,8 @@ import { SessionPlayerSkeleton } from '../components/SkeletonLoader';
 import VideoPlayer from '../components/VideoPlayer';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
+import AppToggle from '../components/AppToggle';
+import SwipeRowActions, { SWIPE_LEFT_OPEN, SWIPE_RIGHT_OPEN } from '../components/SwipeRowActions';
 import { showAlert, showConfirm } from '../utils/alert';
 
 // Autoplay-next preference — remembered across sessions, on by default.
@@ -175,27 +177,19 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
   };
 
   // Swipe right reveals Edit on the left, swipe left reveals Remove on the
-  // right — space-between is what puts each action on its own edge.
+  // right. Same gesture as the rest of the app (see SwipeRowActions); the right
+  // action is "Remove" (from group) rather than a catalog delete.
   const renderHiddenItem = (data, rowMap) => {
     if (sortMode) return <View />;
-    const close = () => rowMap[data.item.id]?.closeRow();
     return (
-      <View style={styles.rowBack}>
-        <TouchableOpacity
-          style={[styles.backBtn, styles.editBack]}
-          onPress={() => { close(); openEditModal(data.item); }}
-        >
-          <MCIcon name="pencil" size={22} color="#fff" />
-          <Text style={styles.backBtnText}>Edit</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.backBtn, styles.deleteBack]}
-          onPress={() => { close(); handleRemoveVideo(data.item); }}
-        >
-          <MCIcon name="playlist-remove" size={22} color="#fff" />
-          <Text style={styles.backBtnText}>Remove</Text>
-        </TouchableOpacity>
-      </View>
+      <SwipeRowActions
+        containerStyle={styles.rowBack}
+        onClose={() => rowMap[data.item.id]?.closeRow()}
+        onEdit={() => openEditModal(data.item)}
+        onDelete={() => handleRemoveVideo(data.item)}
+        deleteLabel="Remove"
+        deleteIcon="playlist-remove"
+      />
     );
   };
 
@@ -281,12 +275,7 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
                         : 'Asks before starting the next video'}
                     </Text>
                   </View>
-                  <Switch
-                    value={autoPlayNext}
-                    onValueChange={handleAutoPlayNextChange}
-                    trackColor={{ false: colors.border, true: colors.primary }}
-                    thumbColor={colors.white}
-                  />
+                  <AppToggle value={autoPlayNext} onValueChange={handleAutoPlayNextChange} />
                 </View>
               )}
 
@@ -331,8 +320,8 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
               renderHiddenItem={renderHiddenItem}
               keyExtractor={item => item.id.toString()}
               contentContainerStyle={styles.list}
-              leftOpenValue={SWIPE_WIDTH}
-              rightOpenValue={-SWIPE_WIDTH}
+              leftOpenValue={SWIPE_LEFT_OPEN}
+              rightOpenValue={SWIPE_RIGHT_OPEN}
               closeOnRowPress
               closeOnRowOpen
               closeOnRowBeginSwipe
@@ -366,10 +355,6 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
   );
 };
 
-// Reveal width for the swipe actions — shared with the row button width so the
-// action is exactly flush when the row is open.
-const SWIPE_WIDTH = 88;
-
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1 },
@@ -398,22 +383,8 @@ const makeStyles = colors => StyleSheet.create({
   videoTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
   videoMeta: { color: colors.textSecondary, marginTop: 4 },
 
-  // Swipe layer. space-between is what pins Edit to the left edge and Remove
-  // to the right; without it both actions stack on the left and the one behind
-  // the card can never be reached.
-  rowBack: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'stretch',
-    marginBottom: 12,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  backBtn: { width: SWIPE_WIDTH, alignItems: 'center', justifyContent: 'center', gap: 4 },
-  editBack: { backgroundColor: colors.primary },
-  deleteBack: { backgroundColor: colors.danger },
-  backBtnText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  // Only spacing/rounding here — the swipe layer itself lives in SwipeRowActions.
+  rowBack: { marginBottom: 12, borderRadius: 12 },
 
   autoPlayRow: {
     flexDirection: 'row',

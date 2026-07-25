@@ -9,6 +9,7 @@ import { ROLE_ICONS, WELLNESS_ICONS } from '../constants/icons';
 import { ListSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
+import SwipeRowActions, { SWIPE_LEFT_OPEN, SWIPE_RIGHT_OPEN } from '../components/SwipeRowActions';
 import { showAlert, showConfirm } from '../utils/alert';
 import { ICONS_PER_PAGE } from '../constants/icons';
 
@@ -27,6 +28,9 @@ const VideoManagementScreen = ({ navigation }) => {
   const [sessions, setSessions] = useState([]);
   const [sessionsLoading, setSessionsLoading] = useState(true);
   const [groupsLoading, setGroupsLoading] = useState(true);
+  // Blocks the screen with a loader while a delete/disable is in flight, so no
+  // second operation can start and the row can't be tapped mid-request.
+  const [deleting, setDeleting] = useState(false);
 
   const [groupModalVisible, setGroupModalVisible] = useState(false);
   const [isEditingGroup, setIsEditingGroup] = useState(false);
@@ -66,7 +70,7 @@ const VideoManagementScreen = ({ navigation }) => {
 
   const fetchVideoGroups = () => {
     setGroupsLoading(true);
-    apiClient.get(ENDPOINTS.VIDEO_GROUPS, { params: { active_only: false } })
+    return apiClient.get(ENDPOINTS.VIDEO_GROUPS, { params: { active_only: false } })
       .then(res => setGroups(res.data?.groups || []))
       .catch(() => showAlert('Error', 'Failed to fetch video groups'))
       .finally(() => setGroupsLoading(false));
@@ -74,7 +78,7 @@ const VideoManagementScreen = ({ navigation }) => {
 
   const fetchSessions = () => {
     setSessionsLoading(true);
-    apiClient.get(ENDPOINTS.ALL_SESSIONS, { params: { active_only: false } })
+    return apiClient.get(ENDPOINTS.ALL_SESSIONS, { params: { active_only: false } })
       .then(res => setSessions(res.data?.sessions || []))
       .catch(() => showAlert('Error', 'Failed to fetch sessions'))
       .finally(() => setSessionsLoading(false));
@@ -103,33 +107,47 @@ const VideoManagementScreen = ({ navigation }) => {
    * content — destroying it would take watch history and feedback with it. In
    * that case we don't dead-end: the follow-up offers to disable instead,
    * which hides it from the apps and leaves the row visibly disabled here.
+   *
+   * While the request is in flight a blocking overlay (`deleting`) is shown so
+   * the user can't fire a second action. On success the row is dropped from
+   * local state immediately (optimistic) AND the list is re-fetched — the
+   * optimistic drop guarantees the deleted item disappears without waiting on,
+   * or being defeated by, a slow/stale refetch.
    */
-  const confirmHardDelete = ({ kind, name, url, refresh }) => {
+  const confirmHardDelete = ({ kind, id, name, url, remove, refresh }) => {
     showConfirm(
       `Delete ${kind}`,
       `Permanently delete "${name}"? This cannot be undone.`,
       async () => {
+        setDeleting(true);
         try {
           await apiClient.delete(url, { params: { hard: true } });
-          refresh();
+          remove(id);
+          await refresh();
         } catch (err) {
-          if (err?.response?.status === 409) {
+          if (err?.response?.status === 409 || err?.status === 409) {
+            setDeleting(false);
             showConfirm(
               'Cannot delete permanently',
               err.response?.data?.message || `This ${kind.toLowerCase()} is in use.`,
               async () => {
+                setDeleting(true);
                 try {
                   await apiClient.delete(url);
-                  refresh();
+                  await refresh();
                 } catch {
                   showAlert('Error', `Failed to disable ${kind.toLowerCase()}`);
+                } finally {
+                  setDeleting(false);
                 }
               },
               { confirmLabel: 'Disable instead' },
             );
             return;
           }
-          showAlert('Error', err?.response?.data?.message || `Failed to delete ${kind.toLowerCase()}`);
+          showAlert('Error', err?.response?.data?.message || err?.message || `Failed to delete ${kind.toLowerCase()}`);
+        } finally {
+          setDeleting(false);
         }
       },
       { confirmLabel: 'Delete', destructive: true },
@@ -139,8 +157,10 @@ const VideoManagementScreen = ({ navigation }) => {
   const handleDeleteGroup = (group) =>
     confirmHardDelete({
       kind: 'Group',
+      id: group.id,
       name: group.title,
       url: `${ENDPOINTS.VIDEO_GROUPS}/${group.id}`,
+      remove: (gid) => setGroups(prev => prev.filter(g => g.id !== gid)),
       refresh: fetchVideoGroups,
     });
 
@@ -188,8 +208,10 @@ const VideoManagementScreen = ({ navigation }) => {
   const handleDeleteSession = (session) =>
     confirmHardDelete({
       kind: 'Session',
+      id: session.id,
       name: session.title,
       url: `${ENDPOINTS.ALL_SESSIONS}/${session.id}`,
+      remove: (sid) => setSessions(prev => prev.filter(s => s.id !== sid)),
       refresh: fetchSessions,
     });
 
@@ -245,24 +267,13 @@ const VideoManagementScreen = ({ navigation }) => {
    */
   const renderSwipeActions = (item, rowMap, { onEdit, onDelete }) => {
     if (!item) return <View style={styles.rowBack} />;
-    const close = () => rowMap[item.id]?.closeRow();
     return (
-      <View style={styles.rowBack}>
-        <TouchableOpacity
-          style={[styles.backBtn, styles.editBack]}
-          onPress={() => { close(); onEdit(item); }}
-        >
-          <MCIcon name="pencil" size={22} color="#fff" />
-          <Text style={styles.backBtnText}>Edit</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.backBtn, styles.deleteBack]}
-          onPress={() => { close(); onDelete(item); }}
-        >
-          <MCIcon name="delete" size={22} color="#fff" />
-          <Text style={styles.backBtnText}>Delete</Text>
-        </TouchableOpacity>
-      </View>
+      <SwipeRowActions
+        containerStyle={styles.rowBack}
+        onClose={() => rowMap[item.id]?.closeRow()}
+        onEdit={() => onEdit(item)}
+        onDelete={() => onDelete(item)}
+      />
     );
   };
 
@@ -284,9 +295,18 @@ const VideoManagementScreen = ({ navigation }) => {
         onBack={() => navigation.goBack()}
         underColor={colors.card}
         right={
-          <TouchableOpacity style={styles.addBtn} onPress={activeTab === 'sessions' ? openAddSessionModal : openAddGroupModal}>
-            <MCIcon name="plus" size={24} color={colors.headerText} />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.addBtn}
+              onPress={() => navigation.navigate('UploadVideo', {})}
+              accessibilityLabel="Upload or manage program videos"
+            >
+              <MCIcon name="cloud-upload-outline" size={22} color={colors.headerText} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.addBtn} onPress={activeTab === 'sessions' ? openAddSessionModal : openAddGroupModal}>
+              <MCIcon name="plus" size={24} color={colors.headerText} />
+            </TouchableOpacity>
+          </View>
         }
       />
 
@@ -370,8 +390,8 @@ const VideoManagementScreen = ({ navigation }) => {
               onDelete: handleDeleteSession,
             })
           }
-          leftOpenValue={SWIPE_WIDTH}
-          rightOpenValue={-SWIPE_WIDTH}
+          leftOpenValue={SWIPE_LEFT_OPEN}
+          rightOpenValue={SWIPE_RIGHT_OPEN}
           closeOnRowPress={true}
           closeOnRowOpen={true}
           closeOnRowBeginSwipe={true}
@@ -411,8 +431,8 @@ const VideoManagementScreen = ({ navigation }) => {
               onDelete: handleDeleteGroup,
             })
           }
-          leftOpenValue={SWIPE_WIDTH}
-          rightOpenValue={-SWIPE_WIDTH}
+          leftOpenValue={SWIPE_LEFT_OPEN}
+          rightOpenValue={SWIPE_RIGHT_OPEN}
           closeOnRowPress={true}
           closeOnRowOpen={true}
           closeOnRowBeginSwipe={true}
@@ -597,13 +617,20 @@ const VideoManagementScreen = ({ navigation }) => {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Blocking delete overlay — intercepts all touches so no other operation
+          can start until the request resolves. */}
+      <Modal visible={deleting} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.blockingOverlay}>
+          <View style={styles.blockingCard}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.blockingText}>Deleting…</Text>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
-
-// Reveal width for the swipe actions — shared with the action button width so
-// an open row sits exactly flush against it.
-const SWIPE_WIDTH = 88;
 
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
@@ -648,23 +675,10 @@ const makeStyles = colors => StyleSheet.create({
     textTransform: 'uppercase',
     color: colors.textMuted,
   },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   addBtn: { backgroundColor: 'rgba(255,255,255,0.2)', width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  // Swipe layer. justify-content space-between is the fix: without it both
-  // actions pack against the left edge, so the delete sat under the card and
-  // swiping left revealed nothing you could press.
-  rowBack: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'stretch',
-    marginBottom: 12,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  backBtn: { width: SWIPE_WIDTH, alignItems: 'center', justifyContent: 'center', gap: 4 },
-  editBack: { backgroundColor: colors.primary },
-  deleteBack: { backgroundColor: colors.danger },
-  backBtnText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  // Only spacing/rounding here — the swipe layer itself lives in SwipeRowActions.
+  rowBack: { marginBottom: 12, borderRadius: 12 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', padding: 20 },
   modalCard: {
   backgroundColor: colors.card,
@@ -717,6 +731,17 @@ const makeStyles = colors => StyleSheet.create({
   sortSaveBtnDisabled: { backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
   sortSaveText: { color: colors.white, fontWeight: '600', fontSize: 14 },
   sortSaveTextDisabled: { color: colors.textMuted },
+  blockingOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
+  blockingCard: {
+    backgroundColor: colors.card,
+    borderRadius: 18,
+    paddingVertical: 26,
+    paddingHorizontal: 34,
+    alignItems: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  blockingText: { marginTop: 14, fontSize: 14, fontWeight: '600', color: colors.textPrimary },
 });
 
 export default VideoManagementScreen;

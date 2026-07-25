@@ -92,15 +92,22 @@ const scanService = {
     return apiClient.delete(ENDPOINTS.FACE_GLOW_SCAN_DELETE(scanId));
   },
 
-  /** Skin dashboard: latest result + rolling glow + glow trend. */
-  async getDashboard() {
-    const res = await apiClient.get(ENDPOINTS.FACE_GLOW_DASHBOARD);
+  /**
+   * Dashboard: face → latest result + rolling glow + glow trend;
+   * tongue → latest markers + rolling wellness + wellness trend.
+   */
+  async getDashboard({ scanType = 'face' } = {}) {
+    const res = await apiClient.get(ENDPOINTS.FACE_GLOW_DASHBOARD, {
+      params: { scan_type: scanType },
+    });
     return res.data;
   },
 
-  /** Time series for a single metric (e.g. 'glow_score'). */
-  async getTrends({ metric = 'glow_score', days = 0 } = {}) {
-    const res = await apiClient.get(ENDPOINTS.FACE_GLOW_TRENDS, { params: { metric, days } });
+  /** Time series for a single metric (e.g. 'glow_score' / 'overall_wellness_score'). */
+  async getTrends({ metric = 'glow_score', days = 0, scanType = 'face' } = {}) {
+    const res = await apiClient.get(ENDPOINTS.FACE_GLOW_TRENDS, {
+      params: { metric, days, scan_type: scanType },
+    });
     return res.data;
   },
 

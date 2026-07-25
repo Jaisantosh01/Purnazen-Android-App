@@ -21,6 +21,12 @@ class Settings(BaseSettings):
     # time (containers run in UTC). India Standard Time by default.
     APP_TIMEZONE: str = "Asia/Kolkata"
 
+    # How long an unpaid booking "hold" (status=pending, payment_status=pending)
+    # keeps a slot reserved before the scheduler releases it. Without this a user
+    # who starts booking and abandons payment blocks that slot for everyone else
+    # forever. 15 min is comfortably longer than a payment flow takes.
+    UNPAID_HOLD_TTL_MINUTES: int = 15
+
     # Comma-separated list of allowed origins; "*" allows all (dev only)
     CORS_ORIGINS: str = "*"
 
@@ -31,6 +37,8 @@ class Settings(BaseSettings):
     RATE_LIMIT_LOGIN: str = "5/minute"
     RATE_LIMIT_REGISTER: str = "3/minute"
     RATE_LIMIT_REFRESH: str = "10/minute"
+    # Soft email pre-check (called on blur/submit before registering).
+    RATE_LIMIT_EMAIL_CHECK: str = "20/minute"
 
     # Razorpay credentials (test-mode keys for the sandbox). When empty, the
     # payment provider runs in a local sandbox mode: orders are generated

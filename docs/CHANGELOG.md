@@ -2,6 +2,31 @@
 
 All notable changes to the Purnazen App are documented here.
 
+## [2026-07-24] — In-app OTA install + post-sign-up biometric onboarding
+
+### Changed — OTA now downloads + installs in-app (all 3 apps)
+- `UpdatePrompt` no longer hands the SAS URL to the browser for a manual
+  sideload. A new shared native module **`OtaUpdater`**
+  (`android/.../com/purnazen/otaupdater/`, identical per app — FileProvider
+  authority derived from `context.packageName`) downloads the APK via Android's
+  `DownloadManager` **in the background** (system progress notification), verifies
+  the sha256, posts an **"Update ready to install"** notification, and launches
+  the OS installer via a `FileProvider` intent. **Forced** updates auto-download
+  on launch and install as soon as they land; **optional** updates offer
+  "Download & install" (can be sent to the background). Missing "install unknown
+  apps" consent deep-links the user to that screen and finishes on return.
+  Adds the `REQUEST_INSTALL_PACKAGES` permission + a `.otaprovider` FileProvider
+  per app; falls back to the old browser hand-off when the native module is
+  absent. Settings → Check for Updates uses the same flow. See `OTA_RELEASES.md`.
+
+### Added — offer biometric unlock right after sign-up (mobile-users)
+- A one-time **`BiometricSetupScreen`** now follows the profile-completion step
+  for new accounts (email + social), gated by `profileStore.pendingBiometricSetup`
+  (only set when `biometricService.isAvailable()`). It offers **Enable**
+  (mirrors Settings → Biometric Login) or **Skip for now**, and self-skips on
+  devices without enrolled biometrics. Permission onboarding is deferred until
+  the step is dismissed so system dialogs don't overlap.
+
 ## [2026-07-03] — Staff-app dark mode everywhere, themed cards/chips, per-app icons
 
 ### Changed — doctor & admin apps (full dark-mode coverage)

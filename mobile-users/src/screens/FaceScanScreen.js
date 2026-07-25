@@ -16,6 +16,7 @@ import { launchImageLibrary } from 'react-native-image-picker';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import scanService from '../services/scanService';
+import consentService from '../services/consentService';
 import { checkCaptureQuality, hasOnDeviceQuality } from '../services/scanQualityService';
 import useScanStore from '../store/scanStore';
 import useTheme from '../hooks/useTheme';
@@ -104,6 +105,8 @@ const FaceScanScreen = ({ navigation, route }) => {
   const [qualityIssues, setQualityIssues] = useState(null); // null=initial, []= ok, [...]= issues
   const [autoCapture, setAutoCapture] = useState(true);
   const [countdown, setCountdown] = useState(null); // null=off, 3..1 while counting
+  const [scanConsent, setScanConsent] = useState(null); // null=unknown, bool=resolved
+  const consentPrompted = useRef(false);
 
   const readyStreak = useRef(0);
   const onDeviceChecks = scanType === 'face' && hasOnDeviceQuality;
@@ -111,11 +114,70 @@ const FaceScanScreen = ({ navigation, route }) => {
   const setProcessing = useScanStore(s => s.setProcessing);
   const setCurrentScanId = useScanStore(s => s.setCurrentScanId);
 
+  // Show the scan-storage consent dialog; resolves true once granted (and
+  // persisted — so the Consent settings screen reflects it), false if declined.
+  const requestScanConsent = () => new Promise(resolve => {
+    showAlert(
+      'Allow scan storage?',
+      'To run a scan, Purnazen needs your consent to securely store your scan photo and results so you can track progress over time. You can withdraw this anytime in Settings › Privacy & Data.',
+      [
+        { text: 'Not Now', style: 'cancel', onPress: () => resolve(false) },
+        {
+          text: 'Allow & Continue',
+          onPress: async () => {
+            try {
+              await grantScanConsent();
+              setScanConsent(true);
+              resolve(true);
+            } catch (e) {
+              showAlert('Error', e?.response?.data?.message || e?.message || 'Could not save your consent.');
+              resolve(false);
+            }
+          },
+        },
+      ],
+      { cancelable: false },
+    );
+  });
+
+  // Gate before any capture/upload: allow immediately when already consented,
+  // otherwise resolve the stored state and prompt if still missing.
+  const ensureScanConsent = async () => {
+    if (scanConsent === true) return true;
+    if (scanConsent === null) {
+      try {
+        const ok = await consentService.hasConsent('scan_storage');
+        setScanConsent(ok);
+        if (ok) return true;
+      } catch { /* fall through to prompt */ }
+    }
+    return requestScanConsent();
+  };
+
   useEffect(() => {
     if (!hasPermission) requestPermission();
     return () => setCameraActive(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Resolve the stored scan-storage consent once, up front.
+  useEffect(() => {
+    let alive = true;
+    consentService.hasConsent('scan_storage')
+      .then(ok => { if (alive) setScanConsent(ok); })
+      .catch(() => { if (alive) setScanConsent(false); });
+    return () => { alive = false; };
+  }, []);
+
+  // Ask the moment the camera opens without consent (declining just leaves
+  // capture gated — the shutter re-asks).
+  useEffect(() => {
+    if (hasPermission && scanConsent === false && !consentPrompted.current) {
+      consentPrompted.current = true;
+      requestScanConsent();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasPermission, scanConsent]);
 
   // Periodic live quality check on a silent low-res snapshot. With the native
   // module the frame is analysed on-device (fast, offline, private); otherwise
@@ -200,6 +262,8 @@ const FaceScanScreen = ({ navigation, route }) => {
 
   const handleCapture = useCallback(async () => {
     if (capturing || uploading || !cameraRef.current) return;
+    // No storage consent → ask (or re-ask) before we ever take the photo.
+    if (!(await ensureScanConsent())) return;
     // Gate the manual shutter the same way auto-capture is gated: don't shoot
     // while a blocking quality issue is active (no/partial face, off-centre,
     // too small…), so a half-in-frame face can't be captured and processed.
@@ -291,6 +355,7 @@ const FaceScanScreen = ({ navigation, route }) => {
 
   const handleGallery = async () => {
     if (uploading) return;
+    if (!(await ensureScanConsent())) return;
     setCountdown(null);
     setUploading(true);
     let uri = null;

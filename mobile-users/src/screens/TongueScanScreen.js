@@ -16,6 +16,7 @@ import { launchImageLibrary } from 'react-native-image-picker';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import scanService from '../services/scanService';
+import consentService from '../services/consentService';
 import useScanStore from '../store/scanStore';
 import useTheme from '../hooks/useTheme';
 import { ENDPOINTS } from '../constants/apiEndpoints';
@@ -71,9 +72,51 @@ const TongueScanScreen = ({ navigation }) => {
   const [headerH, setHeaderH] = useState(106);
   const [tipIndex, setTipIndex] = useState(0);
   const [qualityIssues, setQualityIssues] = useState(null); // null = checking, [] = ok, [...] = issues
+  const [scanConsent, setScanConsent] = useState(null); // null=unknown, bool=resolved
+  const consentPrompted = useRef(false);
 
   const setProcessing = useScanStore(s => s.setProcessing);
   const setCurrentScanId = useScanStore(s => s.setCurrentScanId);
+
+  // Show the scan-storage consent dialog; resolves true once granted (and
+  // persisted — so the Consent settings screen reflects it), false if declined.
+  const requestScanConsent = () => new Promise(resolve => {
+    showAlert(
+      'Allow scan storage?',
+      'To run a scan, Purnazen needs your consent to securely store your scan photo and results so you can track progress over time. You can withdraw this anytime in Settings › Privacy & Data.',
+      [
+        { text: 'Not Now', style: 'cancel', onPress: () => resolve(false) },
+        {
+          text: 'Allow & Continue',
+          onPress: async () => {
+            try {
+              await grantScanConsent();
+              setScanConsent(true);
+              resolve(true);
+            } catch (e) {
+              showAlert('Error', e?.response?.data?.message || e?.message || 'Could not save your consent.');
+              resolve(false);
+            }
+          },
+        },
+      ],
+      { cancelable: false },
+    );
+  });
+
+  // Gate before any capture/upload: allow immediately when already consented,
+  // otherwise resolve the stored state and prompt if still missing.
+  const ensureScanConsent = async () => {
+    if (scanConsent === true) return true;
+    if (scanConsent === null) {
+      try {
+        const ok = await consentService.hasConsent('scan_storage');
+        setScanConsent(ok);
+        if (ok) return true;
+      } catch { /* fall through to prompt */ }
+    }
+    return requestScanConsent();
+  };
 
   // Cycle tips every 4s
   useEffect(() => {
@@ -86,6 +129,25 @@ const TongueScanScreen = ({ navigation }) => {
     return () => setCameraActive(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Resolve the stored scan-storage consent once, up front.
+  useEffect(() => {
+    let alive = true;
+    consentService.hasConsent('scan_storage')
+      .then(ok => { if (alive) setScanConsent(ok); })
+      .catch(() => { if (alive) setScanConsent(false); });
+    return () => { alive = false; };
+  }, []);
+
+  // Ask the moment the camera opens without consent (declining just leaves
+  // capture gated — the shutter re-asks).
+  useEffect(() => {
+    if (hasPermission && scanConsent === false && !consentPrompted.current) {
+      consentPrompted.current = true;
+      requestScanConsent();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasPermission, scanConsent]);
 
   // Periodic live quality check using silent snapshot
   useEffect(() => {
@@ -167,6 +229,8 @@ const TongueScanScreen = ({ navigation }) => {
 
   const handleCapture = async () => {
     if (capturing || uploading || !cameraRef.current) return;
+    // No storage consent → ask (or re-ask) before we ever take the photo.
+    if (!(await ensureScanConsent())) return;
     setCapturing(true);
     try {
       const photo = await cameraRef.current.takePhoto({ flash: 'off' });
@@ -202,6 +266,7 @@ const TongueScanScreen = ({ navigation }) => {
 
   const handleGallery = async () => {
     if (uploading) return;
+    if (!(await ensureScanConsent())) return;
     setUploading(true);
     try {
       const uri = await new Promise((resolve, reject) => {

@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   FlatList,
   Alert,
+  BackHandler,
 } from 'react-native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import * as DocumentPicker from 'expo-document-picker';
@@ -19,6 +20,9 @@ import { WELLNESS_ICONS } from '../constants/icons';
 import { DirGridSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
+import StorageFileActionsModal from '../components/StorageFileActionsModal';
+import StorageFolderActionsModal from '../components/StorageFolderActionsModal';
+import useDurationProbe from '../hooks/useDurationProbe';
 import { showAlert } from '../utils/alert';
 import { handlePickFiles as sharedHandlePickFiles, uploadOne as sharedUploadOne, handleUploadAll as sharedHandleUploadAll } from '../utils/UploadHelper';
 import { ICONS_PER_PAGE } from '../constants/icons';
@@ -74,19 +78,28 @@ const UploadVideoScreen = ({ route, navigation }) => {
   const [iconPage, setIconPage] = useState(0);
   const totalIconPages = Math.ceil(WELLNESS_ICONS.length / ICONS_PER_PAGE);
 
+  // Per-file storage actions (move / delete)
+  const [fileActionFor, setFileActionFor] = useState(null);
+  const [folderActionFor, setFolderActionFor] = useState(null);
+
   const cancelledRef = useRef(false);
+  // Once the user explicitly clears or picks a target, stop auto-following the
+  // browsed folder (see the auto-select effect below).
+  const selectionTouchedRef = useRef(false);
 
   useEffect(() => {
     fetchDirectories();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPath]);
 
-  // Auto-select the folder currently being browsed as the upload target. The
-  // explicit "Upload to …" button sits below a long directory list, so users
-  // rarely reached it — leaving no folder selected and the Upload button stuck
-  // disabled. Tap the × on the target bar to clear, then re-pick if needed.
+  // Auto-select the folder currently being browsed as the upload target, but
+  // only until the user takes control. The explicit "Upload to …" button sits
+  // below a long directory list, so on first run we follow navigation as a
+  // convenience. The moment the user clears the target (×) or picks one
+  // explicitly, `selectionTouchedRef` flips and we stop re-selecting — so a
+  // deselect actually sticks instead of the folder re-selecting on every move.
   useEffect(() => {
-    setSelectedDir(currentPath || '/');
+    if (!selectionTouchedRef.current) setSelectedDir(currentPath || '/');
   }, [currentPath]);
 
   useEffect(() => {
@@ -123,7 +136,54 @@ const UploadVideoScreen = ({ route, navigation }) => {
     setCurrentPath(targetParts.length > 0 ? targetParts.join('/') + '/' : '');
   };
 
-  const selectCurrentFolder = () => setSelectedDir(currentPath || '/');
+  const selectCurrentFolder = () => {
+    selectionTouchedRef.current = true;
+    setSelectedDir(currentPath || '/');
+  };
+
+  const clearSelectedFolder = () => {
+    selectionTouchedRef.current = true;
+    setSelectedDir('');
+  };
+
+  // Where to go when leaving. Opened from a group's editor we return there;
+  // opened standalone (from Video Management, no group) we just pop the stack —
+  // navigating to VideoGroupEditor with a null groupId would land on a broken
+  // editor.
+  const leaveScreen = () => {
+    if (defaultGroupId) {
+      navigation.navigate('VideoGroupEditor', { groupId: defaultGroupId, groupTitle: '' });
+    } else {
+      navigation.goBack();
+    }
+  };
+
+  // Step one folder up in the storage browser (empty = root).
+  const goUpFolder = () => {
+    const parts = currentPath.replace(/\/$/, '').split('/').filter(Boolean);
+    parts.pop();
+    setCurrentPath(parts.length ? parts.join('/') + '/' : '');
+  };
+
+  // Back = up one folder while browsing; only leaves the screen at root. This
+  // is why the header arrow no longer jumps straight out to Video Management.
+  const handleHeaderBack = () => {
+    if (currentPath) goUpFolder();
+    else leaveScreen();
+  };
+
+  // Android hardware back mirrors the header: fold up a level before exiting.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (currentPath) {
+        goUpFolder();
+        return true;
+      }
+      return false;
+    });
+    return () => sub.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPath]);
 
   const handleCreateDir = () => {
     const name = newDirName.trim().replace(/^\/+|\/+$/g, '');
@@ -186,13 +246,17 @@ const UploadVideoScreen = ({ route, navigation }) => {
 
   // ── Upload ──
 
+  // Auto-detect duration for newly-picked files, kept required so a failed
+  // probe can't slip a 0-second video through.
+  const { probeElement, pendingProbe } = useDurationProbe(items, updateItem);
+
   const readyToUpload = items.some(it => it.status === 'pending');
   const canUpload =
     !uploading &&
     items.length > 0 &&
     readyToUpload &&
     !!selectedDir &&
-    items.every(it => it.status === 'done' || (it.title.trim() && it.groupId));
+    items.every(it => it.status === 'done' || (it.title.trim() && it.groupId && parseInt(it.duration, 10) > 0));
 
   const validationHint = () => {
     if (items.length === 0) return 'Add at least one video file';
@@ -201,6 +265,9 @@ const UploadVideoScreen = ({ route, navigation }) => {
     if (active.length === 0) return null;
     if (!active.every(it => it.title.trim())) return 'Every video needs a title';
     if (!active.every(it => it.groupId)) return 'Every video needs a group or session';
+    if (!active.every(it => parseInt(it.duration, 10) > 0)) {
+      return pendingProbe ? 'Detecting duration…' : 'Every video needs a duration (seconds)';
+    }
     return null;
   };
 
@@ -236,6 +303,13 @@ const UploadVideoScreen = ({ route, navigation }) => {
       <TouchableOpacity key={dir} style={styles.dirGridItem} onPress={() => navigateInto(dir)}>
         <MCIcon name="folder" size={28} color={colors.warning} />
         <Text style={styles.dirGridText} numberOfLines={1}>{displayName}</Text>
+        <TouchableOpacity
+          style={styles.fileMoreBtn}
+          onPress={() => setFolderActionFor(dir)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <MCIcon name="dots-vertical" size={18} color="#fff" />
+        </TouchableOpacity>
       </TouchableOpacity>
     );
   };
@@ -247,6 +321,13 @@ const UploadVideoScreen = ({ route, navigation }) => {
         <MCIcon name="movie-outline" size={26} color={colors.primary} />
         <Text style={styles.dirGridText} numberOfLines={2}>{displayName}</Text>
         {!!file.size && <Text style={styles.fileSizeText}>{formatBytes(file.size)}</Text>}
+        <TouchableOpacity
+          style={styles.fileMoreBtn}
+          onPress={() => setFileActionFor(file)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <MCIcon name="dots-vertical" size={18} color="#fff" />
+        </TouchableOpacity>
       </View>
     );
   };
@@ -257,6 +338,13 @@ const UploadVideoScreen = ({ route, navigation }) => {
       <TouchableOpacity style={styles.dirListItem} onPress={() => navigateInto(item)}>
         <MCIcon name="folder" size={22} color={colors.warning} />
         <Text style={styles.dirListText}>{displayName}</Text>
+        <TouchableOpacity
+          style={styles.fileMoreBtnList}
+          onPress={() => setFolderActionFor(item)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <MCIcon name="dots-vertical" size={20} color={colors.textMuted} />
+        </TouchableOpacity>
         <MCIcon name="chevron-right" size={20} color={colors.textMuted} />
       </TouchableOpacity>
     );
@@ -269,6 +357,13 @@ const UploadVideoScreen = ({ route, navigation }) => {
         <MCIcon name="movie-outline" size={22} color={colors.primary} />
         <Text style={styles.dirListText} numberOfLines={1}>{displayName}</Text>
         {!!item.size && <Text style={styles.fileSizeText}>{formatBytes(item.size)}</Text>}
+        <TouchableOpacity
+          style={styles.fileMoreBtnList}
+          onPress={() => setFileActionFor(item)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <MCIcon name="dots-vertical" size={20} color={colors.textMuted} />
+        </TouchableOpacity>
       </View>
     );
   };
@@ -372,10 +467,10 @@ const UploadVideoScreen = ({ route, navigation }) => {
               editable={!uploading && item.status !== 'done'}
             />
 
-            <Text style={styles.smallLabel}>Duration (seconds)</Text>
+            <Text style={styles.smallLabel}>Duration (seconds) <Text style={styles.reqMark}>*</Text></Text>
             <TextInput
               style={styles.input}
-              placeholder="e.g. 600"
+              placeholder="Auto-detected — edit if needed"
               placeholderTextColor={colors.textMuted}
               value={item.duration}
               onChangeText={t => updateItem(item.id, { duration: t })}
@@ -443,7 +538,11 @@ const UploadVideoScreen = ({ route, navigation }) => {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Upload Videos" onBack={() => navigation.goBack()} />
+      <ScreenHeader
+        title="Upload Videos"
+        subtitle={currentPath ? currentPath.replace(/\/$/, '') : 'root'}
+        onBack={handleHeaderBack}
+      />
 
       <ScrollView style={styles.body} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
         {/* File Picker */}
@@ -508,6 +607,11 @@ const UploadVideoScreen = ({ route, navigation }) => {
             </React.Fragment>
           ))}
           <View style={{ flex: 1 }} />
+          {!!currentPath && (
+            <TouchableOpacity style={styles.createDirBtn} onPress={goUpFolder}>
+              <MCIcon name="arrow-up-left" size={18} color={colors.primary} />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity style={styles.createDirBtn} onPress={fetchDirectories}>
             <MCIcon name="refresh" size={18} color={colors.primary} />
           </TouchableOpacity>
@@ -516,16 +620,31 @@ const UploadVideoScreen = ({ route, navigation }) => {
           </TouchableOpacity>
         </View>
 
-        {/* Selected directory indicator */}
+        {/* Upload-target bar — always visible right under the breadcrumb (no
+            scrolling to a buried button). Green when a target is set, amber with
+            a one-tap "use this folder" when it's been cleared. */}
         {selectedDir ? (
           <View style={styles.selectedDirBar}>
             <MCIcon name="check-circle" size={18} color="#10B981" />
-            <Text style={styles.selectedDirText}>Uploading to: {selectedDir === '/' ? 'root' : selectedDir}</Text>
-            <TouchableOpacity onPress={() => setSelectedDir('')}>
+            <Text style={styles.selectedDirText} numberOfLines={1}>
+              Uploading to: {selectedDir === '/' ? 'root' : selectedDir}
+            </Text>
+            <TouchableOpacity onPress={clearSelectedFolder} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <MCIcon name="close" size={18} color={colors.textMuted} />
             </TouchableOpacity>
           </View>
-        ) : null}
+        ) : (
+          <View style={styles.noTargetBar}>
+            <MCIcon name="folder-alert-outline" size={18} color={colors.warning} />
+            <Text style={styles.noTargetText} numberOfLines={1}>No upload folder selected</Text>
+            <TouchableOpacity style={styles.useThisBtn} onPress={selectCurrentFolder}>
+              <MCIcon name="check" size={14} color={colors.white} />
+              <Text style={styles.useThisBtnText}>
+                Use {currentPath ? `"${currentPath.replace(/\/$/, '').split('/').pop()}"` : 'root'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Directory + file listing */}
         {dirsLoading ? (
@@ -556,25 +675,21 @@ const UploadVideoScreen = ({ route, navigation }) => {
             />
           </View>
         )}
-
-        <TouchableOpacity style={styles.useCurrentBtn} onPress={selectCurrentFolder}>
-          <MCIcon name="check" size={18} color={colors.white} />
-          <Text style={styles.useCurrentBtnText}>
-            {currentPath ? `Upload to "${currentPath.replace(/\/$/, '').split('/').pop()}"` : 'Upload to root'}
-          </Text>
-        </TouchableOpacity>
       </ScrollView>
 
-      {/* Upload / Back / Cancel Footer */}
+      {/* Upload / Back / Cancel Footer — only when there's something queued, so
+          an empty browser isn't dominated by a full-width Cancel. Leaving with
+          nothing queued is the header back button's job. */}
+      {items.length > 0 && (
       <View style={styles.footer}>
-        {!uploading && !!hint && items.length > 0 && (
+        {!uploading && !!hint && (
           <Text style={styles.footerHint}>{hint}</Text>
         )}
         <View style={styles.footerRow}>
           {items.some(it => it.status === 'done') ? (
             <TouchableOpacity
               style={styles.backBtn}
-              onPress={() => navigation.navigate('VideoGroupEditor', { groupId: defaultGroupId, groupTitle: '' })}
+              onPress={leaveScreen}
             >
               <MCIcon name="arrow-left" size={20} color={colors.white} />
               <Text style={styles.backBtnText}>Back</Text>
@@ -594,13 +709,13 @@ const UploadVideoScreen = ({ route, navigation }) => {
                         style: 'destructive',
                         onPress: () => {
                           cancelledRef.current = true;
-                          navigation.navigate('VideoGroupEditor', { groupId: defaultGroupId, groupTitle: '' });
+                          leaveScreen();
                         },
                       },
                     ],
                   );
                 } else {
-                  navigation.navigate('VideoGroupEditor', { groupId: defaultGroupId, groupTitle: '' });
+                  leaveScreen();
                 }
               }}
             >
@@ -628,6 +743,7 @@ const UploadVideoScreen = ({ route, navigation }) => {
           )}
         </View>
       </View>
+      )}
 
       {/* Create Directory Modal */}
       <Modal visible={createDirModal} transparent animationType="fade" onRequestClose={() => setCreateDirModal(false)}>
@@ -739,6 +855,23 @@ const UploadVideoScreen = ({ route, navigation }) => {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Off-screen duration auto-detection for queued uploads */}
+      {probeElement}
+
+      {/* Per-file move / delete with dependency check */}
+      <StorageFileActionsModal
+        file={fileActionFor}
+        onClose={() => setFileActionFor(null)}
+        onChanged={fetchDirectories}
+      />
+
+      {/* Per-folder rename / delete with dependency check */}
+      <StorageFolderActionsModal
+        folder={folderActionFor}
+        onClose={() => setFolderActionFor(null)}
+        onChanged={fetchDirectories}
+      />
     </View>
   );
 };
@@ -748,6 +881,7 @@ const makeStyles = colors => StyleSheet.create({
   body: { flex: 1, padding: 20 },
   label: { fontSize: 14, fontWeight: '600', color: colors.textSecondary, marginBottom: 8 },
   smallLabel: { fontSize: 12, fontWeight: '600', color: colors.textSecondary, marginBottom: 4, marginTop: 8 },
+  reqMark: { color: '#EF4444', fontWeight: '800' },
   input: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, marginBottom: 4, fontSize: 14, color: colors.textPrimary, backgroundColor: colors.card },
   textArea: { minHeight: 70, textAlignVertical: 'top' },
   filePicker: {
@@ -799,6 +933,9 @@ const makeStyles = colors => StyleSheet.create({
   fileGridItem: { backgroundColor: colors.surfaceMuted },
   dirGridText: { fontSize: 11, fontWeight: '600', color: colors.textPrimary, marginTop: 6, textAlign: 'center' },
   fileSizeText: { fontSize: 10, color: colors.textMuted, marginTop: 2 },
+  // Per-file move/delete entry point (opens StorageFileActionsModal).
+  fileMoreBtn: { position: 'absolute', top: 6, right: 6, width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
+  fileMoreBtnList: { paddingHorizontal: 6, paddingVertical: 4 },
 
   // Directory list mode
   dirList: { marginBottom: 8 },
@@ -808,12 +945,18 @@ const makeStyles = colors => StyleSheet.create({
   },
   dirListText: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.textPrimary },
 
-  // Use current folder btn
-  useCurrentBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    paddingVertical: 10, borderRadius: 10, backgroundColor: colors.primary, marginTop: 8,
+  // No-target prompt bar (shown when the upload folder has been cleared)
+  noTargetBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    padding: 10, borderRadius: 10, marginBottom: 12,
+    backgroundColor: colors.warning + '18', borderWidth: 1, borderColor: colors.warning + '40',
   },
-  useCurrentBtnText: { fontSize: 13, fontWeight: '700', color: colors.white },
+  noTargetText: { flex: 1, fontSize: 13, fontWeight: '600', color: colors.textSecondary },
+  useThisBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8, backgroundColor: colors.primary,
+  },
+  useThisBtnText: { fontSize: 12, fontWeight: '700', color: colors.white },
 
   // Empty state
   emptyDirs: { alignItems: 'center', paddingVertical: 24 },
