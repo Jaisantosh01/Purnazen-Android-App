@@ -230,7 +230,6 @@ const SettingsScreen = ({ navigation }) => {
   const [locationAccess, setLocationAccess]       = useState(false);
   const [locationBusy, setLocationBusy]           = useState(false);
   const [language, setLanguage]                   = useState('en');
-  const [address, setAddress]                     = useState('');
 
   // Hydrate the toggles/values from the server (defaults kept offline)
   React.useEffect(() => {
@@ -242,7 +241,6 @@ const SettingsScreen = ({ navigation }) => {
         if (PREF_KEYS.appointmentAlerts in saved) setAppointmentAlerts(saved[PREF_KEYS.appointmentAlerts]);
         if (PREF_KEYS.promotionalEmails in saved) setPromotionalEmails(saved[PREF_KEYS.promotionalEmails]);
         if (prefs.language) setLanguage(prefs.language);
-        if (prefs.address != null) setAddress(prefs.address);
         if (typeof prefs.locationEnabled === 'boolean') setLocationAccess(prefs.locationEnabled);
       })
       .catch(err => console.log('Preferences fetch failed:', err.message));
@@ -270,15 +268,6 @@ const SettingsScreen = ({ navigation }) => {
     setLanguage(code);
     setShowLanguage(false);
     savePreference({ language: code });
-  };
-
-  // Address editor.
-  const openAddress = () => { setAddressDraft(address); setFormError(''); setShowAddress(true); };
-  const handleSaveAddress = () => {
-    const trimmed = addressDraft.trim();
-    setAddress(trimmed);
-    setShowAddress(false);
-    savePreference({ address: trimmed });
   };
 
   // Location — request the real OS permission, then persist the enabled flag.
@@ -341,10 +330,8 @@ const SettingsScreen = ({ navigation }) => {
   const [emailPassword, setEmailPassword] = useState('');
   // Social account linking
   const [linkBusy, setLinkBusy]           = useState(false);
-  // Language + address modals
+  // Language selector modal
   const [showLanguage, setShowLanguage]   = useState(false);
-  const [showAddress, setShowAddress]     = useState(false);
-  const [addressDraft, setAddressDraft]   = useState('');
   // Change password modal
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [currentPassword, setCurrentPassword]       = useState('');
@@ -671,15 +658,6 @@ const SettingsScreen = ({ navigation }) => {
             />
             <View style={styles.rowDivider} />
             <ArrowRow
-              icon="home-map-marker"
-              hue={HUES.amber}
-              title="Address"
-              subtitle="Used for home visits & nearby search"
-              valueText={address ? 'Edit' : 'Add'}
-              onPress={openAddress}
-            />
-            <View style={styles.rowDivider} />
-            <ArrowRow
               icon="shield-account-outline"
               hue={HUES.purple}
               title="Privacy & Data Consent"
@@ -892,32 +870,6 @@ const SettingsScreen = ({ navigation }) => {
         </View>
       </Modal>
 
-      {/* Address editor modal */}
-      <Modal visible={showAddress} transparent animationType="fade"
-        onRequestClose={() => setShowAddress(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Your Address</Text>
-            <Text style={styles.modalLabel}>Address</Text>
-            <TextInput
-              style={[styles.modalInput, styles.modalInputMultiline]}
-              value={addressDraft}
-              onChangeText={setAddressDraft}
-              placeholder="House / street, area, city, pincode"
-              placeholderTextColor={colors.textMuted}
-              multiline
-            />
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnCancel]} onPress={() => setShowAddress(false)}>
-                <Text style={styles.modalBtnCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnSave]} onPress={handleSaveAddress}>
-                <Text style={styles.modalBtnSaveText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 };
