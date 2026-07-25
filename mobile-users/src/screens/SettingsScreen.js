@@ -28,13 +28,6 @@ import GenderSelect from '../components/GenderSelect';
 import DobInput, { isoToParts, validateDobParts } from '../components/DobInput';
 import { isValidEmail, isValidPhone } from '../utils/validators';
 
-// Shared toggle ids with NotificationsScreen (user_preferences.notifications)
-const PREF_KEYS = {
-  sessionReminders: 'session_reminder',
-  appointmentAlerts: 'appointment',
-  promotionalEmails: 'offers',
-};
-
 // Per-row accent hues. The icon background is a translucent wash of the same
 // hue (`soft()`), so the tint reads correctly over both light and dark cards
 // instead of the old fixed pastel fills that glowed in dark mode.
@@ -219,28 +212,17 @@ const SettingsScreen = ({ navigation }) => {
     );
   };
 
-  const [notifications, setNotifications]         = useState(true);
-  const [sessionReminders, setSessionReminders]   = useState(true);
-  const [appointmentAlerts, setAppointmentAlerts] = useState(true);
-  const [promotionalEmails, setPromotionalEmails] = useState(false);
   const [biometric, setBiometric]                 = useState(false);
   const [biometricBusy, setBiometricBusy]         = useState(false);
   const [locationAccess, setLocationAccess]       = useState(false);
   const [locationBusy, setLocationBusy]           = useState(false);
   const [language, setLanguage]                   = useState('en');
-  const [address, setAddress]                     = useState('');
 
   // Hydrate the toggles/values from the server (defaults kept offline)
   React.useEffect(() => {
     preferencesService.getPreferences()
       .then(prefs => {
-        setNotifications(prefs.pushEnabled);
-        const saved = prefs.notifications || {};
-        if (PREF_KEYS.sessionReminders in saved) setSessionReminders(saved[PREF_KEYS.sessionReminders]);
-        if (PREF_KEYS.appointmentAlerts in saved) setAppointmentAlerts(saved[PREF_KEYS.appointmentAlerts]);
-        if (PREF_KEYS.promotionalEmails in saved) setPromotionalEmails(saved[PREF_KEYS.promotionalEmails]);
         if (prefs.language) setLanguage(prefs.language);
-        if (prefs.address != null) setAddress(prefs.address);
         if (typeof prefs.locationEnabled === 'boolean') setLocationAccess(prefs.locationEnabled);
       })
       .catch(err => console.log('Preferences fetch failed:', err.message));
@@ -253,30 +235,11 @@ const SettingsScreen = ({ navigation }) => {
       .catch(err => console.log('Preference save failed:', err.message));
   };
 
-  const togglePush = value => {
-    setNotifications(value);
-    savePreference({ pushEnabled: value });
-  };
-
-  const makeToggle = (setter, prefKey) => value => {
-    setter(value);
-    savePreference({ notifications: { [prefKey]: value } });
-  };
-
   // Language — persist immediately on select.
   const selectLanguage = code => {
     setLanguage(code);
     setShowLanguage(false);
     savePreference({ language: code });
-  };
-
-  // Address editor.
-  const openAddress = () => { setAddressDraft(address); setFormError(''); setShowAddress(true); };
-  const handleSaveAddress = () => {
-    const trimmed = addressDraft.trim();
-    setAddress(trimmed);
-    setShowAddress(false);
-    savePreference({ address: trimmed });
   };
 
   // Location — request the real OS permission, then persist the enabled flag.
@@ -338,10 +301,8 @@ const SettingsScreen = ({ navigation }) => {
   const [emailPassword, setEmailPassword] = useState('');
   // Social account linking
   const [linkBusy, setLinkBusy]           = useState(false);
-  // Language + address modals
+  // Language selector modal
   const [showLanguage, setShowLanguage]   = useState(false);
-  const [showAddress, setShowAddress]     = useState(false);
-  const [addressDraft, setAddressDraft]   = useState('');
   // Change password modal
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [currentPassword, setCurrentPassword]       = useState('');
@@ -587,47 +548,6 @@ const SettingsScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Notifications */}
-        <View style={styles.section}>
-          <SectionHeader title="Notifications" />
-          <View style={styles.card}>
-            <ToggleRow
-              icon="bell-outline"
-              title="Push Notifications"
-              subtitle="Enable all app notifications"
-              value={notifications}
-              onToggle={togglePush}
-            />
-            <View style={styles.rowDivider} />
-            <ToggleRow
-              icon="yoga"
-              hue={HUES.purple}
-              title="Session Reminders"
-              subtitle="Daily wellness session alerts"
-              value={sessionReminders}
-              onToggle={makeToggle(setSessionReminders, PREF_KEYS.sessionReminders)}
-            />
-            <View style={styles.rowDivider} />
-            <ToggleRow
-              icon="calendar-clock"
-              hue={HUES.blue}
-              title="Appointment Alerts"
-              subtitle="Reminders before consultations"
-              value={appointmentAlerts}
-              onToggle={makeToggle(setAppointmentAlerts, PREF_KEYS.appointmentAlerts)}
-            />
-            <View style={styles.rowDivider} />
-            <ToggleRow
-              icon="tag-outline"
-              hue={HUES.amber}
-              title="Promotional Emails"
-              subtitle="Offers, tips & newsletters"
-              value={promotionalEmails}
-              onToggle={makeToggle(setPromotionalEmails, PREF_KEYS.promotionalEmails)}
-            />
-          </View>
-        </View>
-
         {/* Appearance & Security */}
         <View style={styles.section}>
           <SectionHeader title="Appearance & Security" />
@@ -664,15 +584,6 @@ const SettingsScreen = ({ navigation }) => {
               value={locationAccess}
               onToggle={toggleLocation}
               disabled={locationBusy}
-            />
-            <View style={styles.rowDivider} />
-            <ArrowRow
-              icon="home-map-marker"
-              hue={HUES.amber}
-              title="Address"
-              subtitle="Used for home visits & nearby search"
-              valueText={address ? 'Edit' : 'Add'}
-              onPress={openAddress}
             />
             <View style={styles.rowDivider} />
             <ArrowRow
@@ -892,32 +803,6 @@ const SettingsScreen = ({ navigation }) => {
         </View>
       </Modal>
 
-      {/* Address editor modal */}
-      <Modal visible={showAddress} transparent animationType="fade"
-        onRequestClose={() => setShowAddress(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Your Address</Text>
-            <Text style={styles.modalLabel}>Address</Text>
-            <TextInput
-              style={[styles.modalInput, styles.modalInputMultiline]}
-              value={addressDraft}
-              onChangeText={setAddressDraft}
-              placeholder="House / street, area, city, pincode"
-              placeholderTextColor={colors.textMuted}
-              multiline
-            />
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnCancel]} onPress={() => setShowAddress(false)}>
-                <Text style={styles.modalBtnCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnSave]} onPress={handleSaveAddress}>
-                <Text style={styles.modalBtnSaveText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 };

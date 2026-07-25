@@ -1,4 +1,5 @@
-import { createNavigationContainerRef, CommonActions } from '@react-navigation/native';
+import { createNavigationContainerRef } from '@react-navigation/native';
+import { CommonActions } from '@react-navigation/routers';
 
 // Root navigation handle for code that lives outside the React tree
 // (axios interceptors) and for deeply nested screens that must reach

@@ -23,16 +23,18 @@ import useTheme from '../hooks/useTheme';
  *   3. Theming — colors come from useTheme(), so headers follow dark mode.
  *
  * Props:
- *   title      (string, required)
- *   subtitle   (string)
- *   variant    'brand' (solid hero, default) | 'light' (surface card)
- *   showBack   force-show/hide the back button (defaults to canGoBack())
- *   onBack     custom back handler (defaults to navigation.goBack)
- *   right      node rendered on the trailing edge
- *   underColor color painted BEHIND the curved bottom corners. Defaults to
- *              colors.background (the standard page canvas); pass the screen's
- *              canvas color if it differs (e.g. a chat screen on colors.card),
- *              otherwise the corner cutouts flash a mismatched color in dark mode.
+ *   title         (string, required)
+ *   subtitle      (string)
+ *   hideTitle     (boolean) if true, the title text is not rendered
+ *   subtitleRight (string) text rendered at the trailing edge of the subtitle row
+ *   variant       'brand' (solid hero, default) | 'light' (surface card)
+ *   showBack      force-show/hide the back button (defaults to canGoBack())
+ *   onBack        custom back handler (defaults to navigation.goBack)
+ *   right         node rendered on the trailing edge
+ *   underColor    color painted BEHIND the curved bottom corners. Defaults to
+ *                 colors.background (the standard page canvas); pass the screen's
+ *                 canvas color if it differs (e.g. a chat screen on colors.card),
+ *                 otherwise the corner cutouts flash a mismatched color in dark mode.
  */
 /**
  * useHeaderTopPadding — safe-area top padding for screens that keep a custom
@@ -48,6 +50,8 @@ export const useHeaderTopPadding = (extra = 12) => {
 export default function ScreenHeader({
   title,
   subtitle,
+  subtitleRight = null,
+  hideTitle = false,
   variant = 'brand',
   showBack,
   onBack,
@@ -117,13 +121,25 @@ export default function ScreenHeader({
         )}
 
         <View style={styles.titleWrap}>
-          <Text style={[styles.title, { color: fg }]} numberOfLines={1}>
-            {title}
-          </Text>
-          {subtitle ? (
-            <Text style={[styles.subtitle, { color: subFg }]} numberOfLines={1}>
-              {subtitle}
+          {!hideTitle && (
+            <Text style={[styles.title, { color: fg }]} numberOfLines={1}>
+              {title}
             </Text>
+          )}
+          {subtitle || subtitleRight ? (
+            <View style={styles.subtitleRow}>
+              {subtitle ? (
+                <Text style={[styles.subtitle, { color: subFg }]} numberOfLines={1}>
+                  {subtitle}
+                </Text>
+              ) : null}
+              <View style={{ flex: 1 }} />
+              {subtitleRight ? (
+                <Text style={[styles.subtitleRight, { color: subFg }]} numberOfLines={1}>
+                  {subtitleRight}
+                </Text>
+              ) : null}
+            </View>
           ) : null}
         </View>
 
@@ -154,6 +170,8 @@ const styles = StyleSheet.create({
   // screen has no subtitle, so every header renders at the same height.
   titleWrap: { flex: 1, minHeight: 46, justifyContent: 'center' },
   title: { fontSize: 22, fontWeight: '700' },
+  subtitleRow: { flexDirection: 'row', alignItems: 'center' },
   subtitle: { fontSize: 13, marginTop: 2 },
+  subtitleRight: { fontSize: 11, marginLeft: 8 },
   rightWrap: { minWidth: 4, alignItems: 'flex-end', justifyContent: 'center' },
 });

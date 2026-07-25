@@ -22,6 +22,7 @@ const TherapyHistoryScreen = ({ navigation }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [sessions, setSessions] = useState(null);
+  const [stats, setStats] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -58,8 +59,12 @@ const TherapyHistoryScreen = ({ navigation }) => {
     else setIsLoading(true);
     setError(null);
     try {
-      const data = await therapyService.getSessionGroups();
-      setSessions(data?.sessions ?? []);
+      const [groupData, historyData] = await Promise.all([
+        therapyService.getSessionGroups(),
+        therapyService.getTherapyHistory(),
+      ]);
+      setSessions(groupData?.sessions ?? []);
+      setStats(historyData?.stats ?? null);
     } catch (err) {
       setError(err.message || 'Something went wrong');
     } finally {
@@ -73,9 +78,7 @@ const TherapyHistoryScreen = ({ navigation }) => {
   }, [fetchSessions]);
 
   const totalSessions = sessions?.length ?? 0;
-  const totalMinutes = (sessions ?? []).reduce(
-    (sum, s) => sum + (s.completedVideos || 0) * 5, 0
-  );
+  const totalMinutes = stats?.minutes ?? 0;
 
   const handleContinue = (session) => {
     if (session.sessionType === 'wellness') {

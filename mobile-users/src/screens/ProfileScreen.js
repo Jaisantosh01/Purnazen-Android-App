@@ -46,9 +46,17 @@ const ProfileScreen = ({ navigation }) => {
   const [statsLoading, setStatsLoading] = useState(true);
 
   useEffect(() => {
-    therapyService
-      .getTherapyHistory()
-      .then(data => setStats(data?.stats ?? null))
+    Promise.all([
+      therapyService.getTherapyHistory(),
+      therapyService.getSessionGroups(),
+    ])
+      .then(([historyData, groupData]) => {
+        setStats({
+          sessions: groupData?.total ?? groupData?.sessions?.length ?? 0,
+          minutes: historyData?.stats?.minutes ?? 0,
+          avgRelief: historyData?.stats?.avgRelief ?? null,
+        });
+      })
       .catch(() => setStats(null))
       .finally(() => setStatsLoading(false));
   }, []);
