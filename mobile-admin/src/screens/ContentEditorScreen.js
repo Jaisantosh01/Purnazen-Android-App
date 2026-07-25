@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Alert,
   Platform,
   KeyboardAvoidingView,
   Modal,
@@ -14,9 +13,10 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
-import { CONTENT_TABS, FORMAT_ACTIONS } from '../constants/content';
+import { CONTENT_TABS, CONTENT_PLACEHOLDERS, FORMAT_ACTIONS } from '../constants/content';
 import { renderRichText, normalizeHtml } from '../utils/richText';
 import useTheme from '../hooks/useTheme';
+import { showAlert } from '../utils/alert';
 import ScreenHeader from '../components/ScreenHeader';
 import AppToggle from '../components/AppToggle';
 
@@ -51,6 +51,11 @@ const ContentEditorScreen = ({ route, navigation }) => {
   const [saving, setSaving] = useState(false);
 
   const selRef = useRef({ start: 0, end: 0 });
+
+  // Prompts follow the selected content type — a privacy policy asks for
+  // different things than terms do.
+  const activeTab = CONTENT_TABS.find(t => t.key === contentType);
+  const hints = CONTENT_PLACEHOLDERS[contentType] || CONTENT_PLACEHOLDERS.terms;
 
   useEffect(() => {
     if (editingItem) {
@@ -160,15 +165,15 @@ const ContentEditorScreen = ({ route, navigation }) => {
       const roleId = isAllSelected ? null : selectedRoleIds[0];
       apiClient.put(`${ENDPOINTS.CONTENT_PAGES}/${editingItem.id}`, { ...basePayload, role_id: roleId || editingItem.roleId })
         .then(() => { navigation.goBack(); })
-        .catch(() => { Alert.alert('Error', 'Failed to save content page'); setSaving(false); });
+        .catch(() => { showAlert('Error', 'Failed to save content page'); setSaving(false); });
     } else {
       const targetIds = isAllSelected
         ? roles.filter(r => r.is_active !== false).map(r => r.id)
         : selectedRoleIds;
-      if (targetIds.length === 0) { Alert.alert('Error', 'No roles selected'); setSaving(false); return; }
+      if (targetIds.length === 0) { showAlert('Error', 'No roles selected'); setSaving(false); return; }
       Promise.all(targetIds.map(roleId => apiClient.post(ENDPOINTS.CONTENT_PAGES, { ...basePayload, role_ids: [roleId] })))
         .then(() => { navigation.goBack(); })
-        .catch(() => { Alert.alert('Error', 'Failed to save content pages'); setSaving(false); });
+        .catch(() => { showAlert('Error', 'Failed to save content pages'); setSaving(false); });
     }
   };
 
@@ -188,8 +193,8 @@ const ContentEditorScreen = ({ route, navigation }) => {
         <ScrollView style={styles.modalContent} keyboardShouldPersistTaps="handled">
           <Text style={styles.label}>Content Type <Text style={{ color: '#EF4444' }}>*</Text></Text>
           <TouchableOpacity style={styles.picker} onPress={() => setContentTypePicker(true)}>
-            <MCIcon name={contentType === 'terms' ? 'file-document-outline' : 'shield-lock-outline'} size={18} color={colors.textPrimary} />
-            <Text style={styles.pickerText}>{CONTENT_TABS.find(t => t.key === contentType)?.label || contentType}</Text>
+            <MCIcon name={activeTab?.icon || 'file-document-outline'} size={18} color={colors.textPrimary} />
+            <Text style={styles.pickerText}>{activeTab?.label || contentType}</Text>
             <MCIcon name="chevron-down" size={18} color={colors.textMuted} />
           </TouchableOpacity>
 
@@ -201,7 +206,7 @@ const ContentEditorScreen = ({ route, navigation }) => {
           </TouchableOpacity>
 
           <Text style={styles.label}>Title <Text style={{ color: '#EF4444' }}>*</Text></Text>
-          <TextInput style={styles.input} placeholder="e.g. Terms & Conditions v2" placeholderTextColor={colors.textMuted} value={title} onChangeText={setTitle} />
+          <TextInput style={styles.input} placeholder={hints.title} placeholderTextColor={colors.textMuted} value={title} onChangeText={setTitle} />
 
           <Text style={styles.label}>Version</Text>
           <TextInput style={[styles.input, { width: 120 }]} placeholder="1.0" placeholderTextColor={colors.textMuted} value={version} onChangeText={setVersion} />
@@ -237,7 +242,7 @@ const ContentEditorScreen = ({ route, navigation }) => {
                 value={content}
                 onChangeText={setContent}
                 onSelectionChange={handleSelectionChange}
-                placeholder="Write content here..."
+                placeholder={hints.content}
                 placeholderTextColor={colors.textMuted}
                 multiline
                 textAlignVertical="top"
@@ -248,6 +253,16 @@ const ContentEditorScreen = ({ route, navigation }) => {
               <Text style={styles.editorHint}>
                 Select text, then tap a style. Use Preview to see the formatted result.
               </Text>
+              {/* Only offered on an empty editor — it would otherwise clobber
+                  whatever the admin has already written. */}
+              {!content.trim() ? (
+                <TouchableOpacity style={styles.outlineBtn} onPress={() => setContent(hints.outline)}>
+                  <MCIcon name="format-list-numbered" size={16} color={colors.primary} />
+                  <Text style={styles.outlineBtnText}>
+                    Start from a {activeTab?.label || 'content'} outline
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
             </>
           ) : (
             <View style={styles.previewBox}>
@@ -348,6 +363,20 @@ const makeStyles = colors => StyleSheet.create({
   toolbarBtn: { width: 36, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   editorInput: { backgroundColor: colors.surfaceMuted, borderRadius: 8, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, lineHeight: 22, color: colors.textPrimary, minHeight: 180, textAlignVertical: 'top' },
   editorHint: { fontSize: 11, color: colors.textMuted, marginTop: 6 },
+  outlineBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceMuted,
+  },
+  outlineBtnText: { fontSize: 12, fontWeight: '700', color: colors.primary },
   previewBox: { backgroundColor: colors.surfaceMuted, borderRadius: 8, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 12, paddingVertical: 10, minHeight: 180 },
 
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 },
@@ -358,8 +387,8 @@ const makeStyles = colors => StyleSheet.create({
   saveBtn: { backgroundColor: colors.primary },
   cancelBtnText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
   saveBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
-  pickerModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', paddingHorizontal: 32 },
-  pickerModalContent: { backgroundColor: colors.card, borderRadius: 14, padding: 16, maxHeight: '70%' },
+  pickerModalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', paddingHorizontal: 32 },
+  pickerModalContent: { backgroundColor: colors.modalSurface, borderRadius: 14, padding: 16, maxHeight: '70%'  , borderWidth: 1, borderColor: colors.modalBorder, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 16, elevation: 12},
   pickerModalTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary, marginBottom: 12, textAlign: 'center' },
   pickerDivider: { height: 1, backgroundColor: colors.border, marginVertical: 4 },
   pickerOption: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 12, borderRadius: 10, marginBottom: 4 },

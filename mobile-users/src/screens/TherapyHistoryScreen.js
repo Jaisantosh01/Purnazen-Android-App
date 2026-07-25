@@ -326,22 +326,23 @@ const makeStyles = colors => StyleSheet.create({
   retryText: { fontSize: 14, fontWeight: '700', color: colors.white },
 
   // One compact strip rather than two tall stacked tiles — the old layout burned
-  // ~100px of vertical space on two numbers.
+  // ~100px of vertical space on two numbers. Kept tight to the header and the
+  // list: the numbers are a glance, not the point of the screen.
   statsRow: {
     flexDirection: 'row', alignItems: 'center',
-    marginHorizontal: 16, marginTop: 12, marginBottom: 2,
-    backgroundColor: colors.card, borderRadius: 14, paddingVertical: 10,
+    marginHorizontal: 16, marginTop: 8, marginBottom: 0,
+    backgroundColor: colors.card, borderRadius: 12, paddingVertical: 7,
     elevation: 2, shadowColor: colors.black, shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05, shadowRadius: 4,
   },
   statBox: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
   },
   statDivider: { width: StyleSheet.hairlineWidth, alignSelf: 'stretch', backgroundColor: colors.border },
-  statValue: { fontSize: 17, fontWeight: '700', color: colors.primary },
+  statValue: { fontSize: 16, fontWeight: '700', color: colors.primary },
   statLabel: { fontSize: 12, color: colors.textSecondary },
 
-  sessionList: { paddingHorizontal: 16, marginTop: 12 },
+  sessionList: { paddingHorizontal: 16, marginTop: 8 },
   sessionCard: {
     padding: 16, borderRadius: 14, marginBottom: 16,
     elevation: 2, shadowColor: colors.black,

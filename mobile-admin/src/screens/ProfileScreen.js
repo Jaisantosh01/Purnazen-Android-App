@@ -16,6 +16,7 @@ import authService from '../services/authService';
 import { checkForUpdate, FORCE_MARKER } from '../services/updateService';
 import { isOtaSupported, startBackgroundInstall } from '../services/otaUpdater';
 import { APP_VERSION } from '../config';
+import AppVersionFooter from '../components/AppVersionFooter';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { StatsSkeleton } from '../components/SkeletonLoader';
@@ -197,6 +198,9 @@ const ProfileScreen = ({ navigation }) => {
           <MCIcon name="logout" size={18} color={colors.danger} style={{ marginRight: 8 }} />
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
+
+        {/* Build stamp + brand, same as the patient and doctor apps. */}
+        <AppVersionFooter />
 
       </ScrollView>
     </View>

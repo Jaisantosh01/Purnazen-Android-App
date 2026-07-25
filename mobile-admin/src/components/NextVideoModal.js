@@ -8,7 +8,7 @@ export default function NextVideoModal({ visible, currentTitle, nextTitle, onPla
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       <View style={styles.overlay}>
-        <View style={[styles.card, { backgroundColor: colors.card }]}>
+        <View style={[styles.card, { backgroundColor: colors.modalSurface, borderColor: colors.modalBorder }]}>
           <MCIcon name="check-circle" size={52} color="#10B981" style={{ marginBottom: 8 }} />
           <Text style={[styles.title, { color: colors.textPrimary }]}>Video Completed</Text>
 
@@ -42,7 +42,7 @@ export default function NextVideoModal({ visible, currentTitle, nextTitle, onPla
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: colors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 30,
@@ -53,6 +53,14 @@ const styles = StyleSheet.create({
     maxWidth: 360,
     width: '100%',
     alignItems: 'center',
+    // Surface + border colours come from the caller (theme-dependent); the
+    // edge and lift are what keep the dialog off the dark background.
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    elevation: 12,
   },
   title: {
     fontSize: 18,

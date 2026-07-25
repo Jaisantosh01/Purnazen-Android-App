@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import {
-  Alert,
   View,
   Text,
   StyleSheet,
@@ -32,6 +31,14 @@ const formatBytes = (bytes) => {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+};
+
+const formatDuration = (seconds) => {
+  const total = Math.max(0, Math.floor(Number(seconds) || 0));
+  if (!total) return '';
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${s < 10 ? '0' : ''}${s}`;
 };
 
 const titleFromFilename = (name) =>
@@ -115,6 +122,15 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
   // Per-file storage actions (move / delete)
   const [fileActionFor, setFileActionFor] = useState(null);
 
+  // Library-metadata editor for an already-stored (Azure) video: the storage
+  // listing only knows the blob, so title/description/duration have to be
+  // editable here rather than only at upload time.
+  const [metaEditor, setMetaEditor] = useState(null);
+  const [metaTitle, setMetaTitle] = useState('');
+  const [metaDescription, setMetaDescription] = useState('');
+  const [metaDuration, setMetaDuration] = useState('');
+  const [metaSaving, setMetaSaving] = useState(false);
+
   // Saving state (drives the header Save action's spinner)
   const [saving, setSaving] = useState(false);
 
@@ -138,7 +154,7 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
       }
     };
 
-    Alert.alert(
+    showAlert(
       'Unsaved Changes',
       'Save changes to the group before leaving?',
       [
@@ -485,6 +501,48 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
     }
   };
 
+  // Edit the library record behind a stored blob (title / description /
+  // duration). Duration in particular matters: imports land at 0 and the apps
+  // show it on the session cards.
+  const openMetaEditor = (video) => {
+    setMetaEditor(video);
+    setMetaTitle(video.title || '');
+    setMetaDescription(video.description || '');
+    setMetaDuration(video.duration ? String(video.duration) : '');
+  };
+
+  const saveMetaEditor = async () => {
+    if (!metaEditor) return;
+    const title = metaTitle.trim();
+    if (!title) {
+      showAlert('Title required', 'Give the video a title before saving.');
+      return;
+    }
+    const duration = parseInt(metaDuration, 10);
+    if (metaDuration.trim() && (isNaN(duration) || duration < 0)) {
+      showAlert('Invalid duration', 'Duration must be a whole number of seconds.');
+      return;
+    }
+    setMetaSaving(true);
+    try {
+      const payload = {
+        title,
+        description: metaDescription.trim(),
+        duration: isNaN(duration) ? 0 : duration,
+      };
+      await apiClient.put(`${ENDPOINTS.ALL_VIDEOS}/${metaEditor.id}`, payload);
+      setAllVideos(prev =>
+        prev.map(v => (v.id === metaEditor.id ? { ...v, ...payload } : v)),
+      );
+      setMetaEditor(null);
+      showAlert('Saved', 'Video details updated');
+    } catch (err) {
+      showAlert('Error', err?.message || 'Failed to update video details');
+    } finally {
+      setMetaSaving(false);
+    }
+  };
+
   // ── Renderers ──
 
   const renderGridDir = (dir) => {
@@ -512,10 +570,21 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
     );
   };
 
+  /**
+   * A file tile: a fixed-height media box on top (where every floating control
+   * lives) and a text block underneath in normal flow. The controls used to be
+   * absolutely positioned over the whole tile, which is what put the play button
+   * on top of the filename and size.
+   *
+   * Every tile shows a control in the same top-right slot — a checkbox once the
+   * file has a library record, an "add" button while it doesn't — so the grid
+   * doesn't look like two different kinds of card.
+   */
   const renderGridFile = (file) => {
     const displayName = file.name.split('/').pop() || file.name;
     const video = videoByStoragePath[file.name];
     const isSelected = video && isVideoSelected(video.id);
+    const playable = video || file.videoUrl;
     return (
       <TouchableOpacity
         key={file.name}
@@ -524,46 +593,71 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
         disabled={!video}
         activeOpacity={video ? 0.7 : 1}
       >
-        {video ? (
-          <>
+        <View style={styles.gridMedia}>
+          {playable ? (
+            <TouchableOpacity
+              style={styles.gridPlayBtn}
+              onPress={() => setPreviewVideo(video || file)}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <MCIcon name="play" size={20} color="#fff" />
+            </TouchableOpacity>
+          ) : (
+            <MCIcon name="movie-off-outline" size={26} color={colors.textMuted} />
+          )}
+
+          <TouchableOpacity
+            style={styles.fileMoreBtn}
+            onPress={() => setFileActionFor(file)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <MCIcon name="dots-vertical" size={18} color="#fff" />
+          </TouchableOpacity>
+
+          {video ? (
             <View style={styles.gridCheckbox}>
               <MCIcon
                 name={isSelected ? 'checkbox-marked' : 'checkbox-blank-outline'}
                 size={22}
-                color={isSelected ? colors.primary : colors.textMuted}
+                color={isSelected ? colors.primary : colors.white}
               />
             </View>
-            <TouchableOpacity style={styles.gridPlayBtn} onPress={() => setPreviewVideo(video)}>
-              <MCIcon name="play-circle" size={22} color="#fff" />
+          ) : file.videoUrl ? (
+            <TouchableOpacity
+              style={styles.gridCheckbox}
+              onPress={() => handleAddToLibrary(file)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <MCIcon name="plus-circle" size={22} color={colors.primary} />
             </TouchableOpacity>
-          </>
-        ) : (
-          <>
-            {file.videoUrl ? (
-              <TouchableOpacity style={styles.gridPlayBtn} onPress={() => setPreviewVideo(file)}>
-                <MCIcon name="play-circle" size={22} color="#fff" />
-              </TouchableOpacity>
-            ) : (
-              <MCIcon name="movie-outline" size={26} color={colors.textMuted} />
-            )}
-          </>
-        )}
-        <Text style={styles.dirGridText} numberOfLines={2}>{video ? video.title : displayName}</Text>
-        {!!file.size && <Text style={styles.fileSizeText}>{formatBytes(file.size)}</Text>}
-        {!video && file.videoUrl && (
-          <TouchableOpacity style={styles.addLibBtn} onPress={() => handleAddToLibrary(file)}>
-            <MCIcon name="plus-circle" size={14} color={colors.white} />
-            <Text style={styles.addLibText}>Add</Text>
-          </TouchableOpacity>
-        )}
-        {!video && !file.videoUrl && <Text style={styles.fileMissingText}>No record</Text>}
-        <TouchableOpacity
-          style={styles.fileMoreBtn}
-          onPress={() => setFileActionFor(file)}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <MCIcon name="dots-vertical" size={18} color="#fff" />
-        </TouchableOpacity>
+          ) : null}
+        </View>
+
+        <View style={styles.gridMeta}>
+          <Text style={styles.dirGridText} numberOfLines={2}>{video ? video.title : displayName}</Text>
+          <View style={styles.gridMetaRow}>
+            {!!file.size && <Text style={styles.fileSizeText}>{formatBytes(file.size)}</Text>}
+            {video?.duration ? (
+              <Text style={styles.fileSizeText}>{formatDuration(video.duration)}</Text>
+            ) : null}
+          </View>
+          {!video && file.videoUrl ? (
+            <Text style={styles.fileHintText}>Tap + to add</Text>
+          ) : null}
+          {!video && !file.videoUrl ? (
+            <Text style={styles.fileMissingText}>No record</Text>
+          ) : null}
+          {video ? (
+            <TouchableOpacity
+              style={styles.gridEditBtn}
+              onPress={() => openMetaEditor(video)}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <MCIcon name="pencil-outline" size={12} color={colors.primary} />
+              <Text style={styles.gridEditText}>Edit details</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
       </TouchableOpacity>
     );
   };
@@ -631,6 +725,18 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
           {video ? video.title : displayName}
         </Text>
         {!!item.size && <Text style={styles.fileSizeText}>{formatBytes(item.size)}</Text>}
+        {video?.duration ? (
+          <Text style={styles.fileSizeText}>{formatDuration(video.duration)}</Text>
+        ) : null}
+        {video && (
+          <TouchableOpacity
+            onPress={() => openMetaEditor(video)}
+            style={{ padding: 4 }}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          >
+            <MCIcon name="pencil-outline" size={18} color={colors.primary} />
+          </TouchableOpacity>
+        )}
         {!video && item.videoUrl && (
           <TouchableOpacity style={styles.addLibBtnList} onPress={() => handleAddToLibrary(item)}>
             <MCIcon name="plus-circle" size={16} color={colors.primary} />
@@ -1074,6 +1180,73 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
         </TouchableOpacity>
       </Modal>
 
+      {/* Library metadata for an already-stored video */}
+      <Modal visible={!!metaEditor} transparent animationType="fade" onRequestClose={() => setMetaEditor(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Edit Video Details</Text>
+
+            <Text style={styles.smallLabel}>Title</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Video title"
+              placeholderTextColor={colors.textMuted}
+              value={metaTitle}
+              onChangeText={setMetaTitle}
+              editable={!metaSaving}
+            />
+
+            <Text style={styles.smallLabel}>Description</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              placeholder="Brief description"
+              placeholderTextColor={colors.textMuted}
+              value={metaDescription}
+              onChangeText={setMetaDescription}
+              multiline
+              editable={!metaSaving}
+            />
+
+            <Text style={styles.smallLabel}>Duration (seconds)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. 600"
+              placeholderTextColor={colors.textMuted}
+              value={metaDuration}
+              onChangeText={setMetaDuration}
+              keyboardType="numeric"
+              editable={!metaSaving}
+            />
+            {metaDuration.trim() && !isNaN(parseInt(metaDuration, 10)) ? (
+              <Text style={styles.metaHint}>
+                Shows as {formatDuration(parseInt(metaDuration, 10))} in the apps
+              </Text>
+            ) : null}
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalBtn}
+                onPress={() => setMetaEditor(null)}
+                disabled={metaSaving}
+              >
+                <Text style={{ color: colors.textPrimary }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.saveBtn]}
+                onPress={saveMetaEditor}
+                disabled={metaSaving}
+              >
+                {metaSaving ? (
+                  <ActivityIndicator size="small" color={colors.white} />
+                ) : (
+                  <Text style={{ color: colors.white }}>Save</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Create Directory Modal */}
       <Modal visible={createDirModal} transparent animationType="fade" onRequestClose={() => setCreateDirModal(false)}>
         <View style={styles.modalOverlay}>
@@ -1241,17 +1414,36 @@ const makeStyles = colors => StyleSheet.create({
   breadcrumbActive: { color: colors.primary },
 
   // Directory grid mode
-  dirsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' },
+  // Rows start at the left edge — a centred wrap left the last (partial) row
+  // floating in the middle of the folder, out of line with the rows above it.
+  dirsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'flex-start' },
+  // Taller than it is wide: the square tile had no room for the filename plus
+  // its size/duration, so the floating controls sat on top of the text.
   dirGridItem: {
-    width: '30%', aspectRatio: 1, borderRadius: 12, borderWidth: 1, borderColor: colors.border,
+    width: '31%', minHeight: 148, borderRadius: 12, borderWidth: 1, borderColor: colors.border,
     backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', padding: 8,
   },
-  fileGridItem: { backgroundColor: colors.surfaceMuted },
+  fileGridItem: { backgroundColor: colors.surfaceMuted, alignItems: 'stretch', justifyContent: 'flex-start', padding: 0, overflow: 'hidden' },
   selectedGridItem: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
-  gridCheckbox: { position: 'absolute', top: 6, right: 6 },
-  dirGridText: { fontSize: 11, fontWeight: '600', color: colors.textPrimary, marginTop: 6, textAlign: 'center' },
+  // Media box: the only area the floating controls live in, so they can never
+  // land on the filename or the metadata below.
+  gridMedia: {
+    height: 62,
+    backgroundColor: colors.black,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  gridMeta: { paddingHorizontal: 8, paddingVertical: 6, flex: 1 },
+  gridMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 2 },
+  gridCheckbox: { position: 'absolute', top: 4, right: 4 },
+  dirGridText: { fontSize: 11, fontWeight: '600', color: colors.textPrimary, marginTop: 0, textAlign: 'left' },
   fileSizeText: { fontSize: 10, color: colors.textMuted, marginTop: 2 },
+  fileHintText: { fontSize: 9, color: colors.textMuted, marginTop: 2, fontStyle: 'italic' },
   fileMissingText: { fontSize: 9, color: colors.danger, marginTop: 2 },
+  gridEditBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 4 },
+  gridEditText: { fontSize: 10, fontWeight: '700', color: colors.primary },
+  metaHint: { fontSize: 11, color: colors.textMuted, marginTop: -4, marginBottom: 8 },
 
   // Directory list mode
   dirList: { marginBottom: 8 },
@@ -1270,9 +1462,10 @@ const makeStyles = colors => StyleSheet.create({
   folderAddBtn: { position: 'absolute', top: 6, right: 6, width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
   folderAddBtnList: { paddingHorizontal: 8, paddingVertical: 4, alignItems: 'center', justifyContent: 'center' },
   // Per-file move/delete entry point (opens StorageFileActionsModal).
-  fileMoreBtn: { position: 'absolute', top: 6, left: 6, width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
+  fileMoreBtn: { position: 'absolute', top: 4, left: 4, width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
   fileMoreBtnList: { paddingHorizontal: 6, paddingVertical: 4 },
-  gridPlayBtn: { position: 'absolute', bottom: 6, right: 6, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' },
+  // Centred in the media box (not floating over the whole tile).
+  gridPlayBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.22)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.45)', alignItems: 'center', justifyContent: 'center' },
   addLibBtn: { position: 'absolute', bottom: 4, left: 4, flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: colors.primary, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 3 },
   addLibText: { fontSize: 9, fontWeight: '700', color: colors.white },
   addLibBtnList: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
@@ -1312,18 +1505,18 @@ const makeStyles = colors => StyleSheet.create({
   uploadCancelBtnText: { fontSize: 13, fontWeight: '700', color: colors.white },
 
   // Modals
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', padding: 20 },
-  modalCard: { backgroundColor: colors.card, padding: 20, borderRadius: 16 },
+  modalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', padding: 20 },
+  modalCard: { backgroundColor: colors.modalSurface, padding: 20, borderRadius: 16 , borderWidth: 1, borderColor: colors.modalBorder, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 16, elevation: 12},
   modalTitle: { fontSize: 16, fontWeight: '800', marginBottom: 12, color: colors.textPrimary },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 10 },
   modalBtn: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 8, backgroundColor: colors.surfaceMuted },
-  modalOverlayCentered: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center', padding: 30 },
-  targetPickerCard: { backgroundColor: colors.card, borderRadius: 16, padding: 16, maxWidth: 420, width: '100%' },
+  modalOverlayCentered: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', alignItems: 'center', padding: 30 },
+  targetPickerCard: { backgroundColor: colors.modalSurface, borderRadius: 16, padding: 16, maxWidth: 420, width: '100%'  , borderWidth: 1, borderColor: colors.modalBorder, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 16, elevation: 12},
   targetSection: { fontSize: 12, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase', marginBottom: 6 },
   targetEmpty: { fontSize: 12, color: colors.textMuted, marginBottom: 6 },
   targetOption: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 10, borderRadius: 10, marginBottom: 2 },
   targetOptionText: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
-  iconPickerCard: { backgroundColor: colors.card, borderRadius: 16, padding: 16, maxWidth: 400, width: '100%' },
+  iconPickerCard: { backgroundColor: colors.modalSurface, borderRadius: 16, padding: 16, maxWidth: 400, width: '100%'  , borderWidth: 1, borderColor: colors.modalBorder, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 16, elevation: 12},
   iconPagination: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border },
   iconPageBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, padding: 8 },
   iconPageText: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },

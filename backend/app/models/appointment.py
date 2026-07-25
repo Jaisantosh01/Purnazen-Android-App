@@ -106,6 +106,9 @@ class Appointment(Base):
             "specialty": self.doctor.specialty.name,
             "expertise": [mapping.expertise.name for mapping in self.doctor.expertise_mappings],
             "consultationType": self.consultation_type.name if self.consultation_type else self.visit_type,
+            # Canonical slug (video | home | clinic). `consultationType` is a
+            # display name, so clients should branch on this instead.
+            "visitType": self.visit_type,
             "date": self.date.isoformat(),
             "day": self.date.strftime("%A") if self.date else None,
             "time": self.slot_timing.start_time.strftime("%I:%M %p") if self.slot_timing else None,

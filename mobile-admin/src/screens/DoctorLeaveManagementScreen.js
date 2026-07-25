@@ -895,8 +895,8 @@ const makeStyles = colors => StyleSheet.create({
   emptyText: { marginTop: 12, fontSize: 15, color: colors.textMuted },
 
   // Filter Modal
-  filterModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  filterModalContainer: { backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%', width: '100%', maxWidth: 640, alignSelf: 'center' },
+  filterModalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
+  filterModalContainer: { backgroundColor: colors.modalSurface, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%', width: '100%', maxWidth: 640, alignSelf: 'center' , borderWidth: 1, borderColor: colors.modalBorder, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 16, elevation: 12},
   filterModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
   filterModalTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
   filterModalBody: { padding: 20 },
@@ -941,8 +941,8 @@ const makeStyles = colors => StyleSheet.create({
   calDayToday: { color: colors.primary, fontWeight: '700' },
 
   // Detail Modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 20 },
-  modalContainer: { backgroundColor: colors.card, borderRadius: 16, overflow: 'hidden', width: '100%', maxWidth: 560, alignSelf: 'center' },
+  modalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', padding: 20 },
+  modalContainer: { backgroundColor: colors.modalSurface, borderRadius: 16, overflow: 'hidden', width: '100%', maxWidth: 560, alignSelf: 'center' , borderWidth: 1, borderColor: colors.modalBorder, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 16, elevation: 12},
   statusModalBody: { padding: 20 },
   modalTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary, marginBottom: 6 },
   modalSubtitle: { fontSize: 14, color: colors.textSecondary, marginBottom: 8 },
@@ -976,8 +976,8 @@ const makeStyles = colors => StyleSheet.create({
   footerLoader: { paddingVertical: 20 },
 
   // Calendar Modal styles
-  calendarModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 24 },
-  calendarModalContainer: { backgroundColor: colors.card, borderRadius: 16, padding: 20 },
+  calendarModalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', padding: 24 },
+  calendarModalContainer: { backgroundColor: colors.modalSurface, borderRadius: 16, padding: 20  , borderWidth: 1, borderColor: colors.modalBorder, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 16, elevation: 12},
   calendarModalTitle: { fontSize: 16, fontWeight: '800', color: colors.textPrimary, textAlign: 'center', marginBottom: 12 },
   calendarDoneBtn: { backgroundColor: colors.primary, padding: 14, borderRadius: 10, alignItems: 'center', marginTop: 16 },
   calendarDoneText: { color: colors.white, fontWeight: '700', fontSize: 15 },
