@@ -101,6 +101,12 @@ class Appointment(Base):
             "doctorId": str(self.doctor_id),
             "userId": str(self.user_id),
             "userName": self.user.full_name if self.user else None,
+            # Profile photos for both sides of the appointment. `User.avatar`
+            # resolves the stored blob path to a short-lived SAS URL (and passes
+            # a social-login URL through untouched), so clients can render these
+            # directly. Null when that account has no photo.
+            "userAvatar": self.user.avatar if self.user else None,
+            "doctorAvatar": self.doctor.user.avatar if self.doctor and self.doctor.user else None,
             "doctorName": format_doctor_name(self.doctor.user.full_name),
             "doctorAbout": self.doctor.about if self.doctor else None,
             "specialty": self.doctor.specialty.name,

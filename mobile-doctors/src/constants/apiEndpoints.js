@@ -6,9 +6,7 @@ export { BASE_URL };
 
 /**
  * Backend endpoints the doctor app uses. These point at the SAME FastAPI
- * server as the patient app. Endpoints marked TODO are referenced by the
- * scaffolded screens but may need backend additions (e.g. a doctor-scoped
- * "my appointments" / "my patients" view) — wire them up during feature dev.
+ * server as the patient app.
  */
 export const ENDPOINTS = {
   // Auth (shared with patients; doctors log in with their own accounts)
@@ -21,6 +19,8 @@ export const ENDPOINTS = {
   REFRESH: `${API_VERSION}/auth/refresh`,
   ME: `${API_VERSION}/auth/me`,
   CHANGE_PASSWORD: `${API_VERSION}/auth/change-password`,
+  // Profile photo (multipart). Shared route — serves any authenticated role.
+  AVATAR_UPLOAD: `${API_VERSION}/users/me/avatar`,
 
   // App releases (OTA) — backend-brokered update check + short-lived SAS download
   APP_RELEASE_LATEST: slug => `${API_VERSION}/app-releases/latest?app=${slug}`,
@@ -52,9 +52,9 @@ export const ENDPOINTS = {
   LEAVE_ITEM: id => `${API_VERSION}/doctor-leaves/${id}`,
   LEAVE_CANCEL: id => `${API_VERSION}/doctor-leaves/${id}`,
 
-  // Appointments (backend: appointments.py)
-  // NOTE: backend currently exposes booking from the patient side; a
-  // doctor-scoped list endpoint is a likely follow-up (TODO).
+  // Appointments (backend: appointments.py). APPOINTMENT_DETAIL returns the
+  // same patient-enriched shape as APPOINTMENTS_DOCTOR when the caller is the
+  // doctor the appointment belongs to.
   APPOINTMENTS: `${API_VERSION}/appointments`,
   APPOINTMENTS_DOCTOR: `${API_VERSION}/appointments/doctor`,
   APPOINTMENT_DETAIL: id => `${API_VERSION}/appointments/${id}`,
@@ -63,7 +63,7 @@ export const ENDPOINTS = {
   CONSULTATION_RECORDS: id => `${API_VERSION}/appointments/${id}/records`,
   CONSULTATION_RECORD: (id, recordId) => `${API_VERSION}/appointments/${id}/records/${recordId}`,
 
-  // Patients — a doctor's patients view (TODO: backend endpoint).
+  // Patients — the doctor's own patients (backend: patients.py, doctor-scoped).
   PATIENTS: `${API_VERSION}/patients`,
   PATIENT_DETAIL: id => `${API_VERSION}/patients/${id}`,
   // A patient's face-scan history (backend: face_glow history is user-scoped).
@@ -73,7 +73,4 @@ export const ENDPOINTS = {
   ROLES: `${API_VERSION}/roles`,
   CONTENT_PAGES: `${API_VERSION}/content-pages`,
   SUPPORT_FAQS: `${API_VERSION}/support-faqs`,
-
-  // User details
-  USER_DETAIL: id => `${API_VERSION}/users/${id}`,
 };

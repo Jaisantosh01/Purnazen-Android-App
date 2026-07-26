@@ -15,6 +15,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { ListSkeleton } from '../components/SkeletonLoader';
+import Avatar from '../components/Avatar';
 import useTheme from '../hooks/useTheme';
 import { showAlert, showConfirm } from '../utils/alert';
 
@@ -169,16 +170,19 @@ const UserManagementScreen = ({ navigation }) => {
           </>
         }
         renderItem={({ item }) => {
-          const roleData = roles.find(r => r.name.toLowerCase() === (item.role || '').toLowerCase());
           return (
             <TouchableOpacity
               style={styles.userCard}
               activeOpacity={1}
               onPress={() => navigation.navigate('EditUser', { user: item })}
             >
-              <View style={[styles.avatar, { backgroundColor: colors.primaryLight }]}>
-                  <MCIcon name={roleData?.icon || 'account'} size={28} color={colors.primary} />
-              </View>
+              <Avatar
+                uri={item.avatar_url}
+                name={item.full_name}
+                size={48}
+                backgroundColor={colors.primaryLight}
+                style={styles.avatarSpacing}
+              />
               <View style={styles.userCardContent}>
                 <View style={styles.userNameContainer}>
                   <Text style={styles.userName}>{item.full_name}</Text>
@@ -267,7 +271,7 @@ const makeStyles = colors => StyleSheet.create({
     borderWidth: 1, 
     borderColor: colors.border 
   },
-  avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
+  avatarSpacing: { marginRight: 16 },
   userCardContent: { flex: 1, marginRight: 12 },
   userNameContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
   userName: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
