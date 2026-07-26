@@ -117,7 +117,7 @@ const VideoManagementScreen = ({ navigation }) => {
   const confirmHardDelete = ({ kind, id, name, url, remove, refresh }) => {
     showConfirm(
       `Delete ${kind}`,
-      `Permanently delete "${name}"? This cannot be undone.`,
+      `Permanently delete "${name}"?\nThis cannot be undone.`,
       async () => {
         setDeleting(true);
         try {
