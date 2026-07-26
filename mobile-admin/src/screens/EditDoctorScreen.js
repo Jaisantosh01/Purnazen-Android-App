@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import { EditFormSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 import { showAlert } from '../utils/alert';
+import { _pullPendingClinic } from './ClinicAddressPickerScreen';
 
 const SelectionModal = ({ visible, onClose, title, data, selectedIds, onToggle }) => {
   const { colors } = useTheme();
@@ -59,6 +60,7 @@ const EditDoctorScreen = ({ route, navigation }) => {
   const [allLanguages, setAllLanguages] = useState([]);
   const [slotTimingsByDay, setSlotTimingsByDay] = useState([]);
   const [selectedSlotIds, setSelectedSlotIds] = useState([]);
+  const [isAddingClinic, setIsAddingClinic] = useState(false);
 
   useEffect(() => {
     if (!doctorId) {
@@ -119,6 +121,20 @@ const EditDoctorScreen = ({ route, navigation }) => {
       .finally(() => setLoading(false));
   }, [doctorId]);
 
+  useEffect(() => {
+    const unsub = navigation.addListener('focus', () => {
+      const clinic = _pullPendingClinic();
+      if (clinic) {
+        setEditedDoctor(prev => ({
+          ...prev,
+          clinics: [...(prev?.clinics || []), { ...clinic, id: Date.now() }],
+        }));
+      }
+      setIsAddingClinic(false);
+    });
+    return unsub;
+  }, [navigation]);
+
   const handleSave = () => {
     setLoading(true);
 
@@ -126,6 +142,22 @@ const EditDoctorScreen = ({ route, navigation }) => {
         showAlert('Validation Error', 'Full Name, Email, and Password are required');
         setLoading(false);
         return;
+    }
+
+    const clinics = editedDoctor.clinics || [];
+    const invalidClinic = clinics.find(c => !c.name?.trim() || !c.address?.trim() || !c.city?.trim());
+    if (invalidClinic) {
+      showAlert('Validation Error', 'All clinics require Name, Address, and City.\nPlease fill in the missing fields.');
+      setLoading(false);
+      return;
+    }
+
+    const awards = editedDoctor.awards || [];
+    const invalidAward = awards.find(a => !a.title?.trim() || !a.issuer?.trim() || !a.year);
+    if (invalidAward) {
+      showAlert('Validation Error', 'All awards require Title, Issuer, and Year.\nPlease fill in the missing fields.');
+      setLoading(false);
+      return;
     }
 
     const payload = {
@@ -194,10 +226,8 @@ const EditDoctorScreen = ({ route, navigation }) => {
   };
 
   const addClinic = () => {
-    setEditedDoctor({
-      ...editedDoctor,
-      clinics: [...(editedDoctor.clinics || []), { name: '', address: '', city: '', phone: '', is_primary: false }]
-    });
+    setIsAddingClinic(true);
+    navigation.navigate('ClinicAddressPicker');
   };
 
   const updateClinic = (index, key, value) => {
@@ -318,16 +348,16 @@ const EditDoctorScreen = ({ route, navigation }) => {
         <Text style={styles.sectionLabel}>Awards</Text>
         {editedDoctor.awards?.map((award, index) => (
             <View key={index} style={styles.awardInputCard}>
-                <Text style={styles.label}>Award Title</Text>
+                <Text style={styles.label}>Award Title <Text style={{color: '#E53935'}}>*</Text></Text>
                 <TextInput style={styles.input} placeholder="e.g. Best Doctor" placeholderTextColor={colors.textMuted} value={award.title} onChangeText={(val) => updateAward(index, 'title', val)} />
                 
                 <View style={styles.row}>
                     <View style={{flex: 1}}>
-                        <Text style={styles.label}>Issuer</Text>
+                        <Text style={styles.label}>Issuer <Text style={{color: '#E53935'}}>*</Text></Text>
                         <TextInput style={styles.input} placeholder="e.g. Health Assoc" placeholderTextColor={colors.textMuted} value={award.issuer} onChangeText={(val) => updateAward(index, 'issuer', val)} />
                     </View>
                     <View style={{width: 80, marginLeft: 8}}>
-                        <Text style={styles.label}>Year</Text>
+                        <Text style={styles.label}>Year <Text style={{color: '#E53935'}}>*</Text></Text>
                         <TextInput style={styles.input} placeholder="2024" placeholderTextColor={colors.textMuted} value={String(award.year || '')} onChangeText={(val) => updateAward(index, 'year', parseInt(val))} keyboardType="numeric" />
                     </View>
                 </View>
@@ -349,7 +379,7 @@ const EditDoctorScreen = ({ route, navigation }) => {
         {editedDoctor.clinics?.map((clinic, index) => (
           <View key={index} style={styles.awardInputCard}>
             <View style={styles.clinicHeaderRow}>
-              <Text style={styles.label}>Clinic Name</Text>
+              <Text style={styles.label}>Clinic Name <Text style={{color: '#E53935'}}>*</Text></Text>
               <TouchableOpacity onPress={() => updateClinic(index, 'is_primary', !clinic.is_primary)}>
                 <View style={[styles.primaryToggle, clinic.is_primary && styles.primaryToggleActive]}>
                   <Text style={[styles.primaryToggleText, clinic.is_primary && styles.primaryToggleTextActive]}>
@@ -360,12 +390,12 @@ const EditDoctorScreen = ({ route, navigation }) => {
             </View>
             <TextInput style={styles.input} placeholder="e.g. Sarah Acupressure Clinic" placeholderTextColor={colors.textMuted} value={clinic.name} onChangeText={(val) => updateClinic(index, 'name', val)} />
 
-            <Text style={styles.label}>Address</Text>
+            <Text style={styles.label}>Address <Text style={{color: '#E53935'}}>*</Text></Text>
             <TextInput style={styles.input} placeholder="e.g. 123 MG Road" placeholderTextColor={colors.textMuted} value={clinic.address} onChangeText={(val) => updateClinic(index, 'address', val)} />
 
             <View style={styles.row}>
               <View style={{flex: 1}}>
-                <Text style={styles.label}>City</Text>
+                <Text style={styles.label}>City <Text style={{color: '#E53935'}}>*</Text></Text>
                 <TextInput style={styles.input} placeholder="e.g. Bangalore" placeholderTextColor={colors.textMuted} value={clinic.city} onChangeText={(val) => updateClinic(index, 'city', val)} />
               </View>
               <View style={{flex: 1, marginLeft: 8}}>
@@ -379,9 +409,15 @@ const EditDoctorScreen = ({ route, navigation }) => {
             </TouchableOpacity>
           </View>
         ))}
-        <TouchableOpacity style={styles.addBtn} onPress={addClinic}>
-            <MCIcon name="plus" size={18} color={colors.primary} style={{marginRight: 8}} />
-            <Text style={{color: colors.primary, fontWeight: '700'}}>Add Clinic</Text>
+        <TouchableOpacity
+          style={[styles.addBtn, isAddingClinic && { opacity: 0.5 }]}
+          onPress={addClinic}
+          disabled={isAddingClinic}
+        >
+            <MCIcon name="plus" size={18} color={isAddingClinic ? colors.textMuted : colors.primary} style={{marginRight: 8}} />
+            <Text style={{color: isAddingClinic ? colors.textMuted : colors.primary, fontWeight: '700'}}>
+              {isAddingClinic ? 'Adding Clinic...' : 'Add Clinic'}
+            </Text>
         </TouchableOpacity>
 
       </ScrollView>

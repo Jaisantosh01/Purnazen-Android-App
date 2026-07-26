@@ -37,6 +37,7 @@ import HomeScreen from './src/screens/HomeScreen';
 import UnifiedUserDoctorScreen from './src/screens/UnifiedUserDoctorScreen';
 import DoctorDetailScreen from './src/screens/DoctorDetailScreen';
 import EditDoctorScreen from './src/screens/EditDoctorScreen';
+import ClinicAddressPickerScreen from './src/screens/ClinicAddressPickerScreen';
 import MetadataManagementScreen from './src/screens/MetadataManagementScreen';
 import EditUserScreen from './src/screens/EditUserScreen';
 import ManageRolesScreen from './src/screens/ManageRolesScreen';
@@ -123,6 +124,7 @@ function ManageStackNavigator() {
       <ManageStack.Screen name="ManageRoles" component={MetadataManagementScreen} />
       <ManageStack.Screen name="DoctorDetail" component={DoctorDetailScreen} />
       <ManageStack.Screen name="EditDoctor" component={EditDoctorScreen} />
+      <ManageStack.Screen name="ClinicAddressPicker" component={ClinicAddressPickerScreen} />
       <ManageStack.Screen name="ManageExpertise" component={MetadataManagementScreen} />
       <ManageStack.Screen name="ManageLanguages" component={MetadataManagementScreen} />
       <ManageStack.Screen name="ManageSpecialties" component={MetadataManagementScreen} />
