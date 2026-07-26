@@ -124,6 +124,8 @@ const buildUploadForm = (item, selectedDir) => {
 // Number of extra attempts after the first, for transient network failures.
 const UPLOAD_MAX_RETRIES = 2;
 
+// Resolves to the created/updated Video record so the caller can fold it into
+// local state (the group editor needs its id to keep the new upload selected).
 export const uploadOne = async (item, selectedDir) => {
   let attempt = 0;
   // A fresh FormData per attempt: an already-consumed multipart body can't be
@@ -132,11 +134,11 @@ export const uploadOne = async (item, selectedDir) => {
   // eslint-disable-next-line no-constant-condition
   while (true) {
     try {
-      await apiClient.post(ENDPOINTS.VIDEO_UPLOAD, buildUploadForm(item, selectedDir), {
+      const res = await apiClient.post(ENDPOINTS.VIDEO_UPLOAD, buildUploadForm(item, selectedDir), {
         timeout: 600000,
         headers: { 'Content-Type': null },
       });
-      return;
+      return res?.data || null;
     } catch (err) {
       const transient = isTransientUploadError(err);
       // Surface the real cause — these used to fail with no trace in the logs.
@@ -165,37 +167,60 @@ export const handleUploadAll = async ({
   showAlert,
   selectedDir,
   uploadOne,
+  onUploaded,
 }) => {
   const pendingItems = items.filter(it => it.status === 'pending');
   if (pendingItems.length === 0) return;
+
+  // The cancel flag is sticky: it is set when the screen unmounts and by the
+  // Cancel button, and nothing ever cleared it. A screen that had been left and
+  // reopened therefore bailed out of the loop straight after the first request
+  // — the file uploaded, but `uploading` was never turned back off and the
+  // button sat on "Uploading 1/1…" forever. Starting a run clears it.
+  if (cancelledRef) cancelledRef.current = false;
 
   setUploading(true);
   setUploadProgress({ current: 0, total: pendingItems.length });
 
   let failed = 0;
-  for (let i = 0; i < pendingItems.length; i++) {
-    if (cancelledRef.current) return;
-    const item = pendingItems[i];
-    setUploadProgress({ current: i + 1, total: pendingItems.length });
-    updateItem(item.id, { status: 'uploading', error: null });
-    try {
-      await uploadOne(item, selectedDir);
-      if (cancelledRef.current) return;
-      updateItem(item.id, { status: 'done' });
-    } catch (err) {
-      if (cancelledRef.current) return;
-      failed++;
-      const backendMsg = err?.response?.data?.message || err?.message || '';
-      const isDuplicate = backendMsg.includes('already exists');
-      const errorText = isDuplicate ? 'A file with the same name already exists in this folder. Rename it or enable Overwrite.' : (backendMsg || 'Upload failed');
-      updateItem(item.id, {
-        status: 'failed',
-        error: errorText,
-      });
+  let cancelled = false;
+  const uploaded = [];
+  try {
+    for (let i = 0; i < pendingItems.length; i++) {
+      if (cancelledRef?.current) { cancelled = true; break; }
+      const item = pendingItems[i];
+      setUploadProgress({ current: i + 1, total: pendingItems.length });
+      updateItem(item.id, { status: 'uploading', error: null });
+      try {
+        const video = await uploadOne(item, selectedDir);
+        // The file did land server-side, so mark it done even if we're stopping.
+        updateItem(item.id, { status: 'done' });
+        if (video) uploaded.push(video);
+        if (cancelledRef?.current) { cancelled = true; break; }
+      } catch (err) {
+        if (cancelledRef?.current) { cancelled = true; break; }
+        failed++;
+        const backendMsg = err?.response?.data?.message || err?.message || '';
+        const isDuplicate = backendMsg.includes('already exists');
+        const errorText = isDuplicate ? 'A file with the same name already exists in this folder. Rename it or enable Overwrite.' : (backendMsg || 'Upload failed');
+        updateItem(item.id, {
+          status: 'failed',
+          error: errorText,
+        });
+      }
     }
+  } finally {
+    // Always release the button, including on the cancel paths — this is what
+    // kept the screen stuck in the uploading state.
+    setUploading(false);
   }
 
-  setUploading(false);
+  // The backend maps each upload into item.groupId as it creates the record;
+  // hand the new records back so the caller's local state agrees with it.
+  if (uploaded.length) onUploaded?.(uploaded);
+
+  if (cancelled) return;
+
   fetchDirectories();
   if (failed === 0) {
     setItems([]);

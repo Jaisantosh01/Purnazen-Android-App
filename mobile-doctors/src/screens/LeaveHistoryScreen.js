@@ -272,6 +272,7 @@ const LeaveHistoryScreen = ({ route, navigation }) => {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
+            style={styles.statusChipScroll}
             contentContainerStyle={styles.statusChipRow}
           >
             {STATUS_KEYS.map((statusKey) => {
@@ -354,9 +355,13 @@ const makeStyles = colors =>
   retryBtn: { backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: RADIUS.md },
   retryBtnText: { color: colors.white, fontWeight: '800', fontSize: 14 },
 
+  // A horizontal ScrollView in a flex column stretches to the leftover height
+  // unless it's told not to, which is what padded the chip row out with dead
+  // space above and below it.
+  statusChipScroll: { flexGrow: 0, flexShrink: 0 },
   statusChipRow: {
     paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
+    paddingVertical: SPACING.xs,
     gap: SPACING.sm,
     alignItems: 'center',
   },

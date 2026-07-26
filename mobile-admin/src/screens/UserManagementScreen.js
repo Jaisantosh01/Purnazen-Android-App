@@ -88,14 +88,23 @@ const UserManagementScreen = ({ navigation }) => {
     // follows the app theme like every other destructive action.
     showConfirm(
       'Delete User',
-      `Delete ${item.full_name}? This cannot be undone.`,
+      `Delete ${item.full_name}? They are signed out immediately and can no ` +
+        `longer log in. Their appointments and records are kept, so you can ` +
+        `restore the account later.`,
       () => {
         apiClient.delete(`${ENDPOINTS.USERS}/${item.id}`)
           .then(() => { showAlert('Success', 'User deleted'); fetchData(); })
-          .catch(() => showAlert('Error', 'Failed to delete user'));
+          .catch(err => showAlert('Error', err?.message || 'Failed to delete user'));
       },
       { confirmLabel: 'Delete', destructive: true },
     );
+  };
+
+  const handleRestore = (item, rowMap) => {
+    if (rowMap?.[item.id]) rowMap[item.id].closeRow();
+    apiClient.put(`${ENDPOINTS.USERS}/${item.id}`, { is_active: true })
+      .then(() => { showAlert('Success', 'User restored'); fetchData(); })
+      .catch(err => showAlert('Error', err?.message || 'Failed to restore user'));
   };
 
   const handleLoadMore = () => {
@@ -170,9 +179,10 @@ const UserManagementScreen = ({ navigation }) => {
           </>
         }
         renderItem={({ item }) => {
+          const isInactive = item.is_active === false;
           return (
             <TouchableOpacity
-              style={styles.userCard}
+              style={[styles.userCard, isInactive && styles.userCardInactive]}
               activeOpacity={1}
               onPress={() => navigation.navigate('EditUser', { user: item })}
             >
@@ -186,6 +196,11 @@ const UserManagementScreen = ({ navigation }) => {
               <View style={styles.userCardContent}>
                 <View style={styles.userNameContainer}>
                   <Text style={styles.userName}>{item.full_name}</Text>
+                  {isInactive && (
+                    <View style={styles.inactivePill}>
+                      <Text style={styles.inactivePillText}>Deleted</Text>
+                    </View>
+                  )}
                 </View>
                 <Text style={styles.userEmail}>{item.email}</Text>
               </View>
@@ -198,10 +213,17 @@ const UserManagementScreen = ({ navigation }) => {
               <MCIcon name="pencil" size={22} color="#fff" />
               <Text style={styles.backBtnText}>Edit</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.backBtn, styles.deleteBack]} onPress={() => handleDelete(data.item, rowMap)}>
-              <MCIcon name="delete" size={22} color="#fff" />
-              <Text style={styles.backBtnText}>Delete</Text>
-            </TouchableOpacity>
+            {data.item.is_active === false ? (
+              <TouchableOpacity style={[styles.backBtn, styles.restoreBack]} onPress={() => handleRestore(data.item, rowMap)}>
+                <MCIcon name="account-reactivate" size={22} color="#fff" />
+                <Text style={styles.backBtnText}>Restore</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={[styles.backBtn, styles.deleteBack]} onPress={() => handleDelete(data.item, rowMap)}>
+                <MCIcon name="delete" size={22} color="#fff" />
+                <Text style={styles.backBtnText}>Delete</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
         style={styles.list}
@@ -271,11 +293,19 @@ const makeStyles = colors => StyleSheet.create({
     borderWidth: 1, 
     borderColor: colors.border 
   },
+  userCardInactive: { opacity: 0.55 },
   avatarSpacing: { marginRight: 16 },
   userCardContent: { flex: 1, marginRight: 12 },
-  userNameContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
+  userNameContainer: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
   userName: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
   userEmail: { fontSize: 13, color: colors.textMuted },
+  inactivePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    backgroundColor: '#EF444422',
+  },
+  inactivePillText: { fontSize: 10, fontWeight: '700', color: '#EF4444' },
   rowBack: {
     flex: 1,
     flexDirection: 'row',
@@ -299,6 +329,9 @@ const makeStyles = colors => StyleSheet.create({
   },
   deleteBack: {
     backgroundColor: '#EF4444',
+  },
+  restoreBack: {
+    backgroundColor: '#10B981',
   },
   backBtnText: { color: '#fff', fontSize: 12, fontWeight: '600' },
   footerLoader: { paddingVertical: 20, alignItems: 'center' },

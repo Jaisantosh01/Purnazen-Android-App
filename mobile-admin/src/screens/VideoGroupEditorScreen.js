@@ -116,6 +116,10 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
   // Folder import loading
   const [folderLoading, setFolderLoading] = useState(null);
 
+  // Blob path currently being given a library record on demand (see
+  // ensureLibraryRecord) — drives the per-tile spinner.
+  const [linkingPath, setLinkingPath] = useState(null);
+
   // Video preview
   const [previewVideo, setPreviewVideo] = useState(null);
 
@@ -187,6 +191,9 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
 
   // Load group catalog + all videos on mount
   useEffect(() => {
+    // Clear any cancel flag left by a previous mount of this screen, otherwise
+    // the next upload run stops after its first request.
+    cancelledRef.current = false;
     Promise.all([
       apiClient.get(ENDPOINTS.VIDEO_GROUP_CATALOG(groupId)),
       apiClient.get(ENDPOINTS.ALL_VIDEOS),
@@ -245,21 +252,6 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
       return rawPath.startsWith(pathPrefix) && rawPath.length > pathPrefix.length;
     });
   }, [allVideos, currentPath]);
-
-  // Total video-format files visible in the current folder (with or without DB record)
-  const visibleVideoCount = useMemo(() => {
-    const vidExts = ['mp4', 'mov', 'avi', 'mkv', 'webm', 'ogg', 'wmv', 'flv', 'm4v', '3gp'];
-    const fromStorage = dirFiles.filter(f => {
-      const ext = f.name.split('.').pop()?.toLowerCase();
-      return ext && vidExts.includes(ext);
-    }).length;
-    // DB-only videos not backed by a storage file in this folder
-    const dbOnly = videosInCurrentPath.filter(v => {
-      const rawPath = v.videoUrl ? extractBlobPath(v.videoUrl) : '';
-      return rawPath && !dirFiles.some(f => f.name === rawPath);
-    }).length;
-    return fromStorage + dbOnly;
-  }, [dirFiles, videosInCurrentPath]);
 
   const toggleVideo = (videoId) => {
     setSelectedVideoIds(prev => {
@@ -380,6 +372,19 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
       showAlert,
       selectedDir: currentPath,
       uploadOne: sharedUploadOne,
+      // The upload endpoint already attached each new video to this group, so
+      // mirror that locally. Without it the next Save would post a video_ids
+      // list that omits the upload and immediately unassign it again.
+      onUploaded: videos => {
+        const newIds = videos.map(v => v.id).filter(Boolean);
+        if (!newIds.length) return;
+        setAllVideos(prev => {
+          const known = new Set(prev.map(v => v.id));
+          return [...prev, ...videos.filter(v => v.id && !known.has(v.id))];
+        });
+        setAssignedVideoIds(prev => new Set([...prev, ...newIds]));
+        setSelectedVideoIds(prev => new Set([...prev, ...newIds]));
+      },
     });
   };
 
@@ -493,12 +498,45 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
       if (newVideo) {
         setAllVideos(prev => [...prev, newVideo]);
         setSelectedVideoIds(prev => new Set([...prev, newVideo.id]));
-      } else {
-        showAlert('Error', 'No video data in response');
+        return newVideo;
       }
+      showAlert('Error', 'No video data in response');
     } catch (err) {
       showAlert('Error', err?.message || 'Failed to add video to library');
     }
+    return null;
+  };
+
+  /**
+   * Every tile behaves the same way regardless of whether the blob already has
+   * a library record: the record is created on demand the first time the admin
+   * ticks or edits the file. That's what removes the old two-tier grid where
+   * some cards had a checkbox + "Edit details" and others only a "+".
+   */
+  const ensureLibraryRecord = async (file) => {
+    const existing = videoByStoragePath[file.name];
+    if (existing) return existing;
+    setLinkingPath(file.name);
+    try {
+      return await handleAddToLibrary(file);
+    } finally {
+      setLinkingPath(null);
+    }
+  };
+
+  const handleFileToggle = async (file) => {
+    const video = videoByStoragePath[file.name];
+    if (video) {
+      toggleVideo(video.id);
+      return;
+    }
+    // ensureLibraryRecord selects the new record for this group as it creates it.
+    await ensureLibraryRecord(file);
+  };
+
+  const handleFileEdit = async (file) => {
+    const video = videoByStoragePath[file.name] || (await ensureLibraryRecord(file));
+    if (video) openMetaEditor(video);
   };
 
   // Edit the library record behind a stored blob (title / description /
@@ -576,22 +614,25 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
    * absolutely positioned over the whole tile, which is what put the play button
    * on top of the filename and size.
    *
-   * Every tile shows a control in the same top-right slot — a checkbox once the
-   * file has a library record, an "add" button while it doesn't — so the grid
-   * doesn't look like two different kinds of card.
+   * Every tile renders the same controls — checkbox, play, overflow, "Edit
+   * details" — whether or not the blob already has a library record. Ticking or
+   * editing a file that has no record creates one first (ensureLibraryRecord),
+   * so the grid never shows two different kinds of card.
    */
   const renderGridFile = (file) => {
     const displayName = file.name.split('/').pop() || file.name;
     const video = videoByStoragePath[file.name];
     const isSelected = video && isVideoSelected(video.id);
     const playable = video || file.videoUrl;
+    const linkable = !!(video || file.videoUrl);
+    const linking = linkingPath === file.name;
     return (
       <TouchableOpacity
         key={file.name}
         style={[styles.dirGridItem, styles.fileGridItem, isSelected && styles.selectedGridItem]}
-        onPress={() => video && toggleVideo(video.id)}
-        disabled={!video}
-        activeOpacity={video ? 0.7 : 1}
+        onPress={() => linkable && handleFileToggle(file)}
+        disabled={!linkable || linking}
+        activeOpacity={linkable ? 0.7 : 1}
       >
         <View style={styles.gridMedia}>
           {playable ? (
@@ -614,21 +655,22 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
             <MCIcon name="dots-vertical" size={18} color="#fff" />
           </TouchableOpacity>
 
-          {video ? (
-            <View style={styles.gridCheckbox}>
-              <MCIcon
-                name={isSelected ? 'checkbox-marked' : 'checkbox-blank-outline'}
-                size={22}
-                color={isSelected ? colors.primary : colors.white}
-              />
-            </View>
-          ) : file.videoUrl ? (
+          {linkable ? (
             <TouchableOpacity
               style={styles.gridCheckbox}
-              onPress={() => handleAddToLibrary(file)}
+              onPress={() => handleFileToggle(file)}
+              disabled={linking}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <MCIcon name="plus-circle" size={22} color={colors.primary} />
+              {linking ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <MCIcon
+                  name={isSelected ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                  size={22}
+                  color={isSelected ? colors.primary : colors.white}
+                />
+              )}
             </TouchableOpacity>
           ) : null}
         </View>
@@ -641,22 +683,19 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
               <Text style={styles.fileSizeText}>{formatDuration(video.duration)}</Text>
             ) : null}
           </View>
-          {!video && file.videoUrl ? (
-            <Text style={styles.fileHintText}>Tap + to add</Text>
-          ) : null}
-          {!video && !file.videoUrl ? (
+          {!linkable ? (
             <Text style={styles.fileMissingText}>No record</Text>
-          ) : null}
-          {video ? (
+          ) : (
             <TouchableOpacity
               style={styles.gridEditBtn}
-              onPress={() => openMetaEditor(video)}
+              onPress={() => handleFileEdit(file)}
+              disabled={linking}
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             >
               <MCIcon name="pencil-outline" size={12} color={colors.primary} />
               <Text style={styles.gridEditText}>Edit details</Text>
             </TouchableOpacity>
-          ) : null}
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -688,39 +727,39 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
     );
   };
 
+  // Same one-shape-fits-all rule as renderGridFile: checkbox, play and pencil on
+  // every row, with the library record created on demand.
   const renderListFile = ({ item }) => {
     const displayName = item.name.split('/').pop() || item.name;
     const video = videoByStoragePath[item.name];
     const isSelected = video && isVideoSelected(video.id);
+    const linkable = !!(video || item.videoUrl);
+    const linking = linkingPath === item.name;
     return (
       <TouchableOpacity
         style={[styles.dirListItem, isSelected && styles.selectedListItem]}
-        onPress={() => video && toggleVideo(video.id)}
-        disabled={!video}
-        activeOpacity={video ? 0.7 : 1}
+        onPress={() => linkable && handleFileToggle(item)}
+        disabled={!linkable || linking}
+        activeOpacity={linkable ? 0.7 : 1}
       >
-        {video ? (
-          <>
+        {linkable ? (
+          linking ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : (
             <MCIcon
               name={isSelected ? 'checkbox-marked' : 'checkbox-blank-outline'}
               size={22}
               color={isSelected ? colors.primary : colors.textMuted}
             />
-            <TouchableOpacity onPress={() => setPreviewVideo(video)} style={{ padding: 2 }}>
-              <MCIcon name="play-circle-outline" size={22} color={colors.primary} />
-            </TouchableOpacity>
-          </>
+          )
         ) : (
-          <>
-            {item.videoUrl ? (
-              <TouchableOpacity onPress={() => setPreviewVideo(item)} style={{ padding: 2 }}>
-                <MCIcon name="play-circle-outline" size={22} color={colors.primary} />
-              </TouchableOpacity>
-            ) : (
-              <MCIcon name="movie-outline" size={22} color={colors.textMuted} />
-            )}
-          </>
+          <MCIcon name="movie-off-outline" size={22} color={colors.textMuted} />
         )}
+        {linkable ? (
+          <TouchableOpacity onPress={() => setPreviewVideo(video || item)} style={{ padding: 2 }}>
+            <MCIcon name="play-circle-outline" size={22} color={colors.primary} />
+          </TouchableOpacity>
+        ) : null}
         <Text style={[styles.dirListText, !video && { color: colors.textMuted }]} numberOfLines={1}>
           {video ? video.title : displayName}
         </Text>
@@ -728,19 +767,14 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
         {video?.duration ? (
           <Text style={styles.fileSizeText}>{formatDuration(video.duration)}</Text>
         ) : null}
-        {video && (
+        {linkable && (
           <TouchableOpacity
-            onPress={() => openMetaEditor(video)}
+            onPress={() => handleFileEdit(item)}
+            disabled={linking}
             style={{ padding: 4 }}
             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           >
             <MCIcon name="pencil-outline" size={18} color={colors.primary} />
-          </TouchableOpacity>
-        )}
-        {!video && item.videoUrl && (
-          <TouchableOpacity style={styles.addLibBtnList} onPress={() => handleAddToLibrary(item)}>
-            <MCIcon name="plus-circle" size={16} color={colors.primary} />
-            <Text style={styles.addLibTextList}>Add</Text>
           </TouchableOpacity>
         )}
         <TouchableOpacity
@@ -937,9 +971,7 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
         <>
         {/* Storage Browser */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.label}>
-            Cloud Storage {currentPath ? `(${visibleVideoCount} video${visibleVideoCount !== 1 ? 's' : ''})` : ''}
-          </Text>
+          <Text style={styles.label}>Cloud Storage</Text>
           <View style={{ flexDirection: 'row', gap: 6 }}>
             {videosInCurrentPath.length > 0 && (
               <>
@@ -1439,7 +1471,6 @@ const makeStyles = colors => StyleSheet.create({
   gridCheckbox: { position: 'absolute', top: 4, right: 4 },
   dirGridText: { fontSize: 11, fontWeight: '600', color: colors.textPrimary, marginTop: 0, textAlign: 'left' },
   fileSizeText: { fontSize: 10, color: colors.textMuted, marginTop: 2 },
-  fileHintText: { fontSize: 9, color: colors.textMuted, marginTop: 2, fontStyle: 'italic' },
   fileMissingText: { fontSize: 9, color: colors.danger, marginTop: 2 },
   gridEditBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 4 },
   gridEditText: { fontSize: 10, fontWeight: '700', color: colors.primary },
@@ -1466,10 +1497,6 @@ const makeStyles = colors => StyleSheet.create({
   fileMoreBtnList: { paddingHorizontal: 6, paddingVertical: 4 },
   // Centred in the media box (not floating over the whole tile).
   gridPlayBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.22)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.45)', alignItems: 'center', justifyContent: 'center' },
-  addLibBtn: { position: 'absolute', bottom: 4, left: 4, flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: colors.primary, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 3 },
-  addLibText: { fontSize: 9, fontWeight: '700', color: colors.white },
-  addLibBtnList: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  addLibTextList: { fontSize: 12, fontWeight: '600', color: colors.primary },
   previewCard: { backgroundColor: colors.card, borderRadius: 16, padding: 16, maxWidth: 500, width: '100%' },
   previewHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   previewTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary, flex: 1, marginRight: 12 },

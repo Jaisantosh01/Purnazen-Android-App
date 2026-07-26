@@ -1,6 +1,6 @@
 {
   "name": "purnazen-admin",
-  "version": "0.0.1",
+  "version": "1.0.6",
   "private": true,
   "scripts": {
     "android": "adb reverse tcp:5000 tcp:5000 && react-native run-android --port 8083",

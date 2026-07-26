@@ -20,6 +20,7 @@ import { syncVideoProgress } from '../utils/videoTracker';
 import therapyService from '../services/therapyService';
 import VideoPlayer from '../components/VideoPlayer';
 import AppDialog from '../components/AppDialog';
+import PainScale from '../components/PainScale';
 import AppToggle from '../components/AppToggle';
 
 const AUTOPLAY_NEXT_KEY = 'video_autoplay_next';
@@ -45,16 +46,19 @@ const VideoPlayerScreen = ({ route, navigation }) => {
 
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [userFeedback, setUserFeedback] = useState('');
+  const [painAfter, setPainAfter] = useState(null);
+  const [painBefore, setPainBefore] = useState(null);
   const [savingFeedback, setSavingFeedback] = useState(false);
   const [feedbackId, setFeedbackId] = useState(null);
 
   const watchedRef = useRef(0);
   const feedbackShownRef = useRef(false);
 
-  // Wellness is not a pain-relief programme, so nothing here asks for a pain
-  // score — the only prompt is a written note, and only once the *whole* group
-  // has played out. Called from onEnd alone (a video crossing 90% used to
-  // trigger it, which popped the dialog over the still-playing last video).
+  // Asked once the *whole* group has played out. Called from onEnd alone (a
+  // video crossing 90% used to trigger it, which popped the dialog over the
+  // still-playing last video). When the run started from Quick Relief the chat
+  // assistant already stored a painBefore baseline, so the prompt closes the
+  // pair by asking for painAfter; otherwise it is just the written note.
   const maybeAskForFeedback = useCallback(async () => {
     if (feedbackShownRef.current) return;
 
@@ -72,13 +76,25 @@ const VideoPlayerScreen = ({ route, navigation }) => {
 
     feedbackShownRef.current = true;
 
+    let record = null;
     try {
       const feedbackRes = await apiClient.get(ENDPOINTS.THERAPY_FEEDBACK_BY_SESSION(sessionGroupId));
-      setFeedbackId(feedbackRes?.data?.id || null);
+      record = feedbackRes?.data || null;
     } catch {
-      setFeedbackId(null);
+      // No record tied to this session group. The pre-session baseline the chat
+      // assistant writes has no sessionGroupId, so fall back to the newest open
+      // record for this group and finish that one instead of starting a second.
+      try {
+        const byGroup = await apiClient.get(ENDPOINTS.THERAPY_FEEDBACK_BY_GROUP(groupId));
+        record = (byGroup?.data || []).find(f => f.painAfter == null) || null;
+      } catch {
+        record = null;
+      }
     }
 
+    setFeedbackId(record?.id || null);
+    setPainBefore(typeof record?.painBefore === 'number' ? record.painBefore : null);
+    setPainAfter(null);
     setUserFeedback('');
     setShowFeedbackModal(true);
   }, [catalog, groupId, sessionGroupId]);
@@ -90,8 +106,11 @@ const VideoPlayerScreen = ({ route, navigation }) => {
   const handleSaveFeedback = useCallback(async () => {
     setSavingFeedback(true);
     try {
-      // painAfter is deliberately omitted — the schema leaves it optional.
-      const payload = { userFeedback: userFeedback.trim() || null };
+      const payload = {
+        userFeedback: userFeedback.trim() || null,
+        // Left out when the user didn't pick a score; the field is optional.
+        painAfter: typeof painAfter === 'number' ? painAfter : null,
+      };
 
       let fbId = feedbackId;
 
@@ -112,7 +131,7 @@ const VideoPlayerScreen = ({ route, navigation }) => {
       setSavingFeedback(false);
       setShowFeedbackModal(false);
     }
-  }, [feedbackId, userFeedback, groupId, sessionGroupId]);
+  }, [feedbackId, userFeedback, painAfter, groupId, sessionGroupId]);
 
   const handleContinueSession = useCallback(() => {
     if (incompleteSession) {
@@ -444,6 +463,12 @@ const VideoPlayerScreen = ({ route, navigation }) => {
         title="Session Complete"
         subtitle="You finished every video in this group. How did it go?"
       >
+        {painBefore != null && (
+          <Text style={styles.painBeforeNote}>
+            You started this session at {painBefore}/10.
+          </Text>
+        )}
+        <PainScale value={painAfter} onChange={setPainAfter} label="Pain now" />
         <TextInput
           style={styles.feedbackInput}
           placeholder="Write your feedback here…"
@@ -593,6 +618,7 @@ const makeStyles = colors => StyleSheet.create({
   rowTitleActive: { color: colors.primary },
   rowDuration: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
 
+  painBeforeNote: { fontSize: 12.5, color: colors.textMuted, marginBottom: 10 },
   feedbackInput: {
     borderWidth: 1,
     borderColor: colors.border,

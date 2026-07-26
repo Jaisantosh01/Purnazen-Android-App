@@ -32,31 +32,34 @@ export const validateDobParts = ({ dd = '', mm = '', yyyy = '' } = {}) => {
  * TextInput's own `placeholder`: on Android a centred empty field with a native
  * placeholder parks the caret after the hint (at the right edge).
  *
- * Both the input and the hint are absolutely positioned over the *same* rect
- * (the whole box), so they are centred against identical geometry and can't
- * drift apart — the earlier version sized the input with height:'100%' inside a
- * flex-centred box, which on Android resolves a beat after the overlay and left
- * the hint riding high. The hint is also keyed on `value` only, not on focus:
+ * The input and the hint sit in the *same* absolutely-filled, flex-centred
+ * wrapper and are both given an explicit one-line height, so both are placed by
+ * the identical mechanism. Relying on the input's `textAlignVertical` instead
+ * (the previous approach) is what left the typed date sitting off-centre in the
+ * box on Android, where that property is measured against the font's own
+ * metrics rather than the box. The hint is keyed on `value` only, not on focus:
  * hiding it the instant the field was tapped is what read as a flicker.
  */
 const Box = ({ styles, hint, boxStyle, inputRef, value, onChange, maxLength }) => {
   const [focused, setFocused] = useState(false);
   return (
     <View style={[styles.box, boxStyle, focused && styles.boxFocused]}>
-      <TextInput
-        ref={inputRef}
-        style={styles.input}
-        value={value}
-        onChangeText={onChange}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        keyboardType="number-pad"
-        maxLength={maxLength}
-        textAlign="center"
-        underlineColorAndroid="transparent"
-      />
+      <View style={styles.centerWrap}>
+        <TextInput
+          ref={inputRef}
+          style={styles.input}
+          value={value}
+          onChangeText={onChange}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          keyboardType="number-pad"
+          maxLength={maxLength}
+          textAlign="center"
+          underlineColorAndroid="transparent"
+        />
+      </View>
       {!value ? (
-        <View style={styles.placeholderWrap} pointerEvents="none">
+        <View style={styles.centerWrap} pointerEvents="none">
           <Text style={styles.placeholder} allowFontScaling={false}>{hint}</Text>
         </View>
       ) : null}
@@ -120,9 +123,13 @@ export default function DobInput({ value, onChange }) {
 }
 
 // The input and the hint share every metric that affects where a glyph lands,
-// so a change to one has to be mirrored in the other.
+// so a change to one has to be mirrored in the other. LINE_HEIGHT is also the
+// height both are laid out at, which is what lets the shared flex-centred
+// wrapper position them identically.
+const LINE_HEIGHT = 22;
 const GLYPH = {
   fontSize: 16,
+  lineHeight: LINE_HEIGHT,
   fontWeight: '600',
   includeFontPadding: false, // Android: drop the font's built-in leading
   textAlign: 'center',
@@ -142,21 +149,23 @@ const makeStyles = colors => StyleSheet.create({
   },
   boxFocused: { borderColor: colors.primary },
   year: { flex: 1.4 },
-  // Input and hint both fill the box exactly, so "centred" means the same rect
-  // for both and they line up pixel-for-pixel regardless of layout timing.
-  input: {
-    ...StyleSheet.absoluteFillObject,
-    ...GLYPH,
-    color: colors.textPrimary,
-    padding: 0,
-  },
-  placeholderWrap: {
+  // Input and hint are centred by this same wrapper, so they line up
+  // pixel-for-pixel regardless of platform text metrics or layout timing.
+  centerWrap: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  input: {
+    ...GLYPH,
+    width: '100%',
+    height: LINE_HEIGHT,
+    color: colors.textPrimary,
+    padding: 0,
+  },
   placeholder: {
     ...GLYPH,
+    height: LINE_HEIGHT,
     color: colors.textMuted,
     padding: 0,
   },

@@ -24,6 +24,14 @@ import { mapsUrl, parseCoordinates, validateClinicLocation } from '../utils/geo'
 const isClinicComplete = clinic =>
   !!(clinic?.name?.trim() && clinic?.address?.trim() && clinic?.city?.trim());
 
+/** Field label with a red asterisk for the columns the API refuses to null. */
+const RequiredLabel = ({ text, styles }) => (
+  <Text style={styles.label}>
+    {text}
+    <Text style={styles.requiredStar}> *</Text>
+  </Text>
+);
+
 const SelectionModal = ({ visible, onClose, title, data, selectedIds, onToggle }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -65,6 +73,9 @@ const EditDoctorScreen = ({ route, navigation }) => {
   const [allLanguages, setAllLanguages] = useState([]);
   const [slotTimingsByDay, setSlotTimingsByDay] = useState([]);
   const [selectedSlotIds, setSelectedSlotIds] = useState([]);
+  const [consultationTypes, setConsultationTypes] = useState([]);
+  // { [consultationTypeId]: { price: string } } — presence means "offered".
+  const [selectedConsultationTypes, setSelectedConsultationTypes] = useState({});
   // Per-clinic scratch field for the "paste a maps link" helper (index -> text)
   const [locationPastes, setLocationPastes] = useState({});
 
@@ -89,11 +100,13 @@ const EditDoctorScreen = ({ route, navigation }) => {
         apiClient.get(ENDPOINTS.EXPERTISES),
         apiClient.get(ENDPOINTS.LANGUAGES),
         apiClient.get(ENDPOINTS.SLOT_TIMINGS),
-      ]).then(([specRes, expRes, langRes, slotRes]) => {
+        apiClient.get(ENDPOINTS.CONSULTATION_TYPES),
+      ]).then(([specRes, expRes, langRes, slotRes, typeRes]) => {
         setSpecialties(specRes.data || specRes || []);
         setAllExpertise(expRes.data || expRes || []);
         setAllLanguages(langRes.data || langRes || []);
         setSlotTimingsByDay(slotRes.data || slotRes || []);
+        setConsultationTypes(typeRes.data || typeRes || []);
       }).finally(() => setLoading(false));
       return;
     }
@@ -105,11 +118,12 @@ const EditDoctorScreen = ({ route, navigation }) => {
       apiClient.get(ENDPOINTS.LANGUAGES),
       apiClient.get(ENDPOINTS.SLOT_TIMINGS),
       apiClient.get(ENDPOINTS.DOCTOR_AVAILABILITY(doctorId)),
-    ]).then(([docRes, specRes, expRes, langRes, slotRes, availRes]) => {
+      apiClient.get(ENDPOINTS.CONSULTATION_TYPES),
+    ]).then(([docRes, specRes, expRes, langRes, slotRes, availRes, typeRes]) => {
       const doc = docRes.data || docRes;
       setEditedDoctor({
         ...doc,
-        specialty_ids: doc.specialty_ids || [], 
+        specialty_ids: doc.specialty_ids || [],
         expertise_ids: doc.expertise_ids || [],
         language_ids: doc.language_ids || [],
         about: doc.about || '',
@@ -121,15 +135,50 @@ const EditDoctorScreen = ({ route, navigation }) => {
       setAllExpertise(expRes.data || expRes || []);
       setAllLanguages(langRes.data || langRes || []);
       setSlotTimingsByDay(slotRes.data || slotRes || []);
+      setConsultationTypes(typeRes.data || typeRes || []);
       const availData = availRes.data || availRes || [];
       setSelectedSlotIds(availData.map(a => a.slot_timing_id));
+      const selectedTypes = {};
+      (doc.consultation_types || []).forEach(entry => {
+        selectedTypes[entry.consultation_type_id] = {
+          price: entry.price != null ? String(entry.price) : '',
+        };
+      });
+      setSelectedConsultationTypes(selectedTypes);
     }).catch(() => showAlert('Error', 'Failed to load data'))
       .finally(() => setLoading(false));
   }, [doctorId]);
 
+  const toggleConsultationType = typeId => {
+    setSelectedConsultationTypes(prev => {
+      const next = { ...prev };
+      if (next[typeId]) delete next[typeId];
+      else next[typeId] = { price: '' };
+      return next;
+    });
+  };
+
+  const setConsultationPrice = (typeId, price) => {
+    setSelectedConsultationTypes(prev =>
+      prev[typeId] ? { ...prev, [typeId]: { price } } : prev,
+    );
+  };
+
   const handleSave = () => {
-    if (!doctorId && (!editedDoctor.email || !editedDoctor.password || !editedDoctor.name)) {
-        showAlert('Validation Error', 'Full Name, Email, and Password are required');
+    const missing = [];
+    if (!doctorId) {
+        if (!editedDoctor.name?.trim()) missing.push('Full Name');
+        if (!editedDoctor.email?.trim()) missing.push('Email');
+        if (!editedDoctor.password) missing.push('Password');
+    } else {
+        if (!editedDoctor.full_name?.trim()) missing.push('Full Name');
+        if (!editedDoctor.email?.trim()) missing.push('Email');
+    }
+    if (!editedDoctor.specialty_ids?.length) missing.push('Specialties');
+    if (!editedDoctor.experience && editedDoctor.experience !== 0) missing.push('Experience (Years)');
+    if (!editedDoctor.fee) missing.push('Consultation Fee');
+    if (missing.length) {
+        showAlert('Validation Error', `Please fill in: ${missing.join(', ')}`);
         return;
     }
 
@@ -163,6 +212,13 @@ const EditDoctorScreen = ({ route, navigation }) => {
         ...editedDoctor,
         specialty_ids: editedDoctor.specialty_ids || [],
         slot_timing_ids: selectedSlotIds,
+        // A blank price means "use the base consultation fee" — send null.
+        consultation_types: Object.entries(selectedConsultationTypes).map(
+          ([consultation_type_id, { price }]) => ({
+            consultation_type_id,
+            price: String(price ?? '').trim() === '' ? null : Number(price),
+          }),
+        ),
         // Lat/long come off text inputs — send numbers (or null), not strings.
         clinics: clinicList.map(clinic => ({
           ...clinic,
@@ -339,13 +395,17 @@ const EditDoctorScreen = ({ route, navigation }) => {
       <ScreenHeader title="Edit Doctor Details" onBack={() => navigation.goBack()} />
 
       <ScrollView contentContainerStyle={styles.content}>
+        <Text style={styles.requiredHint}>
+          Fields marked <Text style={styles.requiredStar}>*</Text> are required.
+        </Text>
+
         {doctorId ? (
             <>
                 <Text style={styles.sectionLabel}>Account Details</Text>
-                <Text style={styles.label}>Full Name</Text>
+                <RequiredLabel text="Full Name" styles={styles} />
                 <TextInput style={styles.input} value={editedDoctor.full_name} onChangeText={(val) => setEditedDoctor({...editedDoctor, full_name: val})} placeholder="Enter full name" placeholderTextColor={colors.textMuted} />
 
-                <Text style={styles.label}>Email</Text>
+                <RequiredLabel text="Email" styles={styles} />
                 <TextInput style={styles.input} value={editedDoctor.email} onChangeText={(val) => setEditedDoctor({...editedDoctor, email: val})} placeholder="email@example.com" placeholderTextColor={colors.textMuted} keyboardType="email-address" autoCapitalize="none" />
 
                 <Text style={styles.label}>Phone</Text>
@@ -353,37 +413,74 @@ const EditDoctorScreen = ({ route, navigation }) => {
             </>
         ) : (
             <>
-                <Text style={styles.label}>Full Name</Text>
+                <RequiredLabel text="Full Name" styles={styles} />
                 <TextInput style={styles.input} value={editedDoctor.name} onChangeText={(val) => setEditedDoctor({...editedDoctor, name: val})} placeholder="Enter full name" placeholderTextColor={colors.textMuted} />
 
-                <Text style={styles.label}>Email</Text>
+                <RequiredLabel text="Email" styles={styles} />
                 <TextInput style={styles.input} value={editedDoctor.email} onChangeText={(val) => setEditedDoctor({...editedDoctor, email: val})} placeholder="email@example.com" placeholderTextColor={colors.textMuted} keyboardType="email-address" autoCapitalize="none" />
 
-                <Text style={styles.label}>Password</Text>
+                <RequiredLabel text="Password" styles={styles} />
                 <TextInput style={styles.input} value={editedDoctor.password} onChangeText={(val) => setEditedDoctor({...editedDoctor, password: val})} placeholder="Enter password" placeholderTextColor={colors.textMuted} secureTextEntry />
 
-                <Text style={styles.label}>Phone (optional)</Text>
+                <Text style={styles.label}>Phone</Text>
                 <TextInput style={styles.input} value={editedDoctor.phone} onChangeText={(val) => setEditedDoctor({...editedDoctor, phone: val})} placeholder="+91-9876543210" placeholderTextColor={colors.textMuted} keyboardType="phone-pad" />
             </>
         )}
 
-        <Text style={styles.label}>Specialties</Text>
+        <RequiredLabel text="Specialties" styles={styles} />
         <TouchableOpacity style={styles.input} onPress={() => setModalType('specialty')}>
             <Text style={{color: colors.textPrimary}}>{editedDoctor.specialty_ids?.length ? `${editedDoctor.specialty_ids.length} selected` : 'Select Specialties'}</Text>
         </TouchableOpacity>
         {renderSelectedTags('specialty_ids', specialties)}
-        
+
         <Text style={styles.label}>About</Text>
         <TextInput style={styles.input} value={editedDoctor.about} onChangeText={(val) => setEditedDoctor({...editedDoctor, about: val})} placeholder="Enter doctor's biography" placeholderTextColor={colors.textMuted} multiline />
         
         <Text style={styles.label}>Education</Text>
         <TextInput style={styles.input} value={editedDoctor.education} onChangeText={(val) => setEditedDoctor({...editedDoctor, education: val})} placeholder="e.g. MBBS, MD" placeholderTextColor={colors.textMuted} />
         
-        <Text style={styles.label}>Experience (Years)</Text>
+        <RequiredLabel text="Experience (Years)" styles={styles} />
         <TextInput style={styles.input} value={String(editedDoctor.experience || '')} onChangeText={(val) => setEditedDoctor({...editedDoctor, experience: parseInt(val) || 0})} placeholder="Years of experience" placeholderTextColor={colors.textMuted} keyboardType="numeric" />
-        
-        <Text style={styles.label}>Consultation Fee</Text>
+
+        <RequiredLabel text="Consultation Fee" styles={styles} />
         <TextInput style={styles.input} value={String(editedDoctor.fee || '')} onChangeText={(val) => setEditedDoctor({...editedDoctor, fee: parseInt(val) || 0})} placeholder="Fee per consultation" placeholderTextColor={colors.textMuted} keyboardType="numeric" />
+        <Text style={styles.subLabel}>Base fee, used for any visit mode without its own price.</Text>
+
+        <Text style={styles.sectionLabel}>Consultation Modes</Text>
+        <Text style={styles.subLabel}>
+          Pick the visit types this doctor offers. Leave a price blank to charge the base fee.
+        </Text>
+        {consultationTypes.length === 0 ? (
+          <Text style={styles.noSlots}>No consultation types configured.</Text>
+        ) : (
+          consultationTypes.map(type => {
+            const selected = !!selectedConsultationTypes[type.id];
+            return (
+              <View key={type.id} style={styles.consultTypeRow}>
+                <TouchableOpacity
+                  style={styles.consultTypeToggle}
+                  onPress={() => toggleConsultationType(type.id)}
+                >
+                  <MCIcon
+                    name={selected ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                    size={22}
+                    color={selected ? colors.primary : colors.textMuted}
+                  />
+                  <Text style={styles.consultTypeName}>{type.name}</Text>
+                </TouchableOpacity>
+                <TextInput
+                  style={[styles.input, styles.consultPriceInput, !selected && styles.disabled]}
+                  value={selected ? (selectedConsultationTypes[type.id].price ?? '') : ''}
+                  onChangeText={val => setConsultationPrice(type.id, val)}
+                  placeholder={editedDoctor.fee ? `₹${editedDoctor.fee}` : 'Price'}
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="numeric"
+                  editable={selected}
+                />
+              </View>
+            );
+          })
+        )}
 
         <Text style={styles.label}>Expertise</Text>
         <TouchableOpacity style={styles.input} onPress={() => setModalType('expertise')}>
@@ -468,7 +565,7 @@ const EditDoctorScreen = ({ route, navigation }) => {
           return (
           <View key={index} style={[styles.awardInputCard, incomplete && styles.cardIncomplete]}>
             <View style={styles.clinicHeaderRow}>
-              <Text style={styles.label}>Clinic Name</Text>
+              <RequiredLabel text="Clinic Name" styles={styles} />
               <TouchableOpacity onPress={() => updateClinic(index, 'is_primary', !clinic.is_primary)}>
                 <View style={[styles.primaryToggle, clinic.is_primary && styles.primaryToggleActive]}>
                   <Text style={[styles.primaryToggleText, clinic.is_primary && styles.primaryToggleTextActive]}>
@@ -479,12 +576,12 @@ const EditDoctorScreen = ({ route, navigation }) => {
             </View>
             <TextInput style={styles.input} placeholder="e.g. Sarah Acupressure Clinic" placeholderTextColor={colors.textMuted} value={clinic.name} onChangeText={(val) => updateClinic(index, 'name', val)} />
 
-            <Text style={styles.label}>Address</Text>
+            <RequiredLabel text="Address" styles={styles} />
             <TextInput style={styles.input} placeholder="e.g. 123 MG Road" placeholderTextColor={colors.textMuted} value={clinic.address} onChangeText={(val) => updateClinic(index, 'address', val)} />
 
             <View style={styles.row}>
               <View style={{flex: 1}}>
-                <Text style={styles.label}>City</Text>
+                <RequiredLabel text="City" styles={styles} />
                 <TextInput style={styles.input} placeholder="e.g. Bangalore" placeholderTextColor={colors.textMuted} value={clinic.city} onChangeText={(val) => updateClinic(index, 'city', val)} />
               </View>
               <View style={{flex: 1, marginLeft: 8}}>
@@ -597,8 +694,14 @@ const makeStyles = colors => StyleSheet.create({
   content: { padding: 20 },
   sectionLabel: { fontSize: 16, fontWeight: '700', color: colors.textPrimary, marginTop: 20, marginBottom: 8 },
   label: { fontSize: 14, fontWeight: '600', color: colors.textSecondary, marginBottom: 8, marginTop: 12 },
+  requiredStar: { color: colors.danger, fontWeight: '700' },
+  requiredHint: { fontSize: 12, color: colors.textMuted, marginBottom: 4 },
   input: { backgroundColor: colors.card, borderRadius: 8, padding: 12, borderWidth: 1, borderColor: colors.borderStrong, color: colors.textPrimary },
-  disabled: { backgroundColor: colors.surfaceMuted },
+  disabled: { backgroundColor: colors.surfaceMuted, opacity: 0.6 },
+  consultTypeRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 12 },
+  consultTypeToggle: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 8 },
+  consultTypeName: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
+  consultPriceInput: { width: 110, paddingVertical: 8, textAlign: 'right' },
   tagScroll: { marginTop: 8, marginBottom: 4 },
   tag: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: colors.primaryLight, borderRadius: 16, marginRight: 8 },
   tagText: { color: colors.primary, fontSize: 13, fontWeight: '500' },

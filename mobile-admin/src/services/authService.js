@@ -152,12 +152,14 @@ class AuthService {
     useAuthStore.getState().clearAuth();
   }
 
-  /** Update full name / avatar / phone; keeps the cached user and store in sync. */
-  async updateProfile({ fullName, avatarUrl, phone } = {}) {
+  /** Update the editable profile fields; keeps the cached user and store in sync. */
+  async updateProfile({ fullName, avatarUrl, phone, gender, dateOfBirth } = {}) {
     const payload = {};
     if (fullName !== undefined) payload.fullName = fullName;
     if (avatarUrl !== undefined) payload.avatarUrl = avatarUrl;
     if (phone !== undefined) payload.phone = phone;
+    if (gender !== undefined) payload.gender = gender;
+    if (dateOfBirth !== undefined) payload.dateOfBirth = dateOfBirth;
     const response = await apiClient.put(ENDPOINTS.ME, payload);
 
     if (!response.success) {
