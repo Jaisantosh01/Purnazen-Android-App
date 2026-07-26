@@ -10,6 +10,7 @@ import {
   Modal,
 } from 'react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { showAlert, showConfirm } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -20,6 +21,7 @@ import useTheme from '../hooks/useTheme';
 
 const DoctorManagementScreen = ({ navigation }) => {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [doctors, setDoctors] = useState([]);
   const [stats, setStats] = useState({ active_doctors: 0, inactive_doctors: 0 });
@@ -131,11 +133,11 @@ const DoctorManagementScreen = ({ navigation }) => {
     setSelectedFilters({ specialties: [], expertises: [], languages: [] });
   };
 
-  const renderFilterSection = (title, icon, category, items) => {
+  const renderFilterSection = (title, icon, category, items, isLast = false) => {
     const isExpanded = expandedSections[category];
     const selectedCount = selectedFilters[category].length;
     return (
-      <View style={styles.filterSection}>
+      <View style={[styles.filterSection, isLast && styles.filterSectionLast]}>
         <TouchableOpacity style={styles.filterSectionHeader} onPress={() => setExpandedSections(prev => ({ ...prev, [category]: !prev[category] }))}>
           <View style={styles.filterSectionHeaderLeft}>
             <MCIcon name={icon} size={18} color={colors.primary} />
@@ -346,14 +348,20 @@ const DoctorManagementScreen = ({ navigation }) => {
                 )}
               </View>
             </View>
-            <ScrollView style={styles.filterSheetBody} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={styles.filterSheetBody}
+              contentContainerStyle={styles.filterSheetContent}
+              showsVerticalScrollIndicator={false}
+            >
               {renderFilterSection('Specialties', 'stethoscope', 'specialties', filterOptions.specialties)}
               {renderFilterSection('Expertise', 'lightbulb-on-outline', 'expertises', filterOptions.expertises)}
-              {renderFilterSection('Languages', 'translate', 'languages', filterOptions.languages)}
+              {renderFilterSection('Languages', 'translate', 'languages', filterOptions.languages, true)}
             </ScrollView>
-            <TouchableOpacity style={styles.filterApplyBtn} onPress={() => setFilterModal(false)}>
-              <Text style={styles.filterApplyText}>Filter</Text>
-            </TouchableOpacity>
+            <View style={[styles.filterApplyBar, { paddingBottom: 20 + insets.bottom }]}>
+              <TouchableOpacity style={styles.filterApplyBtn} onPress={() => setFilterModal(false)}>
+                <Text style={styles.filterApplyText}>Filter</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -439,15 +447,20 @@ const makeStyles = colors => StyleSheet.create({
   footerLoader: { paddingVertical: 20, alignItems: 'center' },
 
   filterOverlay: { flex: 1, justifyContent: 'flex-end' },
-  filterOverlayBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' },
-  filterSheet: { backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '80%' },
+  filterOverlayBackdrop: { flex: 1, backgroundColor: colors.overlay },
+  // The sheet is capped at 80% of the screen and lays out header / scrolling
+  // body / pinned Filter button as a column — the body must be allowed to
+  // shrink or its content runs underneath the button.
+  filterSheet: { backgroundColor: colors.modalSurface, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '80%' , borderWidth: 1, borderColor: colors.modalBorder, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 16, elevation: 12},
   filterSheetHeader: { paddingTop: 8, paddingHorizontal: 20, paddingBottom: 4 },
   filterSheetDrag: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: 12 },
   filterSheetTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   filterSheetTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
   filterClearText: { fontSize: 14, fontWeight: '600', color: colors.primary },
-  filterSheetBody: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
+  filterSheetBody: { flexShrink: 1 },
+  filterSheetContent: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
   filterSection: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  filterSectionLast: { borderBottomWidth: 0 },
   filterSectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10 },
   filterSectionHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   filterSectionHeaderRight: { flexDirection: 'row', alignItems: 'center' },
@@ -459,6 +472,7 @@ const makeStyles = colors => StyleSheet.create({
   filterChipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
   filterChipText: { fontSize: 13, fontWeight: '500', color: colors.textPrimary },
   filterChipTextSelected: { color: colors.white },
-  filterApplyBtn: { margin: 20, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center' },
+  filterApplyBar: { paddingHorizontal: 20, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.card },
+  filterApplyBtn: { paddingVertical: 14, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center' },
   filterApplyText: { fontSize: 16, fontWeight: '700', color: colors.white },
 });

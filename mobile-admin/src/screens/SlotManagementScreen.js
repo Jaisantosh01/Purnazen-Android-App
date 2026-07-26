@@ -10,7 +10,7 @@ import { ListSkeleton } from '../components/SkeletonLoader';
 import SwipeRowActions, { SWIPE_LEFT_OPEN, SWIPE_RIGHT_OPEN } from '../components/SwipeRowActions';
 import useTheme from '../hooks/useTheme';
 // import ScreenHeader from '../components/ScreenHeader';
-import { showAlert } from '../utils/alert';
+import { showAlert, showConfirm } from '../utils/alert';
 
 // const ITEM_HEIGHT = 40;
 const SLOT_CARD_HEIGHT = 58;
@@ -132,14 +132,16 @@ const SlotManagementScreen = ({ navigation }) => {
   };
 
   const handleDeleteSlot = (slotId) => {
-    showAlert('Delete Slot', 'Are you sure?', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => {
-            apiClient.delete(`${ENDPOINTS.SLOT_TIMINGS}/${slotId}`)
-            .then(fetchSlots)
-            .catch(err => showAlert('Error', 'Failed to delete slot'));
-        }}
-    ]);
+    showConfirm(
+      'Delete Slot',
+      'This time slot will be removed from the weekly schedule. Doctors assigned to it lose that availability.',
+      () => {
+        apiClient.delete(`${ENDPOINTS.SLOT_TIMINGS}/${slotId}`)
+          .then(fetchSlots)
+          .catch(() => showAlert('Error', 'Failed to delete slot'));
+      },
+      { confirmLabel: 'Delete', destructive: true },
+    );
   };
 
   const openEditModal = (slot) => {
@@ -336,8 +338,8 @@ timeText: {
 },
   // Height must match slotCard so the revealed Edit/Delete line up behind it.
   rowBack: { marginBottom: 12, height: SLOT_CARD_HEIGHT, borderRadius: 14 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', padding: 20 },
-  modalCard: { backgroundColor: colors.card, padding: 20, borderRadius: 16, maxHeight: '80%' },
+  modalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', padding: 20 },
+  modalCard: { backgroundColor: colors.modalSurface, padding: 20, borderRadius: 16, maxHeight: '80%' , borderWidth: 1, borderColor: colors.modalBorder, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 16, elevation: 12},
   modalTitle: { fontSize: 18, fontWeight: '800', marginBottom: 16, color: colors.textPrimary },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 10 },
   modalBtn: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 8, backgroundColor: colors.surfaceMuted },

@@ -5,6 +5,91 @@ Status legend: ✅ Fixed · 🔧 In progress · ⏳ Pending · 📷 Needs screen
 
 ---
 
+## User + Doctor apps — batch 2026-07-25 (Soubhagya's report)
+
+Everything Soubhagya reported against **USERS** and **DOCTORS** that wasn't
+already marked fixed by him. Admin-only rows from the same report are **not**
+covered here (see [Admin — still open](#admin--still-open-from-the-2026-07-25-report)).
+
+### User app ✅
+
+| Feature | Issue | Fix | Location |
+|---------|-------|-----|----------|
+| Appointment Booking | "Back to home" returns to the confirmation screen when Book Consult is reopened | `navigate('Home')` only switched **tab** — the confirmation stayed on top of the Consult stack. Now switches tab first (so the pop is off-screen), then `popToTop()` unwinds the stack | `mobile-users/src/screens/BookingConfirmedScreen.js` |
+| Appointment Booking | "Select Time" is an empty gap until a date is picked | Added a "Pick a date first" empty state (tapping it opens the date picker). The old `timeSlots.length === 0 && selectedDate` branch fell through to an empty grid | `BookAppointmentScreen.js` |
+| Profile | Edit Profile has too few fields | Added **profile photo** (picker → `POST /users/me/avatar`), **blood group**, **height**, **weight**, **allergies**, **conditions**, **medication**. The modal body now scrolls (pixel `maxHeight` — a % never resolves inside the content-sized overlay) with the actions pinned | `SettingsScreen.js`, `authService.js`, `backend/app/models/user.py`, `schemas/auth.py`, `services/auth_service.py`, migration `bc23de45fa67` |
+| Profile | Add Health report | New **My Health Report** screen (Profile → menu): vitals + BMI band, medical background, therapy totals, consultation history and the latest face/tongue scan, with pull-to-refresh and share. Backed by `GET /users/me/health-report`, which only aggregates existing rows | `HealthReportScreen.js`, `healthReportService.js`, `backend/app/services/health_report_service.py`, `endpoints/users.py` |
+| App updates | Force update never appears before login, and not after login either — only via the manual check | Two causes. (a) `/app-releases/latest` + `/download` required a JWT, so the pre-login check 401'd — and the api client turned that 401 into a *session-expired reset*. Both are now unauthenticated; `/download` only ever serves the version `/latest` just advertised, so the release archive stays closed. (b) `UpdatePrompt` checked exactly once on mount and never again. It now re-checks whenever auth state flips **and** whenever the app returns to the foreground | `backend/app/api/v1/endpoints/app_releases.py`, `mobile-{users,doctors,admin}/src/components/UpdatePrompt.js` |
+| Wellness videos | Disabled sessions still listed | `GET /sessions` declared `active_only` as `Optional[bool] = Query(None)`; the `None` reached the repository as falsy and skipped the filter. Defaults to `True` now (admin still passes `false` explicitly) | `backend/app/api/v1/endpoints/sessions.py` |
+| Wellness videos | Marking a session active says "failed to update" | `WellnessSessionRepository.get_by_id` filtered on `is_active`, so a deactivated session was unreachable — re-activating it 404'd. The filter is gone (it backs edit/delete/reorder). Also fixes the admin **"Wellness session not found" on reorder** and **"failed to update session" on edit** | `backend/app/repositories/session_catalog_repository.py` |
+| Wellness videos | Asks for pain; feedback comes too early | Dropped the pre-session "Initial Pain Assessment" entirely and the pain slider from the end dialog — wellness isn't a pain-relief programme. The prompt now fires only from `onEnd` (it used to fire at 90% of *any* video, popping over the still-playing last one) and bails out if the completed-count call fails instead of interrupting mid-session. Therapy History's manual "Mark Complete" skips the pain slider for wellness too | `VideoPlayerScreen.js`, `TherapyHistoryScreen.js` |
+| Therapy History | Too much space around the KPIs | Two 96px stacked tiles → one compact strip (icon + value + label per cell, hairline divider); ~100px of vertical space returned to the list | `TherapyHistoryScreen.js` |
+| Profile | Version should auto-update; "Powered by Calypsion" instead of "Crafted for your wellness" | New shared `AppVersionFooter` reads `APP_VERSION` (injected from the gradle `versionName`) — Help & Support had a hardcoded `v1.0.0` that went stale every release. Added to Profile, Settings and Help & Support | `components/AppVersionFooter.js`, `ProfileScreen.js`, `SettingsScreen.js`, `HelpSupportScreen.js` |
+| Settings | In-app language does nothing | **Removed** (the reporter's own "either implement it or remove it"). It wrote a code to `user_preferences` but nothing was ever translated. The `language` column is untouched so it can come back with real i18n | `SettingsScreen.js` (users + doctors) |
+| Profile settings | User shouldn't delete their own account | "Delete Account" → **"Request Account Deletion"**. New `POST /auth/me/deletion-request` notifies every admin and leaves the account alone; the session stays live. `DELETE /auth/me` stays for back-office use | `SettingsScreen.js`, `authService.js`, `backend/app/services/auth_service.py`, `endpoints/auth.py` |
+| Quick relief & Wellness | Seed the correct data | Seeded the **full MVP symptom set** from the SRS (§4.1) — was 2 of 9. Added Shoulder, Back, Knee, Ankle, Migraine, Sciatica and Stress, each with its own 3-step chat flow, icon and colour pair. Also fixed a `NameError` in `seed.py` that crashed any re-run over a populated DB | `backend/seed_data.py`, `backend/seed.py` |
+| Book Consultation | Wrong doctor ratings / years of experience | There's no review system yet, so `average_rating`/`reviews_count` are 0 for everyone and the card rendered "★ 0.0 (0)" — which reads as a bad score. Stars are hidden until a doctor actually has reviews; experience (real admin-entered data) is shown on its own and hidden when 0 | `ConsultScreen.js`, `DoctorProfileScreen.js` |
+
+### Doctor app ✅
+
+| Feature | Issue | Fix | Location |
+|---------|-------|-----|----------|
+| Login | Top icon cropped on small screens | The bottom-anchored card squeezed the hero until the badge clipped. Root now respects the top safe-area inset, the card is capped at 74% of screen height, and below 720dp the badge/title scale down (84→64px, 27→22pt) | `mobile-doctors/src/screens/LoginScreen.js` |
+| Appointments | Top filter UI | Two stacked rows (date label + status chip, then four full-width time chips) collapsed into **one scrollable row of dropdown chips** — date, status, type, time — plus a Clear chip that appears once anything is off-default. Status/type/time share a single bottom sheet | `AppointmentsScreen.js` |
+| Appointments | No home visit / clinic visit / video call filter | Added the **Consultation Type** filter, matching on both the display name (`"Clinic Visit"`) and the legacy `visit_type` slug | `AppointmentsScreen.js` |
+| Leave History | UI needs enhancement | Five 96px status tiles were crammed edge-to-edge into one fixed row, so "Cancelled" wrapped and the counts collided → now a scrollable chip row (label + count). Cards get a status stripe, a one-line header with the badge, and a divided footer. Status colours are derived from one accent hue per state, so dark mode is legible (the old table baked in pale fills with dark text). Removed a dead `StatusBadge` referencing two undefined symbols, and a crash on a null `status` | `LeaveHistoryScreen.js` |
+| Schedule > Leave | Multi-date partial slot list goes messy | The real bug: slot cards were `width: 48.5%` with a `3%` left margin — `48.5 + 3 + 48.5 = 100%` exactly, so one rounded-up pixel wrapped every second card onto its own line. Replaced with a real `gap` grid. Day cards get a fixed min-height and a one-line count pill ("3 Slots" used to wrap and stagger the strip), and each day gains a **Select all / Clear** action | `ApplyLeaveScreen.js` |
+| Profile | "Above KPI what data is it showing?" | They're appointment counts, which the bare "Today / Upcoming / Completed" labels never said. Added a **MY APPOINTMENTS** caption and made each tile open the Appointments tab so the numbers are traceable | `ProfileScreen.js` |
+| Profile | Remove Apply for leave / Leave requests | Removed. Both pointed at routes that live in the **Schedule** stack, not the Profile stack, so navigation never resolved them — they were dead taps. Leave lives under Schedule → Leave | `ProfileScreen.js` |
+| Profile | Editing profile needs gender + DOB | Added, reusing the user app's `GenderSelect` / `DobInput` (copied into the doctor app). `PUT /auth/me` already accepted both | `SettingsScreen.js`, `authService.js`, `components/{GenderSelect,DobInput}.js` |
+
+### Notes
+
+- **Security call worth reviewing:** `/app-releases/latest` and `/app-releases/<slug>/<version>/download` are now anonymous. There is no way to force-update a build that can't reach the login screen otherwise. `/download` is narrowed to the current version per slug, so past releases can't be enumerated — but if you'd rather keep it authenticated, the pre-login forced update has to go with it.
+- **"Seed the correct data based on mockup"** was interpreted as the SRS §4.1 MVP symptom set (also [TASKS.md](TASKS.md) G1), since no mockup is in the repo. The **video assets are still placeholders** — both seeded videos point at `Ankle_Pain/Ankle Pain.mp4`. Real clips need uploading before this row is genuinely closed.
+- The migration (`bc23de45fa67`) adds six nullable columns to `users` and branches off `ab12cd34ef56`, keeping the head count unchanged.
+- **Not device-verified.** The layout work (login hero, filter bar, leave cards, slot grid, KPI strip, health report) needs a build to confirm visually.
+
+### CI repair (same batch)
+
+Both CI jobs were red on `main` before this batch, for four unrelated reasons.
+All four are fixed; none were caused by the bug-fix work above.
+
+| Job | Failures | Cause | Fix |
+|-----|----------|-------|-----|
+| Backend | 26 across `test_scan_dashboard`, `test_face_scan`, `test_video_folder_import`, `test_leave_slots` | Registration runs a **live MX lookup** on the email domain. The fixtures sign up as `@t.com` / `@test.com`, which genuinely have no mail server, so every `register` 400'd and the dependent tests died on `KeyError: 'data'`. It also made the suite depend on the runner's DNS | New `EMAIL_CHECK_DELIVERABILITY` setting (default on); `tests/conftest.py` turns it off. Added `tests/test_email_validation.py` (network-free) so the syntax + disposable-domain rules keep their coverage | 
+| Backend | 1 in `test_leave_slots` | `test_date = date(2026, 7, 20)` hardcoded. `create_leave` rejects a past `start_date`, so this test turned CI red **on 2026-07-21** with no code change | `date.today() + timedelta(days=7)` |
+| Backend | 1 in `test_support_faqs` | The test still asserted soft-delete semantics after `a399fa0` shipped hard delete | Rewritten for hard delete: deactivate keeps the row, delete removes it, and the id 404s afterwards |
+| Backend | 1 in `test_video_folder_import_real` | Integration test hitting **real Azure**, asserting `count > 0`. CI has no storage credentials | `pytest.mark.skipif` on the credentials — the same pattern `test_video_upload.py` already used for its six tests |
+| Frontend | 2 in `TherapyHistoryScreen.smoke` | The screen fetches `getSessionGroups()` **and** `getTherapyHistory()` in one `Promise.all`; the mock only defined the first, so the pair rejected and the screen fell into its error state | Added `getTherapyHistory` to the mock |
+
+Verified locally with the CI environment emulated (Azure credentials blanked, so
+the run matches a runner with no secrets):
+
+- **Backend** — `python -m pytest -q` → **187 passed, 7 skipped, 0 failed** (the 7 skips are all Azure-gated). Runtime also dropped from ~24 min to ~1.5 min, because the failing tests had been sitting in DNS timeouts.
+- **Frontend** — `jest --ci` **73 passed / 15 suites**, `tsc --noEmit` clean, `eslint src App.tsx` exit 0 (129 warnings, 0 errors).
+
+Confirmed by stashing the whole batch and re-running that the frontend failure
+predates this work. Still failing and **out of scope** (not part of either CI
+job): 8 pre-existing eslint errors in the doctor app's `ScheduleScreen.js` /
+`LeaveDetailScreen.js`, and the admin `App.test.tsx` transform error.
+
+### Admin — still open from the 2026-07-25 report
+
+Out of scope for this batch; listed so they aren't lost. Doctor management save error,
+clinic latitude/longitude entry, clinic form guard, doctor-filter popup overlap,
+home-visit location in the appointment popup, dark-mode popup contrast, delete
+confirmation dialogs, wellness-video autoplay + scroll lock, video sort save
+button under the nav bar, video folder alignment, video card metadata overlap,
+video-group player height, pause on edit, Azure video metadata editing, "Create
+content" active-button placement + refresh + privacy-policy placeholders.
+
+Two of them are already fixed as a side effect of the shared backend change
+above: **"Wellness session not found" on sort** and **"failed to update session"
+on edit** both came from `WellnessSessionRepository.get_by_id`.
+
+---
+
 ## User App — batch 2026-07-18 (branch `bugfix/bugfix_18thJuly_AG`)
 
 ### Fixed ✅

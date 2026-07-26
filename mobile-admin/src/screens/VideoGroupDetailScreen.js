@@ -26,6 +26,12 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
   const [loading, setLoading] = useState(true);
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [autoPlayNext, setAutoPlayNext] = useState(true);
+  // Opening the screen must NOT start playback — an admin browsing a group is
+  // reviewing the list, not watching. Playback only auto-starts once they pick
+  // a video (or the playlist advances), which is an explicit request to play.
+  const [autoPlay, setAutoPlay] = useState(false);
+  // Collapsing the player hands the whole screen to the video list.
+  const [playerCollapsed, setPlayerCollapsed] = useState(false);
 
   const [sortMode, setSortMode] = useState(false);
   const [sortedVideos, setSortedVideos] = useState([]);
@@ -154,7 +160,7 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
         <TouchableOpacity
           style={styles.cardMain}
           activeOpacity={0.7}
-          onPress={() => setCurrentVideoIndex(index)}
+          onPress={() => playVideoAt(index)}
           onLongPress={toggleSortMode}
         >
           <MCIcon
@@ -203,8 +209,16 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
     JSON.stringify(sortedVideos.map(v => v.id)) !== JSON.stringify((catalog?.videos || []).map(v => v.id));
 
   const goNext = useCallback(() => {
+    setAutoPlay(true);
     setCurrentVideoIndex(i => (catalog?.videos?.[i + 1] ? i + 1 : i));
   }, [catalog]);
+
+  // Tapping a row is an explicit "play this" — unlike arriving on the screen.
+  const playVideoAt = useCallback(index => {
+    setAutoPlay(true);
+    setPlayerCollapsed(false);
+    setCurrentVideoIndex(index);
+  }, []);
 
   return (
     <View style={styles.root}>
@@ -240,7 +254,7 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
           {catalog?.description ? (
             <View style={styles.descriptionBanner}>
               <MCIcon name="information-outline" size={18} color={colors.primary} style={styles.bannerIcon} />
-              <Text style={styles.descriptionText}>{catalog.description}</Text>
+              <Text style={styles.descriptionText} numberOfLines={2}>{catalog.description}</Text>
             </View>
           ) : null}
 
@@ -251,18 +265,42 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
             </View>
           ) : (
             <>
-              <VideoPlayer
-                source={currentVideo?.videoUrl ? { uri: currentVideo.videoUrl } : null}
-                sourceId={currentVideo?.id}
-                poster={<MCIcon name="play-circle-outline" size={72} color={colors.primary} />}
-                onNext={goNext}
-                hasNext={hasNext}
-                nextTitle={nextVideo?.title}
-                nextSubtitle={nextVideo ? `${Math.floor(nextVideo.duration / 60)} min` : null}
-                autoPlayNext={autoPlayNext}
-              />
+              {/* The player is capped well under half the screen and can be
+                  collapsed outright, so the video list below always has room
+                  to scroll rather than being squeezed into a sliver. */}
+              {!playerCollapsed && (
+                <VideoPlayer
+                  source={currentVideo?.videoUrl ? { uri: currentVideo.videoUrl } : null}
+                  sourceId={currentVideo?.id}
+                  poster={<MCIcon name="play-circle-outline" size={72} color={colors.primary} />}
+                  onNext={goNext}
+                  hasNext={hasNext}
+                  nextTitle={nextVideo?.title}
+                  nextSubtitle={nextVideo ? `${Math.floor(nextVideo.duration / 60)} min` : null}
+                  autoPlayNext={autoPlayNext}
+                  autoPlay={autoPlay}
+                  maxHeightRatio={0.38}
+                />
+              )}
 
-              {catalog?.videos?.length > 1 && (
+              <TouchableOpacity
+                style={styles.playerBar}
+                onPress={() => setPlayerCollapsed(c => !c)}
+                activeOpacity={0.7}
+              >
+                <MCIcon
+                  name={playerCollapsed ? 'chevron-down' : 'chevron-up'}
+                  size={20}
+                  color={colors.textSecondary}
+                />
+                <Text style={styles.playerBarText} numberOfLines={1}>
+                  {playerCollapsed
+                    ? `Show player${currentVideo?.title ? ` · ${currentVideo.title}` : ''}`
+                    : 'Hide player'}
+                </Text>
+              </TouchableOpacity>
+
+              {!playerCollapsed && catalog?.videos?.length > 1 && (
                 <View style={styles.autoPlayRow}>
                   <View style={styles.autoPlayIcon}>
                     <MCIcon name="play-speed" size={18} color={colors.primary} />
@@ -279,10 +317,12 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
                 </View>
               )}
 
-              {currentVideo?.description ? (
+              {!playerCollapsed && currentVideo?.description ? (
                 <View style={styles.videoDescriptionBanner}>
                   <MCIcon name="playlist-play" size={18} color={colors.accent} style={styles.bannerIcon} />
-                  <Text style={styles.videoDescriptionText}>{currentVideo.description}</Text>
+                  <Text style={styles.videoDescriptionText} numberOfLines={2}>
+                    {currentVideo.description}
+                  </Text>
                 </View>
               ) : null}
             </>
@@ -414,6 +454,18 @@ const makeStyles = colors => StyleSheet.create({
   addVideoBtnText: { color: colors.white, fontWeight: '600', marginLeft: 8 },
 
   bannerIcon: { marginRight: 8 },
+  playerBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: colors.surfaceMuted,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  playerBarText: { fontSize: 12, fontWeight: '700', color: colors.textSecondary, flexShrink: 1 },
   descriptionBanner: { flexDirection: 'row', alignItems: 'center', padding: 14, backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border },
   descriptionText: { fontSize: 14, color: colors.textSecondary, lineHeight: 20, flex: 1 },
   videoDescriptionBanner: { flexDirection: 'row', alignItems: 'center', padding: 12, backgroundColor: colors.warning + '1A', borderBottomWidth: 1, borderBottomColor: colors.border },
@@ -436,8 +488,8 @@ const makeStyles = colors => StyleSheet.create({
   sortSaveText: { fontSize: 14, fontWeight: '700', color: colors.white },
   sortSaveTextDisabled: { color: colors.textMuted },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', padding: 20 },
-  modalCard: { backgroundColor: colors.card, padding: 20, borderRadius: 16 },
+  modalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', padding: 20 },
+  modalCard: { backgroundColor: colors.modalSurface, padding: 20, borderRadius: 16 , borderWidth: 1, borderColor: colors.modalBorder, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 16, elevation: 12},
   modalTitle: { fontSize: 18, fontWeight: '800', marginBottom: 16, color: colors.textPrimary },
   label: { fontSize: 14, fontWeight: '600', marginBottom: 8, color: colors.textPrimary },
   input: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, marginBottom: 12, color: colors.textPrimary, backgroundColor: colors.surfaceMuted },

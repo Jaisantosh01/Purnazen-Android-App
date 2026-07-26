@@ -104,6 +104,107 @@ VIDEOS = [
     }
 ]
 
+# ── Remaining MVP symptoms (SRS §4.1) ────────────────────────────────────────
+# `noun` is the phrase used in the generated chat questions; `locations` are the
+# second-step options. Headache and Neck Pain keep their hand-written flows
+# below so their existing question_text rows (which quick_reliefs point at) are
+# untouched.
+_EXTRA_SYMPTOMS = [
+    {
+        "name": "Shoulder Pain", "slug": "shoulder-pain", "noun": "shoulder pain",
+        "subtitle": "Tension & mobility relief", "icon": "arm-flex",
+        "bg": "#E3F2FD", "fg": "#1565C0",
+        "locations": ["Front of shoulder", "Top of shoulder", "Back of shoulder", "Both shoulders"],
+    },
+    {
+        "name": "Back Pain", "slug": "back-pain", "noun": "back pain",
+        "subtitle": "Upper & lower back relief", "icon": "human-handsup",
+        "bg": "#F3E5F5", "fg": "#6A1B9A",
+        "locations": ["Upper back", "Middle back", "Lower back", "Whole back"],
+    },
+    {
+        "name": "Knee Pain", "slug": "knee-pain", "noun": "knee pain",
+        "subtitle": "Joint & stiffness relief", "icon": "run",
+        "bg": "#E0F7FA", "fg": "#00695C",
+        "locations": ["Front of knee", "Inner side", "Outer side", "Behind the knee"],
+    },
+    {
+        "name": "Ankle Pain", "slug": "ankle-pain", "noun": "ankle pain",
+        "subtitle": "Sprain & swelling relief", "icon": "foot-print",
+        "bg": "#FFF8E1", "fg": "#EF6C00",
+        "locations": ["Inner ankle", "Outer ankle", "Front of ankle", "Achilles / heel"],
+    },
+    {
+        "name": "Migraine", "slug": "migraine", "noun": "migraine",
+        "subtitle": "Aura & light sensitivity", "icon": "weather-lightning",
+        "bg": "#EDE7F6", "fg": "#4527A0",
+        "locations": ["One side only", "Behind the eyes", "Whole head", "With aura / flashes"],
+    },
+    {
+        "name": "Sciatica", "slug": "sciatica", "noun": "sciatica pain",
+        "subtitle": "Nerve & leg pain relief", "icon": "human-male",
+        "bg": "#FBE9E7", "fg": "#BF360C",
+        "locations": ["Lower back only", "Buttock", "Down the thigh", "Below the knee"],
+    },
+    {
+        "name": "Stress", "slug": "stress", "noun": "stress",
+        "subtitle": "Calm & breathing routines", "icon": "meditation",
+        "bg": "#E8EAF6", "fg": "#283593",
+        "locations": ["Racing thoughts", "Tight chest", "Jaw / shoulder tension", "Trouble sleeping"],
+    },
+]
+
+
+def _severity_question(noun):
+    return f"How severe is your {noun}? (1-10)"
+
+
+def _location_question(noun):
+    return f"Where do you feel the {noun}?"
+
+
+def _duration_question(noun):
+    return f"How long has the {noun} been going on?"
+
+
+def _build_symptom_flow(spec):
+    """Three-step decision tree: severity -> location -> duration -> video group.
+
+    Mirrors the shape of the hand-written Headache / Neck Pain flows so the
+    chat assistant renders every symptom identically.
+    """
+    noun = spec["noun"]
+    severity, location, duration = (
+        _severity_question(noun), _location_question(noun), _duration_question(noun)
+    )
+    return [
+        {
+            "question": severity,
+            "is_start": True,
+            "options": [
+                {"text": "Mild (1-3)", "next_question": location},
+                {"text": "Moderate (4-6)", "next_question": location},
+                {"text": "Severe (7-10)", "next_question": location},
+            ],
+        },
+        {
+            "question": location,
+            "is_start": False,
+            "options": [
+                {"text": where, "next_question": duration} for where in spec["locations"]
+            ],
+        },
+        {
+            "question": duration,
+            "is_start": False,
+            "options": [
+                {"text": text, "video_group_key": "Quick Relief"}
+                for text in ["Just started", "Few hours", "1-2 days", "More than 2 days"]
+            ],
+        },
+    ]
+
+
 CHAT_FLOW = [
     # HEADACHE FLOW
     {
@@ -165,9 +266,14 @@ CHAT_FLOW = [
             {"text": "1-2 days", "video_group_key": "Quick Relief"},
             {"text": "More than 2 days", "video_group_key": "Quick Relief"},
         ]
-    }
-]
+    },
+# REMAINING MVP SYMPTOMS — generated so all seven share one flow shape
+] + [step for spec in _EXTRA_SYMPTOMS for step in _build_symptom_flow(spec)]
 
+# The full MVP symptom set from the SRS (§4.1) — Neck, Shoulder, Back, Knee,
+# Ankle, Headache, Migraine, Sciatica, Stress. Only Headache and Neck Pain were
+# seeded before, so the Quick Relief grid on Home showed two cards.
+# Each card links to the decision-tree flow generated in CHAT_FLOW below.
 QUICK_RELIEFS = [
     {
         "name": "Headache",
@@ -190,7 +296,20 @@ QUICK_RELIEFS = [
         "background_color": "#FFF3E0",
         "text_color": "#EF6C00",
         "sort_order": 2
+    },
+] + [
+    {
+        "name": spec["name"],
+        "slug": spec["slug"],
+        "title": spec["name"],
+        "subtitle": spec["subtitle"],
+        "chat_question": _severity_question(spec["noun"]),
+        "icon_name": spec["icon"],
+        "background_color": spec["bg"],
+        "text_color": spec["fg"],
+        "sort_order": index,
     }
+    for index, spec in enumerate(_EXTRA_SYMPTOMS, start=3)
 ]
 
 # No support contacts are seeded — the placeholder email/phone/WhatsApp don't

@@ -77,7 +77,10 @@ def doctor_card(doctor):
                 "phone": clinic.phone,
                 "is_primary": clinic.is_primary,
             }
+            # Clinics that still have appointments booked can't be deleted, so
+            # removing one deactivates it — keep those out of the card.
             for clinic in doctor.clinics
+            if clinic.is_active is not False
         ],
         "is_active": doctor.is_active,
     }

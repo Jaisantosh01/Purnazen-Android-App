@@ -497,7 +497,11 @@ try:
     # an explicit group link (otherwise the player shows the navigation-debug alert).
     wellness_group = db.query(VideoGroups).filter_by(title="Wellness & Prevention").first()
     for session_data in WELLNESS_SESSIONS_DATA:
-        if not db.query(WellnessSession).filter_by(title=session_data["title"]).first():
+        # `existing` used to be referenced in the elif below without ever being
+        # assigned — re-running the seeder over a populated DB blew up with a
+        # NameError on the first session that already existed.
+        existing = db.query(WellnessSession).filter_by(title=session_data["title"]).first()
+        if not existing:
             group = db.query(VideoGroups).filter_by(title=session_data["video_group_title"]).first()
             db.add(
                 WellnessSession(

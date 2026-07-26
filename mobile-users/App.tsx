@@ -49,6 +49,8 @@ import WellnessScreen from './src/screens/WellnessScreen';
 import ConsultScreen from './src/screens/ConsultScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import TherapyHistoryScreen from './src/screens/TherapyHistoryScreen';
+// @ts-ignore
+import HealthReportScreen from './src/screens/HealthReportScreen';
 import HelpSupportScreen from './src/screens/HelpSupportScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import ContentViewerScreen from './src/screens/ContentViewerScreen';
@@ -162,6 +164,7 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="AppointmentHistory" component={AppointmentHistoryScreen} />
       <ProfileStack.Screen name="AppointmentDetail"  component={AppointmentDetailScreen}  />
       <ProfileStack.Screen name="TherapyHistory" component={TherapyHistoryScreen} />
+      <ProfileStack.Screen name="HealthReport"   component={HealthReportScreen}   />
       <ProfileStack.Screen name="VideoPlayer"    component={VideoPlayerScreen}    />
       <ProfileStack.Screen name="ReliefSession"  component={ReliefSessionScreen}  />
       <ProfileStack.Screen name="HelpSupport"    component={HelpSupportScreen}    />

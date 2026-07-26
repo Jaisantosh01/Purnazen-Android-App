@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
-import { showAlert } from '../utils/alert';
+import { showAlert, showConfirm } from '../utils/alert';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
@@ -89,19 +89,17 @@ const FaqManagementScreen = ({ navigation }) => {
   };
 
   const handleDelete = (id) => {
-    showAlert('Delete', 'Are you sure?', [
-      { text: 'Cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          apiClient
-            .delete(`${ENDPOINTS.SUPPORT_FAQS}/${id}`)
-            .then(fetchItems)
-            .catch(() => showAlert('Error', 'Failed to delete'));
-        },
+    showConfirm(
+      'Delete FAQ',
+      'This FAQ will be permanently deleted. This cannot be undone.',
+      () => {
+        apiClient
+          .delete(`${ENDPOINTS.SUPPORT_FAQS}/${id}`)
+          .then(fetchItems)
+          .catch(() => showAlert('Error', 'Failed to delete'));
       },
-    ]);
+      { confirmLabel: 'Delete', destructive: true },
+    );
   };
 
   const toggleExpand = (id) => {
@@ -339,8 +337,8 @@ const makeStyles = colors => StyleSheet.create({
   sortDoneBtn: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 16, paddingVertical: 6, borderRadius: 8 },
   sortDoneText: { fontSize: 13, fontWeight: '700', color: '#fff' },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: colors.card, borderRadius: 14, padding: 20, width: '100%', maxWidth: 560, alignSelf: 'center' },
+  modalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', padding: 20 },
+  modalContent: { backgroundColor: colors.modalSurface, borderRadius: 14, padding: 20, width: '100%', maxWidth: 560, alignSelf: 'center' , borderWidth: 1, borderColor: colors.modalBorder, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 16, elevation: 12},
   modalTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary, marginBottom: 16 },
   modalInput: {
     backgroundColor: colors.surfaceMuted, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10,
