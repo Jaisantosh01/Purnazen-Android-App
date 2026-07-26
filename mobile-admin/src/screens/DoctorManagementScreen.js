@@ -17,6 +17,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { ListSkeleton } from '../components/SkeletonLoader';
+import Avatar from '../components/Avatar';
 import useTheme from '../hooks/useTheme';
 
 const DoctorManagementScreen = ({ navigation }) => {
@@ -215,9 +216,14 @@ const DoctorManagementScreen = ({ navigation }) => {
         <View style={[styles.doctorCard, isInactive && styles.doctorCardInactive]}>
           <View style={styles.cardHeader}>
             <View style={styles.doctorInfo}>
-              <View style={[styles.avatarPlaceholder, isInactive && styles.avatarInactive]}>
-                <MCIcon name="account-cancel" size={28} color={isInactive ? colors.white : colors.primary} />
-              </View>
+              <Avatar
+                uri={item.avatar}
+                name={item.name}
+                size={56}
+                backgroundColor={isInactive ? colors.border : colors.primaryLight}
+                textColor={isInactive ? colors.white : colors.primary}
+                style={styles.avatarSpacing}
+              />
               <View style={styles.details}>
                 <View style={styles.nameRow}>
                   <Text style={[styles.doctorName, isInactive && styles.textInactive]}>{item.name}</Text>
@@ -401,7 +407,7 @@ const makeStyles = colors => StyleSheet.create({
   listContainer: { paddingHorizontal: 16 },
   doctorCard: { backgroundColor: colors.card, borderRadius: 16, padding: 16, marginBottom: 12, overflow: 'hidden', borderWidth: 1, borderColor: colors.border },
   doctorInfo: { flex: 1, flexDirection: 'row', alignItems: 'center' },
-  avatarPlaceholder: { width: 56, height: 56, borderRadius: 28, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
+  avatarSpacing: { marginRight: 16 },
   details: { flex: 1 },
   doctorName: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
   specialty: { fontSize: 13, color: colors.primary, fontWeight: '600', marginTop: 2 },
@@ -410,7 +416,6 @@ const makeStyles = colors => StyleSheet.create({
   expertiseText: { fontSize: 11, color: colors.textSecondary, fontWeight: '500' },
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start' },
   doctorCardInactive: { backgroundColor: colors.surfaceMuted},
-  avatarInactive: { backgroundColor: colors.border },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   textInactive: { color: colors.textMuted },
   tagInactive: { backgroundColor: colors.border },

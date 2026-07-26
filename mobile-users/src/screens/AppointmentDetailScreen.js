@@ -15,6 +15,7 @@ import { APPOINTMENT_DETAIL_STATUS_COLORS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
 import { APPOINTMENT_HISTORY_STATUS_LABELS, APPOINTMENT_PAYMENT_LABELS } from '../constants/strings';
 import { useHeaderTopPadding } from '../components/ScreenHeader';
+import Avatar from '../components/Avatar';
 import LocationCard from '../components/LocationCard';
 
 
@@ -66,11 +67,15 @@ const AppointmentDetailScreen = ({ navigation, route }) => {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.doctorCard}>
           <View style={styles.doctorCardTop}>
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarText}>
-                {getInitials(appointment.doctorName)}
-              </Text>
-            </View>
+            <Avatar
+              uri={appointment.doctorAvatar}
+              name={appointment.doctorName}
+              initials={getInitials(appointment.doctorName)}
+              size={56}
+              backgroundColor={colors.primaryLight}
+              borderWidth={2}
+              borderColor={colors.primary}
+            />
             <View style={styles.doctorInfo}>
               <View style={styles.doctorNameRow}>
                 <Text style={styles.doctorName} numberOfLines={1}>{appointment.doctorName}</Text>
@@ -225,13 +230,6 @@ const makeStyles = colors => StyleSheet.create({
   doctorCardTop: {
     flexDirection: 'row', padding: 16, gap: 14,
   },
-  avatarCircle: {
-    width: 56, height: 56, borderRadius: 28,
-    backgroundColor: colors.primaryLight,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: colors.primary,
-  },
-  avatarText: { fontSize: 20, fontWeight: '700', color: colors.primary },
   doctorInfo: { flex: 1, gap: 4 },
   doctorNameRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8,

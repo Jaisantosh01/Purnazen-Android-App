@@ -33,9 +33,11 @@ def doctor_card(doctor):
         "phone": doctor.user.phone,
         "specialties": [mapping.specialty.name for mapping in doctor.speciality_mappings],
         "specialty_ids": [mapping.speciality_id for mapping in doctor.speciality_mappings],
-        # Image URL when set, else null — the app falls back to the doctor's
-        # initial (no emoji, which renders inconsistently across devices).
-        "avatar": doctor.user.avatar_url or None,
+        # Loadable image URL when set, else null — the app falls back to the
+        # doctor's initial (no emoji, which renders inconsistently across
+        # devices). `User.avatar` resolves an uploaded blob path to a SAS URL;
+        # the raw `avatar_url` column is a bare path the client can't fetch.
+        "avatar": doctor.user.avatar,
         "rating": float(doctor.average_rating),
         "reviews": doctor.reviews_count,
         "experience": doctor.experience_years,

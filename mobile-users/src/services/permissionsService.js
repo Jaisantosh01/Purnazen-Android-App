@@ -1,21 +1,35 @@
 import { Platform, PermissionsAndroid } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import preferencesService from './preferencesService';
 
 /**
  * Runtime permission helper.
  *
  *   mandatory: camera (face/tongue scans are a core feature)
- *   optional:  location (nearby-doctor search), notifications (reminders)
+ *   optional:  location (address autofill), notifications (reminders)
  *
  * On Android we use PermissionsAndroid; on iOS these are requested at the point
  * of use by their respective libraries, so the methods resolve as "granted"
  * there. The one-time onboarding result is persisted to AsyncStorage so we only
- * prompt once, and the location grant is mirrored into server preferences by the
- * caller (so it syncs across devices).
+ * prompt once.
+ *
+ * ── Location ─────────────────────────────────────────────────────────────────
+ * Location has two switches and they have to agree:
+ *
+ *   1. the OS grant (Android App info → Permissions), device-local, and
+ *   2. `locationEnabled` in server preferences, the in-app choice, which syncs
+ *      across devices.
+ *
+ * The app may use location only when *both* say yes, so every read goes through
+ * `locationStatus()` and every write through `enableLocation()` /
+ * `disableLocation()`. Previously the Settings toggle rendered the stored
+ * preference alone: granting or revoking the permission in Android's App info
+ * left the toggle showing the opposite of reality, and the direct
+ * `PermissionsAndroid.request` in the address screen changed the OS grant
+ * without ever telling the preference.
  */
 
 const PROMPTED_KEY = 'permissions_prompted_v1';
-const RESULT_KEY = 'permissions_result_v1';
 
 export const MANDATORY = ['camera'];
 export const OPTIONAL = ['location', 'notifications'];
@@ -66,7 +80,14 @@ const permissionsService = {
 
   /**
    * Request mandatory first, then optional. Returns a map of
-   * { camera, location, notifications } → boolean granted. Persists the result.
+   * { camera, location, notifications } → boolean granted, and records that we
+   * have now prompted so this never runs twice.
+   *
+   * The "prompted" write used `AsyncStorage.multiSet`, which v3 removed (it is
+   * `setMany` now, taking an object). That threw *after* the OS dialogs had been
+   * shown, so the flag was never stored — the prompts reappeared on every launch
+   * and, worse, the caller's `locationEnabled` mirror never ran, which is why a
+   * granted location permission left Settings → Location Access switched off.
    */
   async requestAll() {
     const result = {};
@@ -74,10 +95,7 @@ const permissionsService = {
       // eslint-disable-next-line no-await-in-loop
       result[name] = (await request(name)) === 'granted';
     }
-    await AsyncStorage.multiSet([
-      [PROMPTED_KEY, '1'],
-      [RESULT_KEY, JSON.stringify(result)],
-    ]);
+    await AsyncStorage.setItem(PROMPTED_KEY, '1');
     return result;
   },
 
@@ -94,6 +112,78 @@ const permissionsService = {
   /** Re-request a single optional permission (e.g. from the Settings toggle). */
   async enable(name) {
     return (await request(name)) === 'granted';
+  },
+
+  // ── Location: OS grant ⨯ stored preference ─────────────────────────────────
+
+  /**
+   * Reconciled location state:
+   *   granted   — the OS permission is held right now
+   *   enabled   — the user's stored in-app preference
+   *   effective — both, i.e. may the app actually use location
+   *
+   * Reconciling matters: revoking the permission from Android's App info can't
+   * notify us, so a stored `true` is corrected back to `false` here rather than
+   * left to render an on-looking toggle over a permission we don't have.
+   */
+  async locationStatus() {
+    const granted = await check('location');
+    let enabled = false;
+    try {
+      const prefs = await preferencesService.getPreferences();
+      enabled = prefs?.locationEnabled === true;
+    } catch {
+      // Offline / server hiccup — fall back to the device truth alone.
+      return { granted, enabled: granted, effective: granted };
+    }
+
+    if (!granted && enabled) {
+      enabled = false;
+      preferencesService.updatePreferences({ locationEnabled: false }).catch(() => {});
+    }
+    return { granted, enabled, effective: granted && enabled };
+  },
+
+  /**
+   * Turn location access on. Requests the OS permission when we don't hold it
+   * and stores the preference either way.
+   *
+   * Returns { granted, blocked } — `blocked` is Android's "don't ask again",
+   * where the only route left is the app's system settings page.
+   */
+  async enableLocation() {
+    let granted = await check('location');
+    let blocked = false;
+    if (!granted) {
+      const result = await request('location');
+      granted = result === 'granted';
+      blocked = result === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN;
+    }
+    await preferencesService
+      .updatePreferences({ locationEnabled: granted })
+      .catch(() => {});
+    return { granted, blocked };
+  },
+
+  /**
+   * Turn location access off in-app. The OS grant itself can only be revoked
+   * from device settings, so this is what actually stops the app using it.
+   */
+  async disableLocation() {
+    await preferencesService
+      .updatePreferences({ locationEnabled: false })
+      .catch(() => {});
+  },
+
+  /**
+   * Gate for a feature that needs a position right now (address autofill).
+   * Treats the tap as consent: if access is off it asks for it and, on success,
+   * flips the stored preference on so the Settings toggle agrees.
+   */
+  async ensureLocation() {
+    const { effective } = await this.locationStatus();
+    if (effective) return { granted: true, blocked: false };
+    return this.enableLocation();
   },
 };
 

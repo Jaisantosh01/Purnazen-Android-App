@@ -28,21 +28,21 @@ export const validateDobParts = ({ dd = '', mm = '', yyyy = '' } = {}) => {
 };
 
 /**
- * One DD / MM / YYYY box. The hint is drawn as a centred overlay instead of the
+ * One DD / MM / YYYY box. The hint is drawn as an overlay instead of the
  * TextInput's own `placeholder`: on Android a centred empty field with a native
- * placeholder parks the caret after the hint (at the right edge). The box is a
- * fixed height and the input fills it, so the hint overlay and the typed value
- * share the exact same centre — the hint no longer sits off from the value.
+ * placeholder parks the caret after the hint (at the right edge).
+ *
+ * Both the input and the hint are absolutely positioned over the *same* rect
+ * (the whole box), so they are centred against identical geometry and can't
+ * drift apart — the earlier version sized the input with height:'100%' inside a
+ * flex-centred box, which on Android resolves a beat after the overlay and left
+ * the hint riding high. The hint is also keyed on `value` only, not on focus:
+ * hiding it the instant the field was tapped is what read as a flicker.
  */
 const Box = ({ styles, hint, boxStyle, inputRef, value, onChange, maxLength }) => {
   const [focused, setFocused] = useState(false);
   return (
     <View style={[styles.box, boxStyle, focused && styles.boxFocused]}>
-      {!value && !focused ? (
-        <View style={styles.placeholderWrap} pointerEvents="none">
-          <Text style={styles.placeholder}>{hint}</Text>
-        </View>
-      ) : null}
       <TextInput
         ref={inputRef}
         style={styles.input}
@@ -53,7 +53,13 @@ const Box = ({ styles, hint, boxStyle, inputRef, value, onChange, maxLength }) =
         keyboardType="number-pad"
         maxLength={maxLength}
         textAlign="center"
+        underlineColorAndroid="transparent"
       />
+      {!value ? (
+        <View style={styles.placeholderWrap} pointerEvents="none">
+          <Text style={styles.placeholder} allowFontScaling={false}>{hint}</Text>
+        </View>
+      ) : null}
     </View>
   );
 };
@@ -113,6 +119,16 @@ export default function DobInput({ value, onChange }) {
   );
 }
 
+// The input and the hint share every metric that affects where a glyph lands,
+// so a change to one has to be mirrored in the other.
+const GLYPH = {
+  fontSize: 16,
+  fontWeight: '600',
+  includeFontPadding: false, // Android: drop the font's built-in leading
+  textAlign: 'center',
+  textAlignVertical: 'center',
+};
+
 const makeStyles = colors => StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   box: {
@@ -122,23 +138,17 @@ const makeStyles = colors => StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.border,
     borderRadius: 14,
-    justifyContent: 'center',
     overflow: 'hidden',
   },
   boxFocused: { borderColor: colors.primary },
   year: { flex: 1.4 },
-  // Input fills the fixed-height box and centres both ways, so it lines up
-  // pixel-for-pixel with the placeholder overlay.
+  // Input and hint both fill the box exactly, so "centred" means the same rect
+  // for both and they line up pixel-for-pixel regardless of layout timing.
   input: {
-    width: '100%',
-    height: '100%',
-    fontSize: 16,
-    fontWeight: '600',
+    ...StyleSheet.absoluteFillObject,
+    ...GLYPH,
     color: colors.textPrimary,
-    textAlign: 'center',
-    textAlignVertical: 'center',
     padding: 0,
-    includeFontPadding: false,
   },
   placeholderWrap: {
     ...StyleSheet.absoluteFillObject,
@@ -146,10 +156,9 @@ const makeStyles = colors => StyleSheet.create({
     justifyContent: 'center',
   },
   placeholder: {
-    fontSize: 16,
-    fontWeight: '600',
+    ...GLYPH,
     color: colors.textMuted,
-    includeFontPadding: false,
+    padding: 0,
   },
   sep: { fontSize: 18, color: colors.textMuted, fontWeight: '700' },
 });

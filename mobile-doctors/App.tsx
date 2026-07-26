@@ -238,6 +238,12 @@ export default function App() {
         // never block app start on a biometric error
       }
       setBootstrapped(true);
+      // Re-read the profile once the UI is up. The cached copy can be hours or
+      // days old, and its avatar URL is a ~60-minute SAS link — without this the
+      // profile photo stops loading and any change made elsewhere never lands.
+      if (useAuthStore.getState().isLoggedIn) {
+        authService.refreshProfile();
+      }
     })();
   }, []);
 

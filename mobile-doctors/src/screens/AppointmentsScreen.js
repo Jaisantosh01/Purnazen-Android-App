@@ -15,6 +15,7 @@ import { useFocusEffect } from '@react-navigation/native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
+import Avatar from '../components/Avatar';
 import appointmentService from '../services/appointmentService';
 import { SPACING, RADIUS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
@@ -177,9 +178,7 @@ const AppointmentCard = ({ item, onAccept, onComplete, onCancel, onPress }) => {
       <View style={styles.cardBody}>
         {/* Header row */}
         <View style={styles.cardRow}>
-          <View style={styles.cardAvatarWrap}>
-            <MCIcon name="account-circle" size={36} color={colors.primary} />
-          </View>
+          <Avatar uri={item.userAvatar} name={item.userName} size={40} />
           <View style={{ flex: 1 }}>
             <Text style={styles.cardName} numberOfLines={1}>{item.userName || 'Unknown Patient'}</Text>
             <Text style={styles.cardMeta} numberOfLines={1}>{item.consultationType || item.visit_type || 'Consultation'}</Text>
@@ -1035,7 +1034,6 @@ const makeStyles = colors => StyleSheet.create({
   timeLine: { flex: 1, width: 3, borderRadius: 2, minHeight: 20 },
   cardBody: { flex: 1, padding: SPACING.md, gap: SPACING.sm },
   cardRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  cardAvatarWrap: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primaryFaint, alignItems: 'center', justifyContent: 'center' },
   cardName: { fontSize: 14.5, fontWeight: '800', color: colors.textPrimary },
   cardMeta: { fontSize: 12, color: colors.textSecondary, marginTop: 1 },
   cardInfoRow: { flexDirection: 'row', gap: SPACING.sm, flexWrap: 'wrap' },

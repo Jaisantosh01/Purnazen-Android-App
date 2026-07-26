@@ -5,6 +5,51 @@ Status legend: ✅ Fixed · 🔧 In progress · ⏳ Pending · 📷 Needs screen
 
 ---
 
+## Profile photos, appointment details & location — batch 2026-07-26
+
+Reported against the **doctor app** (no profile photo; DOB placeholder glitch;
+patient age/gender showing N/A) plus "where is the profile photo stored, and why
+isn't the location permission wired to the Settings toggle". Tracing those
+turned up a set of half-wired paths around the same data, all fixed here. The
+end-to-end model now lives in
+[ARCHITECTURE.md § Cross-cutting flows](ARCHITECTURE.md#cross-cutting-flows).
+
+### Reported ✅
+
+| App | Issue | Fix | Location |
+|-----|-------|-----|----------|
+| Doctor | No profile photo | Added the picker to Settings → Edit Profile (`react-native-image-picker`, new dep) posting to the existing `POST /users/me/avatar`, and the photo now renders in the Profile header (tapping it opens the picker) | `mobile-doctors/src/screens/{Settings,Profile}Screen.js`, `services/authService.js`, `constants/apiEndpoints.js` |
+| Doctor + User | DD / MM / YYYY placeholders render high and flicker | The hint overlay and the input were centred against *different* boxes — the input was `height:'100%'` inside a flex-centred parent, which Android resolves a beat after the absolutely-positioned overlay. Both now absolutely fill the same rect and share one metrics block, so they align by construction. The hint was also keyed on focus, so it vanished the instant the field was tapped (the "glitch"); it is keyed on emptiness now, like a real placeholder | `mobile-{users,doctors}/src/components/DobInput.js` |
+| Doctor | Appointment detail shows "Age N/A" / gender "N/A", but the patient card behind it has both | `GET /appointments/{id}` returned the bare `to_dict()` while `GET /appointments/doctor` returned an enriched row, so opening an appointment from the list overwrote good data with unenriched data. Both now go through the new `AppointmentService.serialize_for_doctor()` | `backend/app/services/appointment_service.py`, `endpoints/appointments.py` |
+| User | Location permission is granted in App info but Settings → Location Access stays off | Two bugs. (a) `permissionsService.requestAll()` wrote its "already prompted" flag with `AsyncStorage.multiSet`, **removed in AsyncStorage v3** — it threw after the OS dialogs had been shown, so the flag was never stored (prompts every launch) and the caller's `locationEnabled` mirror never ran. (b) The toggle rendered the stored preference alone, so any change made in App info — or by the address screen's own `PermissionsAndroid.request` — left the two disagreeing. Location now has one owner: `locationStatus()` reads the OS grant *and* the preference (repairing a stale `true`), `enable/disableLocation()` write both, `ensureLocation()` gates the address screen, and Settings re-reads on focus | `mobile-users/src/services/permissionsService.js`, `screens/{Settings,AddressManagement}Screen.js` |
+| Doctor | "Does a doctor's profile edit reach appointments?" | It does, and now visibly: `Appointment.to_dict()` reads the doctor's name and photo live off the user row (nothing denormalised) and carries `doctorAvatar` / `userAvatar`, so a doctor's new photo shows on the patient's appointment and the patient's photo shows on the doctor's | `backend/app/models/appointment.py` |
+
+### Found while tracing ✅
+
+| Area | Issue | Fix |
+|------|-------|-----|
+| Backend | `doctor_card` and `patients.py` returned the **raw `avatar_url` column** — a bare blob path the client can't fetch — so an uploaded doctor/patient photo could never load | Both go through `User.avatar`, which signs the path into a SAS URL |
+| All 3 apps | Avatar SAS URLs expire in ~60 min but the profile is cached in AsyncStorage indefinitely, so photos silently stopped loading | `authService.refreshProfile()` (`GET /auth/me`) after bootstrap in each app; `Avatar` retries when the URL changes |
+| User app | The avatar upload shipped in the 2026-07-25 batch was only ever *visible* inside the Edit Profile modal — the Profile header still showed a letter | Profile header renders the photo (and is the tap-target for changing it) |
+| User app | `doctor_card.avatar` was served by the backend but **no screen ever read it** — every doctor rendered as an initial | Doctor photos render in Consult, Doctor Profile, Booking Confirmed and Appointment Detail |
+| Admin app | Same for `avatar_url` / `avatar` on the user + doctor lists (fixed icons) | Photos render in User Management, Doctor Management, Doctor Detail and the admin's own Profile header |
+| Backend | `GET`/`PUT /appointments/{id}` were readable **and writable by any authenticated account** — an IDOR over clinical data; a patient could also `PUT paymentStatus: paid` | Restricted to the two parties + admin; `payment_status` is staff-only. Six regression tests added |
+| Backend | `require_role` printed the user's email and role to stdout on every protected request | Removed |
+| Doctor app | `PatientDetailScreen.js`, `PatientDetailsScreen.js` and `services/userService.js` were unreachable — not registered in any navigator (`PatientProfileScreen` superseded them) | Deleted, with the now-unused `USER_DETAIL` endpoint and two stale "TODO: backend endpoint" comments for endpoints that exist |
+| Admin app | `ManageRolesScreen.js` was a "coming soon" stub, imported but never registered — the `ManageRoles` route points at `MetadataManagementScreen` | Deleted the stub + its unused import |
+| Admin app | `components/NextVideoModal.js` was imported by nothing **and broken** — its module-scope `StyleSheet.create` reads `colors.overlay`, but `colors` is a prop, so merely importing it would `ReferenceError`. Video playback lives in the patient app; this was a stray copy | Deleted. With the two above, the admin app is now lint-error-free |
+| User app | `utils/doctorAvatar.js` superseded by the shared `Avatar` component | Deleted |
+| User app | Settings described Location Access as "Used for nearby doctor search" — there is no nearby-doctor search | Re-labelled to what it actually does (address autofill) |
+
+### Notes
+
+- **New native dependency:** `react-native-image-picker@^8.2.1` in `mobile-doctors` — the doctor app needs a rebuild, not just a JS bundle. No manifest change (the library merges its own; Android 13+ uses the system photo picker, which needs no permission).
+- **Roles management is unreachable from the UI.** `MetadataManagementScreen` supports roles (`title === 'Roles'`) and the `ManageRoles` route is registered, but the Manage hub only links Expertise / Languages / Specialties. Left as-is — surfacing it is a product call, not a bug fix. 🧩
+- **Still open, untouched (out of scope, pre-existing):** 8 lint errors in `mobile-doctors` — `ScheduleScreen.js` (5 × `react-hooks/exhaustive-deps` on `leaves`, plus duplicate `statusBadge` / `statusBadgeText` style keys, so one of each pair is silently dead) and `LeaveDetailScreen.js` (missing `loadDetail` dep). Schedule is owned by a colleague. ⏳
+- **Not device-verified.** The DOB placeholder alignment and every photo/fallback rendering path need a build to confirm visually. Backend + JS suites pass (backend 195, users 82, doctors 8, admin 60 — the admin `App.test.tsx` failure is pre-existing and unrelated: `react-native-draggable-flatlist` under jest).
+
+---
+
 ## User + Doctor apps — batch 2026-07-25 (Soubhagya's report)
 
 Everything Soubhagya reported against **USERS** and **DOCTORS** that wasn't

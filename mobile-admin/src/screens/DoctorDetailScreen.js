@@ -13,6 +13,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { DoctorDetailSkeleton } from '../components/SkeletonLoader';
+import Avatar from '../components/Avatar';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 import { showAlert } from '../utils/alert';
@@ -100,9 +101,14 @@ const DoctorDetailScreen = ({ route, navigation }) => {
 
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.profileHeader}>
-          <View style={styles.avatarLarge}>
-             <MCIcon name="account" size={60} color={colors.white} />
-          </View>
+          <Avatar
+            uri={doctor.avatar}
+            name={doctor.name}
+            size={100}
+            backgroundColor={colors.primary}
+            textColor={colors.white}
+            style={styles.avatarLarge}
+          />
           <Text style={styles.name}>{doctor.name}</Text>
           <View style={styles.specialtiesContainer}>
             {doctor.specialties?.map((spec, index) => (
@@ -228,7 +234,7 @@ const makeStyles = colors => StyleSheet.create({
   headerButton: { padding: 4 },
   content: { padding: 20, paddingBottom: 40 },
   profileHeader: { alignItems: 'center', marginBottom: 25 },
-  avatarLarge: { width: 100, height: 100, borderRadius: 50, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', marginBottom: 16, shadowColor: colors.primary, shadowOffset: {width: 0, height: 4}, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
+  avatarLarge: { marginBottom: 16, shadowColor: colors.primary, shadowOffset: {width: 0, height: 4}, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
   name: { fontSize: 24, fontWeight: '800', color: colors.textPrimary, marginBottom: 4 },
   specialtiesContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginTop: 4 },
   specialtyChip: { backgroundColor: colors.primaryLight, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 16, margin: 4 },

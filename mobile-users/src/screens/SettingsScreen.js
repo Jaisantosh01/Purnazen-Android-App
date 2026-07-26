@@ -8,8 +8,9 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
-  Image,
+  Linking,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { showAlert } from '../utils/alert';
 // @ts-ignore
@@ -23,6 +24,7 @@ import { useAuthStore } from '../store/authStore';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 import AppVersionFooter from '../components/AppVersionFooter';
+import Avatar from '../components/Avatar';
 import ThemeToggle from '../components/ThemeToggle';
 import AppToggle from '../components/AppToggle';
 import GenderSelect from '../components/GenderSelect';
@@ -121,14 +123,14 @@ const makeStyles = colors => StyleSheet.create({
   modalHint: { fontSize: 11.5, lineHeight: 16, color: colors.textMuted, marginTop: 10 },
 
   avatarPicker: { alignItems: 'center', gap: 8, marginBottom: 6 },
+  // Same footprint as <Avatar size={72} borderWidth={1.5} />, used while the
+  // upload is in flight.
   avatarCircle: {
     width: 72, height: 72, borderRadius: 36, overflow: 'hidden',
     backgroundColor: colors.primaryFaint,
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1.5, borderColor: colors.border,
   },
-  avatarImage: { width: '100%', height: '100%' },
-  avatarLetter: { fontSize: 28, fontWeight: '800', color: colors.primary },
   avatarAction: { fontSize: 12.5, fontWeight: '700', color: colors.primary },
 
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -164,7 +166,7 @@ const makeStyles = colors => StyleSheet.create({
   modalBtnSaveText: { fontSize: 14, fontWeight: '600', color: colors.white },
 });
 
-const SettingsScreen = ({ navigation }) => {
+const SettingsScreen = ({ navigation, route }) => {
   const user = useAuthStore(state => state.user);
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -223,36 +225,49 @@ const SettingsScreen = ({ navigation }) => {
 
   // Hydrate the toggles/values from the server (defaults kept offline)
   React.useEffect(() => {
-    preferencesService.getPreferences()
-      .then(prefs => {
-        if (typeof prefs.locationEnabled === 'boolean') setLocationAccess(prefs.locationEnabled);
-      })
-      .catch(err => console.log('Preferences fetch failed:', err.message));
-
     biometricService.isEnabled().then(setBiometric).catch(() => {});
   }, []);
+
+  // Location reflects the OS grant *and* the stored preference, re-read on every
+  // focus: the user can change the permission in Android's App info and come
+  // straight back here, and nothing notifies the app when they do.
+  const syncLocation = React.useCallback(() => {
+    permissionsService
+      .locationStatus()
+      .then(({ effective }) => setLocationAccess(effective))
+      .catch(() => {});
+  }, []);
+
+  useFocusEffect(syncLocation);
 
   const savePreference = payload => {
     preferencesService.updatePreferences(payload)
       .catch(err => console.log('Preference save failed:', err.message));
   };
 
-  // Location — request the real OS permission, then persist the enabled flag.
+  // Location — one switch over both the OS permission and the stored preference.
   const toggleLocation = async value => {
-    if (!value) {
-      setLocationAccess(false);
-      savePreference({ locationEnabled: false });
-      return;
-    }
     setLocationBusy(true);
     try {
-      const granted = await permissionsService.enable('location');
+      if (!value) {
+        setLocationAccess(false);
+        await permissionsService.disableLocation();
+        return;
+      }
+      const { granted, blocked } = await permissionsService.enableLocation();
       setLocationAccess(granted);
-      savePreference({ locationEnabled: granted });
       if (!granted) {
         showAlert(
           'Location Permission',
-          'Location access was not granted. You can enable it from your device Settings.',
+          blocked
+            ? 'Android is no longer showing the permission prompt for this app. Turn Location on for Purnazen in your device settings.'
+            : 'Location access was not granted.',
+          blocked
+            ? [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Open Settings', onPress: () => Linking.openSettings() },
+              ]
+            : undefined,
         );
       }
     } catch {
@@ -326,6 +341,14 @@ const SettingsScreen = ({ navigation }) => {
     setFormError('');
     setShowEditProfile(true);
   };
+
+  // Deep-link from the Profile header's photo — open straight into the form.
+  React.useEffect(() => {
+    if (route?.params?.openEditProfile) {
+      openEditProfile();
+      navigation.setParams({ openEditProfile: false });
+    }
+  }, [route?.params?.openEditProfile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pickAvatar = () => {
     if (avatarBusy) return;
@@ -624,7 +647,7 @@ const SettingsScreen = ({ navigation }) => {
               icon="map-marker-outline"
               hue={HUES.rose}
               title="Location Access"
-              subtitle="Used for nearby doctor search"
+              subtitle="Fills in your address from your current location"
               value={locationAccess}
               onToggle={toggleLocation}
               disabled={locationBusy}
@@ -680,15 +703,13 @@ const SettingsScreen = ({ navigation }) => {
             >
               {/* Profile photo */}
               <TouchableOpacity style={styles.avatarPicker} onPress={pickAvatar} activeOpacity={0.8} disabled={avatarBusy}>
-                <View style={styles.avatarCircle}>
-                  {avatarBusy ? (
+                {avatarBusy ? (
+                  <View style={styles.avatarCircle}>
                     <ActivityIndicator size="small" color={colors.primary} />
-                  ) : user?.avatar_url ? (
-                    <Image source={{ uri: user.avatar_url }} style={styles.avatarImage} />
-                  ) : (
-                    <Text style={styles.avatarLetter}>{(user?.full_name || '?').charAt(0).toUpperCase()}</Text>
-                  )}
-                </View>
+                  </View>
+                ) : (
+                  <Avatar uri={user?.avatar_url} name={user?.full_name} size={72} borderWidth={1.5} />
+                )}
                 <Text style={styles.avatarAction}>
                   {avatarBusy ? 'Uploading\u2026' : user?.avatar_url ? 'Change photo' : 'Add a photo'}
                 </Text>

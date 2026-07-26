@@ -257,3 +257,101 @@ def test_get_appointments_only_own(client, db_session):
     other = auth_headers(client, email="other@example.com")
     response = client.get("/api/v1/appointments", headers=other)
     assert response.json()["data"]["total"] == 0
+
+
+# ── Appointment detail: shape + who may read it ──────────────────────────────
+
+
+def doctor_headers(client, email="sarah@example.com"):
+    tokens = client.post(
+        "/api/v1/auth/login", json={"email": email, "password": "123456"}
+    ).json()["data"]
+    return {"Authorization": f"Bearer {tokens['access_token']}"}
+
+
+def book_one(client, db_session, patient_email="patient@example.com"):
+    """Seed a doctor + booked appointment; returns (doctor, appointment_id, patient_headers)."""
+    doctor = seed_doctor(db_session)
+    slots = add_availability(db_session, doctor, day="Monday", start=time(9, 0), end=time(11, 0))
+    headers = auth_headers(client, email=patient_email)
+    booked = client.post(
+        "/api/v1/appointments/book",
+        json=book_payload(doctor, next_weekday("Monday"), slot_at(slots, time(9, 0))),
+        headers=headers,
+    )
+    return doctor, booked.json()["data"]["id"], headers
+
+
+def test_appointment_detail_for_doctor_includes_patient_profile(client, db_session):
+    """The doctor's detail view carries the same patient fields as the list.
+
+    Regression: detail used to return the bare appointment dict, so the doctor
+    app's patient card showed "Age N/A" / "N/A" the moment it refetched.
+    """
+    _, appointment_id, patient = book_one(client, db_session)
+    client.put("/api/v1/auth/me", json={"gender": "Female", "dateOfBirth": "1990-05-04"}, headers=patient)
+
+    response = client.get(f"/api/v1/appointments/{appointment_id}", headers=doctor_headers(client))
+    assert response.status_code == 200
+
+    data = response.json()["data"]
+    assert data["userGender"] == "Female"
+    assert data["userAge"] is not None
+    assert data["userDateOfBirth"] == "1990-05-04"
+    assert data["previousVisitsCount"] == 0
+    assert "userEmail" in data and "userPhone" in data
+
+
+def test_appointment_detail_for_patient_is_readable(client, db_session):
+    _, appointment_id, patient = book_one(client, db_session)
+    response = client.get(f"/api/v1/appointments/{appointment_id}", headers=patient)
+    assert response.status_code == 200
+    assert response.json()["data"]["id"] == appointment_id
+
+
+def test_appointment_detail_hidden_from_unrelated_user(client, db_session):
+    _, appointment_id, _ = book_one(client, db_session)
+    stranger = auth_headers(client, email="stranger@example.com")
+    response = client.get(f"/api/v1/appointments/{appointment_id}", headers=stranger)
+    assert response.status_code == 404
+
+
+def test_appointment_update_rejected_for_unrelated_user(client, db_session):
+    _, appointment_id, _ = book_one(client, db_session)
+    stranger = auth_headers(client, email="stranger2@example.com")
+    response = client.put(
+        f"/api/v1/appointments/{appointment_id}",
+        json={"status": "cancelled"},
+        headers=stranger,
+    )
+    assert response.status_code == 404
+
+    # ...and the appointment is untouched.
+    detail = client.get(f"/api/v1/appointments/{appointment_id}", headers=doctor_headers(client))
+    assert detail.json()["data"]["status"] == "pending"
+
+
+def test_patient_cannot_mark_own_appointment_paid(client, db_session):
+    _, appointment_id, patient = book_one(client, db_session)
+    response = client.put(
+        f"/api/v1/appointments/{appointment_id}",
+        json={"paymentStatus": "paid"},
+        headers=patient,
+    )
+    assert response.status_code == 403
+
+    detail = client.get(f"/api/v1/appointments/{appointment_id}", headers=patient)
+    assert detail.json()["data"]["paymentStatus"] == "pending"
+
+
+def test_doctor_status_update_returns_enriched_shape(client, db_session):
+    _, appointment_id, _ = book_one(client, db_session)
+    response = client.put(
+        f"/api/v1/appointments/{appointment_id}",
+        json={"status": "booked"},
+        headers=doctor_headers(client),
+    )
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["status"] == "booked"
+    assert "userAge" in data and "previousVisitsCount" in data
