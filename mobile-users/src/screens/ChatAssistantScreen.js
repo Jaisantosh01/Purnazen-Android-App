@@ -80,7 +80,7 @@ const ChatAssistantScreen = ({ route, navigation }) => {
 
     setShowPainModal(false);
     navigateToVideos(groupId, {
-      painBefore: Math.min(10, Math.max(0, parseInt(painLevel, 10) || 0)),
+      painBefore: Math.min(10, Math.max(0, painLevel)),
       painDescription: painDescription.trim() || null,
     });
     setPendingGroupId(null);
@@ -332,40 +332,6 @@ const makeStyles = colors => StyleSheet.create({
     justifyContent: 'center',
     marginTop: 10,
     gap: 10,
-  },
-  painRow: {
-    marginBottom: 16,
-  },
-  painLabel: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  painBtns: {
-    flexDirection: 'row',
-    gap: 4,
-  },
-  painBtn: {
-    flex: 1,
-    height: 38,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceMuted,
-  },
-  painBtnActive: {
-    backgroundColor: colors.primary,
-  },
-  painBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  painBtnTextActive: {
-    color: colors.white,
-    fontWeight: '800',
   },
   painInput: {
     borderWidth: 1,

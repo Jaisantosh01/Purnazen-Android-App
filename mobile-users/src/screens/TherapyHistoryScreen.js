@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,13 +8,13 @@ import {
   ActivityIndicator,
   RefreshControl,
   TextInput,
-  PanResponder,
 } from 'react-native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import therapyService from '../services/therapyService';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 import AppDialog from '../components/AppDialog';
+import PainScale from '../components/PainScale';
 
 
 const TherapyHistoryScreen = ({ navigation }) => {
@@ -31,30 +31,9 @@ const TherapyHistoryScreen = ({ navigation }) => {
   // Wellness programmes aren't pain-relief routines, so they only collect a
   // written note — the pain score stays for relief/acupressure sessions.
   const [asksPain, setAsksPain] = useState(true);
-  const [painAfter, setPainAfter] = useState('5');
+  const [painAfter, setPainAfter] = useState(5);
   const [completeFeedback, setCompleteFeedback] = useState('');
   const [savingComplete, setSavingComplete] = useState(false);
-
-  const sliderWidthRef = useRef(0);
-  const painSlider = useMemo(() => ({
-    panResponder: PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (e) => {
-        const x = e.nativeEvent.locationX;
-        const w = sliderWidthRef.current || 1;
-        setPainAfter(String(Math.min(10, Math.max(0, Math.round((x / w) * 10)))));
-      },
-      onPanResponderMove: (e) => {
-        const x = e.nativeEvent.locationX;
-        const w = sliderWidthRef.current || 1;
-        setPainAfter(String(Math.min(10, Math.max(0, Math.round((x / w) * 10)))));
-      },
-    }),
-  }), []);
-
-  const painVal = parseInt(painAfter, 10) || 5;
-  const painPct = painVal / 10;
 
   const fetchSessions = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -95,7 +74,7 @@ const TherapyHistoryScreen = ({ navigation }) => {
   const handleComplete = (session) => {
     setCompletingSessionId(session.id);
     setAsksPain(session.sessionType !== 'wellness');
-    setPainAfter('5');
+    setPainAfter(5);
     setCompleteFeedback('');
     setShowCompleteDialog(true);
   };
@@ -106,7 +85,7 @@ const TherapyHistoryScreen = ({ navigation }) => {
     try {
       await therapyService.completeSession(
         completingSessionId,
-        asksPain ? Math.min(10, Math.max(0, parseInt(painAfter, 10) || 0)) : null,
+        asksPain ? Math.min(10, Math.max(0, painAfter)) : null,
         completeFeedback.trim() || null,
       );
       setShowCompleteDialog(false);
@@ -280,27 +259,7 @@ const TherapyHistoryScreen = ({ navigation }) => {
         title="Session Feedback"
         subtitle={asksPain ? 'How severe is your pain now?' : 'How did this session go?'}
       >
-        {asksPain && (
-          <View style={styles.feedbackPainRow}>
-            <Text style={styles.feedbackPainLabel}>Pain After: {painAfter}/10</Text>
-            <View
-              style={styles.sliderTrack}
-              onLayout={(e) => { sliderWidthRef.current = e.nativeEvent.layout.width; }}
-              {...painSlider.panResponder.panHandlers}
-            >
-              <View style={[styles.sliderFill, { width: `${painPct * 100}%` }]} />
-              <View style={[styles.sliderThumb, { left: `${painPct * 100}%` }]} />
-            </View>
-            <View style={styles.sliderLabels}>
-              <Text style={styles.sliderLabelText}>0</Text>
-              <Text style={styles.sliderLabelText}>2</Text>
-              <Text style={styles.sliderLabelText}>4</Text>
-              <Text style={styles.sliderLabelText}>6</Text>
-              <Text style={styles.sliderLabelText}>8</Text>
-              <Text style={styles.sliderLabelText}>10</Text>
-            </View>
-          </View>
-        )}
+        {asksPain && <PainScale value={painAfter} onChange={setPainAfter} label="Pain after" />}
         <TextInput
           style={styles.feedbackInput}
           placeholder="Write your feedback here…"
@@ -400,12 +359,5 @@ const makeStyles = colors => StyleSheet.create({
   },
   completeText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
 
-  feedbackPainRow: { marginBottom: 16, paddingHorizontal: 4 },
-  feedbackPainLabel: { fontSize: 15, fontWeight: '700', color: colors.textPrimary, marginBottom: 16, textAlign: 'center' },
-  sliderTrack: { height: 6, borderRadius: 12, backgroundColor: colors.surfaceMuted, justifyContent: 'center', position: 'relative', overflow: 'visible' },
-  sliderFill: { position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: 12, backgroundColor: colors.primary },
-  sliderThumb: { position: 'absolute', width: 20, height: 20, borderRadius: 10, backgroundColor: colors.white, borderWidth: 2.5, borderColor: colors.primary, top: -6, marginLeft: -10, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 3 },
-  sliderLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6, paddingHorizontal: 2 },
-  sliderLabelText: { fontSize: 12, color: colors.textMuted },
   feedbackInput: { borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 12, fontSize: 14, color: colors.textPrimary, backgroundColor: colors.surfaceMuted, minHeight: 80, textAlignVertical: 'top' },
 });

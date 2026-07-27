@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.models.therapy_session import TherapySession
 from app.models.videos import Videos as Video
 from app.models.video_groups import VideoGroups as VideoGroup
-from app.models.video_group_mapping import VideoGroupMapping
+from app.repositories.video_repository import VideoRepository
 
 
 class TherapySessionRepository:
@@ -54,8 +54,8 @@ class TherapySessionRepository:
 
         results = []
         for session in sessions:
-            # Query counts using VideoGroupMapping
-            total_videos_in_group = db.query(VideoGroupMapping).filter(VideoGroupMapping.video_group_id == session.group_id).count()
+            # Only videos the group still serves — see count_active_in_group.
+            total_videos_in_group = VideoRepository.count_active_in_group(db, session.group_id)
             total_sessions_in_group = (
                 db.query(TherapySession)
                 .filter(TherapySession.user_id == user_id, TherapySession.group_id == session.group_id)

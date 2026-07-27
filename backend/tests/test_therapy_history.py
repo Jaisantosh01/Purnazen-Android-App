@@ -280,6 +280,39 @@ def test_completed_count_is_scoped_to_a_session_group(client, db_session):
     assert scoped == 0
 
 
+def test_session_totals_ignore_removed_videos(client, db_session):
+    """History counts the videos the catalog serves, not every mapping row.
+
+    Deleting a video only flips ``is_active``, so a group that once held three
+    videos and now holds one used to report "1/3 videos" — and the run could
+    never auto-complete, because completed could never reach the stale total.
+    """
+    group, videos = seed_group_with_videos(db_session, video_count=3)
+    for video in videos[1:]:
+        video.is_active = False
+    db_session.commit()
+
+    headers = auth_headers(client)
+    session_group_id = client.post(
+        "/api/v1/therapy-history/start-session",
+        json={"groupId": str(group.id), "sessionType": "relief"},
+        headers=headers,
+    ).json()["data"]["id"]
+
+    client.post(
+        "/api/v1/therapy-history/save",
+        json=save_payload(group, videos[0], type="relief", sessionGroupId=session_group_id),
+        headers=headers,
+    )
+
+    listed = client.get("/api/v1/therapy-history/sessions", headers=headers).json()["data"]
+    session = next(s for s in listed["sessions"] if s["id"] == session_group_id)
+    assert session["totalVideos"] == 1
+    assert session["completedVideos"] == 1
+    # Finishing the only remaining video closes the run.
+    assert session["status"] == "completed"
+
+
 def test_history_only_own_sessions(client, db_session):
     group, videos = seed_group_with_videos(db_session)
     headers = auth_headers(client)

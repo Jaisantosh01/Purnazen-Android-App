@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.therapy_feedback import TherapyFeedback
 from app.models.therapy_session import TherapySession
 from app.models.therapy_session_group import TherapySessionGroup
-from app.models.video_group_mapping import VideoGroupMapping
+from app.repositories.video_repository import VideoRepository
 
 
 class TherapySessionGroupRepository:
@@ -59,11 +59,7 @@ class TherapySessionGroupRepository:
         for sg in rows:
             d = sg.to_dict()
 
-            total_videos = (
-                db.query(VideoGroupMapping)
-                .filter(VideoGroupMapping.video_group_id == sg.group_id)
-                .count()
-            )
+            total_videos = VideoRepository.count_active_in_group(db, sg.group_id)
             completed_videos = (
                 db.query(func.count(TherapySession.id))
                 .filter(
@@ -72,6 +68,9 @@ class TherapySessionGroupRepository:
                 )
                 .scalar()
             ) or 0
+            # A video finished during the run can be removed from the group
+            # afterwards, which would otherwise report "3/1 videos".
+            completed_videos = min(completed_videos, total_videos)
 
             feedback = (
                 db.query(TherapyFeedback)

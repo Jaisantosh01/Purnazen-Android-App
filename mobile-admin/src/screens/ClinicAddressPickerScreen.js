@@ -355,7 +355,7 @@ const ClinicAddressPickerScreen = ({ navigation }) => {
           <Text style={styles.formSectionTitle}>Clinic Details</Text>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Clinic Name <Text style={{color: '#E53935'}}>*</Text></Text>
+            <Text style={styles.fieldLabel}>Clinic Name <Text style={styles.requiredStar}>*</Text></Text>
             <TextInput
               style={styles.fieldInput}
               placeholder="e.g. Sarah Acupressure Clinic"
@@ -366,7 +366,7 @@ const ClinicAddressPickerScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Address <Text style={{color: '#E53935'}}>*</Text></Text>
+            <Text style={styles.fieldLabel}>Address <Text style={styles.requiredStar}>*</Text></Text>
             <TextInput
               style={[styles.fieldInput, styles.fieldAutoFilled]}
               placeholder="Auto-filled from location"
@@ -378,7 +378,7 @@ const ClinicAddressPickerScreen = ({ navigation }) => {
 
           <View style={styles.fieldRow}>
             <View style={[styles.fieldGroup, { flex: 1 }]}>
-              <Text style={styles.fieldLabel}>City <Text style={{color: '#E53935'}}>*</Text></Text>
+              <Text style={styles.fieldLabel}>City <Text style={styles.requiredStar}>*</Text></Text>
               <TextInput
                 style={[styles.fieldInput, styles.fieldAutoFilled]}
                 placeholder="Auto-filled"
@@ -389,7 +389,7 @@ const ClinicAddressPickerScreen = ({ navigation }) => {
             </View>
             <View style={{ width: 12 }} />
             <View style={[styles.fieldGroup, { flex: 1 }]}>
-              <Text style={styles.fieldLabel}>Pincode <Text style={{color: '#E53935'}}>*</Text></Text>
+              <Text style={styles.fieldLabel}>Pincode <Text style={styles.requiredStar}>*</Text></Text>
               <TextInput
                 style={[styles.fieldInput, styles.fieldAutoFilled]}
                 placeholder="Auto-filled"
@@ -491,6 +491,7 @@ const makeStyles = colors => StyleSheet.create({
   formSectionTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary, marginBottom: 16 },
   fieldGroup: { marginBottom: 14 },
   fieldLabel: { fontSize: 12, fontWeight: '600', color: colors.textSecondary, marginBottom: 6 },
+  requiredStar: { color: colors.danger, fontWeight: '700' },
   fieldInput: {
     backgroundColor: colors.card, borderRadius: 12,
     borderWidth: 1.5, borderColor: colors.border,
