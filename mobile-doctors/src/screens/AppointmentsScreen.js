@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+  SectionList,
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
@@ -21,24 +21,23 @@ import { SPACING, RADIUS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
 import { showAlert } from '../utils/alert';
 import { chipColors } from '../utils/statusChip';
+import {
+  MONTH_LONG,
+  WEEK_DAYS,
+  toDateKey,
+  todayKey,
+  keyToDate,
+  addDays,
+  formatDayFull,
+  relativeDayLabel,
+  matchesTimeSlot,
+  countByDate,
+  buildAgendaSections,
+  buildDateSections,
+  findNextAppointment,
+} from '../utils/appointmentAgenda';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
-const formatDate = iso => {
-  if (!iso) return '';
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-};
-
-const toApiDate = d => {
-  // d is a JS Date; returns YYYY-MM-DD in local time
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-};
-
-const todayApiDate = () => toApiDate(new Date());
-
 const isAppointmentOver = (dateStr, endTimeStr) => {
   if (!dateStr) return false;
   const [year, month, day] = dateStr.split('-').map(Number);
@@ -58,51 +57,15 @@ const isAppointmentOver = (dateStr, endTimeStr) => {
     }
   }
   const apptEnd = new Date(year, month - 1, day, hours, minutes);
-  const now = new Date();
-  return now >= apptEnd;
+  return new Date() >= apptEnd;
 };
 
-// Build an array of Date objects for the horizontal date picker (today ± 6 days)
-const buildDateRange = () => {
-  const days = [];
-  for (let i = -1; i <= 5; i++) {
-    const d = new Date();
-    d.setDate(d.getDate() + i);
-    days.push(d);
-  }
-  return days;
-};
+/** Two weeks of quick-pick days, starting today. */
+const STRIP_DAYS = 14;
 
-const getDefaultTimeSlot = () => {
-  const hour = new Date().getHours();
-  if (hour >= 6 && hour <= 11) return 'morning';
-  if (hour >= 12 && hour <= 16) return 'afternoon';
-  if (hour >= 17 && hour <= 21) return 'evening';
-  return 'all';
-};
-
-const parseTimeToMinutes = (timeStr) => {
-  if (!timeStr) return -1;
-  const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-  if (!match) return -1;
-  let hours = parseInt(match[1], 10);
-  const minutes = parseInt(match[2], 10);
-  const ampm = match[3].toUpperCase();
-  
-  if (hours < 1 || hours > 12 || minutes < 0 || minutes > 59) {
-    return -1;
-  }
-  
-  if (ampm === 'PM' && hours < 12) {
-    hours += 12;
-  } else if (ampm === 'AM' && hours === 12) {
-    hours = 0;
-  }
-  return hours * 60 + minutes;
-};
-
-const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+// Module-level so SectionList doesn't see a fresh component type each render.
+const gapStyles = StyleSheet.create({ cardGap: { height: SPACING.md } });
+const CardGap = () => <View style={gapStyles.cardGap} />;
 
 // ─── Status config ─────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
@@ -112,32 +75,28 @@ const STATUS_CONFIG = {
   cancelled: { label: 'Cancelled', bg: '#FEF2F2', text: '#991B1B', darkText: '#FCA5A5', dot: '#EF4444' },
 };
 
-const STATUS_FILTERS = ['all', 'pending', 'booked', 'completed', 'cancelled'];
+const STATUS_FILTERS = [
+  { key: 'all', label: 'All' },
+  { key: 'pending', label: 'Pending' },
+  { key: 'booked', label: 'Booked' },
+  { key: 'completed', label: 'Completed' },
+  { key: 'cancelled', label: 'Cancelled' },
+];
 
 // Consultation-type filter. `consultationType` comes back as the display name
 // ("Clinic Visit"), but older rows only carry the `visit_type` slug — match both.
 const VISIT_FILTERS = [
-  { key: 'all',    label: 'All Types',    icon: 'format-list-bulleted', names: null },
-  { key: 'clinic', label: 'Clinic Visit', icon: 'hospital-building',    names: ['clinic visit', 'clinic'] },
-  { key: 'home',   label: 'Home Visit',   icon: 'home-outline',         names: ['home visit', 'home'] },
-  { key: 'video',  label: 'Video Call',   icon: 'video-outline',        names: ['video call', 'video'] },
+  { key: 'all',    label: 'All types',    icon: 'format-list-bulleted', names: null },
+  { key: 'clinic', label: 'Clinic visit', icon: 'hospital-building',    names: ['clinic visit', 'clinic'] },
+  { key: 'home',   label: 'Home visit',   icon: 'home-outline',         names: ['home visit', 'home'] },
+  { key: 'video',  label: 'Video call',   icon: 'video-outline',        names: ['video call', 'video'] },
 ];
 
-const SHEET_TITLES = { status: 'Filter by Status', type: 'Consultation Type', time: 'Time of Day' };
-
 const TIME_FILTERS = [
-  { key: 'all',       label: 'Any Time',   icon: 'clock-outline' },
+  { key: 'all',       label: 'Any time',   icon: 'clock-outline' },
   { key: 'morning',   label: 'Morning',    icon: 'weather-sunset-up' },
   { key: 'afternoon', label: 'Afternoon',  icon: 'weather-sunny' },
   { key: 'evening',   label: 'Evening',    icon: 'weather-night' },
-];
-
-// Multi-day range views so the doctor isn't limited to a single day / one week.
-// `days` counts from today inclusive (today + N-1).
-const RANGE_OPTIONS = [
-  { key: '7', label: 'Next 7 days', days: 7 },
-  { key: '10', label: 'Next 10 days', days: 10 },
-  { key: 'month', label: 'This month', days: 30 },
 ];
 
 const StatusBadge = ({ status }) => {
@@ -154,7 +113,7 @@ const StatusBadge = ({ status }) => {
 };
 
 // ─── Appointment Card ──────────────────────────────────────────────────────────
-const AppointmentCard = ({ item, onAccept, onComplete, onCancel, onPress }) => {
+const AppointmentCard = ({ item, showDate, onAccept, onComplete, onCancel, onPress }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const isPending = item.status === 'pending';
@@ -176,29 +135,25 @@ const AppointmentCard = ({ item, onAccept, onComplete, onCancel, onPress }) => {
 
       {/* Main Content */}
       <View style={styles.cardBody}>
-        {/* Header row */}
         <View style={styles.cardRow}>
           <Avatar uri={item.userAvatar} name={item.userName} size={40} />
-          <View style={{ flex: 1 }}>
+          <View style={styles.cardNameWrap}>
             <Text style={styles.cardName} numberOfLines={1}>{item.userName || 'Unknown Patient'}</Text>
             <Text style={styles.cardMeta} numberOfLines={1}>{item.consultationType || item.visit_type || 'Consultation'}</Text>
           </View>
           <StatusBadge status={item.status} />
         </View>
 
-        {/* Info pills */}
-        <View style={styles.cardInfoRow}>
-          <View style={styles.infoPill}>
-            <MCIcon name="calendar-outline" size={12} color={colors.textSecondary} />
-            <Text style={styles.infoPillText}>{formatDate(item.date)}</Text>
-          </View>
-          {item.endTime ? (
+        {/* The day header already carries the date, so a card only repeats it
+            where its section mixes days (the overdue group). */}
+        {showDate ? (
+          <View style={styles.cardInfoRow}>
             <View style={styles.infoPill}>
-              <MCIcon name="clock-outline" size={12} color={colors.textSecondary} />
-              <Text style={styles.infoPillText}>{item.time} – {item.endTime}</Text>
+              <MCIcon name="calendar-outline" size={12} color={colors.textSecondary} />
+              <Text style={styles.infoPillText}>{formatDayFull(toDateKey(item.date))}</Text>
             </View>
-          ) : null}
-        </View>
+          </View>
+        ) : null}
 
         {/* Action buttons */}
         {(isPending || isBooked) && (
@@ -230,13 +185,13 @@ const AppointmentCard = ({ item, onAccept, onComplete, onCancel, onPress }) => {
                   <Text style={styles.cancelBtnText}>Cancel</Text>
                 </TouchableOpacity>
                 {(() => {
-                  const apptOver = isAppointmentOver(item.date, item.endTime || item.time);
+                  const apptOver = isAppointmentOver(toDateKey(item.date), item.endTime || item.time);
                   return (
                     <TouchableOpacity
                       style={[
                         styles.actionBtn,
                         styles.completeBtn,
-                        !apptOver && { backgroundColor: colors.borderStrong, borderColor: colors.borderStrong }
+                        !apptOver && styles.completeBtnOff,
                       ]}
                       disabled={!apptOver}
                       activeOpacity={0.85}
@@ -244,9 +199,9 @@ const AppointmentCard = ({ item, onAccept, onComplete, onCancel, onPress }) => {
                       <MCIcon
                         name="checkbox-marked-circle-outline"
                         size={15}
-                        color={apptOver ? colors.white : '#9CA3AF'}
+                        color={apptOver ? colors.white : colors.textMuted}
                       />
-                      <Text style={[styles.completeBtnText, !apptOver && { color: '#9CA3AF' }]}>Complete</Text>
+                      <Text style={[styles.completeBtnText, !apptOver && styles.completeBtnTextOff]}>Complete</Text>
                     </TouchableOpacity>
                   );
                 })()}
@@ -259,83 +214,107 @@ const AppointmentCard = ({ item, onAccept, onComplete, onCancel, onPress }) => {
   );
 };
 
-// ─── Date Pill ─────────────────────────────────────────────────────────────────
-const DatePill = ({ date, selected, onPress }) => {
+// ─── Date strip pill ───────────────────────────────────────────────────────────
+const DayPill = ({ dateKey, count, selected, onPress }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const isToday = toApiDate(date) === todayApiDate();
+  const d = keyToDate(dateKey);
+  const isToday = dateKey === todayKey();
   return (
     <TouchableOpacity
-      style={[styles.datePill, selected && styles.datePillActive]}
+      style={[styles.dayPill, isToday && styles.dayPillToday, selected && styles.dayPillOn]}
       activeOpacity={0.8}
       onPress={onPress}>
-      <Text style={[styles.datePillDay, selected && styles.datePillTextActive]}>
-        {DAY_LABELS[date.getDay()]}
+      <Text style={[styles.dayPillDow, selected && styles.dayPillTextOn]}>
+        {WEEK_DAYS[d.getDay()].toUpperCase()}
       </Text>
-      <Text style={[styles.datePillNum, selected && styles.datePillTextActive]}>
-        {date.getDate()}
-      </Text>
-      {isToday && <View style={[styles.todayDot, selected && { backgroundColor: colors.white }]} />}
+      <Text style={[styles.dayPillNum, selected && styles.dayPillTextOn]}>{d.getDate()}</Text>
+      {/* A count, not a dot: "how busy is Thursday" is the question a doctor
+          actually asks of a date strip. */}
+      {count > 0 ? (
+        <View style={[styles.dayPillCount, selected && styles.dayPillCountOn]}>
+          <Text style={[styles.dayPillCountText, selected && styles.dayPillCountTextOn]}>{count}</Text>
+        </View>
+      ) : (
+        <View style={styles.dayPillCountSpacer} />
+      )}
     </TouchableOpacity>
   );
 };
 
-// ─── Filter chip ───────────────────────────────────────────────────────────────
-const FilterChip = ({ icon, label, active, onPress }) => {
+// ─── Section header ────────────────────────────────────────────────────────────
+const SectionHeading = ({ section, count }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const overdue = section.kind === 'overdue';
+  return (
+    <View style={styles.sectionHead}>
+      <View style={[styles.sectionMark, overdue && styles.sectionMarkWarn]} />
+      <View style={styles.sectionHeadText}>
+        <Text style={[styles.sectionTitle, overdue && styles.sectionTitleWarn]}>{section.title}</Text>
+        <Text style={styles.sectionSub}>{section.subtitle}</Text>
+      </View>
+      {count > 0 ? (
+        <View style={styles.sectionCount}>
+          <Text style={styles.sectionCountText}>{count}</Text>
+        </View>
+      ) : null}
+    </View>
+  );
+};
+
+// ─── Empty day card ────────────────────────────────────────────────────────────
+const EmptyDayCard = ({ section, hiddenCount, nextUp, onClearFilters }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const isToday = section.kind === 'today';
+
+  if (hiddenCount > 0) {
+    return (
+      <View style={styles.emptyDay}>
+        <MCIcon name="filter-off-outline" size={22} color={colors.textMuted} />
+        <Text style={styles.emptyDayTitle}>
+          {hiddenCount} appointment{hiddenCount === 1 ? '' : 's'} hidden by your filters
+        </Text>
+        <TouchableOpacity style={styles.emptyDayBtn} activeOpacity={0.8} onPress={onClearFilters}>
+          <Text style={styles.emptyDayBtnText}>Clear filters</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.emptyDay}>
+      <MCIcon
+        name={isToday ? 'coffee-outline' : 'calendar-blank-outline'}
+        size={22}
+        color={colors.textMuted}
+      />
+      <Text style={styles.emptyDayTitle}>
+        {isToday ? 'No more appointments today' : 'Nothing scheduled'}
+      </Text>
+      {isToday && nextUp ? (
+        <Text style={styles.emptyDaySub}>
+          Next: {relativeDayLabel(nextUp.dateKey)} at {nextUp.appointment.time || '—'}
+        </Text>
+      ) : null}
+    </View>
+  );
+};
+
+// ─── Option chip (filter sheet) ────────────────────────────────────────────────
+const OptionChip = ({ icon, label, dot, active, onPress }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <TouchableOpacity
-      style={[styles.filterChip, active && styles.filterChipOn]}
+      style={[styles.optChip, active && styles.optChipOn]}
       activeOpacity={0.85}
       onPress={onPress}>
-      <MCIcon name={icon} size={14} color={active ? colors.white : colors.primary} />
-      <Text style={[styles.filterChipText, active && styles.filterChipTextOn]} numberOfLines={1}>{label}</Text>
-      <MCIcon name="chevron-down" size={14} color={active ? colors.white : colors.primary} />
+      {dot ? <View style={[styles.statusDot, { backgroundColor: dot }]} /> : null}
+      {icon ? <MCIcon name={icon} size={14} color={active ? colors.white : colors.textSecondary} /> : null}
+      <Text style={[styles.optChipText, active && styles.optChipTextOn]}>{label}</Text>
     </TouchableOpacity>
-  );
-};
-
-// ─── Empty State ───────────────────────────────────────────────────────────────
-const EmptyState = ({ selectedDate, onClear }) => {
-  const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
-  return (
-  <View style={styles.emptyWrap}>
-    <MCIcon name="calendar-blank-outline" size={64} color={colors.border} />
-    <Text style={styles.emptyTitle}>No appointments</Text>
-    <Text style={styles.emptySubtitle}>
-      No appointments found{selectedDate ? ` for ${formatDate(selectedDate)}` : ''}.
-    </Text>
-    {selectedDate && (
-      <TouchableOpacity style={styles.emptyBtn} activeOpacity={0.85} onPress={onClear}>
-        <Text style={styles.emptyBtnText}>View all dates</Text>
-      </TouchableOpacity>
-    )}
-  </View>
-  );
-};
-
-// ─── Summary Bar ───────────────────────────────────────────────────────────────
-const SummaryBar = ({ appointments }) => {
-  const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
-  const total = appointments.length;
-  const pending = appointments.filter(a => a.status === 'pending').length;
-  const completed = appointments.filter(a => a.status === 'completed').length;
-  return (
-    <View style={styles.summaryBar}>
-      {[
-        { label: 'Total', value: total, color: colors.primary },
-        { label: 'Pending', value: pending, color: '#F59E0B' },
-        { label: 'Completed', value: completed, color: '#10B981' },
-      ].map(s => (
-        <View key={s.label} style={styles.summaryItem}>
-          <Text style={[styles.summaryValue, { color: s.color }]}>{s.value}</Text>
-          <Text style={styles.summaryLabel}>{s.label}</Text>
-        </View>
-      ))}
-    </View>
   );
 };
 
@@ -343,90 +322,35 @@ const SummaryBar = ({ appointments }) => {
 const AppointmentsScreen = ({ navigation }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(todayApiDate()); // null = all dates
-  const [selectedRange, setSelectedRange] = useState(null); // null | '7' | '10' | 'month'
+
+  // Empty = agenda mode (today + what's coming). Non-empty = only these days.
+  const [selectedDates, setSelectedDates] = useState([]);
   const [selectedStatus, setSelectedStatus] = useState('all');
-  const [selectedTime, setSelectedTime] = useState(getDefaultTimeSlot());
+  // Deliberately 'all' rather than the current part of the day: defaulting to
+  // "evening" at 6pm silently hid the morning's appointments.
+  const [selectedTime, setSelectedTime] = useState('all');
   const [selectedVisit, setSelectedVisit] = useState('all');
-  // Which filter sheet is open: 'status' | 'type' | 'time' | null. One sheet
-  // serves all three so the header stays a single row of chips.
-  const [activeSheet, setActiveSheet] = useState(null);
 
-  // Calendar states
-  const [showCalendarModal, setShowCalendarModal] = useState(false);
-  const today = useRef(new Date()).current;
-  const [currentMonth, setCurrentMonth] = useState(today.getMonth());
-  const [currentYear, setCurrentYear] = useState(today.getFullYear());
-  const [allAppointmentDates, setAllAppointmentDates] = useState(new Set());
+  const [showFilters, setShowFilters] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
 
-  const fetchAllAppointmentDates = useCallback(async () => {
-    try {
-      const data = await appointmentService.getDoctorAppointments({});
-      const appointmentsList = data?.appointments ?? [];
-      const dates = new Set(
-        appointmentsList
-          .filter(a => a.date)
-          .map(a => typeof a.date === 'string' ? a.date.split('T')[0] : toApiDate(new Date(a.date)))
-      );
-      setAllAppointmentDates(dates);
-    } catch (err) {
-      console.warn('[AppointmentsScreen] fetchAllAppointmentDates error:', err?.message);
-    }
-  }, []);
-
-  const maxDate = useRef((() => {
-    const d = new Date();
-    d.setMonth(d.getMonth() + 1);
-    return d;
-  })()).current;
-
-  const isDateSelectable = (dateStr) => {
-    const todayZero = new Date();
-    todayZero.setHours(0, 0, 0, 0);
-    const maxDateZero = new Date();
-    maxDateZero.setMonth(maxDateZero.getMonth() + 1);
-    maxDateZero.setHours(23, 59, 59, 999);
-    
-    const target = new Date(dateStr + 'T00:00:00');
-    return target >= todayZero && target <= maxDateZero;
-  };
-
-  const handlePrevMonth = () => {
-    if (currentYear > today.getFullYear() || (currentYear === today.getFullYear() && currentMonth > today.getMonth())) {
-      if (currentMonth === 0) {
-        setCurrentMonth(11);
-        setCurrentYear(y => y - 1);
-      } else {
-        setCurrentMonth(m => m - 1);
-      }
-    }
-  };
-
-  const handleNextMonth = () => {
-    if (currentYear < maxDate.getFullYear() || (currentYear === maxDate.getFullYear() && currentMonth < maxDate.getMonth())) {
-      if (currentMonth === 11) {
-        setCurrentMonth(0);
-        setCurrentYear(y => y + 1);
-      } else {
-        setCurrentMonth(m => m + 1);
-      }
-    }
-  };
-
-  const dateRange = useRef(buildDateRange()).current;
+  const today = todayKey();
+  const anchor = useRef(new Date()).current;
+  const [calMonth, setCalMonth] = useState(anchor.getMonth());
+  const [calYear, setCalYear] = useState(anchor.getFullYear());
 
   // ── Fetch ───────────────────────────────────────────────────────────────────
+  // One unfiltered request: the screen needs every appointment anyway to tally
+  // the per-day counts, and filtering in memory keeps the strip badges, the
+  // calendar and the list from disagreeing with each other.
   const fetchAppointments = useCallback(async (showLoader = true) => {
     if (showLoader) setLoading(true);
     try {
-      const params = {};
-      if (selectedDate) params.date = selectedDate;
-      if (selectedStatus !== 'all') params.status = selectedStatus;
-
-      const data = await appointmentService.getDoctorAppointments(params);
+      const data = await appointmentService.getDoctorAppointments({});
       setAppointments(data?.appointments ?? []);
     } catch (err) {
       console.warn('[AppointmentsScreen] fetch error:', err?.message);
@@ -435,28 +359,21 @@ const AppointmentsScreen = ({ navigation }) => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedDate, selectedStatus]);
+  }, []);
 
-  // Show the full-screen loader only for the first load and filter changes;
-  // regaining focus (e.g. coming back from the detail screen after accepting)
-  // refreshes silently so the list is never stale.
+  // Full-screen loader on the first load only; regaining focus (e.g. coming
+  // back from the detail screen after accepting) refreshes silently.
   const hasFetchedRef = useRef(false);
-  useEffect(() => {
-    hasFetchedRef.current = false;
-  }, [selectedDate, selectedStatus]);
-
   useFocusEffect(
     useCallback(() => {
       fetchAppointments(!hasFetchedRef.current);
       hasFetchedRef.current = true;
-      fetchAllAppointmentDates();
-    }, [fetchAppointments, fetchAllAppointmentDates]),
+    }, [fetchAppointments]),
   );
 
   const onRefresh = () => {
     setRefreshing(true);
     fetchAppointments(false);
-    fetchAllAppointmentDates();
   };
 
   // ── Status Action Helpers ───────────────────────────────────────────────────
@@ -466,7 +383,6 @@ const AppointmentsScreen = ({ navigation }) => {
     try {
       await appointmentService.updateStatus(id, status);
       await fetchAppointments(false);
-      await fetchAllAppointmentDates();
     } catch (e) {
       await fetchAppointments(false); // roll back to server truth
       showAlert('Error', e?.message || 'Could not update appointment status.');
@@ -474,36 +390,24 @@ const AppointmentsScreen = ({ navigation }) => {
   };
 
   const handleAccept = item => {
-    showAlert(
-      'Accept Appointment',
-      `Accept appointment for ${item.userName}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Accept', onPress: () => updateAppointmentStatus(item.id, 'booked') },
-      ],
-    );
+    showAlert('Accept Appointment', `Accept appointment for ${item.userName}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Accept', onPress: () => updateAppointmentStatus(item.id, 'booked') },
+    ]);
   };
 
   const handleComplete = item => {
-    showAlert(
-      'Complete Appointment',
-      `Mark appointment for ${item.userName} as completed?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Complete', onPress: () => updateAppointmentStatus(item.id, 'completed') },
-      ],
-    );
+    showAlert('Complete Appointment', `Mark appointment for ${item.userName} as completed?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Complete', onPress: () => updateAppointmentStatus(item.id, 'completed') },
+    ]);
   };
 
   const handleCancel = item => {
-    showAlert(
-      'Cancel Appointment',
-      `Cancel appointment for ${item.userName}?`,
-      [
-        { text: 'No', style: 'cancel' },
-        { text: 'Yes, Cancel', style: 'destructive', onPress: () => updateAppointmentStatus(item.id, 'cancelled') },
-      ],
-    );
+    showAlert('Cancel Appointment', `Cancel appointment for ${item.userName}?`, [
+      { text: 'No', style: 'cancel' },
+      { text: 'Yes, Cancel', style: 'destructive', onPress: () => updateAppointmentStatus(item.id, 'cancelled') },
+    ]);
   };
 
   const handlePress = item => {
@@ -511,267 +415,183 @@ const AppointmentsScreen = ({ navigation }) => {
       appointment: item,
       onStatusUpdate: (updatedId, newStatus) => {
         setAppointments(prev =>
-          prev.map(appt => (appt.id === updatedId ? { ...appt, status: newStatus } : appt))
+          prev.map(appt => (appt.id === updatedId ? { ...appt, status: newStatus } : appt)),
         );
       },
     });
   };
 
+  // ── Filtering ───────────────────────────────────────────────────────────────
+  const activeFilters = [selectedStatus, selectedVisit, selectedTime].filter(v => v !== 'all').length;
 
-  // ── Derived display ─────────────────────────────────────────────────────────
-  const todayLabel = (() => {
-    if (selectedRange) return RANGE_OPTIONS.find(o => o.key === selectedRange)?.label ?? 'All Dates';
-    if (!selectedDate) return 'All Dates';
-    const d = new Date(selectedDate + 'T00:00:00');
-    const today = todayApiDate();
-    if (selectedDate === today) return `Today, ${d.getDate()} ${MONTH_SHORT[d.getMonth()]} ${d.getFullYear()}`;
-    return `${d.getDate()} ${MONTH_SHORT[d.getMonth()]} ${d.getFullYear()}`;
-  })();
+  const clearFilters = useCallback(() => {
+    setSelectedStatus('all');
+    setSelectedVisit('all');
+    setSelectedTime('all');
+  }, []);
 
-  const statusLabel = selectedStatus === 'all'
-    ? 'All Status'
-    : STATUS_CONFIG[selectedStatus]?.label ?? selectedStatus;
-  const visitLabel = VISIT_FILTERS.find(v => v.key === selectedVisit)?.label ?? 'All Types';
-  const timeLabel = TIME_FILTERS.find(t => t.key === selectedTime)?.label ?? 'Any Time';
-  const filtersDirty = selectedStatus !== 'all' || selectedVisit !== 'all' || selectedTime !== 'all';
+  const filtered = useMemo(() => {
+    const visit = VISIT_FILTERS.find(v => v.key === selectedVisit);
+    return appointments.filter(appt => {
+      if (selectedStatus !== 'all' && appt.status !== selectedStatus) return false;
+      if (visit?.names) {
+        const value = String(appt.consultationType || appt.visit_type || '').toLowerCase();
+        if (!visit.names.includes(value)) return false;
+      }
+      return matchesTimeSlot(appt.time, selectedTime);
+    });
+  }, [appointments, selectedStatus, selectedVisit, selectedTime]);
 
-  // Date window for a selected multi-day range (today .. today + days-1).
-  const rangeBounds = useMemo(() => {
-    if (!selectedRange) return null;
-    const opt = RANGE_OPTIONS.find(o => o.key === selectedRange);
-    if (!opt) return null;
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    const end = new Date();
-    end.setDate(end.getDate() + (opt.days - 1));
-    end.setHours(23, 59, 59, 999);
-    return { start, end };
-  }, [selectedRange]);
+  // Badges count what the doctor would actually see if they tapped the day, so
+  // they track the active filters rather than the raw catalogue.
+  const counts = useMemo(() => countByDate(filtered), [filtered]);
+  const rawCounts = useMemo(() => countByDate(appointments), [appointments]);
 
-  const apptInRange = (appt) => {
-    if (!rangeBounds) return true;
-    if (!appt.date) return false;
-    const ds = typeof appt.date === 'string' ? appt.date.split('T')[0] : toApiDate(new Date(appt.date));
-    const d = new Date(ds + 'T00:00:00');
-    return d >= rangeBounds.start && d <= rangeBounds.end;
-  };
+  const sections = useMemo(
+    () =>
+      selectedDates.length
+        ? buildDateSections(filtered, selectedDates, today)
+        : buildAgendaSections(filtered, today),
+    [filtered, selectedDates, today],
+  );
 
-  const visitMatches = (appt) => {
-    const opt = VISIT_FILTERS.find(v => v.key === selectedVisit);
-    if (!opt?.names) return true;
-    const value = String(appt.consultationType || appt.visit_type || '').toLowerCase();
-    return opt.names.includes(value);
-  };
+  const visibleCount = useMemo(
+    () => sections.reduce((n, s) => n + s.data.length, 0),
+    [sections],
+  );
+  const pendingCount = useMemo(
+    () => sections.reduce((n, s) => n + s.data.filter(a => a.status === 'pending').length, 0),
+    [sections],
+  );
 
-  const filteredAppointments = appointments.filter(appt => {
-    if (!apptInRange(appt)) return false;
-    if (!visitMatches(appt)) return false;
-    if (selectedTime === 'all') return true;
-    const mins = parseTimeToMinutes(appt.time);
-    if (mins === -1) return false;
+  const nextUp = useMemo(() => findNextAppointment(filtered, today), [filtered, today]);
 
-    if (selectedTime === 'morning') {
-      return mins >= 360 && mins <= 719; // 06:00 AM - 11:59 AM
-    }
-    if (selectedTime === 'afternoon') {
-      return mins >= 720 && mins <= 1019; // 12:00 PM - 04:59 PM
-    }
-    if (selectedTime === 'evening') {
-      return mins >= 1020 && mins <= 1319; // 05:00 PM - 09:59 PM
-    }
-    return true;
-  });
+  const stripDays = useMemo(
+    () => Array.from({ length: STRIP_DAYS }, (_, i) => addDays(today, i)),
+    [today],
+  );
 
-  // ─── Calendar Renderer ──────────────────────────────────────────────────────
-  const getDaysInMonth = (month, year) => new Date(year, month + 1, 0).getDate();
-  const getFirstDayOfMonth = (month, year) => new Date(year, month, 1).getDay();
-
-  const handleDateSelect = (dateStr) => {
-    setSelectedRange(null);
-    setSelectedDate(dateStr);
-    setShowCalendarModal(false);
-  };
-
-  const renderCalendar = () => {
-    const daysInMonth = getDaysInMonth(currentMonth, currentYear);
-    const firstDayIndex = getFirstDayOfMonth(currentMonth, currentYear);
-    const blanks = Array(firstDayIndex).fill(null);
-    const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-    const gridItems = [...blanks, ...days];
-
-    const MONTHS = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December',
-    ];
-    const WEEK_DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-
-    return (
-      <View style={styles.calendarContainer}>
-        <View style={styles.calendarHeader}>
-          <TouchableOpacity onPress={handlePrevMonth} style={styles.calNavBtn}>
-            <MCIcon name="chevron-left" size={24} color={colors.primary} />
-          </TouchableOpacity>
-          <Text style={styles.calendarMonthText}>{MONTHS[currentMonth]} {currentYear}</Text>
-          <TouchableOpacity onPress={handleNextMonth} style={styles.calNavBtn}>
-            <MCIcon name="chevron-right" size={24} color={colors.primary} />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.weekDaysRow}>
-          {WEEK_DAYS.map((wd) => (
-            <Text key={wd} style={styles.weekDayText}>{wd}</Text>
-          ))}
-        </View>
-        <View style={styles.daysGrid}>
-          {gridItems.map((day, idx) => {
-            if (day === null) return <View key={`blank-${idx}`} style={styles.dayCell} />;
-
-            const itemDateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            const isDisabled = !isDateSelectable(itemDateStr);
-            const isSelected = selectedDate === itemDateStr;
-            const isToday = itemDateStr === todayApiDate();
-            const hasAppt = allAppointmentDates.has(itemDateStr);
-
-            return (
-              <TouchableOpacity
-                key={`day-${day}`}
-                style={[styles.dayCell, isDisabled && styles.dayCellDisabled]}
-                onPress={isDisabled ? undefined : () => handleDateSelect(itemDateStr)}
-                disabled={isDisabled}
-                activeOpacity={isDisabled ? 1 : 0.7}
-              >
-                <View style={[
-                  styles.dayCellContent,
-                  isToday && styles.dayCellToday,
-                  isSelected && styles.dayCellActive,
-                ]}>
-                  <Text
-                    style={[
-                      styles.dayText,
-                      isDisabled && styles.dayTextDisabled,
-                      isSelected && styles.dayTextActive,
-                      isToday && !isSelected && styles.dayTextTodayText,
-                    ]}
-                  >
-                    {day}
-                  </Text>
-                  {hasAppt ? (
-                    <View style={[
-                      styles.apptDot,
-                      isSelected && styles.apptDotActive
-                    ]} />
-                  ) : (
-                    <View style={styles.apptDotPlaceholder} />
-                  )}
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </View>
+  const toggleDate = key =>
+    setSelectedDates(prev =>
+      prev.includes(key) ? prev.filter(d => d !== key) : [...prev, key].sort(),
     );
+
+  const scopeLabel =
+    selectedDates.length === 0
+      ? 'Upcoming'
+      : selectedDates.length === 1
+      ? relativeDayLabel(selectedDates[0], today)
+      : `${selectedDates.length} days selected`;
+
+  // ── Calendar ────────────────────────────────────────────────────────────────
+  const monthOffset = (calYear - anchor.getFullYear()) * 12 + (calMonth - anchor.getMonth());
+  const shiftMonth = step => {
+    const next = monthOffset + step;
+    // A filter, not a booking picker — a year either way covers the history a
+    // doctor might scan without letting the arrows run forever.
+    if (next < -12 || next > 12) return;
+    const d = new Date(anchor.getFullYear(), anchor.getMonth() + next, 1);
+    setCalMonth(d.getMonth());
+    setCalYear(d.getFullYear());
   };
+
+  const calendarGrid = useMemo(() => {
+    const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+    const blanks = Array(new Date(calYear, calMonth, 1).getDay()).fill(null);
+    return [...blanks, ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
+  }, [calMonth, calYear]);
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <View style={styles.root}>
-      {/* Header */}
       <ScreenHeader
         title="Appointments"
+        subtitle={formatDayFull(today)}
         showBack={false}
         underColor={colors.card}
+        right={
+          <TouchableOpacity
+            style={styles.headerBtn}
+            activeOpacity={0.8}
+            onPress={() => {
+              const base = selectedDates.length ? keyToDate(selectedDates[0]) : new Date();
+              setCalMonth(base.getMonth());
+              setCalYear(base.getFullYear());
+              setShowCalendar(true);
+            }}>
+            <MCIcon name="calendar-month-outline" size={20} color={colors.headerText} />
+            {selectedDates.length > 0 ? (
+              <View style={styles.headerBtnBadge}>
+                <Text style={styles.headerBtnBadgeText}>{selectedDates.length}</Text>
+              </View>
+            ) : null}
+          </TouchableOpacity>
+        }
       />
 
-      {/* Date strip */}
-      <View style={styles.dateStrip}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateStripInner}>
-          {/* "All" pill */}
+      {/* Quick-pick day strip — two weeks out, each day showing its load. The
+          calendar button above handles anything further away or multi-day. */}
+      <View style={styles.strip}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.stripInner}>
           <TouchableOpacity
-            style={[styles.datePill, !selectedDate && !selectedRange && styles.datePillActive]}
+            style={[styles.modePill, selectedDates.length === 0 && styles.modePillOn]}
             activeOpacity={0.8}
-            onPress={() => { setSelectedDate(null); setSelectedRange(null); }}>
-            <MCIcon name="calendar-blank" size={14} color={!selectedDate && !selectedRange ? colors.white : colors.textSecondary} />
-            <Text style={[styles.datePillDay, !selectedDate && !selectedRange && styles.datePillTextActive]}>All</Text>
+            onPress={() => setSelectedDates([])}>
+            <Text style={[styles.modePillText, selectedDates.length === 0 && styles.modePillTextOn]}>
+              Upcoming
+            </Text>
           </TouchableOpacity>
 
-          {/* Multi-day range pills (next 7/10 days, this month) */}
-          {RANGE_OPTIONS.map(r => {
-            const active = selectedRange === r.key;
-            return (
-              <TouchableOpacity
-                key={r.key}
-                style={[styles.datePill, active && styles.datePillActive]}
-                activeOpacity={0.8}
-                onPress={() => { setSelectedRange(active ? null : r.key); setSelectedDate(null); }}>
-                <MCIcon name="calendar-week" size={14} color={active ? colors.white : colors.textSecondary} />
-                <Text style={[styles.datePillDay, active && styles.datePillTextActive]}>{r.label}</Text>
-              </TouchableOpacity>
-            );
-          })}
+          <View style={styles.stripDivider} />
 
-          {dateRange.map((d, i) => (
-            <DatePill
-              key={i}
-              date={d}
-              selected={selectedDate === toApiDate(d)}
-              onPress={() => { setSelectedRange(null); setSelectedDate(selectedDate === toApiDate(d) ? null : toApiDate(d)); }}
+          {stripDays.map(key => (
+            <DayPill
+              key={key}
+              dateKey={key}
+              count={counts[key] || 0}
+              selected={selectedDates.includes(key)}
+              onPress={() => toggleDate(key)}
             />
           ))}
         </ScrollView>
       </View>
 
-      {/* Filter bar — one scrollable row of dropdown chips. This used to be two
-          stacked rows (a date label + status chip, then four full-width time
-          chips) which ate a third of the screen before a single appointment
-          showed. */}
-      <View style={styles.filterBar}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterBarInner}>
-          <TouchableOpacity
-            style={styles.filterChip}
-            activeOpacity={0.85}
-            onPress={() => {
-              const baseDate = selectedDate ? new Date(selectedDate + 'T00:00:00') : new Date();
-              setCurrentMonth(baseDate.getMonth());
-              setCurrentYear(baseDate.getFullYear());
-              setShowCalendarModal(true);
-            }}>
-            <MCIcon name="calendar-range" size={14} color={colors.primary} />
-            <Text style={styles.filterChipText} numberOfLines={1}>{todayLabel}</Text>
-            <MCIcon name="chevron-down" size={14} color={colors.primary} />
+      {/* Scope + filters — one line replacing the old three-chip filter row and
+          the separate totals bar. */}
+      <View style={styles.scopeBar}>
+        <View style={styles.scopeTextWrap}>
+          <Text style={styles.scopeTitle} numberOfLines={1}>{scopeLabel}</Text>
+          <Text style={styles.scopeSub} numberOfLines={1}>
+            {visibleCount} appointment{visibleCount === 1 ? '' : 's'}
+            {pendingCount > 0 ? ` · ${pendingCount} awaiting you` : ''}
+          </Text>
+        </View>
+
+        {activeFilters > 0 ? (
+          <TouchableOpacity style={styles.clearBtn} activeOpacity={0.8} onPress={clearFilters}>
+            <MCIcon name="close" size={14} color={colors.danger} />
           </TouchableOpacity>
+        ) : null}
 
-          <FilterChip
-            icon="filter-variant"
-            label={statusLabel}
-            active={selectedStatus !== 'all'}
-            onPress={() => setActiveSheet('status')}
+        <TouchableOpacity
+          style={[styles.filterBtn, activeFilters > 0 && styles.filterBtnOn]}
+          activeOpacity={0.85}
+          onPress={() => setShowFilters(true)}>
+          <MCIcon
+            name="tune-variant"
+            size={15}
+            color={activeFilters > 0 ? colors.white : colors.primary}
           />
-          <FilterChip
-            icon="stethoscope"
-            label={visitLabel}
-            active={selectedVisit !== 'all'}
-            onPress={() => setActiveSheet('type')}
-          />
-          <FilterChip
-            icon="clock-outline"
-            label={timeLabel}
-            active={selectedTime !== 'all'}
-            onPress={() => setActiveSheet('time')}
-          />
-
-          {filtersDirty && (
-            <TouchableOpacity
-              style={styles.clearChip}
-              activeOpacity={0.85}
-              onPress={() => { setSelectedStatus('all'); setSelectedVisit('all'); setSelectedTime('all'); }}>
-              <MCIcon name="close" size={14} color={colors.danger} />
-              <Text style={styles.clearChipText}>Clear</Text>
-            </TouchableOpacity>
-          )}
-        </ScrollView>
+          <Text style={[styles.filterBtnText, activeFilters > 0 && styles.filterBtnTextOn]}>
+            Filters
+          </Text>
+          {activeFilters > 0 ? (
+            <View style={styles.filterCount}>
+              <Text style={styles.filterCountText}>{activeFilters}</Text>
+            </View>
+          ) : null}
+        </TouchableOpacity>
       </View>
-
-      {/* Summary bar */}
-      {!loading && filteredAppointments.length > 0 && <SummaryBar appointments={filteredAppointments} />}
 
       {/* Content */}
       {loading ? (
@@ -779,18 +599,30 @@ const AppointmentsScreen = ({ navigation }) => {
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Loading appointments…</Text>
         </View>
-      ) : filteredAppointments.length === 0 ? (
-        <EmptyState
-          selectedDate={selectedDate}
-          onClear={() => { setSelectedDate(null); setSelectedRange(null); setSelectedStatus('all'); setSelectedVisit('all'); setSelectedTime('all'); }}
-        />
       ) : (
-        <FlatList
-          data={filteredAppointments}
+        <SectionList
+          sections={sections}
           keyExtractor={item => String(item.id)}
-          renderItem={({ item }) => (
+          stickySectionHeadersEnabled={false}
+          renderSectionHeader={({ section }) => (
+            <SectionHeading section={section} count={section.data.length} />
+          )}
+          renderSectionFooter={({ section }) =>
+            section.data.length === 0 ? (
+              <EmptyDayCard
+                section={section}
+                hiddenCount={
+                  activeFilters > 0 && section.dateKey ? rawCounts[section.dateKey] || 0 : 0
+                }
+                nextUp={nextUp}
+                onClearFilters={clearFilters}
+              />
+            ) : null
+          }
+          renderItem={({ item, section }) => (
             <AppointmentCard
               item={item}
+              showDate={section.kind === 'overdue'}
               onAccept={handleAccept}
               onComplete={handleComplete}
               onCancel={handleCancel}
@@ -799,122 +631,171 @@ const AppointmentsScreen = ({ navigation }) => {
           )}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
-          ItemSeparatorComponent={() => <View style={{ height: SPACING.md }} />}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
+          }
+          ItemSeparatorComponent={CardGap}
         />
       )}
 
-      {/* Filter sheet — shared by the status / type / time chips */}
+      {/* Filters sheet — status, type and time in one place, so the list header
+          stays a single row instead of a wall of dropdowns. */}
       <Modal
-        visible={!!activeSheet}
+        visible={showFilters}
         transparent
-        animationType="fade"
-        onRequestClose={() => setActiveSheet(null)}>
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setActiveSheet(null)}>
-          <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>{SHEET_TITLES[activeSheet] ?? ''}</Text>
-
-            {activeSheet === 'status' && STATUS_FILTERS.map(key => {
-              const cfg = key === 'all' ? null : STATUS_CONFIG[key];
-              const active = selectedStatus === key;
-              return (
-                <TouchableOpacity
-                  key={key}
-                  style={[styles.modalOption, active && styles.modalOptionActive]}
-                  activeOpacity={0.85}
-                  onPress={() => { setSelectedStatus(key); setActiveSheet(null); }}>
-                  {cfg ? (
-                    <View style={[styles.statusDot, { backgroundColor: cfg.dot }]} />
-                  ) : (
-                    <MCIcon name="format-list-bulleted" size={14} color={active ? colors.white : colors.textSecondary} />
-                  )}
-                  <Text style={[styles.modalOptionText, active && { color: colors.white }]}>
-                    {cfg?.label ?? 'All Status'}
-                  </Text>
-                  {active && <MCIcon name="check" size={16} color={colors.white} style={{ marginLeft: 'auto' }} />}
+        animationType="slide"
+        onRequestClose={() => setShowFilters(false)}>
+        <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setShowFilters(false)}>
+          <TouchableOpacity activeOpacity={1} style={styles.sheet}>
+            <View style={styles.sheetHead}>
+              <Text style={styles.sheetTitle}>Filters</Text>
+              {activeFilters > 0 ? (
+                <TouchableOpacity onPress={clearFilters} activeOpacity={0.7}>
+                  <Text style={styles.sheetReset}>Reset all</Text>
                 </TouchableOpacity>
-              );
-            })}
+              ) : null}
+            </View>
 
-            {activeSheet === 'type' && VISIT_FILTERS.map(opt => {
-              const active = selectedVisit === opt.key;
-              return (
-                <TouchableOpacity
+            <Text style={styles.groupLabel}>Status</Text>
+            <View style={styles.chipWrap}>
+              {STATUS_FILTERS.map(opt => (
+                <OptionChip
                   key={opt.key}
-                  style={[styles.modalOption, active && styles.modalOptionActive]}
-                  activeOpacity={0.85}
-                  onPress={() => { setSelectedVisit(opt.key); setActiveSheet(null); }}>
-                  <MCIcon name={opt.icon} size={16} color={active ? colors.white : colors.textSecondary} />
-                  <Text style={[styles.modalOptionText, active && { color: colors.white }]}>{opt.label}</Text>
-                  {active && <MCIcon name="check" size={16} color={colors.white} style={{ marginLeft: 'auto' }} />}
-                </TouchableOpacity>
-              );
-            })}
+                  label={opt.label}
+                  dot={STATUS_CONFIG[opt.key]?.dot}
+                  active={selectedStatus === opt.key}
+                  onPress={() => setSelectedStatus(opt.key)}
+                />
+              ))}
+            </View>
 
-            {activeSheet === 'time' && TIME_FILTERS.map(opt => {
-              const active = selectedTime === opt.key;
-              return (
-                <TouchableOpacity
+            <Text style={styles.groupLabel}>Consultation type</Text>
+            <View style={styles.chipWrap}>
+              {VISIT_FILTERS.map(opt => (
+                <OptionChip
                   key={opt.key}
-                  style={[styles.modalOption, active && styles.modalOptionActive]}
-                  activeOpacity={0.85}
-                  onPress={() => { setSelectedTime(opt.key); setActiveSheet(null); }}>
-                  <MCIcon name={opt.icon} size={16} color={active ? colors.white : colors.textSecondary} />
-                  <Text style={[styles.modalOptionText, active && { color: colors.white }]}>{opt.label}</Text>
-                  {active && <MCIcon name="check" size={16} color={colors.white} style={{ marginLeft: 'auto' }} />}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+                  icon={opt.icon}
+                  label={opt.label}
+                  active={selectedVisit === opt.key}
+                  onPress={() => setSelectedVisit(opt.key)}
+                />
+              ))}
+            </View>
+
+            <Text style={styles.groupLabel}>Time of day</Text>
+            <View style={styles.chipWrap}>
+              {TIME_FILTERS.map(opt => (
+                <OptionChip
+                  key={opt.key}
+                  icon={opt.icon}
+                  label={opt.label}
+                  active={selectedTime === opt.key}
+                  onPress={() => setSelectedTime(opt.key)}
+                />
+              ))}
+            </View>
+
+            <TouchableOpacity style={styles.doneBtn} activeOpacity={0.85} onPress={() => setShowFilters(false)}>
+              <Text style={styles.doneBtnText}>
+                Show {visibleCount} appointment{visibleCount === 1 ? '' : 's'}
+              </Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
 
-      {/* Calendar date picker modal */}
+      {/* Calendar — multi-select, with each day's load on the cell itself. */}
       <Modal
-        visible={showCalendarModal}
+        visible={showCalendar}
         transparent
         animationType="slide"
-        onRequestClose={() => setShowCalendarModal(false)}>
-        <TouchableOpacity
-          style={styles.calModalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowCalendarModal(false)}>
-          <TouchableOpacity
-            activeOpacity={1}
-            style={styles.calModalContent}>
-            <View style={styles.calModalHeader}>
-              <Text style={styles.calModalTitle}>Select Date</Text>
-              <TouchableOpacity onPress={() => setShowCalendarModal(false)}>
-                <MCIcon name="close" size={24} color={colors.textPrimary} />
+        onRequestClose={() => setShowCalendar(false)}>
+        <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setShowCalendar(false)}>
+          <TouchableOpacity activeOpacity={1} style={styles.sheet}>
+            <View style={styles.sheetHead}>
+              <Text style={styles.sheetTitle}>Pick days</Text>
+              <Text style={styles.sheetHint}>Tap to add or remove</Text>
+            </View>
+
+            <View style={styles.calHead}>
+              <TouchableOpacity onPress={() => shiftMonth(-1)} style={styles.calNav} activeOpacity={0.7}>
+                <MCIcon name="chevron-left" size={24} color={monthOffset <= -12 ? colors.textMuted : colors.primary} />
+              </TouchableOpacity>
+              <Text style={styles.calMonthText}>{MONTH_LONG[calMonth]} {calYear}</Text>
+              <TouchableOpacity onPress={() => shiftMonth(1)} style={styles.calNav} activeOpacity={0.7}>
+                <MCIcon name="chevron-right" size={24} color={monthOffset >= 12 ? colors.textMuted : colors.primary} />
               </TouchableOpacity>
             </View>
-            
-            {renderCalendar()}
 
-            {/* Reset Buttons */}
-            <View style={styles.modalActionRow}>
+            <View style={styles.weekRow}>
+              {WEEK_DAYS.map(wd => (
+                <Text key={wd} style={styles.weekDay}>{wd}</Text>
+              ))}
+            </View>
+
+            <View style={styles.grid}>
+              {calendarGrid.map((day, idx) => {
+                if (day === null) return <View key={`blank-${idx}`} style={styles.cell} />;
+
+                const key = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const isSelected = selectedDates.includes(key);
+                const isToday = key === today;
+                const count = counts[key] || 0;
+
+                return (
+                  <TouchableOpacity
+                    key={key}
+                    style={styles.cell}
+                    activeOpacity={0.7}
+                    onPress={() => toggleDate(key)}>
+                    <View
+                      style={[
+                        styles.cellInner,
+                        count > 0 && styles.cellHasAppt,
+                        isToday && styles.cellToday,
+                        isSelected && styles.cellOn,
+                      ]}>
+                      <Text
+                        style={[
+                          styles.cellText,
+                          isToday && !isSelected && styles.cellTextToday,
+                          isSelected && styles.cellTextOn,
+                        ]}>
+                        {day}
+                      </Text>
+                      {count > 0 ? (
+                        <Text style={[styles.cellCount, isSelected && styles.cellCountOn]}>{count}</Text>
+                      ) : (
+                        <View style={styles.cellCountSpacer} />
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <View style={styles.calActions}>
               <TouchableOpacity
-                style={[styles.modalActionBtn, styles.todayBtn]}
-                onPress={() => {
-                  const todayStr = todayApiDate();
-                  setSelectedDate(todayStr);
-                  setShowCalendarModal(false);
-                }}>
-                <MCIcon name="calendar-today" size={16} color={colors.primary} />
-                <Text style={styles.todayBtnText}>Today</Text>
+                style={[styles.calBtn, styles.calBtnGhost]}
+                activeOpacity={0.85}
+                onPress={() => setSelectedDates([])}>
+                <MCIcon name="calendar-remove-outline" size={16} color={colors.textSecondary} />
+                <Text style={styles.calBtnGhostText}>Clear</Text>
               </TouchableOpacity>
-
               <TouchableOpacity
-                style={[styles.modalActionBtn, styles.clearBtn]}
-                onPress={() => {
-                  setSelectedDate(null);
-                  setShowCalendarModal(false);
-                }}>
-                <MCIcon name="calendar-remove" size={16} color={colors.danger} />
-                <Text style={styles.clearBtnText}>Clear</Text>
+                style={[styles.calBtn, styles.calBtnGhost]}
+                activeOpacity={0.85}
+                onPress={() => setSelectedDates([today])}>
+                <MCIcon name="calendar-today" size={16} color={colors.primary} />
+                <Text style={styles.calBtnTodayText}>Today</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.calBtn, styles.calBtnPrimary]}
+                activeOpacity={0.85}
+                onPress={() => setShowCalendar(false)}>
+                <Text style={styles.calBtnPrimaryText}>
+                  {selectedDates.length ? `Show ${selectedDates.length} day${selectedDates.length === 1 ? '' : 's'}` : 'Done'}
+                </Text>
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
@@ -930,90 +811,174 @@ export default AppointmentsScreen;
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
 
-  // Date strip
-  dateStrip: { backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border },
-  dateStripInner: { paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm, gap: SPACING.sm },
-  datePill: {
+  headerBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: RADIUS.pill,
-    backgroundColor: colors.surfaceMuted,
-    minWidth: 50,
-    gap: 2,
+    backgroundColor: 'rgba(255,255,255,0.2)',
   },
-  datePillActive: { backgroundColor: colors.primary },
-  datePillDay: { fontSize: 10, fontWeight: '600', color: colors.textSecondary, textTransform: 'uppercase' },
-  datePillNum: { fontSize: 16, fontWeight: '800', color: colors.textPrimary },
-  datePillTextActive: { color: colors.white },
-  todayDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.primary, marginTop: 2 },
+  headerBtnBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    backgroundColor: colors.warning,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerBtnBadgeText: { fontSize: 10, fontWeight: '900', color: colors.black },
 
-  // Filter row
-  // Single scrollable row of dropdown chips
-  filterBar: {
+  // Day strip
+  strip: { backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border },
+  // `stretch` so the mode pill and the divider stand as tall as the two-line
+  // day boxes instead of floating as a short capsule beside them.
+  stripInner: { paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm, gap: SPACING.sm, alignItems: 'stretch' },
+  stripDivider: { width: 1, marginVertical: 6, backgroundColor: colors.border },
+  modePill: {
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    borderRadius: RADIUS.md,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryFaint,
+  },
+  modePillOn: { backgroundColor: colors.primary },
+  modePillText: { fontSize: 13, fontWeight: '800', color: colors.primary },
+  modePillTextOn: { color: colors.white },
+
+  dayPill: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: RADIUS.md,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+    minWidth: 46,
+    gap: 1,
+  },
+  dayPillToday: { borderColor: colors.primary },
+  dayPillOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  dayPillDow: { fontSize: 9.5, fontWeight: '800', color: colors.textSecondary },
+  dayPillNum: { fontSize: 16, fontWeight: '800', color: colors.textPrimary },
+  dayPillTextOn: { color: colors.white },
+  dayPillCount: {
+    minWidth: 16,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    backgroundColor: colors.primaryLight,
+  },
+  dayPillCountOn: { backgroundColor: 'rgba(255,255,255,0.28)' },
+  dayPillCountText: { fontSize: 10, fontWeight: '900', color: colors.primary, textAlign: 'center' },
+  dayPillCountTextOn: { color: colors.white },
+  dayPillCountSpacer: { height: 14 },
+
+  // Scope + filters
+  scopeBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: 10,
     backgroundColor: colors.card,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  filterBarInner: {
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: 10,
-    gap: SPACING.sm,
+  scopeTextWrap: { flex: 1 },
+  scopeTitle: { fontSize: 15, fontWeight: '800', color: colors.textPrimary },
+  scopeSub: { fontSize: 11.5, fontWeight: '600', color: colors.textSecondary, marginTop: 1 },
+  clearBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.danger,
   },
-  filterChip: {
+  filterBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingVertical: 8,
     borderRadius: RADIUS.pill,
     borderWidth: 1.5,
     borderColor: colors.primary,
     backgroundColor: colors.primaryFaint,
-    maxWidth: 210,
   },
-  filterChipOn: { backgroundColor: colors.primary },
-  filterChipText: { fontSize: 12, fontWeight: '700', color: colors.primary, flexShrink: 1 },
-  filterChipTextOn: { color: colors.white },
-  clearChip: {
+  filterBtnOn: { backgroundColor: colors.primary },
+  filterBtnText: { fontSize: 12.5, fontWeight: '800', color: colors.primary },
+  filterBtnTextOn: { color: colors.white },
+  filterCount: {
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterCountText: { fontSize: 10.5, fontWeight: '900', color: colors.white },
+
+  // List
+  list: { padding: SPACING.lg, paddingBottom: 100, flexGrow: 1 },
+
+  // Section headers
+  sectionHead: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 12,
+    gap: SPACING.sm,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.sm,
+  },
+  sectionMark: { width: 3, height: 26, borderRadius: 2, backgroundColor: colors.primary },
+  sectionMarkWarn: { backgroundColor: colors.warning },
+  sectionHeadText: { flex: 1 },
+  sectionTitle: { fontSize: 15, fontWeight: '900', color: colors.textPrimary },
+  sectionTitleWarn: { color: colors.warning },
+  sectionSub: { fontSize: 11.5, fontWeight: '600', color: colors.textSecondary, marginTop: 1 },
+  sectionCount: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    paddingHorizontal: 6,
+    backgroundColor: colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sectionCountText: { fontSize: 11.5, fontWeight: '900', color: colors.primary },
+
+  // Empty day — a bounded placeholder so an empty day still reads as a day,
+  // instead of the section collapsing into the one below it.
+  emptyDay: {
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: SPACING.xl,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surfaceMuted,
+  },
+  emptyDayTitle: { fontSize: 13.5, fontWeight: '700', color: colors.textSecondary, textAlign: 'center' },
+  emptyDaySub: { fontSize: 12, fontWeight: '600', color: colors.textMuted, textAlign: 'center' },
+  emptyDayBtn: {
+    marginTop: 2,
+    paddingHorizontal: SPACING.lg,
     paddingVertical: 7,
     borderRadius: RADIUS.pill,
     borderWidth: 1.5,
-    borderColor: colors.danger,
-    backgroundColor: 'transparent',
+    borderColor: colors.primary,
   },
-  clearChipText: { fontSize: 12, fontWeight: '700', color: colors.danger },
-
-  // Summary bar
-  summaryBar: {
-    flexDirection: 'row',
-    backgroundColor: colors.card,
-    marginHorizontal: SPACING.lg,
-    marginTop: SPACING.md,
-    borderRadius: RADIUS.lg,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.border,
-    elevation: 1,
-  },
-  summaryItem: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderRightWidth: 1,
-    borderRightColor: colors.border,
-  },
-  summaryValue: { fontSize: 20, fontWeight: '900' },
-  summaryLabel: { fontSize: 10.5, color: colors.textSecondary, fontWeight: '600', marginTop: 1 },
-
-  // List
-  list: { padding: SPACING.lg, paddingBottom: 100 },
+  emptyDayBtnText: { fontSize: 12.5, fontWeight: '800', color: colors.primary },
 
   // Card
   card: {
@@ -1034,6 +999,7 @@ const makeStyles = colors => StyleSheet.create({
   timeLine: { flex: 1, width: 3, borderRadius: 2, minHeight: 20 },
   cardBody: { flex: 1, padding: SPACING.md, gap: SPACING.sm },
   cardRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  cardNameWrap: { flex: 1 },
   cardName: { fontSize: 14.5, fontWeight: '800', color: colors.textPrimary },
   cardMeta: { fontSize: 12, color: colors.textSecondary, marginTop: 1 },
   cardInfoRow: { flexDirection: 'row', gap: SPACING.sm, flexWrap: 'wrap' },
@@ -1044,7 +1010,9 @@ const makeStyles = colors => StyleSheet.create({
   acceptBtn: { backgroundColor: colors.primary },
   acceptBtnText: { color: colors.white, fontSize: 13, fontWeight: '700' },
   completeBtn: { backgroundColor: colors.success },
+  completeBtnOff: { backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
   completeBtnText: { color: colors.white, fontSize: 13, fontWeight: '700' },
+  completeBtnTextOff: { color: colors.textMuted },
   cancelBtn: { backgroundColor: colors.danger + '1A', borderWidth: 1.5, borderColor: colors.danger },
   cancelBtnText: { color: colors.danger, fontSize: 13, fontWeight: '700' },
 
@@ -1053,185 +1021,114 @@ const makeStyles = colors => StyleSheet.create({
   badgeDot: { width: 6, height: 6, borderRadius: 3 },
   badgeText: { fontSize: 11, fontWeight: '700' },
 
-  // Loading
+  // Loading / empty
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: SPACING.md },
   loadingText: { fontSize: 14, color: colors.textSecondary, fontWeight: '500' },
 
-  // Empty
-  emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SPACING.xxl, gap: SPACING.md },
-  emptyTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
-  emptySubtitle: { fontSize: 13.5, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 },
-  emptyBtn: { marginTop: SPACING.sm, paddingHorizontal: SPACING.xl, paddingVertical: 12, backgroundColor: colors.primary, borderRadius: RADIUS.pill },
-  emptyBtnText: { color: colors.white, fontWeight: '700', fontSize: 14 },
-
-  // Modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  modalSheet: { backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: SPACING.xl, paddingBottom: 36, gap: SPACING.sm },
-  modalTitle: { fontSize: 16, fontWeight: '800', color: colors.textPrimary, marginBottom: SPACING.sm },
-  modalOption: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, paddingVertical: 13, paddingHorizontal: SPACING.md, borderRadius: RADIUS.md, backgroundColor: colors.surfaceMuted },
-  modalOptionActive: { backgroundColor: colors.primary },
-  modalOptionText: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
-  statusDot: { width: 10, height: 10, borderRadius: 5 },
-
-  // Calendar Styles
-  calModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    justifyContent: 'flex-end',
-  },
-  calModalContent: {
-    width: '100%',
+  // Sheets
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  sheet: {
     backgroundColor: colors.card,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    padding: SPACING.lg,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
-    elevation: 10,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    padding: SPACING.xl,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 26,
   },
-  calModalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    paddingBottom: SPACING.md,
-    marginBottom: SPACING.sm,
-  },
-  calModalTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: colors.textPrimary,
-  },
-  calendarContainer: { paddingVertical: SPACING.xs },
-  calendarHeader: {
+  sheetHead: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: SPACING.md,
   },
-  calendarMonthText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: colors.textPrimary,
+  sheetTitle: { fontSize: 17, fontWeight: '900', color: colors.textPrimary },
+  sheetHint: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
+  sheetReset: { fontSize: 13, fontWeight: '800', color: colors.danger },
+
+  groupLabel: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: colors.textMuted,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginTop: SPACING.md,
+    marginBottom: SPACING.sm,
   },
-  calNavBtn: { padding: 4 },
-  weekDaysRow: {
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
+  optChip: {
     flexDirection: 'row',
-    justifyContent: 'flex-start',
-    marginBottom: 8,
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 13,
+    paddingVertical: 9,
+    borderRadius: RADIUS.pill,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
   },
-  weekDayText: {
-    fontSize: 12,
+  optChipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  optChipText: { fontSize: 13, fontWeight: '700', color: colors.textPrimary },
+  optChipTextOn: { color: colors.white },
+  statusDot: { width: 9, height: 9, borderRadius: 5 },
+
+  doneBtn: {
+    marginTop: SPACING.xl,
+    paddingVertical: 14,
+    borderRadius: RADIUS.md,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+  },
+  doneBtnText: { fontSize: 14.5, fontWeight: '800', color: colors.white },
+
+  // Calendar
+  calHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: SPACING.md },
+  calMonthText: { fontSize: 15, fontWeight: '900', color: colors.textPrimary },
+  calNav: { padding: 4 },
+  weekRow: { flexDirection: 'row', marginBottom: 6 },
+  weekDay: {
+    fontSize: 11.5,
     fontWeight: '800',
     color: colors.textMuted,
     width: `${100 / 7}%`,
     textAlign: 'center',
   },
-  daysGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'flex-start',
-  },
-  // 1/7-width cells so all 7 columns fit and align with the weekday header on
-  // every screen size (fixed-px cells wrapped/misaligned before).
-  dayCell: {
-    width: `${100 / 7}%`,
+  grid: { flexDirection: 'row', flexWrap: 'wrap' },
+  // 1/7-width cells so all seven columns line up with the weekday header on
+  // every screen size.
+  cell: { width: `${100 / 7}%`, height: 46, alignItems: 'center', justifyContent: 'center', marginVertical: 1 },
+  cellInner: {
+    width: 40,
     height: 42,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginVertical: 2,
-  },
-  dayCellActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  dayCellToday: {
-    borderColor: colors.primary,
-  },
-  dayCellDisabled: {
-    opacity: 0.3,
-  },
-  dayCellContent: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    borderRadius: RADIUS.md,
     borderWidth: 1.5,
     borderColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 1,
   },
-  dayText: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    lineHeight: 16,
-  },
-  dayTextActive: {
-    color: colors.white,
-    fontWeight: '800',
-  },
-  dayTextTodayText: {
-    color: colors.primary,
-    fontWeight: '800',
-  },
-  dayTextDisabled: {
-    color: colors.textMuted,
-  },
-  apptDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.primary,
-    marginTop: 1,
-  },
-  apptDotActive: {
-    backgroundColor: colors.white,
-  },
-  apptDotPlaceholder: {
-    width: 4,
-    height: 4,
-    backgroundColor: 'transparent',
-    marginTop: 1,
-  },
+  cellHasAppt: { backgroundColor: colors.primaryLight },
+  cellToday: { borderColor: colors.primary },
+  cellOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  cellText: { fontSize: 13.5, fontWeight: '700', color: colors.textPrimary, lineHeight: 17 },
+  cellTextToday: { color: colors.primary, fontWeight: '900' },
+  cellTextOn: { color: colors.white, fontWeight: '900' },
+  cellCount: { fontSize: 9.5, fontWeight: '900', color: colors.primary, lineHeight: 12 },
+  cellCountOn: { color: colors.white },
+  cellCountSpacer: { height: 12 },
 
-  // Reset Actions Row
-  modalActionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: SPACING.md,
-    gap: SPACING.md,
-  },
-  modalActionBtn: {
-    flex: 1,
+  calActions: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.lg },
+  calBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 5,
     paddingVertical: 12,
+    paddingHorizontal: SPACING.md,
     borderRadius: RADIUS.md,
     borderWidth: 1.5,
-    gap: 6,
+    borderColor: colors.border,
   },
-  todayBtn: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryFaint,
-  },
-  todayBtnText: {
-    color: colors.primary,
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  clearBtn: {
-    borderColor: colors.danger,
-    backgroundColor: '#FEF2F2',
-  },
-  clearBtnText: {
-    color: colors.danger,
-    fontWeight: '700',
-    fontSize: 14,
-  },
+  calBtnGhost: { backgroundColor: colors.surfaceMuted },
+  calBtnGhostText: { fontSize: 13, fontWeight: '800', color: colors.textSecondary },
+  calBtnTodayText: { fontSize: 13, fontWeight: '800', color: colors.primary },
+  calBtnPrimary: { flex: 1, backgroundColor: colors.primary, borderColor: colors.primary },
+  calBtnPrimaryText: { fontSize: 13.5, fontWeight: '800', color: colors.white },
 });
