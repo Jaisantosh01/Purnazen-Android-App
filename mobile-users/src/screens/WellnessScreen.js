@@ -5,21 +5,19 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  StatusBar,
   RefreshControl,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { showAlert } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import wellnessService from '../services/wellnessService';
 import { ProgramSkeleton, StatsSkeleton } from '../components/SkeletonLoader';
+import TabHeader from '../components/TabHeader';
 import { COLORS, SPACING, RADIUS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
 
 const WellnessScreen = ({ navigation }) => {
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [programs, setPrograms]     = useState([]);
   const [stats, setStats]           = useState(null);
@@ -69,8 +67,6 @@ const WellnessScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.accent} />
-
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 30 }}
@@ -84,10 +80,11 @@ const WellnessScreen = ({ navigation }) => {
         }
       >
         {/* ── Header ── */}
-        <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 16 }]}>
-          <Text style={styles.headerTitle}>Wellness</Text>
-          <Text style={styles.headerSubtitle}>Daily routines for a healthier you</Text>
-
+        <TabHeader
+          title="Wellness"
+          subtitle="Daily routines for a healthier you"
+          background={COLORS.accent}
+        >
           {isLoading ? (
             <StatsSkeleton />
           ) : stats ? (
@@ -105,7 +102,7 @@ const WellnessScreen = ({ navigation }) => {
               ))}
             </View>
           ) : null}
-        </View>
+        </TabHeader>
 
         {/* ── Programs ── */}
         <View style={styles.section}>
@@ -174,26 +171,9 @@ export default WellnessScreen;
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
 
-  // Accent-purple hero kept as a fixed brand banner across light/dark.
-  header: {
-    backgroundColor: COLORS.accent,
-    paddingHorizontal: SPACING.xl,
-    paddingBottom: 28,
-    borderBottomLeftRadius: RADIUS.lg,
-    borderBottomRightRadius: RADIUS.lg,
-  },
-  headerTitle: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: COLORS.white,
-    marginBottom: SPACING.xs,
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.85)',
-    marginBottom: SPACING.xl,
-  },
-
+  // The hero card itself comes from <TabHeader/>; the stats strip below is
+  // passed to it as children. Accent-purple is kept as a fixed brand banner
+  // across light/dark, hence COLORS rather than the themed palette.
   statsRow: {
     flexDirection: 'row',
     backgroundColor: 'rgba(255,255,255,0.15)',

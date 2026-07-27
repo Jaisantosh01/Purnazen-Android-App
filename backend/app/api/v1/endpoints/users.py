@@ -16,7 +16,7 @@ from app.schemas.auth import AdminCreateUserRequest
 from app.schemas.preferences import UpdatePreferencesRequest
 from app.services.health_report_service import HealthReportService
 from app.services.preference_service import PreferenceService
-from app.utils.azure_storage import upload_blob_file
+from app.utils.azure_storage import upload_avatar_file
 from app.utils.responses import error_response, success_response
 
 # Avatars are small; anything larger is a mis-picked original from the gallery.
@@ -191,8 +191,11 @@ async def upload_avatar(
         return error_response("Please choose an image under 5 MB", 400)
 
     extension = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}[file.content_type]
-    blob_path = upload_blob_file(
-        data, f"avatars/{user.id}.{extension}", content_type=file.content_type
+    # Bare "<user-id>.<ext>" — the avatars container IS the folder, so no
+    # prefix is needed. A stored path that still carries one is a pre-split
+    # upload that lives in the video container (see generate_avatar_sas_url).
+    blob_path = upload_avatar_file(
+        data, f"{user.id}.{extension}", content_type=file.content_type
     )
     if not blob_path:
         return error_response("Image storage is unavailable right now", 503)
@@ -201,7 +204,7 @@ async def upload_avatar(
     db.commit()
     db.refresh(user)
 
-    # to_dict() already resolves avatar_url through generate_sas_url.
+    # to_dict() already resolves avatar_url through generate_avatar_sas_url.
     return success_response("Profile photo updated successfully", {"user": user.to_dict()})
 
 
