@@ -60,8 +60,15 @@ class TherapyService:
         }
 
     @staticmethod
-    def count_completed_by_group(db: Session, user_id: uuid.UUID, group_id: uuid.UUID) -> int:
-        return TherapySessionRepository.count_completed_by_group(db, user_id, group_id)
+    def count_completed_by_group(
+        db: Session,
+        user_id: uuid.UUID,
+        group_id: uuid.UUID,
+        session_group_id: uuid.UUID | None = None,
+    ) -> int:
+        return TherapySessionRepository.count_completed_by_group(
+            db, user_id, group_id, session_group_id
+        )
 
     @staticmethod
     def start_session(db: Session, user_id: uuid.UUID, group_id: uuid.UUID, session_type: str) -> dict:

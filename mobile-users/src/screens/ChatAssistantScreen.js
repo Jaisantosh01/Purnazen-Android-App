@@ -28,52 +28,44 @@ const ChatAssistantScreen = ({ route, navigation }) => {
   const [currentQuestionId, setCurrentQuestionId] = useState(startQuestionId);
   const [loading, setLoading] = useState(true);
 
-  // Pre-session pain baseline. The score recorded here is what the end-of-
-  // session prompt in VideoPlayerScreen is compared against, so the therapy
-  // history can show a before → after pair.
+  // Pre-session pain baseline. It is carried into the player rather than saved
+  // here: the feedback row has to hang off the session group, and that group
+  // doesn't exist until VideoPlayerScreen starts the run. The player writes the
+  // baseline and closes the pair with painAfter at the end, so therapy history
+  // shows a before → after on one record.
   const [showPainModal, setShowPainModal] = useState(false);
   const [painLevel, setPainLevel] = useState(5);
   const [painDescription, setPainDescription] = useState('');
-  const [savingFeedback, setSavingFeedback] = useState(false);
   const [pendingGroupId, setPendingGroupId] = useState(null);
-  const [checkingFeedback, setCheckingFeedback] = useState(false);
 
   const scrollViewRef = useRef();
 
-  const navigateToVideos = useCallback((groupId) => {
+  const navigateToVideos = useCallback((groupId, baseline = null) => {
     if (groupId) {
-      navigation.navigate('VideoPlayer', { groupId, groupTitle: reliefTitle });
+      navigation.navigate('VideoPlayer', {
+        groupId,
+        groupTitle: reliefTitle,
+        // Everything reached from a Quick Relief card is a relief run, not a
+        // wellness one — this is what the session gets filed as.
+        sessionType: 'relief',
+        painBefore: baseline?.painBefore ?? null,
+        painDescription: baseline?.painDescription ?? null,
+      });
     } else {
       navigation.navigate('Relief');
     }
   }, [navigation, reliefTitle]);
 
-  const handleBrowseSession = useCallback(async (finalMsg) => {
+  const handleBrowseSession = useCallback((finalMsg) => {
     const groupId = finalMsg?.videoGroupId;
     if (!groupId) {
       navigateToVideos(null);
       return;
     }
-
-    setCheckingFeedback(true);
-    try {
-      // A record already open for this group means the baseline was captured
-      // on an earlier run — don't ask twice.
-      const existing = await apiClient.get(ENDPOINTS.THERAPY_FEEDBACK_BY_GROUP(groupId));
-      const open = (existing?.data || []).find(f => f.painAfter == null);
-      if (open) {
-        navigateToVideos(groupId);
-        return;
-      }
-      throw new Error('no open feedback');
-    } catch (err) {
-      setPendingGroupId(groupId);
-      setPainLevel(5);
-      setPainDescription('');
-      setShowPainModal(true);
-    } finally {
-      setCheckingFeedback(false);
-    }
+    setPendingGroupId(groupId);
+    setPainLevel(5);
+    setPainDescription('');
+    setShowPainModal(true);
   }, [navigateToVideos]);
 
   const handleSkipPain = useCallback(() => {
@@ -82,26 +74,16 @@ const ChatAssistantScreen = ({ route, navigation }) => {
     setPendingGroupId(null);
   }, [navigateToVideos, pendingGroupId]);
 
-  const handleSavePain = useCallback(async () => {
+  const handleSavePain = useCallback(() => {
     const groupId = pendingGroupId;
     if (!groupId) return;
 
-    setSavingFeedback(true);
-    try {
-      await apiClient.post(ENDPOINTS.THERAPY_FEEDBACK, {
-        videoGroupId: groupId,
-        sessionType: 'relief',
-        painBefore: Math.min(10, Math.max(0, parseInt(painLevel, 10) || 0)),
-        userPainDescription: painDescription.trim() || null,
-      });
-    } catch (err) {
-      // Continue into the session even if the baseline couldn't be saved.
-    } finally {
-      setSavingFeedback(false);
-      setShowPainModal(false);
-      navigateToVideos(groupId);
-      setPendingGroupId(null);
-    }
+    setShowPainModal(false);
+    navigateToVideos(groupId, {
+      painBefore: Math.min(10, Math.max(0, parseInt(painLevel, 10) || 0)),
+      painDescription: painDescription.trim() || null,
+    });
+    setPendingGroupId(null);
   }, [pendingGroupId, painLevel, painDescription, navigateToVideos]);
 
   useEffect(() => {
@@ -218,16 +200,9 @@ const ChatAssistantScreen = ({ route, navigation }) => {
               const finalMsg = history[history.length - 1];
               handleBrowseSession(finalMsg);
             }}
-            disabled={checkingFeedback}
            >
-             {checkingFeedback ? (
-               <ActivityIndicator size="small" color={colors.white} />
-             ) : (
-               <>
-                 <Text style={styles.startSessionText}>Browse Sessions</Text>
-                 <MCIcon name="arrow-right" size={20} color={colors.white} />
-               </>
-             )}
+             <Text style={styles.startSessionText}>Browse Sessions</Text>
+             <MCIcon name="arrow-right" size={20} color={colors.white} />
            </TouchableOpacity>
         </View>
       )}
@@ -236,9 +211,8 @@ const ChatAssistantScreen = ({ route, navigation }) => {
         visible={showPainModal}
         onClose={handleSkipPain}
         onConfirm={handleSavePain}
-        confirmLabel="Save"
+        confirmLabel="Start Session"
         cancelLabel="Skip"
-        confirmLoading={savingFeedback}
         icon="heart-plus-outline"
         title="How is your pain?"
         subtitle="Tell us where you're starting from, so you can see the difference after the session."

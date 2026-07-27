@@ -165,6 +165,7 @@ const HomeScreen = ({ navigation }) => {
                     navigation.navigate('VideoPlayer', {
                       groupId: item.videoGroupId,
                       groupTitle: item.title,
+                      sessionType: 'wellness',
                     });
                   }
                 }}

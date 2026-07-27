@@ -83,12 +83,13 @@ const TherapyHistoryScreen = ({ navigation }) => {
   const totalMinutes = stats?.minutes ?? 0;
 
   const handleContinue = (session) => {
-    if (session.sessionType === 'wellness') {
-      navigation.navigate('VideoPlayer', {
-        groupId: session.groupId,
-        sessionGroupId: session.id,
-      });
-    }
+    navigation.navigate('VideoPlayer', {
+      groupId: session.groupId,
+      sessionGroupId: session.id,
+      // Carry the type through so a resumed relief run keeps saving as relief
+      // and still closes on a pain score rather than a wellness remark.
+      sessionType: session.sessionType,
+    });
   };
 
   const handleComplete = (session) => {
@@ -121,8 +122,17 @@ const TherapyHistoryScreen = ({ navigation }) => {
     setCompletingSessionId(null);
   };
 
+  // 'relief' is what a Quick Relief run is stored as — spell it out in full so
+  // the card reads "Quick Relief Session", matching where the user started it.
   const sessionTypeLabel = (type) => {
-    const map = { wellness: 'Wellness', relief: 'Relief', yoga: 'Yoga', meditation: 'Meditation' };
+    const map = {
+      wellness: 'Wellness',
+      relief: 'Quick Relief',
+      yoga: 'Yoga',
+      meditation: 'Meditation',
+      breathing: 'Breathing',
+      acupressure: 'Acupressure',
+    };
     return map[type] || type;
   };
 

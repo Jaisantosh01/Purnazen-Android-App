@@ -70,14 +70,25 @@ class TherapySessionRepository:
         return results, total
 
     @staticmethod
-    def count_completed_by_group(db: Session, user_id: uuid.UUID, group_id: uuid.UUID) -> int:
+    def count_completed_by_group(
+        db: Session,
+        user_id: uuid.UUID,
+        group_id: uuid.UUID,
+        session_group_id: uuid.UUID | None = None,
+    ) -> int:
+        filters = [
+            TherapySession.user_id == user_id,
+            TherapySession.group_id == group_id,
+            TherapySession.status == "Completed",
+        ]
+        # Scoping to one session group keeps a repeat run counting from zero
+        # instead of inheriting the videos an earlier sitting already finished.
+        if session_group_id:
+            filters.append(TherapySession.session_group_id == session_group_id)
+
         return (
             db.query(func.count(TherapySession.id))
-            .filter(
-                TherapySession.user_id == user_id,
-                TherapySession.group_id == group_id,
-                TherapySession.status == "Completed",
-            )
+            .filter(*filters)
             .scalar()
         ) or 0
 
