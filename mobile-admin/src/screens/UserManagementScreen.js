@@ -293,7 +293,7 @@ const makeStyles = colors => StyleSheet.create({
     borderWidth: 1, 
     borderColor: colors.border 
   },
-  userCardInactive: { opacity: 0.55 },
+  userCardInactive: { backgroundColor: colors.surfaceMuted, borderColor: colors.borderStrong },
   avatarSpacing: { marginRight: 16 },
   userCardContent: { flex: 1, marginRight: 12 },
   userNameContainer: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },

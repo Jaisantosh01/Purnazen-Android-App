@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Modal,
   FlatList,
   Linking,
+  Switch,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -78,6 +79,7 @@ const EditDoctorScreen = ({ route, navigation }) => {
   const [selectedConsultationTypes, setSelectedConsultationTypes] = useState({});
   // Per-clinic scratch field for the "paste a maps link" helper (index -> text)
   const [locationPastes, setLocationPastes] = useState({});
+  const [isAddingClinic, setIsAddingClinic] = useState(false);
 
   useEffect(() => {
     if (!doctorId) {
@@ -92,7 +94,8 @@ const EditDoctorScreen = ({ route, navigation }) => {
         fee: 0,
         specialty_ids: [],
         expertise_ids: [],
-        language_ids: []
+        language_ids: [],
+        is_active: true,
       });
       // Fetch metadata for new doctor
       Promise.all([
@@ -130,6 +133,7 @@ const EditDoctorScreen = ({ route, navigation }) => {
         education: doc.education || '',
         experience: doc.experience || 0,
         fee: doc.fee || 0,
+        is_active: doc.is_active !== false,
       });
       setSpecialties(specRes.data || specRes || []);
       setAllExpertise(expRes.data || expRes || []);
@@ -182,28 +186,35 @@ const EditDoctorScreen = ({ route, navigation }) => {
         return;
     }
 
-    const clinicList = editedDoctor.clinics || [];
-    const incompleteIndex = clinicList.findIndex(clinic => !isClinicComplete(clinic));
-    if (incompleteIndex !== -1) {
-        showAlert(
-          'Incomplete clinic',
-          `Clinic ${incompleteIndex + 1} is missing a name, address or city. Complete it or remove it before saving.`,
-        );
-        return;
+    const missingConsultPrices = Object.entries(selectedConsultationTypes)
+      .filter(([, { price }]) => !price?.trim())
+      .map(([id]) => {
+        const t = consultationTypes.find(ct => ct.id === Number(id));
+        return t?.name || `type ${id}`;
+      });
+    if (missingConsultPrices.length) {
+      showAlert(
+        'Validation Error',
+        `Set a price for: ${missingConsultPrices.join(', ')}.\nLeave it unchecked if you don't offer this mode.`,
+      );
+      setLoading(false);
+      return;
     }
 
-    const badLocationIndex = clinicList.findIndex(
-      clinic => validateClinicLocation(clinic.latitude, clinic.longitude),
-    );
-    if (badLocationIndex !== -1) {
-        showAlert(
-          'Invalid location',
-          `Clinic ${badLocationIndex + 1}: ${validateClinicLocation(
-            clinicList[badLocationIndex].latitude,
-            clinicList[badLocationIndex].longitude,
-          )}`,
-        );
-        return;
+    const clinics = editedDoctor.clinics || [];
+    const invalidClinic = clinics.find(c => !c.name?.trim() || !c.address?.trim() || !c.city?.trim());
+    if (invalidClinic) {
+      showAlert('Validation Error', 'All clinics require Name, Address, and City.\nPlease fill in the missing fields.');
+      setLoading(false);
+      return;
+    }
+
+    const awards = editedDoctor.awards || [];
+    const invalidAward = awards.find(a => !a.title?.trim() || !a.issuer?.trim() || !a.year);
+    if (invalidAward) {
+      showAlert('Validation Error', 'All awards require Title, Issuer, and Year.\nPlease fill in the missing fields.');
+      setLoading(false);
+      return;
     }
 
     setLoading(true);
@@ -220,7 +231,7 @@ const EditDoctorScreen = ({ route, navigation }) => {
           }),
         ),
         // Lat/long come off text inputs — send numbers (or null), not strings.
-        clinics: clinicList.map(clinic => ({
+        clinics: clinics.map(clinic => ({
           ...clinic,
           latitude: clinic.latitude === '' || clinic.latitude == null ? null : Number(clinic.latitude),
           longitude: clinic.longitude === '' || clinic.longitude == null ? null : Number(clinic.longitude),
@@ -301,20 +312,8 @@ const EditDoctorScreen = ({ route, navigation }) => {
   const canAddClinic = pendingClinicIndex === -1;
 
   const addClinic = () => {
-    if (!canAddClinic) {
-      showAlert(
-        'Finish this clinic first',
-        'Fill in the clinic name, address and city before adding another clinic.',
-      );
-      return;
-    }
-    setEditedDoctor({
-      ...editedDoctor,
-      clinics: [
-        ...clinics,
-        { name: '', address: '', city: '', phone: '', latitude: '', longitude: '', is_primary: false },
-      ],
-    });
+    setIsAddingClinic(true);
+    navigation.navigate('ClinicAddressPicker');
   };
 
   const applyPastedLocation = (index, text) => {
@@ -399,6 +398,18 @@ const EditDoctorScreen = ({ route, navigation }) => {
           Fields marked <Text style={styles.requiredStar}>*</Text> are required.
         </Text>
 
+        {doctorId && (
+          <View style={styles.activeToggleRow}>
+            <Text style={styles.activeToggleLabel}>Active</Text>
+            <Switch
+              value={!!editedDoctor.is_active}
+              onValueChange={val => setEditedDoctor(prev => ({ ...prev, is_active: val }))}
+              trackColor={{ false: colors.surfaceMuted, true: colors.primaryLight }}
+              thumbColor={editedDoctor.is_active ? colors.primary : colors.textMuted}
+            />
+          </View>
+        )}
+
         {doctorId ? (
             <>
                 <Text style={styles.sectionLabel}>Account Details</Text>
@@ -448,7 +459,7 @@ const EditDoctorScreen = ({ route, navigation }) => {
 
         <Text style={styles.sectionLabel}>Consultation Modes</Text>
         <Text style={styles.subLabel}>
-          Pick the visit types this doctor offers. Leave a price blank to charge the base fee.
+          Pick the visit types this doctor offers. Price is required for every selected mode.
         </Text>
         {consultationTypes.length === 0 ? (
           <Text style={styles.noSlots}>No consultation types configured.</Text>
@@ -468,15 +479,18 @@ const EditDoctorScreen = ({ route, navigation }) => {
                   />
                   <Text style={styles.consultTypeName}>{type.name}</Text>
                 </TouchableOpacity>
-                <TextInput
-                  style={[styles.input, styles.consultPriceInput, !selected && styles.disabled]}
-                  value={selected ? (selectedConsultationTypes[type.id].price ?? '') : ''}
-                  onChangeText={val => setConsultationPrice(type.id, val)}
-                  placeholder={editedDoctor.fee ? `₹${editedDoctor.fee}` : 'Price'}
-                  placeholderTextColor={colors.textMuted}
-                  keyboardType="numeric"
-                  editable={selected}
-                />
+                <View style={styles.consultPriceWrapper}>
+                  <TextInput
+                    style={[styles.input, styles.consultPriceInput, !selected && styles.disabled]}
+                    value={selected ? (selectedConsultationTypes[type.id].price ?? '') : ''}
+                    onChangeText={val => setConsultationPrice(type.id, val)}
+                    placeholder={editedDoctor.fee ? `₹${editedDoctor.fee}` : 'Price'}
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="numeric"
+                    editable={selected}
+                  />
+                  {selected && <Text style={styles.requiredStar}>*</Text>}
+                </View>
               </View>
             );
           })
@@ -531,16 +545,16 @@ const EditDoctorScreen = ({ route, navigation }) => {
         <Text style={styles.sectionLabel}>Awards</Text>
         {editedDoctor.awards?.map((award, index) => (
             <View key={index} style={styles.awardInputCard}>
-                <Text style={styles.label}>Award Title</Text>
+                <Text style={styles.label}>Award Title <Text style={{color: '#E53935'}}>*</Text></Text>
                 <TextInput style={styles.input} placeholder="e.g. Best Doctor" placeholderTextColor={colors.textMuted} value={award.title} onChangeText={(val) => updateAward(index, 'title', val)} />
                 
                 <View style={styles.row}>
                     <View style={{flex: 1}}>
-                        <Text style={styles.label}>Issuer</Text>
+                        <Text style={styles.label}>Issuer <Text style={{color: '#E53935'}}>*</Text></Text>
                         <TextInput style={styles.input} placeholder="e.g. Health Assoc" placeholderTextColor={colors.textMuted} value={award.issuer} onChangeText={(val) => updateAward(index, 'issuer', val)} />
                     </View>
                     <View style={{width: 80, marginLeft: 8}}>
-                        <Text style={styles.label}>Year</Text>
+                        <Text style={styles.label}>Year <Text style={{color: '#E53935'}}>*</Text></Text>
                         <TextInput style={styles.input} placeholder="2024" placeholderTextColor={colors.textMuted} value={String(award.year || '')} onChangeText={(val) => updateAward(index, 'year', parseInt(val))} keyboardType="numeric" />
                     </View>
                 </View>
@@ -590,75 +604,21 @@ const EditDoctorScreen = ({ route, navigation }) => {
               </View>
             </View>
 
-            <Text style={styles.label}>Location</Text>
-            <Text style={styles.subLabel}>
-              Paste a Google Maps link or "lat, long" to fill both fields at once.
-            </Text>
-            <View style={styles.pasteRow}>
-              <TextInput
-                style={[styles.input, {flex: 1}]}
-                placeholder="Paste maps link or 12.9716, 77.5946"
-                placeholderTextColor={colors.textMuted}
-                value={locationPastes[index] || ''}
-                onChangeText={(val) => setLocationPastes(prev => ({...prev, [index]: val}))}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-              <TouchableOpacity
-                style={styles.pasteBtn}
-                onPress={() => applyPastedLocation(index, locationPastes[index] || '')}
-              >
-                <Text style={styles.pasteBtnText}>Use</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.row}>
-              <View style={{flex: 1}}>
-                <Text style={styles.label}>Latitude</Text>
-                <TextInput
-                  style={[styles.input, locationError && styles.inputError]}
-                  placeholder="e.g. 12.9716"
-                  placeholderTextColor={colors.textMuted}
-                  value={clinic.latitude != null ? String(clinic.latitude) : ''}
-                  onChangeText={(val) => updateClinic(index, 'latitude', val)}
-                  keyboardType="numbers-and-punctuation"
-                />
-              </View>
-              <View style={{flex: 1, marginLeft: 8}}>
-                <Text style={styles.label}>Longitude</Text>
-                <TextInput
-                  style={[styles.input, locationError && styles.inputError]}
-                  placeholder="e.g. 77.5946"
-                  placeholderTextColor={colors.textMuted}
-                  value={clinic.longitude != null ? String(clinic.longitude) : ''}
-                  onChangeText={(val) => updateClinic(index, 'longitude', val)}
-                  keyboardType="numbers-and-punctuation"
-                />
-              </View>
-            </View>
-            {locationError ? <Text style={styles.errorText}>{locationError}</Text> : null}
-
-            <View style={styles.clinicFooterRow}>
-              <TouchableOpacity onPress={() => previewClinicLocation(clinic)}>
-                <View style={styles.mapPreviewBtn}>
-                  <MCIcon name="map-marker-outline" size={16} color={colors.primary} />
-                  <Text style={styles.mapPreviewText}>Preview on map</Text>
-                </View>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.removeBtn} onPress={() => removeClinic(index)}>
-                <Text style={{color: colors.danger, fontWeight: '600'}}>Remove Clinic</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity style={styles.removeBtn} onPress={() => removeClinic(index)}>
+              <Text style={{color: colors.danger, fontWeight: '600'}}>Remove Clinic</Text>
+            </TouchableOpacity>
           </View>
-          );
+        );
         })}
         <TouchableOpacity
-          style={[styles.addBtn, !canAddClinic && styles.addBtnDisabled]}
+          style={[styles.addBtn, isAddingClinic && { opacity: 0.5 }]}
           onPress={addClinic}
-          disabled={!canAddClinic}
+          disabled={isAddingClinic}
         >
-            <MCIcon name="plus" size={18} color={canAddClinic ? colors.primary : colors.textMuted} style={{marginRight: 8}} />
-            <Text style={{color: canAddClinic ? colors.primary : colors.textMuted, fontWeight: '700'}}>Add Clinic</Text>
+            <MCIcon name="plus" size={18} color={isAddingClinic ? colors.textMuted : colors.primary} style={{marginRight: 8}} />
+            <Text style={{color: isAddingClinic ? colors.textMuted : colors.primary, fontWeight: '700'}}>
+              {isAddingClinic ? 'Adding Clinic...' : 'Add Clinic'}
+            </Text>
         </TouchableOpacity>
         {!canAddClinic ? (
           <Text style={styles.addHint}>
@@ -698,10 +658,13 @@ const makeStyles = colors => StyleSheet.create({
   requiredHint: { fontSize: 12, color: colors.textMuted, marginBottom: 4 },
   input: { backgroundColor: colors.card, borderRadius: 8, padding: 12, borderWidth: 1, borderColor: colors.borderStrong, color: colors.textPrimary },
   disabled: { backgroundColor: colors.surfaceMuted, opacity: 0.6 },
+  activeToggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 4, marginBottom: 4 },
+  activeToggleLabel: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
   consultTypeRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 12 },
   consultTypeToggle: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 8 },
   consultTypeName: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
-  consultPriceInput: { width: 110, paddingVertical: 8, textAlign: 'right' },
+  consultPriceInput: { width: 100, paddingVertical: 8, textAlign: 'right' },
+  consultPriceWrapper: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   tagScroll: { marginTop: 8, marginBottom: 4 },
   tag: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: colors.primaryLight, borderRadius: 16, marginRight: 8 },
   tagText: { color: colors.primary, fontSize: 13, fontWeight: '500' },

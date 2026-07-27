@@ -5,6 +5,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Linking,
+  Platform,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -113,7 +115,7 @@ const DoctorDetailScreen = ({ route, navigation }) => {
               <View key={index} style={styles.specialtyChip}>
                 <Text style={styles.specialtyText}>{spec}</Text>
               </View>
-            ))}
+              ))}
           </View>
         </View>
         
@@ -125,7 +127,7 @@ const DoctorDetailScreen = ({ route, navigation }) => {
           <InfoItem icon="head-check-outline" label="Expertise" value={doctor.expertise?.join(', ') || 'N/A'} />
           <InfoItem icon="translate" label="Languages" value={doctor.languages?.join(', ') || 'N/A'} />
           
-          {doctor.clinics && doctor.clinics.length > 0 && (
+              {doctor.clinics && doctor.clinics.length > 0 && (
             <View style={styles.clinicSection}>
               <Text style={styles.clinicHeader}>Clinics</Text>
               {doctor.clinics.map((clinic, index) => (
@@ -140,10 +142,41 @@ const DoctorDetailScreen = ({ route, navigation }) => {
                     )}
                   </View>
                   <View style={styles.clinicDetails}>
-                    <View style={styles.clinicDetailRow}>
+                    <TouchableOpacity
+                      style={styles.clinicDetailRow}
+                      activeOpacity={0.6}
+                      onPress={() => {
+                        const label = encodeURIComponent(clinic.name);
+                        if (clinic.latitude && clinic.longitude) {
+                          const { latitude, longitude } = clinic;
+                          if (Platform.OS === 'ios') {
+                            Linking.openURL(`maps://?q=${label}@${latitude},${longitude}`).catch(() =>
+                              Linking.openURL(`https://maps.apple.com/?q=${label}&ll=${latitude},${longitude}`)
+                            );
+                          } else {
+                            Linking.openURL(`geo:0,0?q=${latitude},${longitude}(${label})`).catch(() =>
+                              Linking.openURL(`https://www.google.com/maps?q=${latitude},${longitude}`)
+                            );
+                          }
+                        } else if (clinic.address) {
+                          const query = encodeURIComponent(`${clinic.address}, ${clinic.city}`);
+                          if (Platform.OS === 'ios') {
+                            Linking.openURL(`maps://?q=${query}`).catch(() =>
+                              Linking.openURL(`https://maps.apple.com/?q=${query}`)
+                            );
+                          } else {
+                            Linking.openURL(`geo:0,0?q=${query}`).catch(() =>
+                              Linking.openURL(`https://www.google.com/maps?q=${query}`)
+                            );
+                          }
+                        } else {
+                          showAlert('No Location', 'No location data available for this clinic.');
+                        }
+                      }}
+                    >
                       <MCIcon name="map-marker" size={16} color={colors.textMuted} />
-                      <Text style={styles.clinicDetailText}>{clinic.address}, {clinic.city}</Text>
-                    </View>
+                      <Text style={[styles.clinicDetailText, styles.addressLink]}>{clinic.address}, {clinic.city}</Text>
+                    </TouchableOpacity>
                     {clinic.phone && (
                       <View style={styles.clinicDetailRow}>
                         <MCIcon name="phone" size={16} color={colors.textMuted} />
@@ -165,9 +198,9 @@ const DoctorDetailScreen = ({ route, navigation }) => {
                         <View style={styles.awardContent}>
                             <Text style={styles.awardTitle}>{award.title} ({award.year})</Text>
                             <Text style={styles.awardIssuer}>{award.issuer}</Text>
-                        </View>
-                    </View>
-                ))}
+                  </View>
+                </View>
+              ))}
             </View>
           )}
 
@@ -224,6 +257,7 @@ const makeStyles = colors => StyleSheet.create({
   clinicDetails: { marginLeft: 4, gap: 6 },
   clinicDetailRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   clinicDetailText: { fontSize: 13, color: colors.textSecondary, flex: 1 },
+  addressLink: { textDecorationLine: 'underline', color: colors.primary },
   awardSection: { marginTop: 16, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 16 },
   awardHeader: { fontSize: 12, color: colors.textSecondary, marginBottom: 8, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
   awardItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },

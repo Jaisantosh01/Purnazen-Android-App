@@ -179,6 +179,13 @@ const DoctorManagementScreen = ({ navigation }) => {
     navigation.navigate('EditDoctor', { doctorId: item.id });
   };
 
+  const handleRestore = (item, rowMap) => {
+    if (rowMap?.[item.id]) rowMap[item.id].closeRow();
+    apiClient.put(ENDPOINTS.DOCTOR_DETAIL(item.id), { is_active: true })
+      .then(() => { showAlert('Reactivated', `${item.name} is now active.`); fetchData(); })
+      .catch(err => showAlert('Error', err?.message || 'Failed to reactivate doctor'));
+  };
+
   const handleDelete = (item, rowMap) => {
     if (rowMap?.[item.id]) rowMap[item.id].closeRow();
     // Themed dialog (AppAlertHost) instead of the OS Alert so it matches the
@@ -262,10 +269,17 @@ const DoctorManagementScreen = ({ navigation }) => {
         <MCIcon name="pencil" size={22} color="#fff" />
         <Text style={styles.backBtnText}>Edit</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={[styles.backBtn, styles.deleteBack]} onPress={() => handleDelete(data.item, rowMap)}>
-        <MCIcon name="delete" size={22} color="#fff" />
-        <Text style={styles.backBtnText}>Delete</Text>
-      </TouchableOpacity>
+      {data.item.is_active === false ? (
+        <TouchableOpacity style={[styles.backBtn, styles.restoreBack]} onPress={() => handleRestore(data.item, rowMap)}>
+          <MCIcon name="account-reactivate" size={22} color="#fff" />
+          <Text style={styles.backBtnText}>Restore</Text>
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity style={[styles.backBtn, styles.deleteBack]} onPress={() => handleDelete(data.item, rowMap)}>
+          <MCIcon name="delete" size={22} color="#fff" />
+          <Text style={styles.backBtnText}>Delete</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 
@@ -448,6 +462,7 @@ const makeStyles = colors => StyleSheet.create({
   },
   editBack: { backgroundColor: '#3B82F6' },
   deleteBack: { backgroundColor: '#EF4444' },
+  restoreBack: { backgroundColor: '#10B981' },
   backBtnText: { color: '#fff', fontSize: 12, fontWeight: '600' },
   footerLoader: { paddingVertical: 20, alignItems: 'center' },
 
