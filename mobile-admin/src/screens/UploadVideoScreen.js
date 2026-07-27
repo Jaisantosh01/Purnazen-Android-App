@@ -102,6 +102,9 @@ const UploadVideoScreen = ({ route, navigation }) => {
   }, [currentPath]);
 
   useEffect(() => {
+    // Clear any cancel flag left by a previous mount of this screen, otherwise
+    // the next upload run stops after its first request.
+    cancelledRef.current = false;
     apiClient.get(ENDPOINTS.VIDEO_GROUPS)
       .then(res => setGroups((res?.data?.groups || []).filter(g => g.is_active !== false)))
       .catch(() => setGroups([]));

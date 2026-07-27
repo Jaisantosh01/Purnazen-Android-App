@@ -48,6 +48,19 @@ def doctor_card(doctor):
         ),
         "fee": base_fee,
         "minFee": min(type_fees) if type_fees else base_fee,
+        # Which visit modes this doctor offers and what each costs. Drives the
+        # admin edit screen; `price` is null when the base fee applies.
+        "consultation_types": [
+            {
+                "consultation_type_id": str(link.consultation_type_id),
+                "name": link.consultation_type.name,
+                "price": float(link.price) if link.price is not None else None,
+            }
+            for link in sorted(
+                doctor.consultation_type_links,
+                key=lambda link: VISIT_TYPE_ORDER.get(link.consultation_type.name, 9),
+            )
+        ],
         "availability": (
             "Available today" if doctor.is_available_today else "Not Available"
         ),

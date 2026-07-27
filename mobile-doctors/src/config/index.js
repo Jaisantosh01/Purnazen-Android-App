@@ -1,3 +1,5 @@
+import packageJson from '../../package.json';
+
 /**
  * Build-time configuration.
  *
@@ -26,10 +28,13 @@ export const API_VERSION = '/api/v1';
 
 // ── Live-update (OTA) config ─────────────────────────────────────────────────
 // APP_SLUG matches the release tag prefix `<slug>-v<version>` used by the
-// "Release Mobile Apps" workflow. APP_VERSION is the running marketing version,
-// injected at build time (EXPO_PUBLIC_APP_VERSION) to match the gradle versionName.
+// "Release Mobile Apps" workflow. APP_VERSION is the running marketing version:
+// release builds inject it (EXPO_PUBLIC_APP_VERSION) to match the gradle
+// versionName, and every other build falls back to package.json — the same value
+// build.gradle defaults versionName to. Nothing is hardcoded here, so a dev build
+// no longer reports itself as "0.0.0".
 export const APP_SLUG = 'mobile-doctors';
-export const APP_VERSION = process.env.EXPO_PUBLIC_APP_VERSION || '0.0.0';
+export const APP_VERSION = process.env.EXPO_PUBLIC_APP_VERSION || packageJson.version;
 export const GITHUB_REPO = 'Calypsion-Innovations/PurnaZen_Android_App';
 
 // ── RBAC ─────────────────────────────────────────────────────────────────────

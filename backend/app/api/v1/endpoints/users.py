@@ -1,4 +1,5 @@
 import uuid
+from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Query, UploadFile
@@ -7,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db, require_role
 from app.core.security import hash_password
+from app.models.doctor import Doctor
 from app.models.role import Role
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
@@ -22,6 +24,36 @@ MAX_AVATAR_BYTES = 5 * 1024 * 1024
 ALLOWED_AVATAR_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
 router = APIRouter(prefix="/users", tags=["Users"])
+
+# Profile columns an admin may edit from the user detail screen. full_name and
+# email are NOT NULL, so a blank value is ignored rather than written as None.
+EDITABLE_USER_FIELDS = (
+    "full_name",
+    "email",
+    "phone",
+    "gender",
+    "date_of_birth",
+    "blood_group",
+    "height_cm",
+    "weight_kg",
+    "allergies",
+    "conditions",
+    "medications",
+)
+_REQUIRED_USER_FIELDS = {"full_name", "email"}
+
+
+def _clean(field: str, value):
+    """Normalise one edited field; "" clears an optional column."""
+    if isinstance(value, str):
+        value = value.strip() or None
+    if value is None:
+        return None
+    if field == "date_of_birth" and isinstance(value, str):
+        return date.fromisoformat(value[:10])
+    if field in ("height_cm", "weight_kg"):
+        return float(value)
+    return value
 
 
 @router.get("", summary="Get all users (admin only)")
@@ -193,14 +225,69 @@ def update_user(user_id: uuid.UUID, data: dict, db: Session = Depends(get_db)):
     user = db.get(User, user_id)
     if not user:
         return error_response("User not found", 404)
-    
-    if "full_name" in data:
-        user.full_name = data["full_name"]
-    if "email" in data:
-        user.email = data["email"]
+
+    try:
+        for field in EDITABLE_USER_FIELDS:
+            if field not in data:
+                continue
+            value = _clean(field, data[field])
+            if value is None and field in _REQUIRED_USER_FIELDS:
+                continue
+            setattr(user, field, value)
+    except (TypeError, ValueError):
+        return error_response("One or more fields have an invalid value", 400)
+
     if "role_id" in data:
         user.role_id = data["role_id"]
-        
+    if "is_active" in data:
+        user.is_active = bool(data["is_active"])
+        # Reinstating an account is the counterpart to the deactivate below.
+        doctor = db.query(Doctor).filter(Doctor.user_id == user.id).first()
+        if user.is_active and doctor:
+            doctor.is_active = True
+
     db.commit()
     db.refresh(user)
     return success_response("User updated successfully", user.to_dict())
+
+
+@router.delete(
+    "/{user_id}",
+    summary="Delete (deactivate) a user (admin only)",
+    description="Sets is_active=False and revokes the account's live sessions. "
+    "Accounts are retained rather than dropped because appointments, payments "
+    "and clinical records reference them; deactivating mirrors DELETE /doctors.",
+    dependencies=[Depends(require_role("admin"))],
+)
+def delete_user(
+    user_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    actor: User = Depends(get_current_user),
+):
+    user = db.get(User, user_id)
+    if not user:
+        return error_response("User not found", 404)
+
+    if user.id == actor.id:
+        return error_response("You cannot delete your own account", 400)
+
+    if user.role and user.role.name == "admin":
+        remaining_admins = (
+            db.query(func.count(User.id))
+            .join(User.role)
+            .filter(Role.name == "admin", User.is_active.is_(True), User.id != user.id)
+            .scalar()
+        )
+        if not remaining_admins:
+            return error_response("Cannot delete the last active admin", 400)
+
+    user.is_active = False
+    # Bump the token version so any access/refresh token already issued to this
+    # account stops validating in deps._get_token_payload.
+    user.token_version = (user.token_version or 0) + 1
+    doctor = db.query(Doctor).filter(Doctor.user_id == user.id).first()
+    if doctor:
+        doctor.is_active = False
+    db.commit()
+
+    return success_response("User deleted successfully")

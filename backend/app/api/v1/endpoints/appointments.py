@@ -150,13 +150,16 @@ def get_all_appointments_admin(
 @router.get(
     "/consultation-types",
     summary="Get all consultation types",
+    description="Active visit modes (Clinic Visit / Home Visit / Video Call). "
+    "Returns full records — the admin doctor editor needs the ids to attach "
+    "per-type pricing.",
 )
 def get_consultation_types(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     types = db.query(ConsultationType).filter(ConsultationType.is_active == True).all()
-    return success_response("Consultation types fetched", [t.name for t in types])
+    return success_response("Consultation types fetched", [t.to_dict() for t in types])
 
 
 @router.get(
