@@ -210,7 +210,8 @@ const UploadVideoScreen = ({ route, navigation }) => {
       defaultGroupId,
       setItems,
       setExpandedId,
-      showAlert
+      showAlert,
+      items
     );
   };
 
@@ -443,11 +444,14 @@ const UploadVideoScreen = ({ route, navigation }) => {
               value={item.saveAs || ''}
               onChangeText={t => {
                 const existingNames = new Set(dirFiles.map(f => (f.name || '').split('/').pop()?.toLowerCase().trim()));
-                const isDup = existingNames.has(t.toLowerCase().trim());
+                // Only a clash the user hasn't already answered blocks the
+                // upload — with Overwrite on, replacing the stored file is the
+                // whole point, so renaming onto one must not re-fail the row.
+                const clash = existingNames.has(t.toLowerCase().trim()) && !item.overwrite;
                 updateItem(item.id, {
                   saveAs: t,
-                  status: isDup ? 'failed' : 'pending',
-                  error: isDup ? 'A file with this name already exists in this folder.' : null,
+                  status: clash ? 'failed' : 'pending',
+                  error: clash ? 'A file with this name already exists — tick Overwrite or pick another name.' : null,
                 });
               }}
               editable={!uploading && item.status !== 'done'}
@@ -995,6 +999,11 @@ const makeStyles = colors => StyleSheet.create({
   uploadBtnText: { fontSize: 16, fontWeight: '700', color: colors.white },
   overwriteRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, paddingVertical: 6 },
   overwriteLabel: { fontSize: 13, fontWeight: '500', color: colors.textMuted, flex: 1 },
+  // The collapsed row's Overwrite toggle. These were referenced but never
+  // defined, so it fell back to the default column flow and the checkbox sat
+  // on its own line above the label.
+  queueOverwriteRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, alignSelf: 'flex-start' },
+  queueOverwriteLabel: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
   modalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', padding: 20 },
   modalCard: { backgroundColor: colors.modalSurface, padding: 20, borderRadius: 16 , borderWidth: 1, borderColor: colors.modalBorder, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 16, elevation: 12},
   modalTitle: { fontSize: 16, fontWeight: '800', marginBottom: 12, color: colors.textPrimary },

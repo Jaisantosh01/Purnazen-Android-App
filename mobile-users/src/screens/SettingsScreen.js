@@ -42,6 +42,7 @@ const HUES = {
   blue: '#0284C7',
   amber: '#F59E0B',
   rose: '#E11D48',
+  teal: '#0D9488',
 };
 const soft = hex => `${hex}22`;
 
@@ -116,10 +117,6 @@ const makeStyles = colors => StyleSheet.create({
   // Capped in pixels: a percentage max-height has nothing to resolve against
   // inside a content-sized modal overlay and Yoga silently drops it.
   modalScroll: { maxHeight: 420 },
-  modalSectionLabel: {
-    fontSize: 11, fontWeight: '800', letterSpacing: 0.8,
-    color: colors.textMuted, marginTop: 20, marginBottom: 4,
-  },
   modalHint: { fontSize: 11.5, lineHeight: 16, color: colors.textMuted, marginTop: 10 },
 
   avatarPicker: { alignItems: 'center', gap: 8, marginBottom: 6 },
@@ -302,7 +299,11 @@ const SettingsScreen = ({ navigation, route }) => {
   const [fullName, setFullName]               = useState('');
   const [gender, setGender]                   = useState('');
   const [dob, setDob]                         = useState({ dd: '', mm: '', yyyy: '' });
-  // Health profile — all optional, and all shown in My Health Report.
+  // Health profile — its own form. These are optional clinical notes shown in
+  // My Health Report and shared with the treating doctor, which is a different
+  // job from "who am I", and stacking both in one modal made Edit Profile a
+  // scrolling wall of fields.
+  const [showHealthDetails, setShowHealthDetails] = useState(false);
   const [bloodGroup, setBloodGroup]           = useState('');
   const [heightCm, setHeightCm]               = useState('');
   const [weightKg, setWeightKg]               = useState('');
@@ -332,6 +333,11 @@ const SettingsScreen = ({ navigation, route }) => {
     setFullName(user?.full_name || '');
     setGender(user?.gender || '');
     setDob(isoToParts(user?.date_of_birth));
+    setFormError('');
+    setShowEditProfile(true);
+  };
+
+  const openHealthDetails = () => {
     setBloodGroup(user?.blood_group || '');
     setHeightCm(user?.height_cm != null ? String(user.height_cm) : '');
     setWeightKg(user?.weight_kg != null ? String(user.weight_kg) : '');
@@ -339,7 +345,7 @@ const SettingsScreen = ({ navigation, route }) => {
     setConditions(user?.conditions || '');
     setMedications(user?.medications || '');
     setFormError('');
-    setShowEditProfile(true);
+    setShowHealthDetails(true);
   };
 
   // Deep-link from the Profile header's photo — open straight into the form.
@@ -491,6 +497,23 @@ const SettingsScreen = ({ navigation, route }) => {
     const parsedDob = validateDobParts(dob);
     if (!parsedDob.ok) { setFormError('Enter a valid date of birth.'); return; }
 
+    setIsSubmitting(true);
+    try {
+      await authService.updateProfile({
+        fullName: fullName.trim(),
+        gender: gender || undefined,
+        dateOfBirth: parsedDob.iso,
+      });
+      setShowEditProfile(false);
+      showAlert('Profile Updated', 'Your details have been saved.');
+    } catch (err) {
+      setFormError(err.message || 'Profile update failed.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSaveHealthDetails = async () => {
     const height = parseMeasure(heightCm, 'height in cm', 30, 280);
     if (!height.ok) { setFormError(height.message); return; }
     const weight = parseMeasure(weightKg, 'weight in kg', 2, 500);
@@ -499,9 +522,6 @@ const SettingsScreen = ({ navigation, route }) => {
     setIsSubmitting(true);
     try {
       await authService.updateProfile({
-        fullName: fullName.trim(),
-        gender: gender || undefined,
-        dateOfBirth: parsedDob.iso,
         bloodGroup: bloodGroup || undefined,
         // undefined leaves the stored value alone; the API treats "" as a clear.
         heightCm: height.value ?? undefined,
@@ -510,10 +530,10 @@ const SettingsScreen = ({ navigation, route }) => {
         conditions: conditions.trim(),
         medications: medications.trim(),
       });
-      setShowEditProfile(false);
-      showAlert('Profile Updated', 'Your details have been saved.');
+      setShowHealthDetails(false);
+      showAlert('Health Details Updated', 'Your health details have been saved.');
     } catch (err) {
-      setFormError(err.message || 'Profile update failed.');
+      setFormError(err.message || 'Could not save your health details.');
     } finally {
       setIsSubmitting(false);
     }
@@ -575,8 +595,16 @@ const SettingsScreen = ({ navigation, route }) => {
             <ArrowRow
               icon="account-edit-outline"
               title="Edit Profile"
-              subtitle="Update name, gender & date of birth"
+              subtitle="Photo, name, gender & date of birth"
               onPress={openEditProfile}
+            />
+            <View style={styles.rowDivider} />
+            <ArrowRow
+              icon="heart-pulse"
+              hue={HUES.teal}
+              title="Health Details"
+              subtitle="Blood group, height, weight & medical notes"
+              onPress={openHealthDetails}
             />
             <View style={styles.rowDivider} />
             <ArrowRow
@@ -688,8 +716,8 @@ const SettingsScreen = ({ navigation, route }) => {
         <AppVersionFooter />
       </ScrollView>
 
-      {/* Edit Profile modal — the form outgrew a static card once the health
-          fields landed, so the body scrolls and the actions stay pinned. */}
+      {/* Edit Profile modal — identity only. The health fields moved to their
+          own form below; together they overflowed a single modal. */}
       <Modal visible={showEditProfile} transparent animationType="fade"
         onRequestClose={() => setShowEditProfile(false)}>
         <View style={styles.modalOverlay}>
@@ -728,9 +756,34 @@ const SettingsScreen = ({ navigation, route }) => {
               <GenderSelect value={gender} onChange={v => { setGender(v); setFormError(''); }} />
               <Text style={styles.modalLabel}>Date of Birth</Text>
               <DobInput value={dob} onChange={d => { setDob(d); setFormError(''); }} />
+            </ScrollView>
 
-              <Text style={styles.modalSectionLabel}>HEALTH DETAILS</Text>
+            {formError ? <Text style={styles.modalError}>{formError}</Text> : null}
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnCancel]} onPress={() => setShowEditProfile(false)}>
+                <Text style={styles.modalBtnCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnSave]} onPress={handleSaveProfile} disabled={isSubmitting}>
+                {isSubmitting ? <ActivityIndicator size="small" color={colors.white} /> : <Text style={styles.modalBtnSaveText}>Save</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
+      {/* Health Details modal — optional clinical notes, saved independently of
+          the identity fields so neither form can fail on the other's input. */}
+      <Modal visible={showHealthDetails} transparent animationType="fade"
+        onRequestClose={() => setShowHealthDetails(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Health Details</Text>
+
+            <ScrollView
+              style={styles.modalScroll}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
               <Text style={styles.modalLabel}>Blood Group</Text>
               <View style={styles.chipWrap}>
                 {BLOOD_GROUPS.map(bg => {
@@ -810,10 +863,10 @@ const SettingsScreen = ({ navigation, route }) => {
 
             {formError ? <Text style={styles.modalError}>{formError}</Text> : null}
             <View style={styles.modalActions}>
-              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnCancel]} onPress={() => setShowEditProfile(false)}>
+              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnCancel]} onPress={() => setShowHealthDetails(false)}>
                 <Text style={styles.modalBtnCancelText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnSave]} onPress={handleSaveProfile} disabled={isSubmitting}>
+              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnSave]} onPress={handleSaveHealthDetails} disabled={isSubmitting}>
                 {isSubmitting ? <ActivityIndicator size="small" color={colors.white} /> : <Text style={styles.modalBtnSaveText}>Save</Text>}
               </TouchableOpacity>
             </View>
