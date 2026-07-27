@@ -57,15 +57,16 @@ class User(Base):
         """Loadable avatar URL.
 
         The column holds either a full URL (social sign-in hands us one) or a
-        blob path (in-app upload). generate_sas_url passes full URLs through
-        untouched and returns the input unchanged when Azure isn't configured,
-        so this is safe for both.
+        blob path in the avatars container (in-app upload).
+        generate_avatar_sas_url passes full URLs through untouched, resolves
+        pre-split paths against the old container, and returns the input
+        unchanged when Azure isn't configured — safe for all three.
         """
         if not self.avatar_url:
             return None
-        from app.utils.azure_storage import generate_sas_url
+        from app.utils.azure_storage import generate_avatar_sas_url
 
-        return generate_sas_url(self.avatar_url)
+        return generate_avatar_sas_url(self.avatar_url)
 
     @property
     def bmi(self):

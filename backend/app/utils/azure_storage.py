@@ -3,7 +3,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 
-from azure.core.exceptions import ResourceNotFoundError
+from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
 from azure.storage.blob import (
     BlobPrefix,
     BlobServiceClient,
@@ -15,6 +15,11 @@ from azure.storage.blob import (
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+# Avatars used to be stored in the video container under this prefix. It is now
+# what tells a legacy path from a new one — see generate_avatar_sas_url.
+# Nothing writes it any more.
+LEGACY_AVATAR_PREFIX = "avatars/"
 
 
 def get_blob_service_client() -> BlobServiceClient | None:
@@ -86,6 +91,25 @@ def generate_scan_sas_url(blob_name: str, expiry_minutes: int | None = None) -> 
         blob_name,
         expiry_minutes=expiry_minutes,
         container=settings.AZURE_SCANS_CONTAINER_NAME,
+    )
+
+
+def generate_avatar_sas_url(blob_name: str, expiry_minutes: int | None = None) -> str:
+    """SAS URL for a profile photo, which lives in its own avatars container
+    (``settings.AZURE_AVATARS_CONTAINER_NAME``) rather than the video container.
+
+    Photos uploaded before that container existed were written into the video
+    container under an ``avatars/`` prefix. Those stored paths still start with
+    the prefix, so they keep resolving against the old container and existing
+    avatars don't 404 after the split — new uploads are bare ``<user-id>.<ext>``
+    names in the avatars container.
+    """
+    if blob_name.startswith(LEGACY_AVATAR_PREFIX):
+        return generate_sas_url(blob_name, expiry_minutes=expiry_minutes)
+    return generate_sas_url(
+        blob_name,
+        expiry_minutes=expiry_minutes,
+        container=settings.AZURE_AVATARS_CONTAINER_NAME,
     )
 
 
@@ -309,8 +333,40 @@ def blob_exists(blob_path: str) -> bool:
         return False
 
 
+def _upload_to_container(
+    container_name: str, file_data: bytes, blob_path: str, content_type: str
+) -> str:
+    """Upload raw bytes to *container_name*, creating the container if needed.
+
+    Returns ``blob_path`` on success, empty string when Azure isn't configured.
+    """
+    client = get_blob_service_client()
+    if not client or not container_name:
+        return ""
+    container = client.get_container_client(container_name)
+    content_settings = ContentSettings(content_type=content_type)
+    try:
+        container.upload_blob(
+            name=blob_path, data=file_data, content_settings=content_settings, overwrite=True
+        )
+    except ResourceNotFoundError:
+        # The container hasn't been provisioned on the storage account yet —
+        # true for the avatars container until its first upload. Created
+        # PRIVATE (the default), so reads still go through a SAS like every
+        # other blob; only the account key can write.
+        logger.info("_upload_to_container: creating missing container '%s'", container_name)
+        try:
+            container.create_container()
+        except ResourceExistsError:
+            pass  # another worker won the race
+        container.upload_blob(
+            name=blob_path, data=file_data, content_settings=content_settings, overwrite=True
+        )
+    return blob_path
+
+
 def upload_blob_file(file_data: bytes, blob_path: str, content_type: str = "video/mp4") -> str:
-    """Upload raw bytes to Azure Blob Storage.
+    """Upload raw bytes to the video container.
 
     Args:
         file_data: The raw bytes of the file.
@@ -320,17 +376,20 @@ def upload_blob_file(file_data: bytes, blob_path: str, content_type: str = "vide
     Returns:
         The ``blob_path`` on success, empty string on failure.
     """
-    client = get_blob_service_client()
-    if not client:
-        return ""
-    container = client.get_container_client(settings.AZURE_BLOB_CONTAINER_NAME)
-    container.upload_blob(
-        name=blob_path,
-        data=file_data,
-        content_settings=ContentSettings(content_type=content_type),
-        overwrite=True,
+    return _upload_to_container(
+        settings.AZURE_BLOB_CONTAINER_NAME, file_data, blob_path, content_type
     )
-    return blob_path
+
+
+def upload_avatar_file(file_data: bytes, blob_path: str, content_type: str) -> str:
+    """Upload a profile photo to the avatars container.
+
+    Kept separate from ``upload_blob_file`` so a photo can never land in the
+    video container, which the admin video browser lists wholesale.
+    """
+    return _upload_to_container(
+        settings.AZURE_AVATARS_CONTAINER_NAME, file_data, blob_path, content_type
+    )
 
 
 def delete_blob(blob_path: str) -> bool:

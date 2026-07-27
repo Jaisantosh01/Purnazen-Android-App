@@ -5,21 +5,20 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  StatusBar,
   RefreshControl,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import SkeletonBox from '../components/SkeletonLoader';
+import TabHeader from '../components/TabHeader';
 import { SPACING, RADIUS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
+import { reliefCardColors } from '../utils/cardTheme';
 
 const ReliefScreen = ({ navigation }) => {
-  const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
+  const { colors, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [items, setItems]             = useState([]);
   const [isLoading, setIsLoading]     = useState(true);
@@ -54,8 +53,6 @@ const ReliefScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.headerBg} />
-
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 30 }}
@@ -69,12 +66,10 @@ const ReliefScreen = ({ navigation }) => {
         }
       >
         {/* Header */}
-        <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 16 }]}>
-          <Text style={styles.headerTitle}>Quick Relief</Text>
-          <Text style={styles.headerSubtitle}>
-            Instant acupressure therapy for common issues
-          </Text>
-        </View>
+        <TabHeader
+          title="Quick Relief"
+          subtitle="Instant acupressure therapy for common issues"
+        />
 
         {/* Grid */}
         {isLoading ? (
@@ -97,10 +92,19 @@ const ReliefScreen = ({ navigation }) => {
           </View>
         ) : (
           <View style={styles.grid}>
-            {items.map((item) => (
+            {items.map((item) => {
+              // Same resolution Home's QuickCard uses, so a card looks the same
+              // on both screens in either scheme.
+              const card = reliefCardColors({
+                bg: item.background_color || item.bgColor,
+                fg: item.text_color || item.iconColor,
+                colors,
+                isDark,
+              });
+              return (
               <TouchableOpacity
                 key={item.id || item.key}
-                style={[styles.card, { backgroundColor: item.background_color || item.bgColor || colors.primaryLight }]}
+                style={[styles.card, { backgroundColor: card.background }]}
                 activeOpacity={0.8}
                 onPress={() => {
                   if (item.chatQuestionId) {
@@ -121,21 +125,22 @@ const ReliefScreen = ({ navigation }) => {
                 <MCIcon
                   name={item.icon_name || item.icon || 'heart-pulse'}
                   size={32}
-                  color={item.text_color || item.iconColor || colors.primary}
+                  color={card.accent}
                   style={styles.cardIcon}
                 />
-                <Text style={[styles.cardTitle, { color: item.text_color || item.iconColor || colors.primary }]}>
+                <Text style={[styles.cardTitle, { color: card.title }]}>
                   {item.title}
                 </Text>
-                <Text style={styles.cardSubtitle}>{item.subtitle}</Text>
+                <Text style={[styles.cardSubtitle, { color: card.subtitle }]}>{item.subtitle}</Text>
                 <View style={styles.cardFooter}>
-                  <Text style={[styles.cardCta, { color: item.text_color || item.iconColor || colors.primary }]}>
+                  <Text style={[styles.cardCta, { color: card.accent }]}>
                     Start
                   </Text>
-                  <MCIcon name="arrow-right" size={16} color={item.text_color || item.iconColor || colors.primary} />
+                  <MCIcon name="arrow-right" size={16} color={card.accent} />
                 </View>
               </TouchableOpacity>
-            ))}
+              );
+            })}
           </View>
         )}
       </ScrollView>
@@ -147,15 +152,6 @@ export default ReliefScreen;
 
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  header: {
-    backgroundColor: colors.headerBg,
-    paddingHorizontal: SPACING.xl,
-    paddingBottom: 28,
-    borderBottomLeftRadius: RADIUS.lg,
-    borderBottomRightRadius: RADIUS.lg,
-  },
-  headerTitle:    { fontSize: 26, fontWeight: '700', color: colors.white, marginBottom: 6 },
-  headerSubtitle: { fontSize: 13, color: 'rgba(255,255,255,0.85)' },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -182,7 +178,7 @@ const makeStyles = colors => StyleSheet.create({
   },
   cardIcon:     { marginBottom: SPACING.sm },
   cardTitle:    { fontSize: 16, fontWeight: '700', marginBottom: SPACING.xs },
-  cardSubtitle: { fontSize: 12, color: colors.textSecondary, marginBottom: 12, flexShrink: 1 },
+  cardSubtitle: { fontSize: 12, marginBottom: 12, flexShrink: 1 },
   cardFooter:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   cardCta:      { fontSize: 12, fontWeight: '700' },
   errorBox: {
