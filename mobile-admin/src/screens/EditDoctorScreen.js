@@ -9,6 +9,7 @@ import {
   Modal,
   FlatList,
   Linking,
+  Switch,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -78,6 +79,7 @@ const EditDoctorScreen = ({ route, navigation }) => {
   const [selectedConsultationTypes, setSelectedConsultationTypes] = useState({});
   // Per-clinic scratch field for the "paste a maps link" helper (index -> text)
   const [locationPastes, setLocationPastes] = useState({});
+  const [isAddingClinic, setIsAddingClinic] = useState(false);
 
   useEffect(() => {
     if (!doctorId) {
@@ -92,7 +94,8 @@ const EditDoctorScreen = ({ route, navigation }) => {
         fee: 0,
         specialty_ids: [],
         expertise_ids: [],
-        language_ids: []
+        language_ids: [],
+        is_active: true,
       });
       // Fetch metadata for new doctor
       Promise.all([
@@ -130,6 +133,7 @@ const EditDoctorScreen = ({ route, navigation }) => {
         education: doc.education || '',
         experience: doc.experience || 0,
         fee: doc.fee || 0,
+        is_active: doc.is_active !== false,
       });
       setSpecialties(specRes.data || specRes || []);
       setAllExpertise(expRes.data || expRes || []);
@@ -180,6 +184,21 @@ const EditDoctorScreen = ({ route, navigation }) => {
     if (missing.length) {
         showAlert('Validation Error', `Please fill in: ${missing.join(', ')}`);
         return;
+    }
+
+    const missingConsultPrices = Object.entries(selectedConsultationTypes)
+      .filter(([, { price }]) => !price?.trim())
+      .map(([id]) => {
+        const t = consultationTypes.find(ct => ct.id === Number(id));
+        return t?.name || `type ${id}`;
+      });
+    if (missingConsultPrices.length) {
+      showAlert(
+        'Validation Error',
+        `Set a price for: ${missingConsultPrices.join(', ')}.\nLeave it unchecked if you don't offer this mode.`,
+      );
+      setLoading(false);
+      return;
     }
 
     const clinics = editedDoctor.clinics || [];
@@ -287,8 +306,6 @@ const EditDoctorScreen = ({ route, navigation }) => {
   };
 
   const clinics = editedDoctor?.clinics || [];
-  const isClinicComplete = clinic =>
-    clinic?.name?.trim() && clinic?.address?.trim() && clinic?.city?.trim();
   // Guard against stacking up half-filled clinic cards: the last one has to be
   // finished (or removed) before another can be started.
   const pendingClinicIndex = clinics.findIndex(clinic => !isClinicComplete(clinic));
@@ -381,6 +398,18 @@ const EditDoctorScreen = ({ route, navigation }) => {
           Fields marked <Text style={styles.requiredStar}>*</Text> are required.
         </Text>
 
+        {doctorId && (
+          <View style={styles.activeToggleRow}>
+            <Text style={styles.activeToggleLabel}>Active</Text>
+            <Switch
+              value={!!editedDoctor.is_active}
+              onValueChange={val => setEditedDoctor(prev => ({ ...prev, is_active: val }))}
+              trackColor={{ false: colors.surfaceMuted, true: colors.primaryLight }}
+              thumbColor={editedDoctor.is_active ? colors.primary : colors.textMuted}
+            />
+          </View>
+        )}
+
         {doctorId ? (
             <>
                 <Text style={styles.sectionLabel}>Account Details</Text>
@@ -430,7 +459,7 @@ const EditDoctorScreen = ({ route, navigation }) => {
 
         <Text style={styles.sectionLabel}>Consultation Modes</Text>
         <Text style={styles.subLabel}>
-          Pick the visit types this doctor offers. Leave a price blank to charge the base fee.
+          Pick the visit types this doctor offers. Price is required for every selected mode.
         </Text>
         {consultationTypes.length === 0 ? (
           <Text style={styles.noSlots}>No consultation types configured.</Text>
@@ -450,15 +479,18 @@ const EditDoctorScreen = ({ route, navigation }) => {
                   />
                   <Text style={styles.consultTypeName}>{type.name}</Text>
                 </TouchableOpacity>
-                <TextInput
-                  style={[styles.input, styles.consultPriceInput, !selected && styles.disabled]}
-                  value={selected ? (selectedConsultationTypes[type.id].price ?? '') : ''}
-                  onChangeText={val => setConsultationPrice(type.id, val)}
-                  placeholder={editedDoctor.fee ? `₹${editedDoctor.fee}` : 'Price'}
-                  placeholderTextColor={colors.textMuted}
-                  keyboardType="numeric"
-                  editable={selected}
-                />
+                <View style={styles.consultPriceWrapper}>
+                  <TextInput
+                    style={[styles.input, styles.consultPriceInput, !selected && styles.disabled]}
+                    value={selected ? (selectedConsultationTypes[type.id].price ?? '') : ''}
+                    onChangeText={val => setConsultationPrice(type.id, val)}
+                    placeholder={editedDoctor.fee ? `₹${editedDoctor.fee}` : 'Price'}
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="numeric"
+                    editable={selected}
+                  />
+                  {selected && <Text style={styles.requiredStar}>*</Text>}
+                </View>
               </View>
             );
           })
@@ -626,10 +658,13 @@ const makeStyles = colors => StyleSheet.create({
   requiredHint: { fontSize: 12, color: colors.textMuted, marginBottom: 4 },
   input: { backgroundColor: colors.card, borderRadius: 8, padding: 12, borderWidth: 1, borderColor: colors.borderStrong, color: colors.textPrimary },
   disabled: { backgroundColor: colors.surfaceMuted, opacity: 0.6 },
+  activeToggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 4, marginBottom: 4 },
+  activeToggleLabel: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
   consultTypeRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 12 },
   consultTypeToggle: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 8 },
   consultTypeName: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
-  consultPriceInput: { width: 110, paddingVertical: 8, textAlign: 'right' },
+  consultPriceInput: { width: 100, paddingVertical: 8, textAlign: 'right' },
+  consultPriceWrapper: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   tagScroll: { marginTop: 8, marginBottom: 4 },
   tag: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: colors.primaryLight, borderRadius: 16, marginRight: 8 },
   tagText: { color: colors.primary, fontSize: 13, fontWeight: '500' },
