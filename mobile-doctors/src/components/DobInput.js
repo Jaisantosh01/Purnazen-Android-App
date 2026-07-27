@@ -33,11 +33,8 @@ export const validateDobParts = ({ dd = '', mm = '', yyyy = '' } = {}) => {
  * placeholder parks the caret after the hint (at the right edge).
  *
  * The input and the hint sit in the *same* absolutely-filled, flex-centred
- * wrapper and are both given an explicit one-line height, so both are placed by
- * the identical mechanism. Relying on the input's `textAlignVertical` instead
- * (the previous approach) is what left the typed date sitting off-centre in the
- * box on Android, where that property is measured against the font's own
- * metrics rather than the box. The hint is keyed on `value` only, not on focus:
+ * wrapper and are both given the identical one-line height, so both are placed
+ * by the identical mechanism. The hint is keyed on `value` only, not on focus:
  * hiding it the instant the field was tapped is what read as a flicker.
  */
 const Box = ({ styles, hint, boxStyle, inputRef, value, onChange, maxLength }) => {
@@ -123,13 +120,18 @@ export default function DobInput({ value, onChange }) {
 }
 
 // The input and the hint share every metric that affects where a glyph lands,
-// so a change to one has to be mirrored in the other. LINE_HEIGHT is also the
+// so a change to one has to be mirrored in the other. GLYPH_BOX is also the
 // height both are laid out at, which is what lets the shared flex-centred
 // wrapper position them identically.
-const LINE_HEIGHT = 22;
+//
+// Deliberately no `lineHeight`: Android renders it through a line-height span
+// that pins the glyph to the bottom of the line box rather than its middle, so
+// on a TextInput it drags the typed date below centre no matter how the box
+// around it is aligned. Without it the font's own metrics decide, and
+// `textAlignVertical` centres those inside GLYPH_BOX.
+const GLYPH_BOX = 20;
 const GLYPH = {
-  fontSize: 16,
-  lineHeight: LINE_HEIGHT,
+  fontSize: 15,
   fontWeight: '600',
   includeFontPadding: false, // Android: drop the font's built-in leading
   textAlign: 'center',
@@ -138,9 +140,12 @@ const GLYPH = {
 
 const makeStyles = colors => StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  // 44px matches the gender chips directly above and the text inputs above
+  // those. At 52 the date row stood a full field-height taller than the rest of
+  // the profile form, which is what made it look out of line.
   box: {
     flex: 1,
-    height: 52,
+    height: 44,
     backgroundColor: colors.surfaceMuted,
     borderWidth: 1.5,
     borderColor: colors.border,
@@ -159,15 +164,16 @@ const makeStyles = colors => StyleSheet.create({
   input: {
     ...GLYPH,
     width: '100%',
-    height: LINE_HEIGHT,
+    height: GLYPH_BOX,
     color: colors.textPrimary,
     padding: 0,
   },
   placeholder: {
     ...GLYPH,
-    height: LINE_HEIGHT,
+    width: '100%',
+    height: GLYPH_BOX,
     color: colors.textMuted,
     padding: 0,
   },
-  sep: { fontSize: 18, color: colors.textMuted, fontWeight: '700' },
+  sep: { fontSize: 16, color: colors.textMuted, fontWeight: '700' },
 });

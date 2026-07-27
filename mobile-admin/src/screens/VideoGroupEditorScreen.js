@@ -310,7 +310,8 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
       groupId,
       setItems,
       setExpandedId,
-      showAlert
+      showAlert,
+      items
     );
   };
 
@@ -860,12 +861,14 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
               value={item.saveAs || ''}
               onChangeText={t => {
                 const existingNames = new Set(dirFiles.map(f => (f.name || '').split('/').pop()?.toLowerCase().trim()));
-                const isDup = existingNames.has(t.toLowerCase().trim());
-                  updateItem(item.id, {
-                    saveAs: t,
-                    status: isDup ? 'failed' : 'pending',
-                    error: isDup ? 'A file with this name already exists in this folder.' : null,
-                  });
+                // With Overwrite already on, renaming onto an existing file is
+                // the intent — don't re-fail the row for it.
+                const clash = existingNames.has(t.toLowerCase().trim()) && !item.overwrite;
+                updateItem(item.id, {
+                  saveAs: t,
+                  status: clash ? 'failed' : 'pending',
+                  error: clash ? 'A file with this name already exists — tick Overwrite or pick another name.' : null,
+                });
               }}
               editable={!uploading && item.status !== 'done'}
               autoCapitalize="none"

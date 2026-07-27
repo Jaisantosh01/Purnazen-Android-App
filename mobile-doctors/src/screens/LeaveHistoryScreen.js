@@ -102,26 +102,33 @@ const getLeaveCardDate = (item) => {
   return `${start} - ${end}`;
 };
 
-const getLeaveDurationText = (item) => {
+const getLeaveDayCount = (item) => {
+  const start = item.start_date || item.startDate || item.leaveDate;
+  const end = item.end_date || item.endDate || start;
+  if (!start) return 0;
+  const ms = new Date(end).setHours(0, 0, 0, 0) - new Date(start).setHours(0, 0, 0, 0);
+  if (Number.isNaN(ms)) return 0;
+  return Math.max(1, Math.round(ms / 86400000) + 1);
+};
+
+// The clock row is deliberately date-free. It used to re-render the same date
+// range the calendar row above already shows — for every `single`/`multiple`
+// leave without times the two rows printed byte-identical text, which is what
+// made the cards look duplicated and padded out. Here it carries only what the
+// date can't say: the time window, the slot count, or the span in days.
+const getLeaveTimeText = (item) => {
   const type = item.leaveType || item.leave_type || item.type;
   const startT = item.startTime || item.start_time;
   const endT = item.endTime || item.end_time;
-  const start = formatDateStr(item.start_date || item.startDate || item.leaveDate);
-  const end = formatDateStr(item.end_date || item.endDate || item.leaveDate);
-  const dateRange = (!start || start === end) ? start : `${start} - ${end}`;
 
-  if (type === 'single') {
-    if (startT && endT) {
-      return `${dateRange} ${formatTime(startT)} - ${formatTime(endT)}`;
-    }
-    return dateRange || 'Full Day';
-  } else if (type === 'multiple') {
-    return dateRange || 'Multiple Days';
-  } else if (type === 'custom') {
+  if (type === 'custom') {
     const slotCount = item.slots?.length || 0;
-    return `${dateRange} (${slotCount} Slot${slotCount !== 1 ? 's' : ''})`;
+    return `${slotCount} slot${slotCount !== 1 ? 's' : ''}`;
   }
-  return dateRange || 'Full Day';
+  if (startT && endT) return `${formatTime(startT)} - ${formatTime(endT)}`;
+
+  const days = getLeaveDayCount(item);
+  return days > 1 ? `Full day · ${days} days` : 'Full day';
 };
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
@@ -223,7 +230,7 @@ const LeaveHistoryScreen = ({ route, navigation }) => {
 
           <View style={styles.historyCardMetaRow}>
             <MCIcon name="clock-outline" size={14} color={colors.textSecondary} />
-            <Text style={styles.historyCardMetaText} numberOfLines={1}>{getLeaveDurationText(item)}</Text>
+            <Text style={styles.historyCardMetaText} numberOfLines={1}>{getLeaveTimeText(item)}</Text>
           </View>
 
           {(appliedAt || sDateText) ? (
@@ -320,9 +327,17 @@ const LeaveHistoryScreen = ({ route, navigation }) => {
           {/* Filtered History List */}
           <FlatList
             data={filteredLeaves}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item) => String(item.id)}
             renderItem={renderItem}
-            contentContainerStyle={styles.list}
+            style={styles.listScroll}
+            // `flexGrow: 1` only when empty: it is what lets the empty state
+            // actually centre itself. The empty view used to carry `flex: 1`,
+            // which resolves to a 0 basis inside a content-sized container — so
+            // it collapsed to its own 80px padding and left a tall blank gap.
+            contentContainerStyle={[
+              styles.list,
+              filteredLeaves.length === 0 && styles.listEmpty,
+            ]}
             showsVerticalScrollIndicator={false}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
@@ -349,19 +364,24 @@ const makeStyles = colors =>
   StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1 },
-  list: { paddingHorizontal: SPACING.lg, paddingBottom: 40 },
+  // The list owns every pixel the chip row and search bar don't, rather than
+  // splitting the leftover height with them.
+  listScroll: { flex: 1 },
+  list: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.xl },
+  listEmpty: { flexGrow: 1, justifyContent: 'center' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: SPACING.md },
   errorText: { fontSize: 14.5, color: colors.textSecondary, textAlign: 'center', paddingHorizontal: SPACING.xl },
   retryBtn: { backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: RADIUS.md },
   retryBtnText: { color: colors.white, fontWeight: '800', fontSize: 14 },
 
-  // A horizontal ScrollView in a flex column stretches to the leftover height
-  // unless it's told not to, which is what padded the chip row out with dead
-  // space above and below it.
+  // RN gives every ScrollView `flexGrow: 1`, so a horizontal one in this flex
+  // column would claim a share of the leftover height instead of hugging its
+  // chips. props.style composes over that base style, so this pins it to
+  // content height.
   statusChipScroll: { flexGrow: 0, flexShrink: 0 },
   statusChipRow: {
     paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.xs,
+    paddingVertical: SPACING.sm,
     gap: SPACING.sm,
     alignItems: 'center',
   },
@@ -492,10 +512,9 @@ const makeStyles = colors =>
   },
 
   emptyStateContainer: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 80,
+    paddingVertical: SPACING.xxl,
     gap: 8,
   },
   emptyStateIcon: {

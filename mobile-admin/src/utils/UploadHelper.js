@@ -5,6 +5,21 @@ import { titleFromFilename } from './fileUtils';
 
 const VIDEO_MIME_TYPES = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'video/webm', 'video/ogg'];
 
+const baseName = (path) => (path || '').split('/').pop() || '';
+
+/** Human label for the folder an upload is headed to, for use in prompts. */
+const folderLabel = (path) => {
+  const clean = (path || '').replace(/\/$/, '');
+  if (!clean || clean === '/') return 'the root folder';
+  return `"${baseName(clean)}"`;
+};
+
+// The picker runs in its own Android activity. A Modal opened on the frame that
+// activity finishes dismissing can end up mounted but never presented, which is
+// why the duplicate prompt appeared to do nothing — give the host activity a
+// beat to come back to the foreground first.
+const ALERT_AFTER_PICKER_MS = 350;
+
 export const handlePickFiles = async (
   currentPath,
   selectedDir,
@@ -12,8 +27,15 @@ export const handlePickFiles = async (
   defaultGroupId,
   setItems,
   setExpandedId,
-  showAlert
+  showAlert,
+  queuedItems = []
 ) => {
+  // showAlert is backed by a single store slot, so two calls in a row leave only
+  // the last one standing. Everything below routes through this to keep it to
+  // one dialog per pick.
+  const notify = (title, message, buttons) =>
+    setTimeout(() => showAlert(title, message, buttons), ALERT_AFTER_PICKER_MS);
+
   try {
     const result = await DocumentPicker.getDocumentAsync({
       type: 'video/*',
@@ -26,10 +48,11 @@ export const handlePickFiles = async (
       const mime = (f.mimeType || '').toLowerCase();
       return mime.startsWith('video/') || VIDEO_MIME_TYPES.includes(mime);
     });
-    if (videos.length < assets.length) {
-      showAlert('Some files skipped', 'Only video files are allowed');
+    const skipped = assets.length - videos.length;
+    if (videos.length === 0) {
+      if (skipped) notify('Some files skipped', 'Only video files are allowed');
+      return;
     }
-    if (videos.length === 0) return;
 
     let freshList = [];
     try {
@@ -41,43 +64,102 @@ export const handlePickFiles = async (
     } catch {
       freshList = dirFiles;
     }
-    const existingNames = new Set(freshList.map(f => (f.name || '').split('/').pop()?.toLowerCase().trim()));
+    const existingNames = new Set(freshList.map(f => baseName(f.name).toLowerCase().trim()));
+    // Rows already uploaded are not a conflict — re-picking one is a fresh
+    // upload of a file that now only exists server-side.
+    const queuedNames = new Set(
+      (queuedItems || [])
+        .filter(it => it.status !== 'done')
+        .map(it => baseName(it.file?.name).toLowerCase().trim())
+        .filter(Boolean),
+    );
 
-    const newItems = videos.map((file, i) => {
-      const saveAs = file.name || `video_${i}.mp4`;
-      const isDup = existingNames.has(saveAs.toLowerCase().trim());
-      return {
-        id: `${Date.now()}_${i}_${file.name}`,
-        file,
-        saveAs,
-        title: titleFromFilename(file.name),
-        description: '',
-        duration: '',
-        icon: 'play-circle',
-        groupId: defaultGroupId,
-        sessionId: null,
-        overwrite: false,
-        status: isDup ? 'failed' : 'pending',
-        error: isDup ? `"${saveAs}" already exists in this folder.` : null,
-      };
+    const makeItem = (file, i, overwrite) => ({
+      id: `${Date.now()}_${i}_${file.name}`,
+      file,
+      saveAs: file.name || `video_${i}.mp4`,
+      title: titleFromFilename(file.name),
+      description: '',
+      duration: '',
+      icon: 'play-circle',
+      groupId: defaultGroupId,
+      sessionId: null,
+      overwrite,
+      status: 'pending',
+      error: null,
     });
-    setItems(prev => {
-      const updated = [...prev];
-      for (const newItem of newItems) {
-        const existingIdx = updated.findIndex(
-          it => it.status === 'failed' && it.file?.name === newItem.file?.name
-        );
-        if (existingIdx >= 0) {
-          updated[existingIdx] = newItem;
-        } else {
-          updated.push(newItem);
+
+    // Fold into the queue, replacing any not-yet-uploaded row for the same
+    // source file, so re-picking a video never leaves two rows for one upload.
+    const queue = (newItems) => {
+      if (!newItems.length) return;
+      setItems(prev => {
+        const updated = [...prev];
+        for (const newItem of newItems) {
+          const existingIdx = updated.findIndex(
+            it => it.status !== 'done' && it.file?.name === newItem.file?.name
+          );
+          if (existingIdx >= 0) updated[existingIdx] = newItem;
+          else updated.push(newItem);
         }
-      }
-      return updated;
-    });
-    if (newItems.length === 1) setExpandedId(newItems[0].id);
+        return updated;
+      });
+      if (newItems.length === 1) setExpandedId(newItems[0].id);
+    };
+
+    // Picking a video that's already spoken for is a decision, not an error, and
+    // it happens two ways: the file is already sitting in the upload list, or a
+    // file of that name is already stored in the target folder. Both used to
+    // resolve themselves silently — the queue row was replaced in place, and a
+    // stored clash was queued pre-failed behind an Overwrite checkbox hidden in
+    // the row's expander. Ask once, up front, for either.
+    const nameOf = file => (file.name || '').toLowerCase().trim();
+    const inFolder = file => existingNames.has(nameOf(file));
+    const inQueue = file => queuedNames.has(nameOf(file));
+
+    const conflicts = videos.filter(f => inQueue(f) || inFolder(f));
+    const newcomers = videos.filter(f => !inQueue(f) && !inFolder(f));
+
+    queue(newcomers.map((file, i) => makeItem(file, i, false)));
+
+    const skipNote = skipped
+      ? `\n\n${skipped} non-video file${skipped > 1 ? 's were' : ' was'} skipped.`
+      : '';
+
+    if (!conflicts.length) {
+      if (skipped) notify('Some files skipped', 'Only video files are allowed');
+      return;
+    }
+
+    const many = conflicts.length > 1;
+    const where = file =>
+      inQueue(file)
+        ? 'already added to this upload'
+        : `already in ${folderLabel(selectedDir || currentPath)}`;
+    const lines = conflicts.map(f => `• ${f.name} — ${where(f)}`).join('\n');
+
+    notify(
+      many ? `${conflicts.length} videos already added` : 'Video already added',
+      `${lines}\n\nOverwrite ${many ? 'them' : 'it'}, or cancel and leave ` +
+        `${many ? 'them' : 'it'} as ${many ? 'they are' : 'it is'}?${skipNote}`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Overwrite',
+          style: 'destructive',
+          // `overwrite` only means "replace the stored blob", so it is set from
+          // the folder check alone — a file that merely repeats a queued row has
+          // nothing on the server to replace yet. The index is offset past the
+          // newcomers so the generated ids stay unique when both batches land in
+          // the same millisecond.
+          onPress: () => queue(
+            conflicts.map((file, i) => makeItem(file, newcomers.length + i, inFolder(file))),
+          ),
+        },
+      ],
+    );
   } catch (err) {
-    showAlert('Error', 'Failed to pick video files');
+    notify('Error', 'Failed to pick video files');
   }
 };
 
