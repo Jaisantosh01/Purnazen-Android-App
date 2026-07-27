@@ -17,7 +17,8 @@ import { ENDPOINTS } from '../constants/apiEndpoints';
 import { EditFormSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
-import { showAlert } from '../utils/alert';
+import { showAlert, showConfirm } from '../utils/alert';
+import { parseCoordinates, validateClinicLocation, mapsUrl } from '../utils/geo';
 import { _pullPendingClinic } from './ClinicAddressPickerScreen';
 
 const SelectionModal = ({ visible, onClose, title, data, selectedIds, onToggle }) => {
@@ -62,6 +63,7 @@ const EditDoctorScreen = ({ route, navigation }) => {
   const [slotTimingsByDay, setSlotTimingsByDay] = useState([]);
   const [selectedSlotIds, setSelectedSlotIds] = useState([]);
   const [isAddingClinic, setIsAddingClinic] = useState(false);
+  const [locationPastes, setLocationPastes] = useState({});
 
   useEffect(() => {
     if (!doctorId) {
@@ -166,7 +168,7 @@ const EditDoctorScreen = ({ route, navigation }) => {
         specialty_ids: editedDoctor.specialty_ids || [],
         slot_timing_ids: selectedSlotIds,
         // Lat/long come off text inputs — send numbers (or null), not strings.
-        clinics: clinicList.map(clinic => ({
+        clinics: clinics.map(clinic => ({
           ...clinic,
           latitude: clinic.latitude === '' || clinic.latitude == null ? null : Number(clinic.latitude),
           longitude: clinic.longitude === '' || clinic.longitude == null ? null : Number(clinic.longitude),
@@ -241,6 +243,8 @@ const EditDoctorScreen = ({ route, navigation }) => {
   };
 
   const clinics = editedDoctor?.clinics || [];
+  const isClinicComplete = clinic =>
+    clinic?.name?.trim() && clinic?.address?.trim() && clinic?.city?.trim();
   // Guard against stacking up half-filled clinic cards: the last one has to be
   // finished (or removed) before another can be started.
   const pendingClinicIndex = clinics.findIndex(clinic => !isClinicComplete(clinic));
@@ -487,7 +491,8 @@ const EditDoctorScreen = ({ route, navigation }) => {
               <Text style={{color: colors.danger, fontWeight: '600'}}>Remove Clinic</Text>
             </TouchableOpacity>
           </View>
-        ))}
+        );
+        })}
         <TouchableOpacity
           style={[styles.addBtn, isAddingClinic && { opacity: 0.5 }]}
           onPress={addClinic}
