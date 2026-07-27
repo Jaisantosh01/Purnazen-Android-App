@@ -62,6 +62,11 @@ class Settings(BaseSettings):
     # User uploads (face scan images, raw + processed). Kept apart from the
     # video container so scans never show up in the video catalog.
     AZURE_SCANS_CONTAINER_NAME: str = "uploads"
+    # Profile photos. Their own container for the same reason scans have one:
+    # avatars were previously written into the video container under an
+    # "avatars/" prefix, where the admin video browser listed them alongside
+    # the programme videos. Created on first upload if it doesn't exist.
+    AZURE_AVATARS_CONTAINER_NAME: str = "avatars"
     # SAS token lifetime for scan images (short-lived, per-request)
     AZURE_SAS_EXPIRY_MINUTES: int = 60
     # SAS token lifetime for video streaming (needs to outlive the longest video session)

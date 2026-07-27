@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -41,7 +42,7 @@ const ContentManagementScreen = ({ navigation }) => {
       .finally(() => setLoading(false));
   }, [filterRoleId, filterStatus]);
 
-  useEffect(() => { fetchPages(); }, [fetchPages]);
+  useFocusEffect(useCallback(() => { fetchPages(); }, [fetchPages]));
 
   const fetchRoles = () => {
     apiClient.get(ENDPOINTS.ROLES)

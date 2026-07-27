@@ -8,8 +8,9 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
-  Image,
+  Linking,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { showAlert } from '../utils/alert';
 // @ts-ignore
@@ -23,6 +24,7 @@ import { useAuthStore } from '../store/authStore';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 import AppVersionFooter from '../components/AppVersionFooter';
+import Avatar from '../components/Avatar';
 import ThemeToggle from '../components/ThemeToggle';
 import AppToggle from '../components/AppToggle';
 import GenderSelect from '../components/GenderSelect';
@@ -40,6 +42,7 @@ const HUES = {
   blue: '#0284C7',
   amber: '#F59E0B',
   rose: '#E11D48',
+  teal: '#0D9488',
 };
 const soft = hex => `${hex}22`;
 
@@ -114,21 +117,17 @@ const makeStyles = colors => StyleSheet.create({
   // Capped in pixels: a percentage max-height has nothing to resolve against
   // inside a content-sized modal overlay and Yoga silently drops it.
   modalScroll: { maxHeight: 420 },
-  modalSectionLabel: {
-    fontSize: 11, fontWeight: '800', letterSpacing: 0.8,
-    color: colors.textMuted, marginTop: 20, marginBottom: 4,
-  },
   modalHint: { fontSize: 11.5, lineHeight: 16, color: colors.textMuted, marginTop: 10 },
 
   avatarPicker: { alignItems: 'center', gap: 8, marginBottom: 6 },
+  // Same footprint as <Avatar size={72} borderWidth={1.5} />, used while the
+  // upload is in flight.
   avatarCircle: {
     width: 72, height: 72, borderRadius: 36, overflow: 'hidden',
     backgroundColor: colors.primaryFaint,
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1.5, borderColor: colors.border,
   },
-  avatarImage: { width: '100%', height: '100%' },
-  avatarLetter: { fontSize: 28, fontWeight: '800', color: colors.primary },
   avatarAction: { fontSize: 12.5, fontWeight: '700', color: colors.primary },
 
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -164,7 +163,7 @@ const makeStyles = colors => StyleSheet.create({
   modalBtnSaveText: { fontSize: 14, fontWeight: '600', color: colors.white },
 });
 
-const SettingsScreen = ({ navigation }) => {
+const SettingsScreen = ({ navigation, route }) => {
   const user = useAuthStore(state => state.user);
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -223,36 +222,49 @@ const SettingsScreen = ({ navigation }) => {
 
   // Hydrate the toggles/values from the server (defaults kept offline)
   React.useEffect(() => {
-    preferencesService.getPreferences()
-      .then(prefs => {
-        if (typeof prefs.locationEnabled === 'boolean') setLocationAccess(prefs.locationEnabled);
-      })
-      .catch(err => console.log('Preferences fetch failed:', err.message));
-
     biometricService.isEnabled().then(setBiometric).catch(() => {});
   }, []);
+
+  // Location reflects the OS grant *and* the stored preference, re-read on every
+  // focus: the user can change the permission in Android's App info and come
+  // straight back here, and nothing notifies the app when they do.
+  const syncLocation = React.useCallback(() => {
+    permissionsService
+      .locationStatus()
+      .then(({ effective }) => setLocationAccess(effective))
+      .catch(() => {});
+  }, []);
+
+  useFocusEffect(syncLocation);
 
   const savePreference = payload => {
     preferencesService.updatePreferences(payload)
       .catch(err => console.log('Preference save failed:', err.message));
   };
 
-  // Location — request the real OS permission, then persist the enabled flag.
+  // Location — one switch over both the OS permission and the stored preference.
   const toggleLocation = async value => {
-    if (!value) {
-      setLocationAccess(false);
-      savePreference({ locationEnabled: false });
-      return;
-    }
     setLocationBusy(true);
     try {
-      const granted = await permissionsService.enable('location');
+      if (!value) {
+        setLocationAccess(false);
+        await permissionsService.disableLocation();
+        return;
+      }
+      const { granted, blocked } = await permissionsService.enableLocation();
       setLocationAccess(granted);
-      savePreference({ locationEnabled: granted });
       if (!granted) {
         showAlert(
           'Location Permission',
-          'Location access was not granted. You can enable it from your device Settings.',
+          blocked
+            ? 'Android is no longer showing the permission prompt for this app. Turn Location on for Purnazen in your device settings.'
+            : 'Location access was not granted.',
+          blocked
+            ? [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Open Settings', onPress: () => Linking.openSettings() },
+              ]
+            : undefined,
         );
       }
     } catch {
@@ -287,7 +299,11 @@ const SettingsScreen = ({ navigation }) => {
   const [fullName, setFullName]               = useState('');
   const [gender, setGender]                   = useState('');
   const [dob, setDob]                         = useState({ dd: '', mm: '', yyyy: '' });
-  // Health profile — all optional, and all shown in My Health Report.
+  // Health profile — its own form. These are optional clinical notes shown in
+  // My Health Report and shared with the treating doctor, which is a different
+  // job from "who am I", and stacking both in one modal made Edit Profile a
+  // scrolling wall of fields.
+  const [showHealthDetails, setShowHealthDetails] = useState(false);
   const [bloodGroup, setBloodGroup]           = useState('');
   const [heightCm, setHeightCm]               = useState('');
   const [weightKg, setWeightKg]               = useState('');
@@ -317,6 +333,11 @@ const SettingsScreen = ({ navigation }) => {
     setFullName(user?.full_name || '');
     setGender(user?.gender || '');
     setDob(isoToParts(user?.date_of_birth));
+    setFormError('');
+    setShowEditProfile(true);
+  };
+
+  const openHealthDetails = () => {
     setBloodGroup(user?.blood_group || '');
     setHeightCm(user?.height_cm != null ? String(user.height_cm) : '');
     setWeightKg(user?.weight_kg != null ? String(user.weight_kg) : '');
@@ -324,8 +345,16 @@ const SettingsScreen = ({ navigation }) => {
     setConditions(user?.conditions || '');
     setMedications(user?.medications || '');
     setFormError('');
-    setShowEditProfile(true);
+    setShowHealthDetails(true);
   };
+
+  // Deep-link from the Profile header's photo — open straight into the form.
+  React.useEffect(() => {
+    if (route?.params?.openEditProfile) {
+      openEditProfile();
+      navigation.setParams({ openEditProfile: false });
+    }
+  }, [route?.params?.openEditProfile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pickAvatar = () => {
     if (avatarBusy) return;
@@ -468,6 +497,23 @@ const SettingsScreen = ({ navigation }) => {
     const parsedDob = validateDobParts(dob);
     if (!parsedDob.ok) { setFormError('Enter a valid date of birth.'); return; }
 
+    setIsSubmitting(true);
+    try {
+      await authService.updateProfile({
+        fullName: fullName.trim(),
+        gender: gender || undefined,
+        dateOfBirth: parsedDob.iso,
+      });
+      setShowEditProfile(false);
+      showAlert('Profile Updated', 'Your details have been saved.');
+    } catch (err) {
+      setFormError(err.message || 'Profile update failed.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSaveHealthDetails = async () => {
     const height = parseMeasure(heightCm, 'height in cm', 30, 280);
     if (!height.ok) { setFormError(height.message); return; }
     const weight = parseMeasure(weightKg, 'weight in kg', 2, 500);
@@ -476,9 +522,6 @@ const SettingsScreen = ({ navigation }) => {
     setIsSubmitting(true);
     try {
       await authService.updateProfile({
-        fullName: fullName.trim(),
-        gender: gender || undefined,
-        dateOfBirth: parsedDob.iso,
         bloodGroup: bloodGroup || undefined,
         // undefined leaves the stored value alone; the API treats "" as a clear.
         heightCm: height.value ?? undefined,
@@ -487,10 +530,10 @@ const SettingsScreen = ({ navigation }) => {
         conditions: conditions.trim(),
         medications: medications.trim(),
       });
-      setShowEditProfile(false);
-      showAlert('Profile Updated', 'Your details have been saved.');
+      setShowHealthDetails(false);
+      showAlert('Health Details Updated', 'Your health details have been saved.');
     } catch (err) {
-      setFormError(err.message || 'Profile update failed.');
+      setFormError(err.message || 'Could not save your health details.');
     } finally {
       setIsSubmitting(false);
     }
@@ -552,8 +595,16 @@ const SettingsScreen = ({ navigation }) => {
             <ArrowRow
               icon="account-edit-outline"
               title="Edit Profile"
-              subtitle="Update name, gender & date of birth"
+              subtitle="Photo, name, gender & date of birth"
               onPress={openEditProfile}
+            />
+            <View style={styles.rowDivider} />
+            <ArrowRow
+              icon="heart-pulse"
+              hue={HUES.teal}
+              title="Health Details"
+              subtitle="Blood group, height, weight & medical notes"
+              onPress={openHealthDetails}
             />
             <View style={styles.rowDivider} />
             <ArrowRow
@@ -624,7 +675,7 @@ const SettingsScreen = ({ navigation }) => {
               icon="map-marker-outline"
               hue={HUES.rose}
               title="Location Access"
-              subtitle="Used for nearby doctor search"
+              subtitle="Fills in your address from your current location"
               value={locationAccess}
               onToggle={toggleLocation}
               disabled={locationBusy}
@@ -665,8 +716,8 @@ const SettingsScreen = ({ navigation }) => {
         <AppVersionFooter />
       </ScrollView>
 
-      {/* Edit Profile modal — the form outgrew a static card once the health
-          fields landed, so the body scrolls and the actions stay pinned. */}
+      {/* Edit Profile modal — identity only. The health fields moved to their
+          own form below; together they overflowed a single modal. */}
       <Modal visible={showEditProfile} transparent animationType="fade"
         onRequestClose={() => setShowEditProfile(false)}>
         <View style={styles.modalOverlay}>
@@ -680,15 +731,13 @@ const SettingsScreen = ({ navigation }) => {
             >
               {/* Profile photo */}
               <TouchableOpacity style={styles.avatarPicker} onPress={pickAvatar} activeOpacity={0.8} disabled={avatarBusy}>
-                <View style={styles.avatarCircle}>
-                  {avatarBusy ? (
+                {avatarBusy ? (
+                  <View style={styles.avatarCircle}>
                     <ActivityIndicator size="small" color={colors.primary} />
-                  ) : user?.avatar_url ? (
-                    <Image source={{ uri: user.avatar_url }} style={styles.avatarImage} />
-                  ) : (
-                    <Text style={styles.avatarLetter}>{(user?.full_name || '?').charAt(0).toUpperCase()}</Text>
-                  )}
-                </View>
+                  </View>
+                ) : (
+                  <Avatar uri={user?.avatar_url} name={user?.full_name} size={72} borderWidth={1.5} />
+                )}
                 <Text style={styles.avatarAction}>
                   {avatarBusy ? 'Uploading\u2026' : user?.avatar_url ? 'Change photo' : 'Add a photo'}
                 </Text>
@@ -707,9 +756,34 @@ const SettingsScreen = ({ navigation }) => {
               <GenderSelect value={gender} onChange={v => { setGender(v); setFormError(''); }} />
               <Text style={styles.modalLabel}>Date of Birth</Text>
               <DobInput value={dob} onChange={d => { setDob(d); setFormError(''); }} />
+            </ScrollView>
 
-              <Text style={styles.modalSectionLabel}>HEALTH DETAILS</Text>
+            {formError ? <Text style={styles.modalError}>{formError}</Text> : null}
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnCancel]} onPress={() => setShowEditProfile(false)}>
+                <Text style={styles.modalBtnCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnSave]} onPress={handleSaveProfile} disabled={isSubmitting}>
+                {isSubmitting ? <ActivityIndicator size="small" color={colors.white} /> : <Text style={styles.modalBtnSaveText}>Save</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
+      {/* Health Details modal — optional clinical notes, saved independently of
+          the identity fields so neither form can fail on the other's input. */}
+      <Modal visible={showHealthDetails} transparent animationType="fade"
+        onRequestClose={() => setShowHealthDetails(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Health Details</Text>
+
+            <ScrollView
+              style={styles.modalScroll}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
               <Text style={styles.modalLabel}>Blood Group</Text>
               <View style={styles.chipWrap}>
                 {BLOOD_GROUPS.map(bg => {
@@ -789,10 +863,10 @@ const SettingsScreen = ({ navigation }) => {
 
             {formError ? <Text style={styles.modalError}>{formError}</Text> : null}
             <View style={styles.modalActions}>
-              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnCancel]} onPress={() => setShowEditProfile(false)}>
+              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnCancel]} onPress={() => setShowHealthDetails(false)}>
                 <Text style={styles.modalBtnCancelText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnSave]} onPress={handleSaveProfile} disabled={isSubmitting}>
+              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnSave]} onPress={handleSaveHealthDetails} disabled={isSubmitting}>
                 {isSubmitting ? <ActivityIndicator size="small" color={colors.white} /> : <Text style={styles.modalBtnSaveText}>Save</Text>}
               </TouchableOpacity>
             </View>

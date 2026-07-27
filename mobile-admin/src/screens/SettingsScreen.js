@@ -21,6 +21,8 @@ import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 import ThemeToggle from '../components/ThemeToggle';
 import AppToggle from '../components/AppToggle';
+import GenderSelect from '../components/GenderSelect';
+import DobInput, { isoToParts, validateDobParts } from '../components/DobInput';
 
 // Shared toggle ids with the backend user_preferences.notifications dict.
 const PREF_KEYS = {
@@ -162,6 +164,9 @@ const SettingsScreen = ({ navigation }) => {
   // Edit profile modal
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [fullName, setFullName]               = useState('');
+  const [profilePhone, setProfilePhone]       = useState('');
+  const [gender, setGender]                   = useState('');
+  const [dob, setDob]                         = useState({ dd: '', mm: '', yyyy: '' });
   // Edit phone modal
   const [showEditPhone, setShowEditPhone] = useState(false);
   const [phone, setPhone]                 = useState('');
@@ -183,6 +188,9 @@ const SettingsScreen = ({ navigation }) => {
 
   const openEditProfile = () => {
     setFullName(user?.full_name || '');
+    setProfilePhone(user?.phone || '');
+    setGender(user?.gender || '');
+    setDob(isoToParts(user?.date_of_birth));
     setFormError('');
     setShowEditProfile(true);
   };
@@ -277,11 +285,28 @@ const SettingsScreen = ({ navigation }) => {
 
   const handleSaveProfile = async () => {
     if (!fullName.trim()) { setFormError('Name cannot be empty.'); return; }
+    const trimmedPhone = profilePhone.trim();
+    if (trimmedPhone && !/^[+0-9 ()-]{6,15}$/.test(trimmedPhone)) {
+      setFormError('Enter a valid phone number.');
+      return;
+    }
+    const parsedDob = validateDobParts(dob);
+    if (!parsedDob.ok) {
+      setFormError('Enter a valid date of birth (DD/MM/YYYY).');
+      return;
+    }
     setIsSubmitting(true);
     try {
-      await authService.updateProfile({ fullName: fullName.trim() });
+      await authService.updateProfile({
+        fullName: fullName.trim(),
+        // undefined leaves the stored value alone. Phone in particular must not
+        // be sent as "" — the API's phone pattern rejects an empty string.
+        phone: trimmedPhone || undefined,
+        gender: gender || undefined,
+        dateOfBirth: parsedDob.iso,
+      });
       setShowEditProfile(false);
-      showAlert('Profile Updated', 'Your name has been updated.');
+      showAlert('Profile Updated', 'Your details have been saved.');
     } catch (err) {
       setFormError(err.message || 'Profile update failed.');
     } finally {
@@ -336,7 +361,7 @@ const SettingsScreen = ({ navigation }) => {
             <ArrowRow
               icon="account-edit-outline"
               title="Edit Profile"
-              subtitle="Update your name"
+              subtitle="Name, phone, gender and date of birth"
               onPress={openEditProfile}
             />
             <View style={styles.rowDivider} />
@@ -441,15 +466,34 @@ const SettingsScreen = ({ navigation }) => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Edit Profile</Text>
-            <Text style={styles.modalLabel}>Full Name</Text>
-            <TextInput
-              style={styles.modalInput}
-              value={fullName}
-              onChangeText={text => { setFullName(text); setFormError(''); }}
-              placeholder="Your name"
-              placeholderTextColor={colors.textMuted}
-              autoCapitalize="words"
-            />
+            <ScrollView
+              style={styles.modalScroll}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={styles.modalLabel}>Full Name</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={fullName}
+                onChangeText={text => { setFullName(text); setFormError(''); }}
+                placeholder="Your name"
+                placeholderTextColor={colors.textMuted}
+                autoCapitalize="words"
+              />
+              <Text style={styles.modalLabel}>Phone Number</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={profilePhone}
+                onChangeText={text => { setProfilePhone(text); setFormError(''); }}
+                placeholder="+91 98765 43210"
+                placeholderTextColor={colors.textMuted}
+                keyboardType="phone-pad"
+              />
+              <Text style={styles.modalLabel}>Gender</Text>
+              <GenderSelect value={gender} onChange={v => { setGender(v); setFormError(''); }} />
+              <Text style={styles.modalLabel}>Date of Birth</Text>
+              <DobInput value={dob} onChange={d => { setDob(d); setFormError(''); }} />
+            </ScrollView>
             {formError ? <Text style={styles.modalError}>{formError}</Text> : null}
             <View style={styles.modalActions}>
               <TouchableOpacity style={[styles.modalBtn, styles.modalBtnCancel]} onPress={() => setShowEditProfile(false)}>
@@ -708,6 +752,8 @@ const makeStyles = colors => StyleSheet.create({
     elevation: 12,
   },
   modalTitle: { fontSize: 17, fontWeight: '700', color: colors.textPrimary, marginBottom: 16 },
+  // Caps the profile form so a tall keyboard can't push the actions off-screen.
+  modalScroll: { maxHeight: 420 },
   modalLabel: { fontSize: 12, fontWeight: '600', color: colors.textSecondary, marginBottom: 6, marginTop: 8 },
   modalInput: {
     borderWidth: 1,

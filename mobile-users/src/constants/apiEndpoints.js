@@ -117,8 +117,11 @@ export const ENDPOINTS = {
   THERAPY_FEEDBACK_BY_SESSION: (sessionGroupId) => `${API_VERSION}/therapy-feedback/by-session/${sessionGroupId}`,
   THERAPY_FEEDBACK_PAIN_AFTER: (feedbackId) => `${API_VERSION}/therapy-feedback/${feedbackId}/pain-after`,
 
-  // Therapy History — completed count
-  THERAPY_HISTORY_COMPLETED_COUNT: (groupId) => `${API_VERSION}/therapy-history/completed-count/${groupId}`,
+  // Therapy History — completed count. Pass sessionGroupId to count only the
+  // current sitting, not every run the user has ever done in this group.
+  THERAPY_HISTORY_COMPLETED_COUNT: (groupId, sessionGroupId) =>
+    `${API_VERSION}/therapy-history/completed-count/${groupId}` +
+    (sessionGroupId ? `?sessionGroupId=${sessionGroupId}` : ''),
 
   // Therapy Session Groups
   START_THERAPY_SESSION: `${API_VERSION}/therapy-history/start-session`,

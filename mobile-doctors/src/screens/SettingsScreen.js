@@ -9,6 +9,7 @@ import {
   TextInput,
   ActivityIndicator,
 } from 'react-native';
+import { launchImageLibrary } from 'react-native-image-picker';
 import { showAlert } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -20,6 +21,7 @@ import { useAuthStore } from '../store/authStore';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 import AppVersionFooter from '../components/AppVersionFooter';
+import Avatar from '../components/Avatar';
 import GenderSelect from '../components/GenderSelect';
 import DobInput, { isoToParts, validateDobParts } from '../components/DobInput';
 import ThemeToggle from '../components/ThemeToggle';
@@ -46,7 +48,7 @@ const soft = hex => `${hex}22`;
 // changed nothing on screen. Removed rather than left as a lie — bring it back
 // together with real i18n (the `language` preference column is still there).
 
-const SettingsScreen = ({ navigation }) => {
+const SettingsScreen = ({ navigation, route }) => {
   const doctor = useAuthStore(state => state.doctor);
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -150,6 +152,7 @@ const SettingsScreen = ({ navigation }) => {
   const [fullName, setFullName]               = useState('');
   const [gender, setGender]                   = useState('');
   const [dob, setDob]                         = useState({ dd: '', mm: '', yyyy: '' });
+  const [avatarBusy, setAvatarBusy]           = useState(false);
   // Edit phone modal
   const [showEditPhone, setShowEditPhone] = useState(false);
   const [phone, setPhone]                 = useState('');
@@ -173,6 +176,36 @@ const SettingsScreen = ({ navigation }) => {
     setDob(isoToParts(doctor?.date_of_birth));
     setFormError('');
     setShowEditProfile(true);
+  };
+
+  // Deep-link from the Profile header's photo — open straight into the form.
+  React.useEffect(() => {
+    if (route?.params?.openEditProfile) {
+      openEditProfile();
+      navigation.setParams({ openEditProfile: false });
+    }
+  }, [route?.params?.openEditProfile]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /**
+   * Pick and upload a profile photo. The upload is its own request (multipart
+   * to /users/me/avatar) and lands immediately — it isn't held until Save, so
+   * the store updates as soon as the server confirms and every screen showing
+   * the doctor's photo re-renders.
+   */
+  const pickAvatar = () => {
+    if (avatarBusy) return;
+    launchImageLibrary({ mediaType: 'photo', quality: 0.85, maxWidth: 1024, maxHeight: 1024 }, async (resp) => {
+      const uri = resp?.assets?.[0]?.uri;
+      if (resp?.didCancel || !uri) return;
+      setAvatarBusy(true);
+      try {
+        await authService.uploadAvatar(uri);
+      } catch (err) {
+        setFormError(err.message || 'Could not upload the photo.');
+      } finally {
+        setAvatarBusy(false);
+      }
+    });
   };
 
   const openEditPhone = () => {
@@ -330,7 +363,7 @@ const SettingsScreen = ({ navigation }) => {
             <ArrowRow
               icon="account-edit-outline"
               title="Edit Profile"
-              subtitle="Update name, gender & date of birth"
+              subtitle="Photo, name, gender & date of birth"
               onPress={openEditProfile}
             />
             <View style={styles.rowDivider} />
@@ -426,6 +459,21 @@ const SettingsScreen = ({ navigation }) => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Edit Profile</Text>
+
+            {/* Profile photo */}
+            <TouchableOpacity style={styles.avatarPicker} onPress={pickAvatar} activeOpacity={0.8} disabled={avatarBusy}>
+              {avatarBusy ? (
+                <View style={styles.avatarBusy}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                </View>
+              ) : (
+                <Avatar uri={doctor?.avatar_url} name={doctor?.full_name} size={72} borderWidth={1.5} />
+              )}
+              <Text style={styles.avatarAction}>
+                {avatarBusy ? 'Uploading…' : doctor?.avatar_url ? 'Change photo' : 'Add a photo'}
+              </Text>
+            </TouchableOpacity>
+
             <Text style={styles.modalLabel}>Full Name</Text>
             <TextInput
               style={styles.modalInput}
@@ -638,6 +686,16 @@ const makeStyles = colors => StyleSheet.create({
     borderColor: colors.border,
   },
   modalTitle: { fontSize: 17, fontWeight: '700', color: colors.textPrimary, marginBottom: 16 },
+
+  avatarPicker: { alignItems: 'center', gap: 8, marginBottom: 6 },
+  avatarBusy: {
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: colors.primaryFaint,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: colors.border,
+  },
+  avatarAction: { fontSize: 12.5, fontWeight: '700', color: colors.primary },
+
   modalLabel: { fontSize: 12, fontWeight: '600', color: colors.textSecondary, marginBottom: 6, marginTop: 8 },
   modalInput: {
     borderWidth: 1,

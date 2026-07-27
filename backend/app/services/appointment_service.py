@@ -254,6 +254,38 @@ class AppointmentService:
         return {"appointments": serialized, "total": len(serialized)}
 
     @staticmethod
+    def serialize_for_doctor(db: Session, appointment: Appointment) -> dict:
+        """Appointment as the doctor app needs it: the base dict plus the
+        patient profile fields its cards render (age / gender / contact) and the
+        prior-visit count.
+
+        Both the doctor list endpoint and the single-appointment detail endpoint
+        go through here. They used not to — detail returned the bare
+        ``to_dict()`` — so opening an appointment from the list replaced the
+        enriched row with an unenriched one and the patient's age and gender
+        flipped to "N/A" a moment after the screen appeared.
+        """
+        item = appointment.to_dict()
+        patient = appointment.user
+
+        item["userEmail"] = patient.email if patient else None
+        item["userPhone"] = patient.phone if patient else None
+        item["userGender"] = patient.gender if patient else None
+        item["userAge"] = patient.age if patient else None
+        item["userDateOfBirth"] = (
+            patient.date_of_birth.isoformat() if patient and patient.date_of_birth else None
+        )
+
+        # Previous visits count (completed appointments before this one)
+        item["previousVisitsCount"] = AppointmentRepository.count_previous_visits(
+            db,
+            user_id=appointment.user_id,
+            doctor_id=appointment.doctor_id,
+            before_date=appointment.date,
+        )
+        return item
+
+    @staticmethod
     def get_doctor_appointments(
         db: Session,
         user: "User",
@@ -273,31 +305,9 @@ class AppointmentService:
             status=filter_status,
         )
 
-        serialized = []
-        for a in appointments:
-            item = a.to_dict()
-
-            # Enrich with patient profile fields
-            if a.user:
-                item["userEmail"] = a.user.email
-                item["userPhone"] = a.user.phone
-                item["userGender"] = a.user.gender
-                item["userAge"] = a.user.age
-            else:
-                item["userEmail"] = None
-                item["userPhone"] = None
-                item["userGender"] = None
-                item["userAge"] = None
-
-            # Previous visits count (completed appointments before this one)
-            item["previousVisitsCount"] = AppointmentRepository.count_previous_visits(
-                db,
-                user_id=a.user_id,
-                doctor_id=a.doctor_id,
-                before_date=a.date,
-            )
-
-            serialized.append(item)
+        serialized = [
+            AppointmentService.serialize_for_doctor(db, a) for a in appointments
+        ]
 
         return {"appointments": serialized, "total": len(serialized)}
 

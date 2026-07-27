@@ -68,6 +68,25 @@ class AuthService {
     return user;
   }
 
+  /**
+   * Re-read the profile from the server and cache it.
+   *
+   * Not just a nicety: `avatar_url` is a short-lived Azure SAS URL (~60 min),
+   * so the copy persisted at login goes stale and the photo silently stops
+   * loading. Called on app start — see App.tsx. Never throws; an offline start
+   * simply keeps the cached profile.
+   */
+  async refreshProfile() {
+    try {
+      const response = await apiClient.get(ENDPOINTS.ME);
+      const user = response?.data?.user;
+      if (!user || user.role !== APP_ROLE) return null;
+      return this._cacheUser(user);
+    } catch {
+      return null;
+    }
+  }
+
   /** Bind a Firebase-verified social identity to the logged-in account. */
   async linkSocial(firebaseIdToken) {
     const response = await apiClient.post(ENDPOINTS.SOCIAL_LINK, {
@@ -133,12 +152,14 @@ class AuthService {
     useAuthStore.getState().clearAuth();
   }
 
-  /** Update full name / avatar / phone; keeps the cached user and store in sync. */
-  async updateProfile({ fullName, avatarUrl, phone } = {}) {
+  /** Update the editable profile fields; keeps the cached user and store in sync. */
+  async updateProfile({ fullName, avatarUrl, phone, gender, dateOfBirth } = {}) {
     const payload = {};
     if (fullName !== undefined) payload.fullName = fullName;
     if (avatarUrl !== undefined) payload.avatarUrl = avatarUrl;
     if (phone !== undefined) payload.phone = phone;
+    if (gender !== undefined) payload.gender = gender;
+    if (dateOfBirth !== undefined) payload.dateOfBirth = dateOfBirth;
     const response = await apiClient.put(ENDPOINTS.ME, payload);
 
     if (!response.success) {

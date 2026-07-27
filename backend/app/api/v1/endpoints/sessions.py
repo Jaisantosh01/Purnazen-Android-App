@@ -21,10 +21,7 @@ router = APIRouter(tags=["Sessions"])
     description="Wellness player catalog (yoga/meditation/breathing routines).",
 )
 def get_sessions(
-    active_only: bool = Query(
-        True,
-        description="Filter to only active sessions. Admin consoles pass false to see all.",
-    ),
+    active_only: bool = Query(default=True, description="Filter to only active sessions"),
     db: Session = Depends(get_db),
 ):
     sessions = SessionCatalogService.get_wellness_sessions(db, active_only)

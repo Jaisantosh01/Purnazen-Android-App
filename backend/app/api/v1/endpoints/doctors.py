@@ -33,9 +33,11 @@ def doctor_card(doctor):
         "phone": doctor.user.phone,
         "specialties": [mapping.specialty.name for mapping in doctor.speciality_mappings],
         "specialty_ids": [mapping.speciality_id for mapping in doctor.speciality_mappings],
-        # Image URL when set, else null — the app falls back to the doctor's
-        # initial (no emoji, which renders inconsistently across devices).
-        "avatar": doctor.user.avatar_url or None,
+        # Loadable image URL when set, else null — the app falls back to the
+        # doctor's initial (no emoji, which renders inconsistently across
+        # devices). `User.avatar` resolves an uploaded blob path to a SAS URL;
+        # the raw `avatar_url` column is a bare path the client can't fetch.
+        "avatar": doctor.user.avatar,
         "rating": float(doctor.average_rating),
         "reviews": doctor.reviews_count,
         "experience": doctor.experience_years,
@@ -46,6 +48,19 @@ def doctor_card(doctor):
         ),
         "fee": base_fee,
         "minFee": min(type_fees) if type_fees else base_fee,
+        # Which visit modes this doctor offers and what each costs. Drives the
+        # admin edit screen; `price` is null when the base fee applies.
+        "consultation_types": [
+            {
+                "consultation_type_id": str(link.consultation_type_id),
+                "name": link.consultation_type.name,
+                "price": float(link.price) if link.price is not None else None,
+            }
+            for link in sorted(
+                doctor.consultation_type_links,
+                key=lambda link: VISIT_TYPE_ORDER.get(link.consultation_type.name, 9),
+            )
+        ],
         "availability": (
             "Available today" if doctor.is_available_today else "Not Available"
         ),

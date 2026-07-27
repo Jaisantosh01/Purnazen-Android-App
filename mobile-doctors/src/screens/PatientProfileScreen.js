@@ -10,6 +10,7 @@ import {
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
+import Avatar from '../components/Avatar';
 import { SPACING, RADIUS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
 import patientService from '../services/patientService';
@@ -117,9 +118,14 @@ const PatientProfileScreen = ({ route, navigation }) => {
             showsVerticalScrollIndicator={false}>
             {/* Top Profile Card */}
             <View style={styles.profileCard}>
-              <View style={styles.avatarCircle}>
-                <Text style={styles.avatarText}>{initials}</Text>
-              </View>
+              <Avatar
+                uri={patient.avatarUrl}
+                name={patient.name}
+                initials={initials}
+                size={80}
+                backgroundColor={colors.primaryLight}
+                style={styles.avatarSpacing}
+              />
 
               <Text style={styles.profileName}>{patient.name}</Text>
               <Text style={styles.profileMeta}>{patient.gender} • {patient.ageStr || `${patient.age} Years`}</Text>
@@ -221,20 +227,7 @@ const makeStyles = colors =>
     shadowRadius: 4,
     marginBottom: SPACING.md,
   },
-  avatarCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: SPACING.md,
-  },
-  avatarText: {
-    color: colors.primary,
-    fontSize: 24,
-    fontWeight: '800',
-  },
+  avatarSpacing: { marginBottom: SPACING.md },
   profileName: {
     fontSize: 18,
     fontWeight: '800',

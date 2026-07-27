@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.repositories.therapy_session_repository import TherapySessionRepository
 from app.repositories.therapy_session_group_repository import TherapySessionGroupRepository
+from app.repositories.video_repository import VideoRepository
 from app.schemas.therapy import SaveTherapySessionRequest
 
 
@@ -25,14 +26,12 @@ class TherapyService:
     @staticmethod
     def _auto_complete_if_done(db: Session, session):
         from app.models.therapy_session import TherapySession
-        from app.models.video_group_mapping import VideoGroupMapping
         from sqlalchemy import func
 
-        total = (
-            db.query(func.count(VideoGroupMapping.id))
-            .filter(VideoGroupMapping.video_group_id == session.group_id)
-            .scalar()
-        ) or 0
+        # Only the videos still in the catalog count — a group whose extra
+        # videos were deleted could never reach its old total, so the run stayed
+        # "In Progress" forever.
+        total = VideoRepository.count_active_in_group(db, session.group_id)
 
         completed = (
             db.query(func.count(TherapySession.id))
@@ -60,8 +59,15 @@ class TherapyService:
         }
 
     @staticmethod
-    def count_completed_by_group(db: Session, user_id: uuid.UUID, group_id: uuid.UUID) -> int:
-        return TherapySessionRepository.count_completed_by_group(db, user_id, group_id)
+    def count_completed_by_group(
+        db: Session,
+        user_id: uuid.UUID,
+        group_id: uuid.UUID,
+        session_group_id: uuid.UUID | None = None,
+    ) -> int:
+        return TherapySessionRepository.count_completed_by_group(
+            db, user_id, group_id, session_group_id
+        )
 
     @staticmethod
     def start_session(db: Session, user_id: uuid.UUID, group_id: uuid.UUID, session_type: str) -> dict:
@@ -75,15 +81,10 @@ class TherapyService:
             return None
 
         d = sg.to_dict()
-        from app.models.video_group_mapping import VideoGroupMapping
         from app.models.therapy_session import TherapySession
         from sqlalchemy import func
 
-        total = (
-            db.query(func.count(VideoGroupMapping.id))
-            .filter(VideoGroupMapping.video_group_id == sg.group_id)
-            .scalar()
-        ) or 0
+        total = VideoRepository.count_active_in_group(db, sg.group_id)
         completed = (
             db.query(func.count(TherapySession.id))
             .filter(
@@ -93,7 +94,7 @@ class TherapyService:
             .scalar()
         ) or 0
         d["totalVideos"] = total
-        d["completedVideos"] = completed
+        d["completedVideos"] = min(completed, total)
         return d
 
     @staticmethod
@@ -117,14 +118,5 @@ class TherapyService:
             return None
 
         d = sg.to_dict()
-        from app.models.video_group_mapping import VideoGroupMapping
-        from app.models.therapy_session import TherapySession
-        from sqlalchemy import func
-
-        total = (
-            db.query(func.count(VideoGroupMapping.id))
-            .filter(VideoGroupMapping.video_group_id == sg.group_id)
-            .scalar()
-        ) or 0
-        d["totalVideos"] = total
+        d["totalVideos"] = VideoRepository.count_active_in_group(db, sg.group_id)
         return d

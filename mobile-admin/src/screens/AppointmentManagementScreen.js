@@ -206,7 +206,8 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
   const fetchConsultationTypes = () => {
     apiClient
       .get(ENDPOINTS.CONSULTATION_TYPES)
-      .then(res => setConsultationTypes(res.data || []))
+      // The endpoint returns full records; these tabs filter by name.
+      .then(res => setConsultationTypes((res.data || []).map(t => t?.name || t).filter(Boolean)))
       .catch(() => {});
   };
 

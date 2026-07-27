@@ -102,6 +102,9 @@ const UploadVideoScreen = ({ route, navigation }) => {
   }, [currentPath]);
 
   useEffect(() => {
+    // Clear any cancel flag left by a previous mount of this screen, otherwise
+    // the next upload run stops after its first request.
+    cancelledRef.current = false;
     apiClient.get(ENDPOINTS.VIDEO_GROUPS)
       .then(res => setGroups((res?.data?.groups || []).filter(g => g.is_active !== false)))
       .catch(() => setGroups([]));
@@ -207,7 +210,8 @@ const UploadVideoScreen = ({ route, navigation }) => {
       defaultGroupId,
       setItems,
       setExpandedId,
-      showAlert
+      showAlert,
+      items
     );
   };
 
@@ -396,31 +400,6 @@ const UploadVideoScreen = ({ route, navigation }) => {
             {item.status === 'failed' && !!item.error && (
               <Text style={styles.queueError} numberOfLines={2}>{item.error}</Text>
             )}
-            
-            {/* Visible overwrite option */}
-            <TouchableOpacity
-              style={styles.queueOverwriteRow}
-              onPress={(e) => {
-                e.stopPropagation();
-                if (uploading || item.status === 'done') return;
-                const next = !item.overwrite;
-                updateItem(item.id, {
-                  overwrite: next,
-                  status: item.status === 'failed' ? 'pending' : item.status,
-                  error: next ? null : item.error,
-                });
-              }}
-              disabled={uploading || item.status === 'done'}
-            >
-              <MCIcon
-                name={item.overwrite ? 'checkbox-marked' : 'checkbox-blank-outline'}
-                size={18}
-                color={item.overwrite ? colors.warning : colors.textMuted}
-              />
-              <Text style={[styles.queueOverwriteLabel, item.overwrite && { color: colors.warning }]}>
-                Overwrite
-              </Text>
-            </TouchableOpacity>
           </View>
           {item.status !== 'uploading' && item.status !== 'done' && (
             <TouchableOpacity onPress={(e) => { e.stopPropagation(); removeItem(item.id); }} style={{ padding: 4 }}>
@@ -440,11 +419,14 @@ const UploadVideoScreen = ({ route, navigation }) => {
               value={item.saveAs || ''}
               onChangeText={t => {
                 const existingNames = new Set(dirFiles.map(f => (f.name || '').split('/').pop()?.toLowerCase().trim()));
-                const isDup = existingNames.has(t.toLowerCase().trim());
+                // Only a clash the user hasn't already answered blocks the
+                // upload — with Overwrite on, replacing the stored file is the
+                // whole point, so renaming onto one must not re-fail the row.
+                const clash = existingNames.has(t.toLowerCase().trim()) && !item.overwrite;
                 updateItem(item.id, {
                   saveAs: t,
-                  status: isDup ? 'failed' : 'pending',
-                  error: isDup ? 'A file with this name already exists in this folder.' : null,
+                  status: clash ? 'failed' : 'pending',
+                  error: clash ? 'A file with this name already exists — tick Overwrite or pick another name.' : null,
                 });
               }}
               editable={!uploading && item.status !== 'done'}
@@ -990,6 +972,7 @@ const makeStyles = colors => StyleSheet.create({
   backBtnText: { fontSize: 16, fontWeight: '700', color: colors.white },
   uploadBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: colors.primary, padding: 16, borderRadius: 12, flex: 2 },
   uploadBtnText: { fontSize: 16, fontWeight: '700', color: colors.white },
+  // Lives in the expanded card body, next to the "save as" filename it applies to.
   overwriteRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, paddingVertical: 6 },
   overwriteLabel: { fontSize: 13, fontWeight: '500', color: colors.textMuted, flex: 1 },
   modalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', padding: 20 },

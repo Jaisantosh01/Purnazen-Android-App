@@ -14,7 +14,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import consultService from '../services/consultService';
 import useTheme from '../hooks/useTheme';
 import { useMemo } from 'react';
-import { doctorInitial } from '../utils/doctorAvatar';
+import Avatar from '../components/Avatar';
 import ScreenHeader from '../components/ScreenHeader';
 
 // Visit type icon & label map
@@ -46,9 +46,7 @@ const openClinicMap = (clinic) => {
 // ── Basic doctor card shown immediately using data from route.params ──────────
 const DoctorBasicCard = ({ doctor, visitTypes, styles, colors }) => (
   <View style={styles.doctorCard}>
-    <View style={styles.avatarCircle}>
-      <Text style={styles.avatarIcon}>{doctorInitial(doctor.name)}</Text>
-    </View>
+    <Avatar uri={doctor.avatar} name={doctor.name} size={80} style={styles.avatarSpacing} />
     <Text style={styles.doctorName}>{doctor.name}</Text>
     <Text style={styles.doctorSpecialty}>
       {Array.isArray(doctor.specialties)
@@ -322,16 +320,7 @@ const makeStyles = colors => StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.surfaceMuted,
   },
-  avatarCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.primaryFaint,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  avatarIcon: { fontSize: 34, fontWeight: '800', color: colors.primary },
+  avatarSpacing: { marginBottom: 12 },
   doctorName: {
     fontSize: 20,
     fontWeight: '700',

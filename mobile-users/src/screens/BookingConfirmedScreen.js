@@ -7,7 +7,7 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useMemo } from 'react';
 import useTheme from '../hooks/useTheme';
-import { doctorInitial } from '../utils/doctorAvatar';
+import Avatar from '../components/Avatar';
 
 const BookingConfirmedScreen = ({ navigation, route }) => {
   const { doctor, date, time, visitType, fee, bookingRef, appointmentId } = route.params;
@@ -39,9 +39,7 @@ const BookingConfirmedScreen = ({ navigation, route }) => {
 
         <View style={styles.card}>
           <View style={styles.doctorRow}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarIcon}>{doctorInitial(doctor.name)}</Text>
-            </View>
+            <Avatar uri={doctor.avatar} name={doctor.name} size={48} />
             <View>
               <Text style={styles.doctorName}>{doctor.name}</Text>
               <Text style={styles.doctorSpecialty}>
@@ -170,15 +168,6 @@ const makeStyles = colors => StyleSheet.create({
     gap: 12,
     marginBottom: 14,
   },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.primaryFaint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarIcon: { fontSize: 22, fontWeight: '800', color: colors.primary },
   doctorName: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
   doctorSpecialty: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
   divider: { height: 1, backgroundColor: colors.surfaceMuted, marginBottom: 14 },

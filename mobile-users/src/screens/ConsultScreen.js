@@ -15,7 +15,7 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import consultService from '../services/consultService';
 import useTheme from '../hooks/useTheme';
-import { doctorInitial } from '../utils/doctorAvatar';
+import Avatar from '../components/Avatar';
 import {TAG_ICONS} from '../constants/icons';
 import {CONSULT_SCREEN_FILTER_TABS_FALLBACK} from '../constants/miscellaneous';
 import { useHeaderTopPadding } from '../components/ScreenHeader';
@@ -140,9 +140,7 @@ const ConsultScreen = ({ navigation }) => {
       onPress={() => navigation.navigate('DoctorProfile', { doctor })}
     >
       <View style={styles.doctorTop}>
-        <View style={styles.avatarCircle}>
-          <Text style={styles.avatarIcon}>{doctorInitial(doctor.name)}</Text>
-        </View>
+        <Avatar uri={doctor.avatar} name={doctor.name} size={56} style={styles.avatarShape} />
         <View style={styles.doctorInfo}>
           {/* Fix 6: numberOfLines prevents long names from breaking layout */}
           <Text style={styles.doctorName} numberOfLines={1}>{doctor.name}</Text>
@@ -441,16 +439,8 @@ const makeStyles = colors => StyleSheet.create({
     flexDirection: 'row',
     marginBottom: 12,
   },
-  avatarCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 14,
-    backgroundColor: colors.primaryFaint,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  avatarIcon: { fontSize: 26, fontWeight: '800', color: colors.primary },
+  // Rounded square rather than a full circle — overrides Avatar's default.
+  avatarShape: { borderRadius: 14, marginRight: 12 },
   doctorInfo: { flex: 1 },
   doctorName: {
     fontSize: 15,

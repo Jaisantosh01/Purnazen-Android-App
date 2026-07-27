@@ -11,6 +11,7 @@ import {
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
+import Avatar from '../components/Avatar';
 import { SPACING, RADIUS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
 import appointmentService from '../services/appointmentService';
@@ -261,9 +262,7 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
             activeOpacity={0.85}
             onPress={handlePatientPress}>
             <View style={styles.profileTopRow}>
-              <View style={styles.avatarWrap}>
-                <MCIcon name="account" size={36} color={colors.primary} />
-              </View>
+              <Avatar uri={appointment.userAvatar} name={appointment.userName} size={52} />
               <View style={styles.profileInfo}>
                 <Text style={styles.patientName}>
                   {appointment.userName || 'Unknown Patient'}
@@ -419,14 +418,6 @@ const makeStyles = colors =>
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.md,
-  },
-  avatarWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: colors.primaryFaint,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   profileInfo: { flex: 1, gap: 4 },
   patientName: { fontSize: 16.5, fontWeight: '800', color: colors.textPrimary },

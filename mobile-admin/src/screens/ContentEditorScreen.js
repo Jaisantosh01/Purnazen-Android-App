@@ -49,8 +49,16 @@ const ContentEditorScreen = ({ route, navigation }) => {
   const [rolePicker, setRolePicker] = useState(false);
   const [editorTab, setEditorTab] = useState('write');
   const [saving, setSaving] = useState(false);
+  // Set only long enough to drop the caret inside a freshly inserted tag pair.
+  // While it is non-null the TextInput's selection is controlled, so it has to
+  // be released again or the cursor is pinned and the admin cannot type
+  // anywhere else.
+  const [selectionOverride, setSelectionOverride] = useState(null);
 
   const selRef = useRef({ start: 0, end: 0 });
+  const selectionTimer = useRef(null);
+
+  useEffect(() => () => clearTimeout(selectionTimer.current), []);
 
   // Prompts follow the selected content type — a privacy policy asks for
   // different things than terms do.
@@ -97,9 +105,17 @@ const ContentEditorScreen = ({ route, navigation }) => {
   const applyInline = ({ open, close }) => {
     const { start, end } = clampSelection();
     if (start === end) {
-      // No selection: insert a placeholder the user can overwrite.
-      const insertion = `${open}text${close}`;
+      // Nothing selected: insert an empty tag pair and put the caret between
+      // them so the admin types straight into it.
+      const insertion = `${open}${close}`;
+      const caret = start + open.length;
       setContent(content.substring(0, start) + insertion + content.substring(end));
+      selRef.current = { start: caret, end: caret };
+      setSelectionOverride({ start: caret, end: caret });
+      // onSelectionChange normally releases the override; the timer covers the
+      // case where the caret was already at that offset and nothing fires.
+      clearTimeout(selectionTimer.current);
+      selectionTimer.current = setTimeout(() => setSelectionOverride(null), 150);
       return;
     }
     const selected = content.substring(start, end);
@@ -146,6 +162,7 @@ const ContentEditorScreen = ({ route, navigation }) => {
 
   const handleSelectionChange = (e) => {
     selRef.current = e.nativeEvent.selection;
+    if (selectionOverride) setSelectionOverride(null);
   };
 
   const canSave = title.trim().length > 0 && content.trim().length > 0 && (isAllSelected || selectedRoleIds.length > 0);
@@ -208,8 +225,17 @@ const ContentEditorScreen = ({ route, navigation }) => {
           <Text style={styles.label}>Title <Text style={{ color: '#EF4444' }}>*</Text></Text>
           <TextInput style={styles.input} placeholder={hints.title} placeholderTextColor={colors.textMuted} value={title} onChangeText={setTitle} />
 
-          <Text style={styles.label}>Version</Text>
-          <TextInput style={[styles.input, { width: 120 }]} placeholder="1.0" placeholderTextColor={colors.textMuted} value={version} onChangeText={setVersion} />
+          <View style={styles.versionRow}>
+            <View>
+              <Text style={styles.label}>Version</Text>
+              <TextInput style={[styles.input, { width: 100 }]} placeholder="1.0" placeholderTextColor={colors.textMuted} value={version} onChangeText={setVersion} />
+            </View>
+            <View style={{ flex: 1 }} />
+            <View style={styles.switchRow}>
+              <Text style={styles.switchLabel}>Active</Text>
+              <AppToggle value={isActive} onValueChange={setIsActive} />
+            </View>
+          </View>
 
           <Text style={styles.label}>Content <Text style={{ color: '#EF4444' }}>*</Text></Text>
 
@@ -241,6 +267,7 @@ const ContentEditorScreen = ({ route, navigation }) => {
                 style={styles.editorInput}
                 value={content}
                 onChangeText={setContent}
+                selection={selectionOverride || undefined}
                 onSelectionChange={handleSelectionChange}
                 placeholder={hints.content}
                 placeholderTextColor={colors.textMuted}
@@ -271,11 +298,6 @@ const ContentEditorScreen = ({ route, navigation }) => {
                 : <Text style={{ color: colors.textMuted, fontSize: 14 }}>Nothing to preview yet.</Text>}
             </View>
           )}
-
-          <View style={styles.switchRow}>
-            <Text style={styles.switchLabel}>Active</Text>
-            <AppToggle value={isActive} onValueChange={setIsActive} />
-          </View>
 
           <View style={styles.modalButtons}>
             <TouchableOpacity style={[styles.btn, styles.cancelBtn]} onPress={() => navigation.goBack()}>
@@ -379,9 +401,10 @@ const makeStyles = colors => StyleSheet.create({
   outlineBtnText: { fontSize: 12, fontWeight: '700', color: colors.primary },
   previewBox: { backgroundColor: colors.surfaceMuted, borderRadius: 8, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 12, paddingVertical: 10, minHeight: 180 },
 
-  switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 },
+  versionRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 12 },
+  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   switchLabel: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
-  modalButtons: { flexDirection: 'row', gap: 10, marginTop: 20, marginBottom: 16 },
+  modalButtons: { flexDirection: 'row', gap: 10, marginTop: 20, marginBottom: 40 },
   btn: { flex: 1, padding: 14, borderRadius: 10, alignItems: 'center' },
   cancelBtn: { backgroundColor: colors.surfaceMuted },
   saveBtn: { backgroundColor: colors.primary },

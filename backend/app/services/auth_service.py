@@ -61,6 +61,14 @@ class AuthService:
                 "message": "Invalid email or password",
             }, 401
 
+        # An admin-deleted account keeps its row (records reference it) but must
+        # not be able to sign back in.
+        if user.is_active is False:
+            return {
+                "success": False,
+                "message": "This account has been deactivated. Please contact your administrator.",
+            }, 403
+
         # RBAC gate: reject a valid credential trying to use the wrong app.
         expected_role = data.get("expected_role")
         if expected_role and (not user.role or user.role.name != expected_role):
@@ -131,6 +139,11 @@ class AuthService:
                 user.avatar_url = profile["avatar_url"]
             db.commit()
             db.refresh(user)
+        elif user.is_active is False:
+            return {
+                "success": False,
+                "message": "This account has been deactivated. Please contact your administrator.",
+            }, 403
         elif expected_role and (not user.role or user.role.name != expected_role):
             return {
                 "success": False,

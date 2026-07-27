@@ -20,6 +20,7 @@ import { syncVideoProgress } from '../utils/videoTracker';
 import therapyService from '../services/therapyService';
 import VideoPlayer from '../components/VideoPlayer';
 import AppDialog from '../components/AppDialog';
+import PainScale from '../components/PainScale';
 import AppToggle from '../components/AppToggle';
 
 const AUTOPLAY_NEXT_KEY = 'video_autoplay_next';
@@ -29,7 +30,21 @@ const VideoPlayerScreen = ({ route, navigation }) => {
   const insets = useSafeAreaInsets();
   const { width: screenW } = useWindowDimensions();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const { groupId, sessionGroupId: routeSessionGroupId } = route.params;
+  const {
+    groupId,
+    sessionGroupId: routeSessionGroupId,
+    // Quick Relief hands this in as 'relief'; Wellness (and a resumed run out
+    // of Therapy History) hands in whatever the session was filed as. It drives
+    // both what the session is stored as and whether pain is tracked at all.
+    sessionType = 'wellness',
+    painBefore: routePainBefore = null,
+    painDescription: routePainDescription = null,
+  } = route.params;
+
+  // Relief runs are pain-relief routines, so they open on a baseline score and
+  // close by asking for it again. Wellness programmes aren't about pain — they
+  // only collect a written remark.
+  const tracksPain = sessionType !== 'wellness';
 
   const [sessionGroupId, setSessionGroupId] = useState(routeSessionGroupId || null);
   const [incompleteSession, setIncompleteSession] = useState(null);
@@ -45,16 +60,77 @@ const VideoPlayerScreen = ({ route, navigation }) => {
 
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [userFeedback, setUserFeedback] = useState('');
+  const [painAfter, setPainAfter] = useState(null);
+  const [painBefore, setPainBefore] = useState(null);
   const [savingFeedback, setSavingFeedback] = useState(false);
   const [feedbackId, setFeedbackId] = useState(null);
 
   const watchedRef = useRef(0);
   const feedbackShownRef = useRef(false);
+  const baselineWrittenRef = useRef(false);
 
-  // Wellness is not a pain-relief programme, so nothing here asks for a pain
-  // score — the only prompt is a written note, and only once the *whole* group
-  // has played out. Called from onEnd alone (a video crossing 90% used to
-  // trigger it, which popped the dialog over the still-playing last video).
+  // Resolves the one feedback row this run writes to, creating it on first use.
+  // Anchoring it to sessionGroupId is what lets Therapy History find it — that
+  // screen joins feedback on the session group, so a row without one is
+  // invisible there and a second run would start a duplicate.
+  const ensureFeedbackRecord = useCallback(async () => {
+    if (!sessionGroupId) return null;
+    if (feedbackId) return feedbackId;
+
+    try {
+      const existing = await apiClient.get(ENDPOINTS.THERAPY_FEEDBACK_BY_SESSION(sessionGroupId));
+      if (existing?.data?.id) {
+        setFeedbackId(existing.data.id);
+        setPainBefore(
+          typeof existing.data.painBefore === 'number' ? existing.data.painBefore : null,
+        );
+        return existing.data.id;
+      }
+    } catch {
+      // 404 — nothing recorded for this run yet, fall through and create it.
+    }
+
+    try {
+      const created = await apiClient.post(ENDPOINTS.THERAPY_FEEDBACK, {
+        videoGroupId: groupId,
+        sessionType,
+        sessionGroupId,
+        painBefore: tracksPain && typeof routePainBefore === 'number' ? routePainBefore : null,
+        userPainDescription: tracksPain ? routePainDescription || null : null,
+      });
+      const id = created?.data?.id || null;
+      if (id) {
+        setFeedbackId(id);
+        if (tracksPain && typeof routePainBefore === 'number') setPainBefore(routePainBefore);
+      }
+      return id;
+    } catch {
+      return null;
+    }
+  }, [
+    sessionGroupId,
+    feedbackId,
+    groupId,
+    sessionType,
+    tracksPain,
+    routePainBefore,
+    routePainDescription,
+  ]);
+
+  // Write the baseline as soon as the run has a session group, rather than
+  // waiting for the end-of-session prompt: a user who quits halfway still keeps
+  // the "before" score they gave, and history can show the run properly.
+  useEffect(() => {
+    if (!sessionGroupId || baselineWrittenRef.current) return;
+    baselineWrittenRef.current = true;
+    ensureFeedbackRecord();
+  }, [sessionGroupId, ensureFeedbackRecord]);
+
+  // Asked once the *whole* group has played out. Called from onEnd alone (a
+  // video crossing 90% used to trigger it, which popped the dialog over the
+  // still-playing last video). The count is scoped to this session group so a
+  // repeat run doesn't inherit the previous sitting's completed videos and fire
+  // the prompt after video one.
   const maybeAskForFeedback = useCallback(async () => {
     if (feedbackShownRef.current) return;
 
@@ -63,7 +139,9 @@ const VideoPlayerScreen = ({ route, navigation }) => {
 
     let completedCount;
     try {
-      const countRes = await apiClient.get(ENDPOINTS.THERAPY_HISTORY_COMPLETED_COUNT(groupId));
+      const countRes = await apiClient.get(
+        ENDPOINTS.THERAPY_HISTORY_COMPLETED_COUNT(groupId, sessionGroupId),
+      );
       completedCount = countRes?.data?.completedCount ?? 0;
     } catch {
       return; // can't confirm the group is finished — don't interrupt
@@ -72,16 +150,11 @@ const VideoPlayerScreen = ({ route, navigation }) => {
 
     feedbackShownRef.current = true;
 
-    try {
-      const feedbackRes = await apiClient.get(ENDPOINTS.THERAPY_FEEDBACK_BY_SESSION(sessionGroupId));
-      setFeedbackId(feedbackRes?.data?.id || null);
-    } catch {
-      setFeedbackId(null);
-    }
-
+    await ensureFeedbackRecord();
+    setPainAfter(null);
     setUserFeedback('');
     setShowFeedbackModal(true);
-  }, [catalog, groupId, sessionGroupId]);
+  }, [catalog, groupId, sessionGroupId, ensureFeedbackRecord]);
 
   const handleSkipFeedback = useCallback(() => {
     setShowFeedbackModal(false);
@@ -90,21 +163,14 @@ const VideoPlayerScreen = ({ route, navigation }) => {
   const handleSaveFeedback = useCallback(async () => {
     setSavingFeedback(true);
     try {
-      // painAfter is deliberately omitted — the schema leaves it optional.
-      const payload = { userFeedback: userFeedback.trim() || null };
-
-      let fbId = feedbackId;
-
-      if (!fbId) {
-        const created = await apiClient.post(ENDPOINTS.THERAPY_FEEDBACK, {
-          videoGroupId: groupId,
-          sessionType: 'wellness',
-          sessionGroupId,
-        });
-        fbId = created?.data?.id;
-      }
+      const fbId = await ensureFeedbackRecord();
       if (fbId) {
-        await apiClient.put(ENDPOINTS.THERAPY_FEEDBACK_PAIN_AFTER(fbId), payload);
+        await apiClient.put(ENDPOINTS.THERAPY_FEEDBACK_PAIN_AFTER(fbId), {
+          userFeedback: userFeedback.trim() || null,
+          // Wellness never collects a score, and relief leaves it out when the
+          // user didn't pick one; the field is optional either way.
+          painAfter: tracksPain && typeof painAfter === 'number' ? painAfter : null,
+        });
       }
     } catch {
       // continue even if save fails
@@ -112,7 +178,7 @@ const VideoPlayerScreen = ({ route, navigation }) => {
       setSavingFeedback(false);
       setShowFeedbackModal(false);
     }
-  }, [feedbackId, userFeedback, groupId, sessionGroupId]);
+  }, [ensureFeedbackRecord, userFeedback, painAfter, tracksPain]);
 
   const handleContinueSession = useCallback(() => {
     if (incompleteSession) {
@@ -125,7 +191,7 @@ const VideoPlayerScreen = ({ route, navigation }) => {
   const handleStartFreshSession = useCallback(async () => {
     setShowSessionDialog(false);
     try {
-      const sg = await therapyService.startSession(groupId, 'wellness');
+      const sg = await therapyService.startSession(groupId, sessionType);
       if (sg?.id) {
         setSessionGroupId(sg.id);
         setSessionDialogResolved(true);
@@ -133,7 +199,7 @@ const VideoPlayerScreen = ({ route, navigation }) => {
     } catch {
       setSessionDialogResolved(true);
     }
-  }, [groupId]);
+  }, [groupId, sessionType]);
 
   useEffect(() => {
     AsyncStorage.getItem(AUTOPLAY_NEXT_KEY)
@@ -157,37 +223,27 @@ const VideoPlayerScreen = ({ route, navigation }) => {
   // Mark the first video as started once the catalog is in.
   useEffect(() => {
     if (catalog?.videos?.length && sessionGroupId) {
-      syncVideoProgress(groupId, catalog.videos[0].id, 'Pending', 0, 'wellness', null, null, sessionGroupId);
+      syncVideoProgress(groupId, catalog.videos[0].id, 'Pending', 0, sessionType, null, null, sessionGroupId);
     }
-  }, [catalog, groupId, sessionGroupId]);
+  }, [catalog, groupId, sessionGroupId, sessionType]);
 
-  // Check for existing feedback or incomplete session on mount.
+  // Resolve which session group this run belongs to: resume an unfinished one
+  // if the user has it, otherwise open a fresh one under this session type.
   useEffect(() => {
-    if (!catalog || sessionDialogResolved) return;
+    if (!catalog || sessionDialogResolved || sessionGroupId) return;
 
-    if (sessionGroupId) {
-      apiClient.get(ENDPOINTS.THERAPY_FEEDBACK_BY_SESSION(sessionGroupId))
-        .then(res => {
-          if (res?.data?.id) setFeedbackId(res.data.id);
+    therapyService.getIncompleteSession(groupId).then(sg => {
+      if (sg) {
+        setIncompleteSession(sg);
+        setShowSessionDialog(true);
+      } else {
+        therapyService.startSession(groupId, sessionType).then(fresh => {
+          if (fresh?.id) setSessionGroupId(fresh.id);
           setSessionDialogResolved(true);
-        })
-        .catch(() => {
-          setSessionDialogResolved(true);
-        });
-    } else {
-      therapyService.getIncompleteSession(groupId).then(sg => {
-        if (sg) {
-          setIncompleteSession(sg);
-          setShowSessionDialog(true);
-        } else {
-          therapyService.startSession(groupId, 'wellness').then(fresh => {
-            if (fresh?.id) setSessionGroupId(fresh.id);
-            setSessionDialogResolved(true);
-          }).catch(() => setSessionDialogResolved(true));
-        }
-      }).catch(() => setSessionDialogResolved(true));
-    }
-  }, [catalog, groupId, sessionGroupId, sessionDialogResolved]);
+        }).catch(() => setSessionDialogResolved(true));
+      }
+    }).catch(() => setSessionDialogResolved(true));
+  }, [catalog, groupId, sessionGroupId, sessionDialogResolved, sessionType]);
 
   const onProgress = useCallback(
     async data => {
@@ -198,11 +254,11 @@ const VideoPlayerScreen = ({ route, navigation }) => {
       // Fire "Completed" once when crossing 90%. The feedback prompt is NOT
       // raised here — it belongs to onEnd, once the last video really finishes.
       if (dur > 0 && watched / dur > 0.9 && watchedRef.current / dur <= 0.9) {
-        await syncVideoProgress(groupId, video.id, 'Completed', dur / 60, 'wellness', null, null, sessionGroupId);
+        await syncVideoProgress(groupId, video.id, 'Completed', dur / 60, sessionType, null, null, sessionGroupId);
       }
       watchedRef.current = watched;
     },
-    [catalog, currentVideoIndex, groupId, sessionGroupId],
+    [catalog, currentVideoIndex, groupId, sessionGroupId, sessionType],
   );
 
   // Switch to a playlist item. `completedPrev` marks the outgoing video done
@@ -217,24 +273,24 @@ const VideoPlayerScreen = ({ route, navigation }) => {
           prev.id,
           completedPrev ? 'Completed' : 'Pending',
           (completedPrev ? prev.duration : watchedRef.current) / 60,
-          'wellness',
+          sessionType,
           null, null, sessionGroupId,
         );
       }
       watchedRef.current = 0;
       setCurrentVideoIndex(index);
-      syncVideoProgress(groupId, catalog.videos[index].id, 'Pending', 0, 'wellness', null, null, sessionGroupId);
+      syncVideoProgress(groupId, catalog.videos[index].id, 'Pending', 0, sessionType, null, null, sessionGroupId);
     },
-    [catalog, currentVideoIndex, groupId, sessionGroupId],
+    [catalog, currentVideoIndex, groupId, sessionGroupId, sessionType],
   );
 
   const handleEnd = useCallback(async () => {
     const video = catalog?.videos?.[currentVideoIndex];
     if (video) {
-      await syncVideoProgress(groupId, video.id, 'Completed', video.duration / 60, 'wellness', null, null, sessionGroupId);
+      await syncVideoProgress(groupId, video.id, 'Completed', video.duration / 60, sessionType, null, null, sessionGroupId);
       maybeAskForFeedback();
     }
-  }, [catalog, currentVideoIndex, groupId, sessionGroupId, maybeAskForFeedback]);
+  }, [catalog, currentVideoIndex, groupId, sessionGroupId, sessionType, maybeAskForFeedback]);
 
   const hasNext = !!catalog && currentVideoIndex < catalog.videos.length - 1;
   const goNext = useCallback(() => {
@@ -444,9 +500,15 @@ const VideoPlayerScreen = ({ route, navigation }) => {
         title="Session Complete"
         subtitle="You finished every video in this group. How did it go?"
       >
+        {tracksPain && painBefore != null && (
+          <Text style={styles.painBeforeNote}>
+            You started this session at {painBefore}/10.
+          </Text>
+        )}
+        {tracksPain && <PainScale value={painAfter} onChange={setPainAfter} label="Pain now" />}
         <TextInput
           style={styles.feedbackInput}
-          placeholder="Write your feedback here…"
+          placeholder={tracksPain ? 'Write your feedback here…' : 'Add a remark about this session…'}
           placeholderTextColor={colors.textMuted}
           value={userFeedback}
           onChangeText={setUserFeedback}
@@ -593,6 +655,7 @@ const makeStyles = colors => StyleSheet.create({
   rowTitleActive: { color: colors.primary },
   rowDuration: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
 
+  painBeforeNote: { fontSize: 12.5, color: colors.textMuted, marginBottom: 10 },
   feedbackInput: {
     borderWidth: 1,
     borderColor: colors.border,

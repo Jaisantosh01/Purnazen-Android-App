@@ -69,6 +69,32 @@ def _to_float(value):
         return None
 
 
+def _sync_consultation_types(db: Session, doctor_id: uuid.UUID, entries) -> None:
+    """Replace the doctor's visit modes (clinic/home/video) and their prices.
+
+    ``entries`` is the admin payload: a list of
+    ``{"consultation_type_id": ..., "price": ...}``. A blank/absent price means
+    "charge the doctor's base consultation fee", stored as NULL.
+    """
+    from app.models.associations import DoctorConsultationType
+
+    db.query(DoctorConsultationType).filter_by(doctor_id=doctor_id).delete()
+    seen = set()
+    for entry in entries or []:
+        type_id = entry.get("consultation_type_id") if isinstance(entry, dict) else entry
+        if not type_id or str(type_id) in seen:
+            continue
+        seen.add(str(type_id))
+        price = _to_float(entry.get("price")) if isinstance(entry, dict) else None
+        db.add(
+            DoctorConsultationType(
+                doctor_id=doctor_id,
+                consultation_type_id=type_id,
+                price=price,
+            )
+        )
+
+
 class DoctorService:
 
     @staticmethod
@@ -250,6 +276,9 @@ class DoctorService:
             for spec_id in data["specialty_ids"]:
                 db.add(DoctorSpecialityMapping(doctor_id=doctor.id, speciality_id=spec_id, created_by=user.id))
 
+        if "consultation_types" in data:
+            _sync_consultation_types(db, doctor.id, data["consultation_types"])
+
         # Update slot timing availability
         if "slot_timing_ids" in data:
             from app.models.doctor_availability import DoctorAvailability
@@ -375,7 +404,10 @@ class DoctorService:
         if "specialty_ids" in data:
             for spec_id in data["specialty_ids"]:
                 db.add(DoctorSpecialityMapping(doctor_id=new_doctor.id, speciality_id=spec_id, created_by=user.id))
-        
+
+        if "consultation_types" in data:
+            _sync_consultation_types(db, new_doctor.id, data["consultation_types"])
+
         # Initialize slot timing availability
         if "slot_timing_ids" in data:
             from app.models.doctor_availability import DoctorAvailability

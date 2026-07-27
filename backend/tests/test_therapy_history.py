@@ -209,6 +209,110 @@ def test_history_requires_auth(client):
     assert response.status_code == 401
 
 
+def test_complete_session_records_feedback(client, db_session):
+    """Marking a run complete stores the score and remark.
+
+    The endpoint used to read `body.painAfter`/`body.userFeedback` — alias names,
+    not field names — which raised AttributeError on every call, and the
+    repository then only *updated* a feedback row, so a run that never captured a
+    baseline dropped both values.
+    """
+    group, videos = seed_group_with_videos(db_session)
+    headers = auth_headers(client)
+
+    started = client.post(
+        "/api/v1/therapy-history/start-session",
+        json={"groupId": str(group.id), "sessionType": "relief"},
+        headers=headers,
+    )
+    assert started.status_code == 201
+    session_group_id = started.json()["data"]["id"]
+    assert started.json()["data"]["sessionType"] == "relief"
+
+    response = client.post(
+        f"/api/v1/therapy-history/sessions/{session_group_id}/complete",
+        json={"painAfter": 2, "userFeedback": "much better"},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    assert response.json()["data"]["status"] == "completed"
+
+    feedback = client.get(
+        f"/api/v1/therapy-feedback/by-session/{session_group_id}", headers=headers
+    ).json()["data"]
+    assert feedback["painAfter"] == 2
+    assert feedback["userFeedback"] == "much better"
+    assert feedback["sessionType"] == "relief"
+
+
+def test_completed_count_is_scoped_to_a_session_group(client, db_session):
+    """A repeat run counts from zero instead of inheriting the earlier sitting."""
+    group, videos = seed_group_with_videos(db_session)
+    headers = auth_headers(client)
+
+    first = client.post(
+        "/api/v1/therapy-history/start-session",
+        json={"groupId": str(group.id), "sessionType": "relief"},
+        headers=headers,
+    ).json()["data"]["id"]
+    client.post(
+        "/api/v1/therapy-history/save",
+        json=save_payload(group, videos[0], type="relief", sessionGroupId=first),
+        headers=headers,
+    )
+
+    second = client.post(
+        "/api/v1/therapy-history/start-session",
+        json={"groupId": str(group.id), "sessionType": "relief"},
+        headers=headers,
+    ).json()["data"]["id"]
+
+    unscoped = client.get(
+        f"/api/v1/therapy-history/completed-count/{group.id}", headers=headers
+    ).json()["data"]["completedCount"]
+    scoped = client.get(
+        f"/api/v1/therapy-history/completed-count/{group.id}",
+        params={"sessionGroupId": second},
+        headers=headers,
+    ).json()["data"]["completedCount"]
+
+    assert unscoped == 1
+    assert scoped == 0
+
+
+def test_session_totals_ignore_removed_videos(client, db_session):
+    """History counts the videos the catalog serves, not every mapping row.
+
+    Deleting a video only flips ``is_active``, so a group that once held three
+    videos and now holds one used to report "1/3 videos" — and the run could
+    never auto-complete, because completed could never reach the stale total.
+    """
+    group, videos = seed_group_with_videos(db_session, video_count=3)
+    for video in videos[1:]:
+        video.is_active = False
+    db_session.commit()
+
+    headers = auth_headers(client)
+    session_group_id = client.post(
+        "/api/v1/therapy-history/start-session",
+        json={"groupId": str(group.id), "sessionType": "relief"},
+        headers=headers,
+    ).json()["data"]["id"]
+
+    client.post(
+        "/api/v1/therapy-history/save",
+        json=save_payload(group, videos[0], type="relief", sessionGroupId=session_group_id),
+        headers=headers,
+    )
+
+    listed = client.get("/api/v1/therapy-history/sessions", headers=headers).json()["data"]
+    session = next(s for s in listed["sessions"] if s["id"] == session_group_id)
+    assert session["totalVideos"] == 1
+    assert session["completedVideos"] == 1
+    # Finishing the only remaining video closes the run.
+    assert session["status"] == "completed"
+
+
 def test_history_only_own_sessions(client, db_session):
     group, videos = seed_group_with_videos(db_session)
     headers = auth_headers(client)

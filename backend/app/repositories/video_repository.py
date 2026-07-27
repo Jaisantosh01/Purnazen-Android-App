@@ -1,5 +1,6 @@
 import uuid
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.video_groups import VideoGroups
@@ -103,6 +104,26 @@ class VideoRepository:
         if active_only:
             query = query.filter(Videos.is_active == True, VideoGroupMapping.is_active == True)
         return query.order_by(VideoGroupMapping.sort_order).all()
+
+    @staticmethod
+    def count_active_in_group(db: Session, group_id: uuid.UUID) -> int:
+        """How many videos a group's catalog actually serves.
+
+        Mirrors ``get_by_group(active_only=True)``. Deleting a video only flips
+        ``Videos.is_active`` and unlinking one only flips the mapping's, so
+        counting mapping rows on their own reports videos nobody can play — which
+        is what made therapy history read "1/3 videos" for a group holding one.
+        """
+        return (
+            db.query(func.count(VideoGroupMapping.id))
+            .join(Videos, Videos.id == VideoGroupMapping.video_id)
+            .filter(
+                VideoGroupMapping.video_group_id == group_id,
+                VideoGroupMapping.is_active == True,
+                Videos.is_active == True,
+            )
+            .scalar()
+        ) or 0
 
     @staticmethod
     def create(db: Session, **fields) -> Videos:

@@ -50,7 +50,7 @@ const ReliefPlayer = ({ session, navigation, reliefId }) => {
       clearInterval(timerRef.current);
       // Sync completed on end
       const totalSec = parseInt(session.duration) * 60 || 300;
-      syncVideoProgress(reliefId, session.id || reliefId, 'Completed', totalSec / 60, 'quick_relief');
+      syncVideoProgress(reliefId, session.id || reliefId, 'Completed', totalSec / 60, 'relief');
     }
   }, [currentStep, totalSteps, steps, currentCycle, session, progressAnim, reliefId]);
 
@@ -63,7 +63,7 @@ const ReliefPlayer = ({ session, navigation, reliefId }) => {
         });
       }, 1000);
       // Initial pending sync on play start
-      syncVideoProgress(reliefId, session.id || reliefId, 'Pending', 0, 'quick_relief');
+      syncVideoProgress(reliefId, session.id || reliefId, 'Pending', 0, 'relief');
     } else {
       clearInterval(timerRef.current);
     }
@@ -84,7 +84,7 @@ const ReliefPlayer = ({ session, navigation, reliefId }) => {
 
     // Send completed if > 90%
     if (watchedTime / totalSec > 0.9 && videoProgressRef.current.watchedTime / totalSec <= 0.9) {
-      syncVideoProgress(reliefId, session.id || reliefId, 'Completed', totalSec / 60, 'quick_relief');
+      syncVideoProgress(reliefId, session.id || reliefId, 'Completed', totalSec / 60, 'relief');
     }
     videoProgressRef.current.watchedTime = watchedTime;
   };

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.therapy_feedback import TherapyFeedback
 from app.models.therapy_session import TherapySession
 from app.models.therapy_session_group import TherapySessionGroup
-from app.models.video_group_mapping import VideoGroupMapping
+from app.repositories.video_repository import VideoRepository
 
 
 class TherapySessionGroupRepository:
@@ -59,11 +59,7 @@ class TherapySessionGroupRepository:
         for sg in rows:
             d = sg.to_dict()
 
-            total_videos = (
-                db.query(VideoGroupMapping)
-                .filter(VideoGroupMapping.video_group_id == sg.group_id)
-                .count()
-            )
+            total_videos = VideoRepository.count_active_in_group(db, sg.group_id)
             completed_videos = (
                 db.query(func.count(TherapySession.id))
                 .filter(
@@ -72,6 +68,9 @@ class TherapySessionGroupRepository:
                 )
                 .scalar()
             ) or 0
+            # A video finished during the run can be removed from the group
+            # afterwards, which would otherwise report "3/1 videos".
+            completed_videos = min(completed_videos, total_videos)
 
             feedback = (
                 db.query(TherapyFeedback)
@@ -93,15 +92,26 @@ class TherapySessionGroupRepository:
             return None
         sg.status = "completed"
         if pain_after is not None or user_feedback is not None:
-            from app.models.therapy_feedback import TherapyFeedback
             fb = db.query(TherapyFeedback).filter(
                 TherapyFeedback.session_group_id == session_group_id
             ).first()
-            if fb:
-                if pain_after is not None:
-                    fb.pain_after = pain_after
-                if user_feedback is not None:
-                    fb.user_feedback = user_feedback
+            # A run that was never opened with a pain baseline has no feedback
+            # row yet — create one, otherwise the score and remark collected
+            # here are dropped on the floor.
+            if not fb:
+                fb = TherapyFeedback(
+                    user_id=sg.user_id,
+                    video_group_id=sg.group_id,
+                    session_type=sg.session_type,
+                    session_group_id=sg.id,
+                    created_by=sg.user_id,
+                    updated_by=sg.user_id,
+                )
+                db.add(fb)
+            if pain_after is not None:
+                fb.pain_after = pain_after
+            if user_feedback is not None:
+                fb.user_feedback = user_feedback
         db.commit()
         db.refresh(sg)
         return sg

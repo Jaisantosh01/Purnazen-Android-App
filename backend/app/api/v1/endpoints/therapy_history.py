@@ -52,14 +52,17 @@ def get_history(
     "/completed-count/{group_id}",
     summary="Count completed videos in a group",
     description="Returns the number of therapy sessions with status 'Completed' "
-    "for the authenticated user within the specified video group.",
+    "for the authenticated user within the specified video group. Pass "
+    "`sessionGroupId` to count only the videos finished in that one sitting — "
+    "without it a repeat run inherits the previous run's count.",
 )
 def get_completed_count(
     group_id: uuid.UUID,
+    session_group_id: uuid.UUID = Query(default=None, alias="sessionGroupId"),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    count = TherapyService.count_completed_by_group(db, user.id, group_id)
+    count = TherapyService.count_completed_by_group(db, user.id, group_id, session_group_id)
     return success_response("Completed count fetched successfully", {"completedCount": count})
 
 
@@ -121,7 +124,7 @@ def complete_session(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    result = TherapyService.complete_session(db, user.id, session_group_id, body.painAfter, body.userFeedback)
+    result = TherapyService.complete_session(db, user.id, session_group_id, body.pain_after, body.user_feedback)
     if not result:
         return error_response("Session group not found", 404)
     return success_response("Session completed successfully", result)

@@ -10,6 +10,7 @@ import {
   Modal,
 } from 'react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { showAlert, showConfirm } from '../utils/alert';
 // @ts-ignore
@@ -17,6 +18,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { ListSkeleton } from '../components/SkeletonLoader';
+import Avatar from '../components/Avatar';
 import useTheme from '../hooks/useTheme';
 
 const DoctorManagementScreen = ({ navigation }) => {
@@ -88,11 +90,15 @@ const DoctorManagementScreen = ({ navigation }) => {
       .finally(() => { setLoading(false); setLoadingMore(false); });
   }, [debouncedSearch]);
 
-  useEffect(() => {
-    fetchData(1);
-  }, [fetchData]);
+  // Refetch on focus, not just on mount: coming back from EditDoctor otherwise
+  // leaves the row showing the values it had before the save.
+  useFocusEffect(
+    useCallback(() => {
+      fetchData(1);
+    }, [fetchData])
+  );
 
-  const isActiveFiltered = selectedFilters.specialties.length > 0 ||
+  const isActiveFiltered =selectedFilters.specialties.length > 0 ||
     selectedFilters.expertises.length > 0 ||
     selectedFilters.languages.length > 0;
 
@@ -178,6 +184,13 @@ const DoctorManagementScreen = ({ navigation }) => {
     navigation.navigate('EditDoctor', { doctorId: item.id });
   };
 
+  const handleRestore = (item, rowMap) => {
+    if (rowMap?.[item.id]) rowMap[item.id].closeRow();
+    apiClient.put(ENDPOINTS.DOCTOR_DETAIL(item.id), { is_active: true })
+      .then(() => { showAlert('Reactivated', `${item.name} is now active.`); fetchData(); })
+      .catch(err => showAlert('Error', err?.message || 'Failed to reactivate doctor'));
+  };
+
   const handleDelete = (item, rowMap) => {
     if (rowMap?.[item.id]) rowMap[item.id].closeRow();
     // Themed dialog (AppAlertHost) instead of the OS Alert so it matches the
@@ -215,9 +228,14 @@ const DoctorManagementScreen = ({ navigation }) => {
         <View style={[styles.doctorCard, isInactive && styles.doctorCardInactive]}>
           <View style={styles.cardHeader}>
             <View style={styles.doctorInfo}>
-              <View style={[styles.avatarPlaceholder, isInactive && styles.avatarInactive]}>
-                <MCIcon name="account-cancel" size={28} color={isInactive ? colors.white : colors.primary} />
-              </View>
+              <Avatar
+                uri={item.avatar}
+                name={item.name}
+                size={56}
+                backgroundColor={isInactive ? colors.border : colors.primaryLight}
+                textColor={isInactive ? colors.white : colors.primary}
+                style={styles.avatarSpacing}
+              />
               <View style={styles.details}>
                 <View style={styles.nameRow}>
                   <Text style={[styles.doctorName, isInactive && styles.textInactive]}>{item.name}</Text>
@@ -256,10 +274,17 @@ const DoctorManagementScreen = ({ navigation }) => {
         <MCIcon name="pencil" size={22} color="#fff" />
         <Text style={styles.backBtnText}>Edit</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={[styles.backBtn, styles.deleteBack]} onPress={() => handleDelete(data.item, rowMap)}>
-        <MCIcon name="delete" size={22} color="#fff" />
-        <Text style={styles.backBtnText}>Delete</Text>
-      </TouchableOpacity>
+      {data.item.is_active === false ? (
+        <TouchableOpacity style={[styles.backBtn, styles.restoreBack]} onPress={() => handleRestore(data.item, rowMap)}>
+          <MCIcon name="account-reactivate" size={22} color="#fff" />
+          <Text style={styles.backBtnText}>Restore</Text>
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity style={[styles.backBtn, styles.deleteBack]} onPress={() => handleDelete(data.item, rowMap)}>
+          <MCIcon name="delete" size={22} color="#fff" />
+          <Text style={styles.backBtnText}>Delete</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 
@@ -401,7 +426,7 @@ const makeStyles = colors => StyleSheet.create({
   listContainer: { paddingHorizontal: 16 },
   doctorCard: { backgroundColor: colors.card, borderRadius: 16, padding: 16, marginBottom: 12, overflow: 'hidden', borderWidth: 1, borderColor: colors.border },
   doctorInfo: { flex: 1, flexDirection: 'row', alignItems: 'center' },
-  avatarPlaceholder: { width: 56, height: 56, borderRadius: 28, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
+  avatarSpacing: { marginRight: 16 },
   details: { flex: 1 },
   doctorName: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
   specialty: { fontSize: 13, color: colors.primary, fontWeight: '600', marginTop: 2 },
@@ -410,7 +435,6 @@ const makeStyles = colors => StyleSheet.create({
   expertiseText: { fontSize: 11, color: colors.textSecondary, fontWeight: '500' },
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start' },
   doctorCardInactive: { backgroundColor: colors.surfaceMuted},
-  avatarInactive: { backgroundColor: colors.border },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   textInactive: { color: colors.textMuted },
   tagInactive: { backgroundColor: colors.border },
@@ -443,6 +467,7 @@ const makeStyles = colors => StyleSheet.create({
   },
   editBack: { backgroundColor: '#3B82F6' },
   deleteBack: { backgroundColor: '#EF4444' },
+  restoreBack: { backgroundColor: '#10B981' },
   backBtnText: { color: '#fff', fontSize: 12, fontWeight: '600' },
   footerLoader: { paddingVertical: 20, alignItems: 'center' },
 

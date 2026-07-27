@@ -9,22 +9,26 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { SPACING, RADIUS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
+import Avatar from './Avatar';
 import { getInitials } from '../utils/patientUtils';
 
 const PatientCard = ({ item, onPress }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const initials = getInitials(item.name);
 
   return (
     <TouchableOpacity
       style={styles.card}
       activeOpacity={0.88}
       onPress={() => onPress(item)}>
-      
-      <View style={styles.avatarCircle}>
-        <Text style={styles.avatarText}>{initials}</Text>
-      </View>
+
+      <Avatar
+        uri={item.avatarUrl}
+        name={item.name}
+        initials={getInitials(item.name)}
+        size={40}
+        backgroundColor={colors.primaryLight}
+      />
 
       <View style={styles.cardBody}>
         <Text style={styles.cardName}>{item.name}</Text>
@@ -70,19 +74,6 @@ const makeStyles = colors =>
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.07,
     shadowRadius: 4,
-  },
-  avatarCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    color: colors.primary,
-    fontSize: 14,
-    fontWeight: '700',
   },
   cardBody: {
     flex: 1,

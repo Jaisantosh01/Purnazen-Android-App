@@ -53,6 +53,27 @@ export const PRESETS = [
   },
 ];
 
+/** Common lead times, offered as one-tap chips beside the manual field. */
+export const REMINDER_PRESETS = [15, 30, 60, 120, 240];
+
+export const HISTORY_FILTERS = [
+  { key: 'all', label: 'All' },
+  { key: 'sent', label: 'Sent' },
+  { key: 'scheduled', label: 'Scheduled' },
+  { key: 'cancelled', label: 'Cancelled' },
+];
+
+/**
+ * Stand-in first name for the composer preview, so `{name}` shows what a
+ * recipient actually gets rather than the raw token.
+ */
+export const PREVIEW_NAME = 'Priya';
+export const PREVIEW_APP_NAME = 'PurnaZen';
+
+/** Swap the personalization token for a real name (preview + summaries). */
+export const personalize = (text, name = PREVIEW_NAME) =>
+  String(text ?? '').replace(/\{name\}/g, name);
+
 export const pad2 = n => String(n).padStart(2, '0');
 export const toDateText = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 export const toTimeText = d => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;

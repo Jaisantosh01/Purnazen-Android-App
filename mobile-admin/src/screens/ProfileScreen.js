@@ -17,6 +17,7 @@ import { checkForUpdate, FORCE_MARKER } from '../services/updateService';
 import { isOtaSupported, startBackgroundInstall } from '../services/otaUpdater';
 import { APP_VERSION } from '../config';
 import AppVersionFooter from '../components/AppVersionFooter';
+import Avatar from '../components/Avatar';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { StatsSkeleton } from '../components/SkeletonLoader';
@@ -121,7 +122,6 @@ const ProfileScreen = ({ navigation }) => {
 
   const displayName = user?.full_name ?? 'Admin';
   const displayEmail = user?.email ?? '';
-  const avatarLetter = displayName.charAt(0).toUpperCase();
 
   return (
     <View style={styles.root}>
@@ -135,9 +135,14 @@ const ProfileScreen = ({ navigation }) => {
         {/* ── Header ── */}
         <View style={[styles.header, { paddingTop: headerTop }]}>
           <View style={styles.profileRow}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarLetter}>{avatarLetter}</Text>
-            </View>
+            <Avatar
+              uri={user?.avatar_url}
+              name={displayName}
+              size={64}
+              backgroundColor="rgba(255,255,255,0.25)"
+              textColor={colors.white}
+              style={styles.avatarSpacing}
+            />
             <View style={styles.profileInfo}>
               <Text style={styles.profileName} numberOfLines={1}>{displayName}</Text>
               <Text style={styles.profileEmail} numberOfLines={1}>{displayEmail}</Text>
@@ -225,20 +230,7 @@ const makeStyles = colors => StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
-  avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  avatarLetter: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.white,
-  },
+  avatarSpacing: { marginRight: 16 },
   profileInfo: { flex: 1 },
   profileName: {
     fontSize: 20,

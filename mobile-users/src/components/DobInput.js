@@ -28,21 +28,21 @@ export const validateDobParts = ({ dd = '', mm = '', yyyy = '' } = {}) => {
 };
 
 /**
- * One DD / MM / YYYY box. The hint is drawn as a centred overlay instead of the
+ * One DD / MM / YYYY box. The hint is drawn as an overlay instead of the
  * TextInput's own `placeholder`: on Android a centred empty field with a native
- * placeholder parks the caret after the hint (at the right edge). The box is a
- * fixed height and the input fills it, so the hint overlay and the typed value
- * share the exact same centre — the hint no longer sits off from the value.
+ * placeholder parks the caret after the hint (at the right edge).
+ *
+ * The input is centred by the box's own `justifyContent`, not by an overlay:
+ * an absolutely-filled wrapper sized itself to the input and pinned it to the
+ * top of the box, which left the date sitting ~10dp above the separators. The
+ * hint overlay gets an explicit `height: '100%'` for the same reason. The hint
+ * is keyed on `value` only, not on focus: hiding it the instant the field was
+ * tapped is what read as a flicker.
  */
 const Box = ({ styles, hint, boxStyle, inputRef, value, onChange, maxLength }) => {
   const [focused, setFocused] = useState(false);
   return (
     <View style={[styles.box, boxStyle, focused && styles.boxFocused]}>
-      {!value && !focused ? (
-        <View style={styles.placeholderWrap} pointerEvents="none">
-          <Text style={styles.placeholder}>{hint}</Text>
-        </View>
-      ) : null}
       <TextInput
         ref={inputRef}
         style={styles.input}
@@ -53,7 +53,13 @@ const Box = ({ styles, hint, boxStyle, inputRef, value, onChange, maxLength }) =
         keyboardType="number-pad"
         maxLength={maxLength}
         textAlign="center"
+        underlineColorAndroid="transparent"
       />
+      {!value ? (
+        <View style={styles.hintWrap} pointerEvents="none">
+          <Text style={styles.placeholder} allowFontScaling={false}>{hint}</Text>
+        </View>
+      ) : null}
     </View>
   );
 };
@@ -113,43 +119,76 @@ export default function DobInput({ value, onChange }) {
   );
 }
 
+// The input and the hint share every metric that affects where a glyph lands,
+// so a change to one has to be mirrored in the other. Both are laid out at
+// GLYPH_BOX tall and flex-centred inside BOX_HEIGHT, so the typed date and the
+// hint occupy exactly the same rectangle.
+//
+// Deliberately no `lineHeight`: Android renders it through a line-height span
+// that pins the glyph to the bottom of the line box rather than its middle, so
+// on a TextInput it drags the typed date below centre no matter how the box
+// around it is aligned. Without it the font's own metrics decide, and
+// `textAlignVertical` centres those inside GLYPH_BOX.
+const BOX_HEIGHT = 44;
+const GLYPH_BOX = 20;
+const GLYPH = {
+  fontSize: 15,
+  fontWeight: '600',
+  includeFontPadding: false, // Android: drop the font's built-in leading
+  textAlign: 'center',
+  textAlignVertical: 'center',
+};
+
 const makeStyles = colors => StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  // 44 matches the text inputs elsewhere in the profile form. `justifyContent`
+  // is what actually centres the date: laying the input out as a normal flex
+  // child of the box is reliable, whereas an absolutely-filled wrapper sized
+  // itself to the input and left it stuck to the top edge.
   box: {
     flex: 1,
-    height: 52,
+    height: BOX_HEIGHT,
+    justifyContent: 'center',
     backgroundColor: colors.surfaceMuted,
     borderWidth: 1.5,
     borderColor: colors.border,
     borderRadius: 14,
-    justifyContent: 'center',
     overflow: 'hidden',
   },
   boxFocused: { borderColor: colors.primary },
   year: { flex: 1.4 },
-  // Input fills the fixed-height box and centres both ways, so it lines up
-  // pixel-for-pixel with the placeholder overlay.
-  input: {
-    width: '100%',
+  // `height: '100%'` resolves against the box's content height, so the hint is
+  // centred over exactly the span the input is centred in — don't rely on
+  // top/bottom to stretch this, that is the bug the input just came from.
+  hintWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
     height: '100%',
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    textAlign: 'center',
-    textAlignVertical: 'center',
-    padding: 0,
-    includeFontPadding: false,
-  },
-  placeholderWrap: {
-    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  input: {
+    ...GLYPH,
+    width: '100%',
+    height: GLYPH_BOX,
+    color: colors.textPrimary,
+    padding: 0,
+  },
   placeholder: {
-    fontSize: 16,
-    fontWeight: '600',
+    ...GLYPH,
+    width: '100%',
+    height: GLYPH_BOX,
     color: colors.textMuted,
+    padding: 0,
+  },
+  // includeFontPadding is off here too, otherwise the slash is centred inside a
+  // taller box than the digits are and lands a couple of pixels low.
+  sep: {
+    fontSize: 16,
+    color: colors.textMuted,
+    fontWeight: '700',
     includeFontPadding: false,
   },
-  sep: { fontSize: 18, color: colors.textMuted, fontWeight: '700' },
 });
