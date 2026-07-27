@@ -45,11 +45,20 @@ const ContentEditorScreen = ({ route, navigation }) => {
   const [version, setVersion] = useState('1.0');
   const [isActive, setIsActive] = useState(true);
   const [roles, setRoles] = useState(allRoles || []);
+  const [contentTypePicker, setContentTypePicker] = useState(false);
   const [rolePicker, setRolePicker] = useState(false);
   const [editorTab, setEditorTab] = useState('write');
   const [saving, setSaving] = useState(false);
+  // Set only long enough to drop the caret inside a freshly inserted tag pair.
+  // While it is non-null the TextInput's selection is controlled, so it has to
+  // be released again or the cursor is pinned and the admin cannot type
+  // anywhere else.
+  const [selectionOverride, setSelectionOverride] = useState(null);
 
   const selRef = useRef({ start: 0, end: 0 });
+  const selectionTimer = useRef(null);
+
+  useEffect(() => () => clearTimeout(selectionTimer.current), []);
 
   // Prompts follow the selected content type — a privacy policy asks for
   // different things than terms do.
@@ -96,10 +105,17 @@ const ContentEditorScreen = ({ route, navigation }) => {
   const applyInline = ({ open, close }) => {
     const { start, end } = clampSelection();
     if (start === end) {
+      // Nothing selected: insert an empty tag pair and put the caret between
+      // them so the admin types straight into it.
       const insertion = `${open}${close}`;
+      const caret = start + open.length;
       setContent(content.substring(0, start) + insertion + content.substring(end));
-      setSelectionOverride({ start: start + open.length, end: start + open.length });
-      setTimeout(() => setSelectionOverride(null), 100);
+      selRef.current = { start: caret, end: caret };
+      setSelectionOverride({ start: caret, end: caret });
+      // onSelectionChange normally releases the override; the timer covers the
+      // case where the caret was already at that offset and nothing fires.
+      clearTimeout(selectionTimer.current);
+      selectionTimer.current = setTimeout(() => setSelectionOverride(null), 150);
       return;
     }
     const selected = content.substring(start, end);
@@ -146,6 +162,7 @@ const ContentEditorScreen = ({ route, navigation }) => {
 
   const handleSelectionChange = (e) => {
     selRef.current = e.nativeEvent.selection;
+    if (selectionOverride) setSelectionOverride(null);
   };
 
   const canSave = title.trim().length > 0 && content.trim().length > 0 && (isAllSelected || selectedRoleIds.length > 0);
@@ -250,6 +267,7 @@ const ContentEditorScreen = ({ route, navigation }) => {
                 style={styles.editorInput}
                 value={content}
                 onChangeText={setContent}
+                selection={selectionOverride || undefined}
                 onSelectionChange={handleSelectionChange}
                 placeholder={hints.content}
                 placeholderTextColor={colors.textMuted}
@@ -294,6 +312,21 @@ const ContentEditorScreen = ({ route, navigation }) => {
             </TouchableOpacity>
           </View>
         </ScrollView>
+
+        <Modal visible={contentTypePicker} transparent={true} animationType="fade" onRequestClose={() => setContentTypePicker(false)}>
+          <TouchableOpacity style={styles.pickerModalOverlay} activeOpacity={1} onPress={() => setContentTypePicker(false)}>
+            <View style={styles.pickerModalContent}>
+              {CONTENT_TABS.map(tab => (
+                <TouchableOpacity key={tab.key} style={[styles.pickerOption, contentType === tab.key && styles.pickerOptionActive]}
+                  onPress={() => { setContentType(tab.key); setContentTypePicker(false); }}>
+                  <MCIcon name={tab.icon} size={20} color={contentType === tab.key ? colors.primary : colors.textPrimary} />
+                  <Text style={[styles.pickerOptionText, contentType === tab.key && { color: colors.primary, fontWeight: '700' }]}>{tab.label}</Text>
+                  {contentType === tab.key && <MCIcon name="check" size={20} color={colors.primary} />}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </TouchableOpacity>
+        </Modal>
 
         <Modal visible={rolePicker} transparent={true} animationType="fade" onRequestClose={() => setRolePicker(false)}>
           <TouchableOpacity style={styles.pickerModalOverlay} activeOpacity={1} onPress={() => setRolePicker(false)}>

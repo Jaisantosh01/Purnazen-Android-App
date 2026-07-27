@@ -40,10 +40,12 @@ const leafletHtml = (lat, lng, zoom) => `<!DOCTYPE html>
     window.ReactNativeWebView.postMessage(JSON.stringify({type:'moveend',lat:c.lat.toFixed(6),lng:c.lng.toFixed(6)}));
   }
   map.on('moveend', sendCenter);
-  map.on('load', function(){ sendCenter(); });
   function panTo(lat,lng,zoom){
     map.setView([lat,lng],zoom||15,{animate:true});
   }
+  // Leaflet's own 'load' already fired during setView above, so announce
+  // readiness directly — otherwise the native side never learns it can panTo.
+  window.ReactNativeWebView.postMessage(JSON.stringify({type:'ready'}));
 </script>
 </body></html>`;
 
@@ -67,7 +69,10 @@ const ClinicAddressPickerScreen = ({ navigation }) => {
 
   const [selectedLat, setSelectedLat] = useState(null);
   const [selectedLng, setSelectedLng] = useState(null);
-  const [showMap, setShowMap] = useState(false);
+  // Built once, when the map is first opened. Deriving it from the coordinate
+  // state instead would hand the WebView a new document on every pan — each
+  // moveend updates the coordinates — reloading the map mid-gesture.
+  const [mapHtml, setMapHtml] = useState(null);
   const [locating, setLocating] = useState(false);
 
   const [clinicName, setClinicName] = useState('');
@@ -122,18 +127,24 @@ const ClinicAddressPickerScreen = ({ navigation }) => {
     setCity(addr.city || addr.town || addr.village || addr.county || '');
   };
 
-  const selectSuggestion = (item) => {
-    const lat = parseFloat(item.lat);
-    const lng = parseFloat(item.lon);
+  // Opens the map on a point: first call loads the document centred there,
+  // later ones just pan the existing one.
+  const focusMap = (lat, lng) => {
     setSelectedLat(lat);
     setSelectedLng(lng);
-    setSearchQuery(item.display_name || '');
-    skipSearchRef.current = true;
-    setShowSuggestions(false);
-    setShowMap(true);
+    setMapHtml(prev => prev || leafletHtml(lat, lng, 16));
     if (mapReadyRef.current && webViewRef.current) {
       webViewRef.current.injectJavaScript(`panTo(${lat},${lng},16);true;`);
     }
+  };
+
+  const selectSuggestion = (item) => {
+    const lat = parseFloat(item.lat);
+    const lng = parseFloat(item.lon);
+    setSearchQuery(item.display_name || '');
+    skipSearchRef.current = true;
+    setShowSuggestions(false);
+    focusMap(lat, lng);
     reverseGeocode(lat, lng, item.address);
   };
 
@@ -182,14 +193,9 @@ const ClinicAddressPickerScreen = ({ navigation }) => {
         pos = await getPosition({ enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 });
       }
       const { latitude, longitude } = pos.coords;
-      setSelectedLat(latitude);
-      setSelectedLng(longitude);
       setSearchQuery('');
       setShowSuggestions(false);
-      setShowMap(true);
-      if (mapReadyRef.current && webViewRef.current) {
-        webViewRef.current.injectJavaScript(`panTo(${latitude},${longitude},16);true;`);
-      }
+      focusMap(latitude, longitude);
       reverseGeocode(latitude, longitude);
     } catch (err) {
       showAlert(
@@ -320,12 +326,12 @@ const ClinicAddressPickerScreen = ({ navigation }) => {
         </View>
 
         {/* Map */}
-        {showMap && (
+        {mapHtml && (
           <View style={styles.mapContainer}>
             <View style={{ flex: 1 }}>
               <WebView
                 ref={webViewRef}
-                source={{ html: leafletHtml(selectedLat, selectedLng, 15) }}
+                source={{ html: mapHtml }}
                 style={styles.map}
                 scrollEnabled={false}
                 onMessage={handleWebViewMessage}

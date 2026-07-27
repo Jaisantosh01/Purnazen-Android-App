@@ -20,6 +20,7 @@ import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 import { showAlert, showConfirm } from '../utils/alert';
 import { mapsUrl, parseCoordinates, validateClinicLocation } from '../utils/geo';
+import { _pullPendingClinic } from './ClinicAddressPickerScreen';
 
 /** A clinic row is only "done" once the columns the API requires are filled. */
 const isClinicComplete = clinic =>
@@ -315,6 +316,31 @@ const EditDoctorScreen = ({ route, navigation }) => {
     setIsAddingClinic(true);
     navigation.navigate('ClinicAddressPicker');
   };
+
+  // The picker is a separate screen, so it leaves the finished clinic behind
+  // for us to collect when we come back. Cancelling leaves nothing, and either
+  // way the "Add Clinic" button has to be re-enabled — it is disabled while the
+  // picker is open to stop a second one being started.
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      const pending = _pullPendingClinic();
+      if (pending) {
+        setEditedDoctor(prev => ({
+          ...prev,
+          clinics: [
+            ...(prev?.clinics || []),
+            {
+              ...pending,
+              latitude: String(pending.latitude),
+              longitude: String(pending.longitude),
+            },
+          ],
+        }));
+      }
+      setIsAddingClinic(false);
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const applyPastedLocation = (index, text) => {
     const coords = parseCoordinates(text);
