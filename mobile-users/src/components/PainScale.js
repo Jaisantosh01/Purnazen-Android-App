@@ -1,45 +1,83 @@
-import React, { useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useCallback, useMemo, useRef } from 'react';
+import { View, Text, StyleSheet, PanResponder } from 'react-native';
 import useTheme from '../hooks/useTheme';
 
-const LEVELS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+const TICKS = [0, 2, 4, 6, 8, 10];
+// Where the thumb rests before the user has answered.
+const NEUTRAL = 5;
 
 /**
- * 0–10 pain selector shared by the before/after therapy prompts.
+ * 0–10 pain slider shared by every before/after therapy prompt.
  *
- * `value` is a number (or null when nothing is picked yet) and `onChange` gets
- * the next number. The scale is rendered as tap targets rather than a drag
- * slider: inside a dialog a slider competes with the backdrop's pan handling,
- * which is what made the old popup awkward to use on a phone.
+ * `value` is a number, or null when nothing has been picked yet — the thumb then
+ * sits at the midpoint in a muted tint rather than claiming a score nobody gave,
+ * so "skipped" stays distinguishable from "answered 5". `onChange` gets the next
+ * number.
  */
 export default function PainScale({ value, onChange, label = 'Pain level' }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+
   const selected = typeof value === 'number' ? value : null;
+  const position = selected == null ? NEUTRAL : selected;
+  const unset = selected == null;
+
+  const trackWidthRef = useRef(0);
+  const grantXRef = useRef(0);
+  // The responder is built once, so it can't read `onChange` from the closure —
+  // rebuilding it mid-drag would drop the gesture.
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  const emitFor = useCallback(x => {
+    const width = trackWidthRef.current || 1;
+    onChangeRef.current(Math.min(10, Math.max(0, Math.round((x / width) * 10))));
+  }, []);
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        // Claim the drag outright: these prompts live inside AppDialog, whose
+        // ScrollView would otherwise read the sideways swipe as a scroll and
+        // take the gesture away halfway through.
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderGrant: e => {
+          grantXRef.current = e.nativeEvent.locationX;
+          emitFor(grantXRef.current);
+        },
+        // Tracked as an offset from the grant point rather than by reading
+        // locationX again: locationX is measured against whatever view is under
+        // the finger, so dragging across the thumb makes the value jump.
+        onPanResponderMove: (_e, gesture) => emitFor(grantXRef.current + gesture.dx),
+      }),
+    [emitFor],
+  );
 
   return (
     <View style={styles.wrap}>
       <Text style={styles.label}>
-        {label}: {selected == null ? '—' : `${selected}/10`}
+        {label}: {unset ? '—' : `${selected}/10`}
       </Text>
-      <View style={styles.row}>
-        {LEVELS.map(n => {
-          const active = selected === n;
-          return (
-            <TouchableOpacity
-              key={n}
-              style={[styles.pill, active && styles.pillActive]}
-              onPress={() => onChange(n)}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.pillText, active && styles.pillTextActive]}>{n}</Text>
-            </TouchableOpacity>
-          );
-        })}
+
+      {/* The track is only 6px tall, so the padded wrapper is what the finger
+          actually lands on. Padding is vertical only, which keeps the touch x
+          mapping 1:1 onto the track underneath. */}
+      <View
+        style={styles.touchArea}
+        onLayout={e => { trackWidthRef.current = e.nativeEvent.layout.width; }}
+        {...panResponder.panHandlers}
+      >
+        <View style={styles.track} pointerEvents="none">
+          <View style={[styles.fill, unset && styles.fillUnset, { width: `${position * 10}%` }]} />
+          <View style={[styles.thumb, unset && styles.thumbUnset, { left: `${position * 10}%` }]} />
+        </View>
       </View>
-      <View style={styles.legend}>
-        <Text style={styles.legendText}>No pain</Text>
-        <Text style={styles.legendText}>Worst</Text>
+
+      <View style={styles.ticks}>
+        {TICKS.map(n => (
+          <Text key={n} style={styles.tickText}>{n}</Text>
+        ))}
       </View>
     </View>
   );
@@ -47,21 +85,34 @@ export default function PainScale({ value, onChange, label = 'Pain level' }) {
 
 const makeStyles = colors => StyleSheet.create({
   wrap: { marginBottom: 14 },
-  label: { fontSize: 13.5, fontWeight: '700', color: colors.textPrimary, marginBottom: 10 },
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  pill: {
-    minWidth: 34,
-    paddingVertical: 8,
-    paddingHorizontal: 6,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
+  label: { fontSize: 13.5, fontWeight: '700', color: colors.textPrimary },
+  touchArea: { paddingVertical: 14, justifyContent: 'center' },
+  track: {
+    height: 6,
+    borderRadius: 12,
     backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'visible',
   },
-  pillActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  pillText: { fontSize: 13, fontWeight: '700', color: colors.textSecondary },
-  pillTextActive: { color: colors.white },
-  legend: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
-  legendText: { fontSize: 11, color: colors.textMuted },
+  fill: { position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: 12, backgroundColor: colors.primary },
+  fillUnset: { backgroundColor: colors.border },
+  thumb: {
+    position: 'absolute',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    top: -7,
+    marginLeft: -10,
+    backgroundColor: colors.white,
+    borderWidth: 2.5,
+    borderColor: colors.primary,
+    elevation: 4,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+  },
+  thumbUnset: { borderColor: colors.border },
+  ticks: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 2 },
+  tickText: { fontSize: 12, color: colors.textMuted },
 });

@@ -10,6 +10,7 @@ import {
   Modal,
 } from 'react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { showAlert, showConfirm } from '../utils/alert';
 // @ts-ignore
@@ -89,11 +90,15 @@ const DoctorManagementScreen = ({ navigation }) => {
       .finally(() => { setLoading(false); setLoadingMore(false); });
   }, [debouncedSearch]);
 
-  useEffect(() => {
-    fetchData(1);
-  }, [fetchData]);
+  // Refetch on focus, not just on mount: coming back from EditDoctor otherwise
+  // leaves the row showing the values it had before the save.
+  useFocusEffect(
+    useCallback(() => {
+      fetchData(1);
+    }, [fetchData])
+  );
 
-  const isActiveFiltered = selectedFilters.specialties.length > 0 ||
+  const isActiveFiltered =selectedFilters.specialties.length > 0 ||
     selectedFilters.expertises.length > 0 ||
     selectedFilters.languages.length > 0;
 

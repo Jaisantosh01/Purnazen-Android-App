@@ -400,31 +400,6 @@ const UploadVideoScreen = ({ route, navigation }) => {
             {item.status === 'failed' && !!item.error && (
               <Text style={styles.queueError} numberOfLines={2}>{item.error}</Text>
             )}
-            
-            {/* Visible overwrite option */}
-            <TouchableOpacity
-              style={styles.queueOverwriteRow}
-              onPress={(e) => {
-                e.stopPropagation();
-                if (uploading || item.status === 'done') return;
-                const next = !item.overwrite;
-                updateItem(item.id, {
-                  overwrite: next,
-                  status: item.status === 'failed' ? 'pending' : item.status,
-                  error: next ? null : item.error,
-                });
-              }}
-              disabled={uploading || item.status === 'done'}
-            >
-              <MCIcon
-                name={item.overwrite ? 'checkbox-marked' : 'checkbox-blank-outline'}
-                size={18}
-                color={item.overwrite ? colors.warning : colors.textMuted}
-              />
-              <Text style={[styles.queueOverwriteLabel, item.overwrite && { color: colors.warning }]}>
-                Overwrite
-              </Text>
-            </TouchableOpacity>
           </View>
           {item.status !== 'uploading' && item.status !== 'done' && (
             <TouchableOpacity onPress={(e) => { e.stopPropagation(); removeItem(item.id); }} style={{ padding: 4 }}>
@@ -997,13 +972,9 @@ const makeStyles = colors => StyleSheet.create({
   backBtnText: { fontSize: 16, fontWeight: '700', color: colors.white },
   uploadBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: colors.primary, padding: 16, borderRadius: 12, flex: 2 },
   uploadBtnText: { fontSize: 16, fontWeight: '700', color: colors.white },
+  // Lives in the expanded card body, next to the "save as" filename it applies to.
   overwriteRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, paddingVertical: 6 },
   overwriteLabel: { fontSize: 13, fontWeight: '500', color: colors.textMuted, flex: 1 },
-  // The collapsed row's Overwrite toggle. These were referenced but never
-  // defined, so it fell back to the default column flow and the checkbox sat
-  // on its own line above the label.
-  queueOverwriteRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, alignSelf: 'flex-start' },
-  queueOverwriteLabel: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
   modalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', padding: 20 },
   modalCard: { backgroundColor: colors.modalSurface, padding: 20, borderRadius: 16 , borderWidth: 1, borderColor: colors.modalBorder, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 16, elevation: 12},
   modalTitle: { fontSize: 16, fontWeight: '800', marginBottom: 12, color: colors.textPrimary },

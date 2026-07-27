@@ -55,7 +55,10 @@ const WellnessScreen = ({ navigation }) => {
     if (program.videoGroupId) {
       navigation.navigate('VideoPlayer', {
         groupId: program.videoGroupId,
-        groupTitle: program.title
+        groupTitle: program.title,
+        // Files the run as a wellness session, which is also what makes the
+        // end-of-session prompt ask for a remark only, no pain score.
+        sessionType: 'wellness',
       });
     } else {
       showAlert(
