@@ -9,7 +9,6 @@ import {
   Modal,
   FlatList,
   Linking,
-  Switch,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -18,6 +17,7 @@ import { ENDPOINTS } from '../constants/apiEndpoints';
 import { EditFormSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
+import AppToggle from '../components/AppToggle';
 import { showAlert, showConfirm } from '../utils/alert';
 import { mapsUrl, validateClinicLocation } from '../utils/geo';
 import { _pullPendingClinic } from './ClinicAddressPickerScreen';
@@ -306,8 +306,14 @@ const EditDoctorScreen = ({ route, navigation }) => {
 
     request
       .then(() => {
-        showAlert('Success', `Doctor ${doctorId ? 'updated' : 'created'} successfully`);
-        navigation.goBack();
+        // Leave on OK rather than popping underneath the dialog — the screen we
+        // return to refetches on focus, so the list/detail shows what was just
+        // saved instead of the values it was rendered with.
+        showAlert(
+          'Success',
+          `Doctor ${doctorId ? 'updated' : 'created'} successfully`,
+          [{ text: 'OK', style: 'default', onPress: () => navigation.goBack() }],
+        );
       })
       .catch((error) => {
         console.error("Save error:", error);
@@ -471,11 +477,9 @@ const EditDoctorScreen = ({ route, navigation }) => {
                 Inactive doctors stay on record but stop appearing to patients.
               </Text>
             </View>
-            <Switch
+            <AppToggle
               value={!!editedDoctor.is_active}
               onValueChange={val => setEditedDoctor(prev => ({ ...prev, is_active: val }))}
-              trackColor={{ false: colors.surfaceMuted, true: colors.primaryLight }}
-              thumbColor={editedDoctor.is_active ? colors.primary : colors.textMuted}
             />
           </View>
         </>
