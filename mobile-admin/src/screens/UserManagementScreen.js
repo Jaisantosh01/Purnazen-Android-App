@@ -79,7 +79,7 @@ const UserManagementScreen = ({ navigation }) => {
 
   const handleEdit = (item, rowMap) => {
     if (rowMap?.[item.id]) rowMap[item.id].closeRow();
-    navigation.navigate('EditUser', { user: item });
+    navigation.navigate('EditUser', { user: item, viewMode: false });
   };
 
   const handleDelete = (item, rowMap) => {
@@ -184,7 +184,7 @@ const UserManagementScreen = ({ navigation }) => {
             <TouchableOpacity
               style={[styles.userCard, isInactive && styles.userCardInactive]}
               activeOpacity={1}
-              onPress={() => navigation.navigate('EditUser', { user: item })}
+              onPress={() => navigation.navigate('EditUser', { user: item, viewMode: true })}
             >
               <Avatar
                 uri={item.avatar_url}

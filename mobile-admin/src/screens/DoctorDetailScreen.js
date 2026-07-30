@@ -178,10 +178,14 @@ const DoctorDetailScreen = ({ route, navigation }) => {
                       <Text style={[styles.clinicDetailText, styles.addressLink]}>{clinic.address}, {clinic.city}</Text>
                     </TouchableOpacity>
                     {clinic.phone && (
-                      <View style={styles.clinicDetailRow}>
+                      <TouchableOpacity
+                        style={styles.clinicDetailRow}
+                        activeOpacity={0.6}
+                        onPress={() => Linking.openURL(`tel:${clinic.phone.replace(/[^+\d]/g, '')}`)}
+                      >
                         <MCIcon name="phone" size={16} color={colors.textMuted} />
-                        <Text style={styles.clinicDetailText}>{clinic.phone}</Text>
-                      </View>
+                        <Text style={[styles.clinicDetailText, styles.phoneLink]}>{clinic.phone}</Text>
+                      </TouchableOpacity>
                     )}
                   </View>
                 </View>
@@ -258,6 +262,7 @@ const makeStyles = colors => StyleSheet.create({
   clinicDetailRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   clinicDetailText: { fontSize: 13, color: colors.textSecondary, flex: 1 },
   addressLink: { textDecorationLine: 'underline', color: colors.primary },
+  phoneLink: { textDecorationLine: 'underline', color: colors.primary },
   awardSection: { marginTop: 16, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 16 },
   awardHeader: { fontSize: 12, color: colors.textSecondary, marginBottom: 8, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
   awardItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
