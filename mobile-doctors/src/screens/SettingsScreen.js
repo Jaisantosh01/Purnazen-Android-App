@@ -318,7 +318,7 @@ const SettingsScreen = ({ navigation, route }) => {
 
   const handleSavePhone = async () => {
     const trimmed = phone.trim();
-    if (trimmed && !/^[+0-9 ()-]{6,15}$/.test(trimmed)) {
+    if (trimmed && !/^[+0-9 ()-]{6,10}$/.test(trimmed)) {
       setFormError('Enter a valid phone number.');
       return;
     }
@@ -514,6 +514,7 @@ const SettingsScreen = ({ navigation, route }) => {
               placeholder="+91 98765 43210"
               placeholderTextColor={colors.textMuted}
               keyboardType="phone-pad"
+              maxLength={10}
             />
             {formError ? <Text style={styles.modalError}>{formError}</Text> : null}
             <View style={styles.modalActions}>

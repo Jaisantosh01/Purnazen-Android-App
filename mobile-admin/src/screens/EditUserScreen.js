@@ -18,6 +18,7 @@ import ScreenHeader from '../components/ScreenHeader';
 import DobInput, { isoToParts, validateDobParts } from '../components/DobInput';
 import { GENDERS } from '../constants/strings';
 import { showAlert } from '../utils/alert';
+import { isValidPhone, formatPhone, dialablePhone } from '../utils/validators';
 
 const FIELD_LABELS = {
   full_name: 'Full Name',
@@ -32,22 +33,6 @@ const FIELD_LABELS = {
   is_active: 'Status',
   created_at: 'Created At',
   updated_at: 'Updated At',
-};
-
-const cleanDigits = raw => raw?.replace(/[^0-9]/g, '') || '';
-
-const formatPhone = raw => {
-  const d = cleanDigits(raw);
-  if (!d) return '—';
-  const num = d.length >= 10 ? d.slice(-10) : d;
-  return `+91 ${num.slice(0, 5)} ${num.slice(5)}`;
-};
-
-const dialablePhone = raw => {
-  const d = cleanDigits(raw);
-  if (!d) return '';
-  const num = d.length >= 10 ? d.slice(-10) : d;
-  return `+91${num}`;
 };
 
 const EditUserScreen = ({ route, navigation }) => {
@@ -93,6 +78,11 @@ const EditUserScreen = ({ route, navigation }) => {
   }, [user.id]);
 
   const handleSave = () => {
+    const trimmedPhone = (editedUser.phone || '').trim();
+    if (trimmedPhone && !isValidPhone(trimmedPhone)) {
+      showAlert('Validation Error', 'Enter a valid phone number.');
+      return;
+    }
     const parsedDob = validateDobParts(dob);
     if (!parsedDob.ok) {
       showAlert('Validation Error', 'Enter a valid date of birth (DD/MM/YYYY).');
@@ -248,6 +238,7 @@ const EditUserScreen = ({ route, navigation }) => {
               value={editedUser.phone}
               onChangeText={val => setEditedUser({...editedUser, phone: val})}
               keyboardType="phone-pad"
+              maxLength={10}
               placeholderTextColor={colors.textMuted}
             />
 

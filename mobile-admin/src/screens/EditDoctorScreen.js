@@ -21,6 +21,7 @@ import AppToggle from '../components/AppToggle';
 import { showAlert, showConfirm } from '../utils/alert';
 import { mapsUrl, validateClinicLocation } from '../utils/geo';
 import { _pullPendingClinic } from './ClinicAddressPickerScreen';
+import { isValidPhone } from '../utils/validators';
 
 /**
  * The form is walked one section at a time rather than as one endless scroll:
@@ -278,9 +279,27 @@ const EditDoctorScreen = ({ route, navigation }) => {
       return;
     }
 
-    setSaving(true);
+    const docPhone = (editedDoctor.phone || '').trim();
+    if (docPhone && !isValidPhone(docPhone)) {
+      showAlert('Validation Error', 'Enter a valid phone number for the doctor.');
+      setTouchedSteps(t => ({ ...t, account: true }));
+      goToStep(STEPS.findIndex(s => s.key === 'account'));
+      return;
+    }
 
     const clinics = editedDoctor.clinics || [];
+    for (let i = 0; i < clinics.length; i++) {
+      const p = (clinics[i].phone || '').trim();
+      if (p && !isValidPhone(p)) {
+        showAlert('Validation Error', `Clinic ${i + 1}: Enter a valid phone number.`);
+        setTouchedSteps(t => ({ ...t, clinics: true }));
+        goToStep(STEPS.findIndex(s => s.key === 'clinics'));
+        return;
+      }
+    }
+
+    setSaving(true);
+
     const payload = {
         ...editedDoctor,
         specialty_ids: editedDoctor.specialty_ids || [],
@@ -468,7 +487,7 @@ const EditDoctorScreen = ({ route, navigation }) => {
           <TextInput style={styles.input} value={editedDoctor.email} onChangeText={(val) => setEditedDoctor({...editedDoctor, email: val})} placeholder="email@example.com" placeholderTextColor={colors.textMuted} keyboardType="email-address" autoCapitalize="none" />
 
           <Text style={styles.label}>Phone</Text>
-          <TextInput style={styles.input} value={editedDoctor.phone} onChangeText={(val) => setEditedDoctor({...editedDoctor, phone: val})} placeholder="+91-9876543210" placeholderTextColor={colors.textMuted} keyboardType="phone-pad" />
+          <TextInput style={styles.input} value={editedDoctor.phone} onChangeText={(val) => setEditedDoctor({...editedDoctor, phone: val})} placeholder="+91-9876543210" placeholderTextColor={colors.textMuted} keyboardType="phone-pad" maxLength={10} />
 
           <View style={styles.activeToggleRow}>
             <View style={styles.activeToggleText}>
@@ -495,7 +514,7 @@ const EditDoctorScreen = ({ route, navigation }) => {
           <TextInput style={styles.input} value={editedDoctor.password} onChangeText={(val) => setEditedDoctor({...editedDoctor, password: val})} placeholder="Enter password" placeholderTextColor={colors.textMuted} secureTextEntry />
 
           <Text style={styles.label}>Phone</Text>
-          <TextInput style={styles.input} value={editedDoctor.phone} onChangeText={(val) => setEditedDoctor({...editedDoctor, phone: val})} placeholder="+91-9876543210" placeholderTextColor={colors.textMuted} keyboardType="phone-pad" />
+          <TextInput style={styles.input} value={editedDoctor.phone} onChangeText={(val) => setEditedDoctor({...editedDoctor, phone: val})} placeholder="+91-9876543210" placeholderTextColor={colors.textMuted} keyboardType="phone-pad" maxLength={10} />
         </>
       )}
     </View>
@@ -673,7 +692,7 @@ const EditDoctorScreen = ({ route, navigation }) => {
               </View>
               <View style={[styles.rowItem, styles.rowItemGap]}>
                 <Text style={styles.label}>Phone</Text>
-                <TextInput style={styles.input} placeholder="e.g. +91-9876543210" placeholderTextColor={colors.textMuted} value={clinic.phone} onChangeText={(val) => updateClinic(index, 'phone', val)} keyboardType="phone-pad" />
+                <TextInput style={styles.input} placeholder="e.g. +91-9876543210" placeholderTextColor={colors.textMuted} value={clinic.phone} onChangeText={(val) => updateClinic(index, 'phone', val)} keyboardType="phone-pad" maxLength={10} />
               </View>
             </View>
 
