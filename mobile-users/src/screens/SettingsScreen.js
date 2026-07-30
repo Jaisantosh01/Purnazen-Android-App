@@ -888,6 +888,7 @@ const SettingsScreen = ({ navigation, route }) => {
               placeholder="+91 98765 43210"
               placeholderTextColor={colors.textMuted}
               keyboardType="phone-pad"
+              maxLength={10}
             />
             {formError ? <Text style={styles.modalError}>{formError}</Text> : null}
             <View style={styles.modalActions}>

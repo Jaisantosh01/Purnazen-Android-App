@@ -164,15 +164,18 @@ const StorageFileActionsModal = ({ file, onClose, onChanged }) => {
   };
 
   const doDelete = () => {
-    const usedLine = usedIn.length ? `\n\nStill used by: ${usedIn.join(', ')}.` : '';
+    const usedLine = usedIn.length
+      ? `\n\nThis will also permanently remove it from: ${usedIn.join(', ')}.`
+      : '';
     showConfirm(
       'Delete video',
       `Permanently delete "${fileName}" and its file from storage? This cannot be undone.${usedLine}`,
       () => {
         setBusy(true);
+        const groupInfo = usedIn.length ? ` It has been removed from: ${usedIn.join(', ')}.` : '';
         apiClient
           .delete(ENDPOINTS.VIDEO_STORAGE_DELETE_FILE, { params: { path, hard: true } })
-          .then(() => afterChange(`"${fileName}" was deleted.`))
+          .then(() => afterChange(`"${fileName}" was deleted.${groupInfo}`))
           .catch((err) => {
             setBusy(false);
             if (err?.message && /history/i.test(err.message)) {

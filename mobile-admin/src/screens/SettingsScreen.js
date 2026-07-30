@@ -286,7 +286,7 @@ const SettingsScreen = ({ navigation }) => {
   const handleSaveProfile = async () => {
     if (!fullName.trim()) { setFormError('Name cannot be empty.'); return; }
     const trimmedPhone = profilePhone.trim();
-    if (trimmedPhone && !/^[+0-9 ()-]{6,15}$/.test(trimmedPhone)) {
+    if (trimmedPhone && !/^[+0-9 ()-]{6,10}$/.test(trimmedPhone)) {
       setFormError('Enter a valid phone number.');
       return;
     }
@@ -316,7 +316,7 @@ const SettingsScreen = ({ navigation }) => {
 
   const handleSavePhone = async () => {
     const trimmed = phone.trim();
-    if (trimmed && !/^[+0-9 ()-]{6,15}$/.test(trimmed)) {
+    if (trimmed && !/^[+0-9 ()-]{6,10}$/.test(trimmed)) {
       setFormError('Enter a valid phone number.');
       return;
     }
@@ -488,6 +488,7 @@ const SettingsScreen = ({ navigation }) => {
                 placeholder="+91 98765 43210"
                 placeholderTextColor={colors.textMuted}
                 keyboardType="phone-pad"
+                maxLength={10}
               />
               <Text style={styles.modalLabel}>Gender</Text>
               <GenderSelect value={gender} onChange={v => { setGender(v); setFormError(''); }} />
@@ -521,6 +522,7 @@ const SettingsScreen = ({ navigation }) => {
               placeholder="+91 98765 43210"
               placeholderTextColor={colors.textMuted}
               keyboardType="phone-pad"
+              maxLength={10}
             />
             {formError ? <Text style={styles.modalError}>{formError}</Text> : null}
             <View style={styles.modalActions}>
