@@ -149,7 +149,7 @@ const SubscriptionsScreen = () => {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Subscriptions" subtitle="Choose the right plan for you" />
+      <ScreenHeader title="Subscriptions" subtitle="Choose the right plan for you" backBehavior="popToRoot" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
 

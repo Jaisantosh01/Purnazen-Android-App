@@ -16,6 +16,7 @@ import MetricScoreRow from '../components/scan/MetricScoreRow';
 import RecommendationCard from '../components/scan/RecommendationCard';
 import useTheme from '../hooks/useTheme';
 import { useHeaderTopPadding } from '../components/ScreenHeader';
+import { popToStackRoot } from '../navigation/backHelpers';
 
 const METRIC_LABELS = {
   hydrationScore: 'Hydration',
@@ -134,7 +135,7 @@ const ScanResultsScreen = ({ navigation, route }) => {
 
         {/* Header */}
         <View style={[styles.header, { paddingTop: headerTop }]}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => popToStackRoot(navigation)}>
             <MCIcon name="arrow-left" size={22} color={colors.white} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Scan Results</Text>

@@ -128,7 +128,7 @@ const HealthReportScreen = () => {
   if (loading) {
     return (
       <View style={styles.root}>
-        <ScreenHeader title="My Health Report" variant="light" />
+        <ScreenHeader title="My Health Report" variant="light" backBehavior="popToRoot" />
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.stateText}>Building your report…</Text>
@@ -140,7 +140,7 @@ const HealthReportScreen = () => {
   if (error || !report) {
     return (
       <View style={styles.root}>
-        <ScreenHeader title="My Health Report" variant="light" />
+        <ScreenHeader title="My Health Report" variant="light" backBehavior="popToRoot" />
         <View style={styles.centered}>
           <MCIcon name="alert-circle-outline" size={44} color={colors.danger} />
           <Text style={styles.stateTitle}>Couldn’t load your report</Text>
@@ -162,6 +162,7 @@ const HealthReportScreen = () => {
         title="My Health Report"
         subtitle={`Generated ${fmtDate(report.generatedAt)}`}
         variant="light"
+        backBehavior="popToRoot"
         right={(
           <TouchableOpacity onPress={onShare} hitSlop={HIT} activeOpacity={0.7}>
             {/* variant="light" paints the header on colors.surface, so the icon
