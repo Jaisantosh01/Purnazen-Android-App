@@ -141,6 +141,48 @@ def test_quality_gate_unit_flags_issues():
     assert "too_blurry" not in {i["code"] for i in res2["issues"]}
 
 
+def test_tongue_quality_rejects_skin_and_accepts_tongue():
+    """Forehead/cheek-like skin must not go green; a red tongue blob must."""
+    pytest.importorskip("cv2")
+    import cv2
+    import numpy as np
+    from app.ai.quality import assess_quality
+
+    # Skin-tone forehead fill (BGR ≈ light warm skin).
+    skin = np.zeros((480, 480, 3), np.uint8)
+    skin[:, :] = (140, 170, 210)  # BGR warm skin
+    skin_res = assess_quality(skin, scan_type="tongue")
+    assert skin_res["ok"] is False
+    assert "no_tongue" in {i["code"] for i in skin_res["issues"]}
+
+    # Empty beige wall / room — must NOT go green (was matching pale "coat" band).
+    wall = np.zeros((480, 480, 3), np.uint8)
+    wall[:, :] = (200, 210, 220)  # BGR light wall
+    wall_res = assess_quality(wall, scan_type="tongue")
+    assert wall_res["ok"] is False
+    assert "no_tongue" in {i["code"] for i in wall_res["issues"]}
+
+    # Dark empty frame
+    dark = np.full((480, 480, 3), 30, np.uint8)
+    dark_res = assess_quality(dark, scan_type="tongue")
+    assert dark_res["ok"] is False
+
+    # Saturated red oval — stands in for an extended tongue (camera or gallery).
+    tongue = np.full((480, 480, 3), 40, np.uint8)
+    cv2.ellipse(tongue, (240, 260), (140, 110), 0, 0, 360, (60, 60, 200), -1)
+    noise = np.random.default_rng(0).integers(0, 20, tongue.shape, dtype=np.uint8)
+    tongue = cv2.add(tongue, noise)
+    tongue_res = assess_quality(tongue, scan_type="tongue")
+    assert "no_tongue" not in {i["code"] for i in tongue_res["issues"]}
+
+    # Off-centre gallery-style tongue (not in the camera oval) must still pass.
+    gallery = np.full((480, 480, 3), 35, np.uint8)
+    cv2.ellipse(gallery, (120, 360), (100, 80), 0, 0, 360, (55, 55, 205), -1)
+    gallery = cv2.add(gallery, noise)
+    gal_res = assess_quality(gallery, scan_type="tongue")
+    assert "no_tongue" not in {i["code"] for i in gal_res["issues"]}
+
+
 def test_quality_gate_endpoint_returns_422_with_reason(client):
     """A too-dark/faceless image is rejected at upload with a reason + guidance."""
     pytest.importorskip("cv2")

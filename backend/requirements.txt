@@ -38,6 +38,9 @@ numpy>=2.0  # 2.x required for Python 3.14+
 # Trained skin-analysis model inference (CPU). Model file is dropped at
 # app/ai/models/skin_model.onnx; pipeline falls back to CV when absent.
 onnxruntime>=1.18.0
+# TongueDiagnosis YOLOv5 tongue localizer (auto-downloads weights on first use).
+# Optional at install time — without it, tongue scans fall back to classical CV.
+ultralytics>=8.3.0
 
 # Google Calendar / Meet integration
 google-api-python-client>=2.150.0

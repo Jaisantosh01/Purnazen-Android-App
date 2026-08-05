@@ -24,9 +24,6 @@ _MAX_MEAN_L     = 220.0   # above = blown out / glare
 _MIN_FACE_AREA  = 0.04    # face bbox area / image area; below = too far
 _MAX_CENTER_OFF = 0.30    # face-centre distance from image centre (frac of dim)
 
-# Tongue-specific tunables
-_TONGUE_MIN_REDDISH_FRAC = 0.005  # fraction of pixels in reddish/pinkish range
-
 _GUIDANCE = {
     "no_face":        "We couldn't find your face. Centre it in the frame and ensure good lighting.",
     "multiple_faces": "Multiple faces detected. Make sure only your face is in the frame.",
@@ -108,25 +105,14 @@ def _count_faces(img_bgr) -> tuple:
 
 # ── Tongue detection ───────────────────────────────────────────────────────────
 
-def _has_tongue(img_bgr: np.ndarray) -> bool:
-    """Rough check: is there a reddish/pink region (tongue) in the lower half?
-
-    Looks for pixels in the pinkish-red HSV range in the lower half of the frame,
-    which is where the tongue appears when the user sticks it out.
-    """
-    h = img_bgr.shape[0]
-    lower = img_bgr[h // 3:, :]  # lower two-thirds
-    hsv = cv2.cvtColor(lower, cv2.COLOR_BGR2HSV)
-
-    # Reddish (hue 0-10 and 160-180) + not too dark + moderately saturated
-    mask1 = cv2.inRange(hsv, (0, 50, 80),  (15, 255, 255))
-    mask2 = cv2.inRange(hsv, (155, 50, 80), (180, 255, 255))
-    # Pinkish (hue 145-175, low-medium saturation)
-    mask3 = cv2.inRange(hsv, (140, 30, 120), (175, 180, 255))
-    reddish = cv2.bitwise_or(mask1, cv2.bitwise_or(mask2, mask3))
-
-    frac = float(np.sum(reddish > 0)) / max(1, lower.shape[0] * lower.shape[1])
-    return frac >= _TONGUE_MIN_REDDISH_FRAC
+def _has_tongue(img_bgr: np.ndarray, face_count: int = 0) -> bool:
+    """True when a tongue is likely in frame (YOLO or classical CV)."""
+    try:
+        from app.ai.tongue import is_tongue_present
+        return is_tongue_present(img_bgr, face_count=face_count)
+    except Exception as exc:
+        logger.warning("Tongue presence check failed (%s); treating as no tongue", exc)
+        return False
 
 
 # ── Public API ─────────────────────────────────────────────────────────────────
@@ -147,19 +133,20 @@ def assess_quality(img_bgr: np.ndarray, scan_type: str = "face") -> dict:
     codes = []
 
     if scan_type == "tongue":
-        # Tongue checks — no face detection needed
+        # Face count still matters: a visible face + no strong tongue signal
+        # means the user is pointing at forehead/cheeks, not sticking out.
+        face_count, _ = _count_faces(img_bgr)
+        face_area_ratio = 0.0
+        center_offset = 0.0
+
         if mean_l < _MIN_MEAN_L:
             codes.append("too_dark")
         elif mean_l > _MAX_MEAN_L:
             codes.append("too_bright")
         if blur < _MIN_BLUR:
             codes.append("too_blurry")
-        if not _has_tongue(img_bgr):
+        if not _has_tongue(img_bgr, face_count=face_count):
             codes.append("no_tongue")
-
-        face_count = 0
-        face_area_ratio = 0.0
-        center_offset = 0.0
 
     else:
         # Face checks

@@ -80,8 +80,11 @@ function deriveChecks(issues) {
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
 
-const FaceScanScreen = ({ navigation, route }) => {
-  const scanType = route?.params?.scanType ?? 'face';
+const FaceScanScreen = ({ navigation }) => {
+  // FaceScan is face-only. Tongue uses TongueScanScreen — never honour a
+  // scanType:'tongue' param here (a past ScanError "Try Again" bug routed
+  // tongue failures into this screen and auto-capture re-failed in a loop).
+  const scanType = 'face';
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(colors, insets), [colors, insets]);

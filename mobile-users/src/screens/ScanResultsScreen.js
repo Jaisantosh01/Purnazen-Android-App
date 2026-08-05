@@ -234,22 +234,35 @@ const ScanResultsScreen = ({ navigation, route }) => {
           </Text>
 
           {isTongue ? (
-            <View style={styles.tongueGrid}>
-              {[
-                ['Tongue Colour', results.tongueBodyColor],
-                ['Coat Colour', results.tongueCoatColor],
-                ['Coat Thickness', results.tongueCoatThick],
-                ['Moisture', results.tongueMoisture],
-                ['Shape', results.tongueShape],
-              ].map(([label, value]) => value ? (
-                <View key={label} style={styles.tongueRow}>
-                  <Text style={styles.tongueMetaLabel}>{label}</Text>
-                  <View style={styles.tongueChip}>
-                    <Text style={styles.tongueChipText}>{value}</Text>
+            <>
+              <View style={styles.tongueGrid}>
+                {[
+                  ['Tongue Colour', results.tongueBodyColor],
+                  ['Coat Colour', results.tongueCoatColor],
+                  ['Coat Thickness', results.tongueCoatThick],
+                  ['Moisture', results.tongueMoisture],
+                  ['Shape', results.tongueShape],
+                ].map(([label, value]) => value ? (
+                  <View key={label} style={styles.tongueRow}>
+                    <Text style={styles.tongueMetaLabel}>{label}</Text>
+                    <View style={styles.tongueChip}>
+                      <Text style={styles.tongueChipText}>{value}</Text>
+                    </View>
                   </View>
-                </View>
-              ) : null)}
-            </View>
+                ) : null)}
+              </View>
+              <Text style={styles.comingSoonTitle}>Coming soon</Text>
+              <View style={styles.tongueGrid}>
+                {['Greasiness', 'Cracks', 'Tooth marks'].map(label => (
+                  <View key={label} style={styles.tongueRow}>
+                    <Text style={styles.tongueMetaLabel}>{label}</Text>
+                    <View style={[styles.tongueChip, styles.comingSoonChip]}>
+                      <Text style={styles.comingSoonChipText}>Soon</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </>
           ) : (
             <View style={styles.metricsBox}>
               {FACE_METRIC_KEYS.map(key => (
@@ -467,6 +480,22 @@ const makeStyles = colors => StyleSheet.create({
     fontWeight: '600',
     color: '#C850C0',
     textTransform: 'capitalize',
+  },
+  comingSoonTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textMuted,
+    marginTop: 16,
+    marginBottom: 8,
+    letterSpacing: 0.3,
+  },
+  comingSoonChip: {
+    backgroundColor: 'rgba(148,163,184,0.18)',
+  },
+  comingSoonChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textMuted,
   },
   doneBtn: {
     backgroundColor: '#C850C0',
