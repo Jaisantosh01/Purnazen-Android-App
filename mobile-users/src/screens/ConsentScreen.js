@@ -89,7 +89,7 @@ const ConsentScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Privacy & Data" subtitle="Manage your consents" />
+      <ScreenHeader title="Privacy & Data" subtitle="Manage your consents" backBehavior="popToRoot" />
 
       {loading ? (
         <View style={styles.center}><ActivityIndicator color={colors.primary} size="large" /></View>

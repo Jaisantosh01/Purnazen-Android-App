@@ -13,6 +13,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import scanService from '../services/scanService';
 import useTheme from '../hooks/useTheme';
 import { useHeaderTopPadding } from '../components/ScreenHeader';
+import { popToStackRoot } from '../navigation/backHelpers';
 
 // metricKey → { label, higherIsBetter }
 const METRICS = {
@@ -143,7 +144,7 @@ const ScanComparisonScreen = ({ navigation, route }) => {
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor="#C850C0" />
       <View style={[styles.header, { paddingTop: headerTop }]}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.iconBtn} onPress={() => popToStackRoot(navigation)}>
           <MCIcon name="arrow-left" size={22} color={colors.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Progress</Text>

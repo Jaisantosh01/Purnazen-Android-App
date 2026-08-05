@@ -30,6 +30,9 @@ import useTheme from '../hooks/useTheme';
  *   variant       'brand' (solid hero, default) | 'light' (surface card)
  *   showBack      force-show/hide the back button (defaults to canGoBack())
  *   onBack        custom back handler (defaults to navigation.goBack)
+ *   backBehavior  'goBack' (default, step one screen) | 'popToRoot' (jump to
+ *                 the tab stack root — use on browse/leaf screens where the
+ *                 intermediate stack does not need to be preserved)
  *   right         node rendered on the trailing edge
  *   underColor    color painted BEHIND the curved bottom corners. Defaults to
  *                 colors.background (the standard page canvas); pass the screen's
@@ -55,6 +58,7 @@ export default function ScreenHeader({
   variant = 'brand',
   showBack,
   onBack,
+  backBehavior = 'goBack',
   right = null,
   underColor,
   navigation: navProp,
@@ -75,7 +79,10 @@ export default function ScreenHeader({
 
   const handleBack = () => {
     if (onBack) return onBack();
-    if (navigation?.canGoBack?.()) navigation.goBack();
+    if (backBehavior === 'popToRoot' && typeof navigation?.popToTop === 'function' && canGoBack) {
+      return navigation.popToTop();
+    }
+    if (canGoBack) navigation.goBack();
   };
 
   const brand = variant === 'brand';

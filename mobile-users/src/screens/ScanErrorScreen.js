@@ -10,14 +10,37 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import useTheme from '../hooks/useTheme';
 
+const FACE_TIPS = [
+  'Ensure good, even lighting on your face',
+  'Hold the camera steady at arm\'s length',
+  'Make sure your face fills most of the frame',
+  'Avoid strong backlighting or shadows',
+];
+
+const TONGUE_TIPS = [
+  'Open wide and stick your tongue out fully',
+  'Use bright, even light — avoid chin shadows',
+  'Centre your tongue inside the oval guide',
+  'Hold still for a sharp, clear photo',
+];
+
 const ScanErrorScreen = ({ navigation, route }) => {
   const { message = 'Scan analysis failed. Please try again.', scanType = 'face' } =
     route?.params ?? {};
+  const isTongue = scanType === 'tongue';
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const tips = isTongue ? TONGUE_TIPS : FACE_TIPS;
 
   const handleRetry = () => {
-    navigation.replace('FaceScan', { scanType });
+    // Face and tongue each have their own camera screen — never send a failed
+    // tongue scan back into FaceScan (its auto-capture would re-upload a face
+    // photo as tongue and fail in a loop).
+    if (isTongue) {
+      navigation.replace('TongueScan');
+    } else {
+      navigation.replace('FaceScan', { scanType: 'face' });
+    }
   };
 
   const handleGoHome = () => {
@@ -38,20 +61,19 @@ const ScanErrorScreen = ({ navigation, route }) => {
 
         <View style={styles.tips}>
           <Text style={styles.tipsTitle}>Tips for a successful scan:</Text>
-          {[
-            'Ensure good, even lighting on your face',
-            'Hold the camera steady at arm\'s length',
-            'Make sure your face fills most of the frame',
-            'Avoid strong backlighting or shadows',
-          ].map((tip, i) => (
+          {tips.map((tip, i) => (
             <View key={i} style={styles.tipRow}>
-              <MCIcon name="check-circle" size={14} color="#C850C0" />
+              <MCIcon name="check-circle" size={14} color={isTongue ? '#fa7921' : '#C850C0'} />
               <Text style={styles.tipText}>{tip}</Text>
             </View>
           ))}
         </View>
 
-        <TouchableOpacity style={styles.retryBtn} onPress={handleRetry} activeOpacity={0.85}>
+        <TouchableOpacity
+          style={[styles.retryBtn, isTongue && styles.retryBtnTongue]}
+          onPress={handleRetry}
+          activeOpacity={0.85}
+        >
           <MCIcon name="camera-retake-outline" size={20} color="#fff" />
           <Text style={styles.retryBtnText}>Try Again</Text>
         </TouchableOpacity>
@@ -135,6 +157,9 @@ const makeStyles = colors => StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     marginTop: 8,
+  },
+  retryBtnTongue: {
+    backgroundColor: '#fa7921',
   },
   retryBtnText: {
     color: '#fff',

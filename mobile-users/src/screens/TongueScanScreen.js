@@ -163,10 +163,24 @@ const TongueScanScreen = ({ navigation }) => {
         const photo = await cameraRef.current.takeSnapshot({ quality: 40 });
         if (cancelled) return;
         const result = await scanService.qualityPreview(`file://${photo.path}`, 'tongue');
-        if (!cancelled) setQualityIssues(result?.issues ?? []);
+        if (cancelled || !result) return;
+        // Only trust an explicit issues array — never treat a missing payload
+        // as "ready" (empty list), or forehead/skin frames can unlock the shutter.
+        setQualityIssues(Array.isArray(result.issues) ? result.issues : [{
+          code: 'no_tongue',
+          guidance: 'Stick your tongue out in the oval',
+          blocking: true,
+        }]);
       } catch {
-        // Snapshot or network failed — keep the last known state rather than
-        // falsely claiming "ready". The server gate validates at upload time.
+        // On failure, drop any previous "ready" so an empty room can't stay green
+        // after a flaky network/snapshot reading.
+        if (!cancelled) {
+          setQualityIssues([{
+            code: 'no_tongue',
+            guidance: 'Stick your tongue out in the oval',
+            blocking: true,
+          }]);
+        }
       } finally {
         running = false;
       }
@@ -231,9 +245,20 @@ const TongueScanScreen = ({ navigation }) => {
     if (capturing || uploading || !cameraRef.current) return;
     // No storage consent → ask (or re-ask) before we ever take the photo.
     if (!(await ensureScanConsent())) return;
+    // Shutter only when the live check confirmed a tongue — not while still
+    // checking, and not when the oval is amber (forehead/face/no tongue).
+    const qualityNow = deriveQuality(qualityIssues);
+    if (qualityNow.status !== 'ready') {
+      showAlert(
+        'Almost there',
+        qualityNow.message || 'Stick your tongue out in the oval',
+        [{ text: 'Got it' }],
+      );
+      return;
+    }
     setCapturing(true);
     try {
-      const photo = await cameraRef.current.takePhoto({ flash: 'off' });
+      const photo = await cameraRef.current.takePhoto({ flash: 'off', enableShutterSound: false });
       const uri = `file://${photo.path}`;
       setCapturing(false);
       setUploading(true);
@@ -404,10 +429,10 @@ const TongueScanScreen = ({ navigation }) => {
           style={[
             styles.captureBtn,
             ready && styles.captureBtnReady,
-            (uploading || capturing) && styles.captureBtnDisabled,
+            (uploading || capturing || !ready) && styles.captureBtnDisabled,
           ]}
           onPress={handleCapture}
-          disabled={uploading || capturing}
+          disabled={uploading || capturing || !ready}
           activeOpacity={0.85}
         >
           {(uploading || capturing) ? (

@@ -20,6 +20,8 @@ import pushService from './src/services/pushService';
 // @ts-ignore
 import { navigationRef } from './src/navigation/navigationRef';
 // @ts-ignore
+import { makeTabPressResetListener } from './src/navigation/backHelpers';
+// @ts-ignore
 import { COLORS } from './src/constants/theme';
 // @ts-ignore
 import useTheme from './src/hooks/useTheme';
@@ -96,6 +98,15 @@ const TAB_ICONS: Record<string, { active: string; inactive: string }> = {
   WellnessTab: { active: 'star-four-points',   inactive: 'star-four-points-outline' },
   ConsultTab:  { active: 'calendar-month',     inactive: 'calendar-month-outline'   },
   Profile:     { active: 'account-circle',     inactive: 'account-circle-outline'   },
+};
+
+// Re-tapping a tab resets its nested stack to the root (same pattern as admin).
+const TAB_ROOT_SCREENS: Record<string, string> = {
+  Home:        'HomeMain',
+  Relief:      'ReliefMain',
+  WellnessTab: 'WellnessMain',
+  ConsultTab:  'ConsultMain',
+  Profile:     'ProfileMain',
 };
 
 function HomeStackNavigator() {
@@ -212,19 +223,33 @@ function MainTabs() {
         tabBarLabelStyle: { fontSize: 10, fontWeight: '600', paddingBottom: 2 },
       })}
     >
-      <Tab.Screen name="Home"        component={HomeStackNavigator}    />
-      <Tab.Screen name="Relief"      component={ReliefStackNavigator}  />
+      <Tab.Screen
+        name="Home"
+        component={HomeStackNavigator}
+        listeners={makeTabPressResetListener(navigationRef, 'Home', TAB_ROOT_SCREENS.Home)}
+      />
+      <Tab.Screen
+        name="Relief"
+        component={ReliefStackNavigator}
+        listeners={makeTabPressResetListener(navigationRef, 'Relief', TAB_ROOT_SCREENS.Relief)}
+      />
       <Tab.Screen
         name="WellnessTab"
         component={WellnessStackNavigator}
         options={{ tabBarLabel: 'Wellness' }}
+        listeners={makeTabPressResetListener(navigationRef, 'WellnessTab', TAB_ROOT_SCREENS.WellnessTab)}
       />
       <Tab.Screen
         name="ConsultTab"
         component={ConsultStackNavigator}
         options={{ tabBarLabel: 'Consult' }}
+        listeners={makeTabPressResetListener(navigationRef, 'ConsultTab', TAB_ROOT_SCREENS.ConsultTab)}
       />
-      <Tab.Screen name="Profile" component={ProfileStackNavigator} />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileStackNavigator}
+        listeners={makeTabPressResetListener(navigationRef, 'Profile', TAB_ROOT_SCREENS.Profile)}
+      />
     </Tab.Navigator>
   );
 }
