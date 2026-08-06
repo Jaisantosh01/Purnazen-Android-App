@@ -20,6 +20,7 @@ import socialAuthService from '../services/socialAuthService';
 import preferencesService from '../services/preferencesService';
 import biometricService from '../services/biometricService';
 import permissionsService from '../services/permissionsService';
+import { getAutoUpdateEnabled, setAutoUpdateEnabled } from '../services/updateService';
 import { useAuthStore } from '../store/authStore';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
@@ -219,10 +220,12 @@ const SettingsScreen = ({ navigation, route }) => {
   const [biometricBusy, setBiometricBusy]         = useState(false);
   const [locationAccess, setLocationAccess]       = useState(false);
   const [locationBusy, setLocationBusy]           = useState(false);
+  const [autoUpdate, setAutoUpdate]               = useState(true);
 
   // Hydrate the toggles/values from the server (defaults kept offline)
   React.useEffect(() => {
     biometricService.isEnabled().then(setBiometric).catch(() => {});
+    getAutoUpdateEnabled().then(setAutoUpdate).catch(() => {});
   }, []);
 
   // Location reflects the OS grant *and* the stored preference, re-read on every
@@ -663,6 +666,18 @@ const SettingsScreen = ({ navigation, route }) => {
               value={biometric}
               onToggle={toggleBiometric}
               disabled={biometricBusy}
+            />
+            <View style={styles.rowDivider} />
+            <ToggleRow
+              icon="cellphone-arrow-down"
+              hue={HUES.teal}
+              title="Auto-update"
+              subtitle="Prompt when a new version is available"
+              value={autoUpdate}
+              onToggle={value => {
+                setAutoUpdate(value);
+                setAutoUpdateEnabled(value);
+              }}
             />
           </View>
         </View>
