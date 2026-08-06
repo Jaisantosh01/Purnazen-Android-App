@@ -16,6 +16,7 @@ import authService from '../services/authService';
 import socialAuthService from '../services/socialAuthService';
 import preferencesService from '../services/preferencesService';
 import biometricService from '../services/biometricService';
+import { getAutoUpdateEnabled, setAutoUpdateEnabled } from '../services/updateService';
 import { useAuthStore } from '../store/authStore';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
@@ -103,6 +104,7 @@ const SettingsScreen = ({ navigation }) => {
   const [biometric, setBiometric]                 = useState(false);
   const [biometricBusy, setBiometricBusy]         = useState(false);
   const [language, setLanguage]                   = useState('en');
+  const [autoUpdate, setAutoUpdate]               = useState(true);
 
   // Hydrate toggles/values from the server (defaults kept offline).
   React.useEffect(() => {
@@ -117,6 +119,7 @@ const SettingsScreen = ({ navigation }) => {
       .catch(err => console.log('Preferences fetch failed:', err.message));
 
     biometricService.isEnabled().then(setBiometric).catch(() => {});
+    getAutoUpdateEnabled().then(setAutoUpdate).catch(() => {});
   }, []);
 
   const savePreference = payload => {
@@ -444,6 +447,18 @@ const SettingsScreen = ({ navigation }) => {
               value={biometric}
               onToggle={toggleBiometric}
               disabled={biometricBusy}
+            />
+            <View style={styles.rowDivider} />
+            <ToggleRow
+              icon="cellphone-arrow-down"
+              hue={HUES.blue}
+              title="Auto-update"
+              subtitle="Prompt when a new version is available"
+              value={autoUpdate}
+              onToggle={value => {
+                setAutoUpdate(value);
+                setAutoUpdateEnabled(value);
+              }}
             />
             <View style={styles.rowDivider} />
             <ArrowRow
