@@ -12,15 +12,25 @@ import {
   Keyboard,
   ActivityIndicator,
   Pressable,
+  useWindowDimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import authService from '../services/authService';
 import socialAuthService from '../services/socialAuthService';
 import useTheme from '../hooks/useTheme';
+import { isValidEmail } from '../utils/emailCheck';
 
 const LoginScreen = () => {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const { height: screenH } = useWindowDimensions();
+  // On short screens the bottom-anchored card squeezed the hero until the logo
+  // badge was clipped by the status bar. The hero shrinks its own artwork
+  // instead, and the card is capped so it can never eat the whole screen.
+  const compact = screenH < 720;
+  const badge = compact ? 64 : 84;
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -62,6 +72,7 @@ const LoginScreen = () => {
 
   const handleLogin = async () => {
     if (!email.trim()) { setError('Please enter your email.'); return; }
+    if (!isValidEmail(email)) { setError('Please enter a valid email address.'); return; }
     if (!password.trim()) { setError('Please enter your password.'); return; }
     setError('');
     setIsLoading(true);
@@ -103,22 +114,22 @@ const LoginScreen = () => {
   };
 
   return (
-    <Animated.View style={[styles.root, { paddingBottom: pad }]}>
+    <Animated.View style={[styles.root, { paddingTop: insets.top, paddingBottom: pad }]}>
       <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
 
       {/* ── Hero (collapses under the keyboard) ─────────────────────────── */}
       <View style={styles.heroWrap}>
         <Animated.View style={[styles.hero, heroAnimStyle]}>
-          <View style={styles.logoBadge}>
-            <MCIcon name="stethoscope" size={38} color={colors.white} />
+          <View style={[styles.logoBadge, { width: badge, height: badge, borderRadius: badge * 0.31, marginBottom: compact ? 12 : 18 }]}>
+            <MCIcon name="stethoscope" size={compact ? 30 : 38} color={colors.white} />
           </View>
-          <Text style={styles.appName}>Purnazen for Doctors</Text>
+          <Text style={[styles.appName, compact && styles.appNameCompact]}>Purnazen for Doctors</Text>
           <Text style={styles.tagline}>Manage appointments, schedule & patients</Text>
         </Animated.View>
       </View>
 
       {/* ── Form card (anchored to the bottom, rides above the keyboard) ── */}
-      <View style={styles.card}>
+      <View style={[styles.card, { maxHeight: screenH * 0.74 }]}>
         <ScrollView
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -252,6 +263,7 @@ const makeStyles = colors => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
+    paddingVertical: 12,
   },
   hero: { alignItems: 'center' },
   logoBadge: {
@@ -266,6 +278,7 @@ const makeStyles = colors => StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.25)',
   },
   appName: { fontSize: 27, fontWeight: '800', color: colors.white, marginBottom: 6, textAlign: 'center' },
+  appNameCompact: { fontSize: 22 },
   tagline: { fontSize: 13.5, color: 'rgba(255,255,255,0.85)', textAlign: 'center' },
 
   card: {

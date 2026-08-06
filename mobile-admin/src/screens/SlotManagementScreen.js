@@ -7,9 +7,10 @@ import { ENDPOINTS } from '../constants/apiEndpoints';
 import { ITEM_HEIGHT } from '../constants/slots';
 import ScreenHeader from '../components/ScreenHeader';
 import { ListSkeleton } from '../components/SkeletonLoader';
+import SwipeRowActions, { SWIPE_LEFT_OPEN, SWIPE_RIGHT_OPEN } from '../components/SwipeRowActions';
 import useTheme from '../hooks/useTheme';
 // import ScreenHeader from '../components/ScreenHeader';
-import { showAlert } from '../utils/alert';
+import { showAlert, showConfirm } from '../utils/alert';
 
 // const ITEM_HEIGHT = 40;
 const SLOT_CARD_HEIGHT = 58;
@@ -131,14 +132,16 @@ const SlotManagementScreen = ({ navigation }) => {
   };
 
   const handleDeleteSlot = (slotId) => {
-    showAlert('Delete Slot', 'Are you sure?', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => {
-            apiClient.delete(`${ENDPOINTS.SLOT_TIMINGS}/${slotId}`)
-            .then(fetchSlots)
-            .catch(err => showAlert('Error', 'Failed to delete slot'));
-        }}
-    ]);
+    showConfirm(
+      'Delete Slot',
+      'This time slot will be removed from the weekly schedule. Doctors assigned to it lose that availability.',
+      () => {
+        apiClient.delete(`${ENDPOINTS.SLOT_TIMINGS}/${slotId}`)
+          .then(fetchSlots)
+          .catch(() => showAlert('Error', 'Failed to delete slot'));
+      },
+      { confirmLabel: 'Delete', destructive: true },
+    );
   };
 
   const openEditModal = (slot) => {
@@ -161,10 +164,12 @@ const SlotManagementScreen = ({ navigation }) => {
   );
 
   const renderHiddenItem = (data, rowMap) => (
-    <View style={styles.rowBack}>
-      <TouchableOpacity style={[styles.backBtn, styles.editBack]} onPress={() => { openEditModal(data.item); rowMap[data.item.id]?.closeRow(); }}><MCIcon name="pencil" size={24} color={colors.white} /></TouchableOpacity>
-      <TouchableOpacity style={[styles.backBtn, styles.deleteBack]} onPress={() => { handleDeleteSlot(data.item.id); rowMap[data.item.id]?.closeRow(); }}><MCIcon name="delete" size={24} color={colors.white} /></TouchableOpacity>
-    </View>
+    <SwipeRowActions
+      containerStyle={styles.rowBack}
+      onClose={() => rowMap[data.item.id]?.closeRow()}
+      onEdit={() => openEditModal(data.item)}
+      onDelete={() => handleDeleteSlot(data.item.id)}
+    />
   );
 
   return (
@@ -207,7 +212,7 @@ const SlotManagementScreen = ({ navigation }) => {
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={[styles.slotCard, !item.is_active && styles.inactiveCard]}
-                activeOpacity={0.85}
+                activeOpacity={1}
                 onPress={() => openEditModal(item)}
               >
                 <View style={styles.slotTimeWrap}>
@@ -218,8 +223,11 @@ const SlotManagementScreen = ({ navigation }) => {
               </TouchableOpacity>
             )}
             renderHiddenItem={renderHiddenItem}
-            leftOpenValue={75}
-            rightOpenValue={-75}
+            leftOpenValue={SWIPE_LEFT_OPEN}
+            rightOpenValue={SWIPE_RIGHT_OPEN}
+            closeOnRowPress
+            closeOnRowOpen
+            closeOnRowBeginSwipe
           />
         </View>
       </View>}
@@ -328,12 +336,10 @@ timeText: {
   fontWeight: '600',
   color: colors.textPrimary,
 },
-  rowBack: { flexDirection: 'row', justifyContent: 'space-between', flex: 1, alignItems: 'center', marginBottom: 12, height: SLOT_CARD_HEIGHT, borderRadius: 14, overflow: 'hidden' },
-  backBtn: { width: 75, height: '100%', justifyContent: 'center', alignItems: 'center' },
-  editBack: { backgroundColor: colors.primary },
-  deleteBack: { backgroundColor: colors.danger },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', padding: 20 },
-  modalCard: { backgroundColor: colors.card, padding: 20, borderRadius: 16, maxHeight: '80%' },
+  // Height must match slotCard so the revealed Edit/Delete line up behind it.
+  rowBack: { marginBottom: 12, height: SLOT_CARD_HEIGHT, borderRadius: 14 },
+  modalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', padding: 20 },
+  modalCard: { backgroundColor: colors.modalSurface, padding: 20, borderRadius: 16, maxHeight: '80%' , borderWidth: 1, borderColor: colors.modalBorder, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 16, elevation: 12},
   modalTitle: { fontSize: 18, fontWeight: '800', marginBottom: 16, color: colors.textPrimary },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 10 },
   modalBtn: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 8, backgroundColor: colors.surfaceMuted },

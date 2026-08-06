@@ -20,6 +20,8 @@ import pushService from './src/services/pushService';
 // @ts-ignore
 import { navigationRef } from './src/navigation/navigationRef';
 // @ts-ignore
+import { makeTabPressResetListener } from './src/navigation/backHelpers';
+// @ts-ignore
 import { COLORS } from './src/constants/theme';
 // @ts-ignore
 import useTheme from './src/hooks/useTheme';
@@ -40,6 +42,7 @@ import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 // @ts-ignore
 import ProfileCompletionScreen from './src/screens/ProfileCompletionScreen';
+import BiometricSetupScreen from './src/screens/BiometricSetupScreen';
 // @ts-ignore
 import { useProfileStore } from './src/store/profileStore';
 import HomeScreen from './src/screens/HomeScreen';
@@ -48,6 +51,8 @@ import WellnessScreen from './src/screens/WellnessScreen';
 import ConsultScreen from './src/screens/ConsultScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import TherapyHistoryScreen from './src/screens/TherapyHistoryScreen';
+// @ts-ignore
+import HealthReportScreen from './src/screens/HealthReportScreen';
 import HelpSupportScreen from './src/screens/HelpSupportScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import ContentViewerScreen from './src/screens/ContentViewerScreen';
@@ -93,6 +98,15 @@ const TAB_ICONS: Record<string, { active: string; inactive: string }> = {
   WellnessTab: { active: 'star-four-points',   inactive: 'star-four-points-outline' },
   ConsultTab:  { active: 'calendar-month',     inactive: 'calendar-month-outline'   },
   Profile:     { active: 'account-circle',     inactive: 'account-circle-outline'   },
+};
+
+// Re-tapping a tab resets its nested stack to the root (same pattern as admin).
+const TAB_ROOT_SCREENS: Record<string, string> = {
+  Home:        'HomeMain',
+  Relief:      'ReliefMain',
+  WellnessTab: 'WellnessMain',
+  ConsultTab:  'ConsultMain',
+  Profile:     'ProfileMain',
 };
 
 function HomeStackNavigator() {
@@ -161,6 +175,7 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="AppointmentHistory" component={AppointmentHistoryScreen} />
       <ProfileStack.Screen name="AppointmentDetail"  component={AppointmentDetailScreen}  />
       <ProfileStack.Screen name="TherapyHistory" component={TherapyHistoryScreen} />
+      <ProfileStack.Screen name="HealthReport"   component={HealthReportScreen}   />
       <ProfileStack.Screen name="VideoPlayer"    component={VideoPlayerScreen}    />
       <ProfileStack.Screen name="ReliefSession"  component={ReliefSessionScreen}  />
       <ProfileStack.Screen name="HelpSupport"    component={HelpSupportScreen}    />
@@ -208,19 +223,33 @@ function MainTabs() {
         tabBarLabelStyle: { fontSize: 10, fontWeight: '600', paddingBottom: 2 },
       })}
     >
-      <Tab.Screen name="Home"        component={HomeStackNavigator}    />
-      <Tab.Screen name="Relief"      component={ReliefStackNavigator}  />
+      <Tab.Screen
+        name="Home"
+        component={HomeStackNavigator}
+        listeners={makeTabPressResetListener(navigationRef, 'Home', TAB_ROOT_SCREENS.Home)}
+      />
+      <Tab.Screen
+        name="Relief"
+        component={ReliefStackNavigator}
+        listeners={makeTabPressResetListener(navigationRef, 'Relief', TAB_ROOT_SCREENS.Relief)}
+      />
       <Tab.Screen
         name="WellnessTab"
         component={WellnessStackNavigator}
         options={{ tabBarLabel: 'Wellness' }}
+        listeners={makeTabPressResetListener(navigationRef, 'WellnessTab', TAB_ROOT_SCREENS.WellnessTab)}
       />
       <Tab.Screen
         name="ConsultTab"
         component={ConsultStackNavigator}
         options={{ tabBarLabel: 'Consult' }}
+        listeners={makeTabPressResetListener(navigationRef, 'ConsultTab', TAB_ROOT_SCREENS.ConsultTab)}
       />
-      <Tab.Screen name="Profile" component={ProfileStackNavigator} />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileStackNavigator}
+        listeners={makeTabPressResetListener(navigationRef, 'Profile', TAB_ROOT_SCREENS.Profile)}
+      />
     </Tab.Navigator>
   );
 }
@@ -249,6 +278,7 @@ export default function App() {
     }
   }, [isLoggedIn]);
   const needsProfile = useProfileStore((s: any) => s.pendingCompletion);
+  const needsBiometric = useProfileStore((s: any) => s.pendingBiometricSetup);
   const { message, type, visible, hide } = useToastStore();
   const { colors, isDark } = useTheme();
 
@@ -272,6 +302,12 @@ export default function App() {
         // never block app start on a biometric error
       }
       setBootstrapped(true);
+      // Re-read the profile once the UI is up. The cached copy can be hours or
+      // days old, and its avatar URL is a ~60-minute SAS link — without this the
+      // profile photo stops loading and any change made elsewhere never lands.
+      if (useAuthStore.getState().isLoggedIn) {
+        authService.refreshProfile();
+      }
     })();
   }, []);
 
@@ -279,7 +315,7 @@ export default function App() {
   // profile-completion step), request mandatory + optional permissions once and
   // mirror the location grant into server preferences so it syncs across devices.
   useEffect(() => {
-    if (!isLoggedIn || needsProfile) return;
+    if (!isLoggedIn || needsProfile || needsBiometric) return;
     (async () => {
       try {
         const result: any = await permissionsService.ensureRequested();
@@ -292,7 +328,7 @@ export default function App() {
         // never block the app on a permission flow
       }
     })();
-  }, [isLoggedIn, needsProfile]);
+  }, [isLoggedIn, needsProfile, needsBiometric]);
 
   // Feed the active palette into React Navigation so inter-screen backgrounds
   // (and any default headers) follow dark mode instead of flashing white.
@@ -321,6 +357,8 @@ export default function App() {
           // One-time post-sign-up profile completion gates the main tabs.
           needsProfile ? (
             <RootStack.Screen name="ProfileCompletion" component={ProfileCompletionScreen} />
+          ) : needsBiometric ? (
+            <RootStack.Screen name="BiometricSetup" component={BiometricSetupScreen} />
           ) : (
             <RootStack.Screen name="Main" component={MainTabs} />
           )

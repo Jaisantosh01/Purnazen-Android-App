@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { NavigationContainer, DefaultTheme, DarkTheme, CommonActions } from '@react-navigation/native';
+import { CommonActions } from '@react-navigation/routers';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -36,9 +37,9 @@ import HomeScreen from './src/screens/HomeScreen';
 import UnifiedUserDoctorScreen from './src/screens/UnifiedUserDoctorScreen';
 import DoctorDetailScreen from './src/screens/DoctorDetailScreen';
 import EditDoctorScreen from './src/screens/EditDoctorScreen';
+import ClinicAddressPickerScreen from './src/screens/ClinicAddressPickerScreen';
 import MetadataManagementScreen from './src/screens/MetadataManagementScreen';
 import EditUserScreen from './src/screens/EditUserScreen';
-import ManageRolesScreen from './src/screens/ManageRolesScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import HelpSupportScreen from './src/screens/HelpSupportScreen';
@@ -122,6 +123,7 @@ function ManageStackNavigator() {
       <ManageStack.Screen name="ManageRoles" component={MetadataManagementScreen} />
       <ManageStack.Screen name="DoctorDetail" component={DoctorDetailScreen} />
       <ManageStack.Screen name="EditDoctor" component={EditDoctorScreen} />
+      <ManageStack.Screen name="ClinicAddressPicker" component={ClinicAddressPickerScreen} />
       <ManageStack.Screen name="ManageExpertise" component={MetadataManagementScreen} />
       <ManageStack.Screen name="ManageLanguages" component={MetadataManagementScreen} />
       <ManageStack.Screen name="ManageSpecialties" component={MetadataManagementScreen} />
@@ -236,6 +238,12 @@ export default function App() {
         // never block app start on a biometric error
       }
       setBootstrapped(true);
+      // Re-read the profile once the UI is up. The cached copy can be hours or
+      // days old, and its avatar URL is a ~60-minute SAS link — without this the
+      // profile photo stops loading and any change made elsewhere never lands.
+      if (useAuthStore.getState().isLoggedIn) {
+        authService.refreshProfile();
+      }
     })();
   }, []);
 
@@ -259,7 +267,11 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <NavigationContainer ref={navigationRef} theme={navTheme}>
+      <NavigationContainer
+        ref={navigationRef}
+        theme={navTheme}
+        onUnhandledAction={() => {}}
+      >
         <RootStack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
           {isLoggedIn ? (
             <RootStack.Screen name="Main" component={MainTabs} />

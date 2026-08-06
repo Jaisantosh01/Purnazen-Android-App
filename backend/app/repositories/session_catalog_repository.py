@@ -9,21 +9,15 @@ from app.models.wellness_session import WellnessSession
 class WellnessSessionRepository:
 
     @staticmethod
-    def get_all(db: Session) -> list[WellnessSession]:
-        return (
-            db.query(WellnessSession)
-            .filter(WellnessSession.is_active.is_(True))
-            .order_by(WellnessSession.sort_order, WellnessSession.id)
-            .all()
-        )
+    def get_all(db: Session, active_only: bool = True) -> list[WellnessSession]:
+        query = db.query(WellnessSession)
+        if active_only:
+            query = query.filter(WellnessSession.is_active.is_(True))
+        return query.order_by(WellnessSession.sort_order, WellnessSession.id).all()
 
     @staticmethod
     def get_by_id(db: Session, session_id: uuid.UUID) -> WellnessSession | None:
-        return (
-            db.query(WellnessSession)
-            .filter(WellnessSession.id == session_id, WellnessSession.is_active.is_(True))
-            .first()
-        )
+        return db.query(WellnessSession).filter(WellnessSession.id == session_id).first()
 
     @staticmethod
     def create(db: Session, session: WellnessSession) -> WellnessSession:

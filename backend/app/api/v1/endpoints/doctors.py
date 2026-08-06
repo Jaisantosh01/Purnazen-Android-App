@@ -1,6 +1,7 @@
 from datetime import date as date_cls
 from datetime import datetime
 
+from typing import Optional
 import uuid
 
 from fastapi import APIRouter, Depends, Query
@@ -32,9 +33,11 @@ def doctor_card(doctor):
         "phone": doctor.user.phone,
         "specialties": [mapping.specialty.name for mapping in doctor.speciality_mappings],
         "specialty_ids": [mapping.speciality_id for mapping in doctor.speciality_mappings],
-        # Image URL when set, else null — the app falls back to the doctor's
-        # initial (no emoji, which renders inconsistently across devices).
-        "avatar": doctor.user.avatar_url or None,
+        # Loadable image URL when set, else null — the app falls back to the
+        # doctor's initial (no emoji, which renders inconsistently across
+        # devices). `User.avatar` resolves an uploaded blob path to a SAS URL;
+        # the raw `avatar_url` column is a bare path the client can't fetch.
+        "avatar": doctor.user.avatar,
         "rating": float(doctor.average_rating),
         "reviews": doctor.reviews_count,
         "experience": doctor.experience_years,
@@ -45,6 +48,19 @@ def doctor_card(doctor):
         ),
         "fee": base_fee,
         "minFee": min(type_fees) if type_fees else base_fee,
+        # Which visit modes this doctor offers and what each costs. Drives the
+        # admin edit screen; `price` is null when the base fee applies.
+        "consultation_types": [
+            {
+                "consultation_type_id": str(link.consultation_type_id),
+                "name": link.consultation_type.name,
+                "price": float(link.price) if link.price is not None else None,
+            }
+            for link in sorted(
+                doctor.consultation_type_links,
+                key=lambda link: VISIT_TYPE_ORDER.get(link.consultation_type.name, 9),
+            )
+        ],
         "availability": (
             "Available today" if doctor.is_available_today else "Not Available"
         ),
@@ -76,15 +92,18 @@ def doctor_card(doctor):
                 "phone": clinic.phone,
                 "is_primary": clinic.is_primary,
             }
+            # Clinics that still have appointments booked can't be deleted, so
+            # removing one deactivates it — keep those out of the card.
             for clinic in doctor.clinics
+            if clinic.is_active is not False
         ],
         "is_active": doctor.is_active,
     }
 
 
-def _doctor_list(db, page, limit, search, filter_key=None):
+def _doctor_list(db, page, limit, search, filter_key=None, is_active=None):
     """Shared list/total payload for the catalog and filter endpoints."""
-    doctors, total = DoctorService.get_doctors(db, page, limit, search, filter_key)
+    doctors, total = DoctorService.get_doctors(db, page, limit, search, filter_key, is_active)
 
     return {
         "success": True,
@@ -106,9 +125,10 @@ def get_doctors(
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=10, ge=1, le=100),
     search: str = Query(default=""),
+    is_active: Optional[bool] = Query(default=None),
     db: Session = Depends(get_db),
 ):
-    return _doctor_list(db, page, limit, search)
+    return _doctor_list(db, page, limit, search, is_active=is_active)
 
 
 # NOTE: these static paths must stay registered before /doctors/{doctor_id},
@@ -122,9 +142,10 @@ def get_doctors_available_today(
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=10, ge=1, le=100),
     search: str = Query(default=""),
+    is_active: Optional[bool] = Query(default=None),
     db: Session = Depends(get_db),
 ):
-    return _doctor_list(db, page, limit, search, "available_today")
+    return _doctor_list(db, page, limit, search, "available_today", is_active)
 
 
 @router.get(
@@ -136,9 +157,10 @@ def get_doctors_video_call(
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=10, ge=1, le=100),
     search: str = Query(default=""),
+    is_active: Optional[bool] = Query(default=None),
     db: Session = Depends(get_db),
 ):
-    return _doctor_list(db, page, limit, search, "video")
+    return _doctor_list(db, page, limit, search, "video", is_active)
 
 
 @router.get(
@@ -150,9 +172,10 @@ def get_doctors_home_visit(
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=10, ge=1, le=100),
     search: str = Query(default=""),
+    is_active: Optional[bool] = Query(default=None),
     db: Session = Depends(get_db),
 ):
-    return _doctor_list(db, page, limit, search, "home")
+    return _doctor_list(db, page, limit, search, "home", is_active)
 
 
 @router.get(
@@ -164,9 +187,10 @@ def get_doctors_top_rated(
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=10, ge=1, le=100),
     search: str = Query(default=""),
+    is_active: Optional[bool] = Query(default=None),
     db: Session = Depends(get_db),
 ):
-    return _doctor_list(db, page, limit, search, "top_rated")
+    return _doctor_list(db, page, limit, search, "top_rated", is_active)
 
 
 @router.get(

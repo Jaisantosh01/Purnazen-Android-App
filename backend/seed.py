@@ -37,9 +37,10 @@ from app.db.base import (
     DoctorConsultationType,
     SupportContact,
     SupportFaq,
+    SubscriptionPlan,
 )
 from app.db.session import SessionLocal
-from seed_data import RELIEF_SESSIONS, VIDEO_GROUPS, VIDEOS, CHAT_FLOW, QUICK_RELIEFS, AWARDS, CLINICS, DOCTOR_LEAVES, DAYS_OF_WEEK, SLOT_TIMINGS, WELLNESS_SESSIONS_DATA, SUPPORT_CONTACTS, SUPPORT_FAQS
+from seed_data import RELIEF_SESSIONS, VIDEO_GROUPS, VIDEOS, CHAT_FLOW, QUICK_RELIEFS, AWARDS, CLINICS, DOCTOR_LEAVES, DAYS_OF_WEEK, SLOT_TIMINGS, WELLNESS_SESSIONS_DATA, SUPPORT_CONTACTS, SUPPORT_FAQS, SUBSCRIPTION_PLANS
 
 # Build/upgrade the schema through Alembic rather than create_all()
 _backend_dir = Path(__file__).resolve().parent
@@ -496,7 +497,11 @@ try:
     # an explicit group link (otherwise the player shows the navigation-debug alert).
     wellness_group = db.query(VideoGroups).filter_by(title="Wellness & Prevention").first()
     for session_data in WELLNESS_SESSIONS_DATA:
-        if not db.query(WellnessSession).filter_by(title=session_data["title"]).first():
+        # `existing` used to be referenced in the elif below without ever being
+        # assigned — re-running the seeder over a populated DB blew up with a
+        # NameError on the first session that already existed.
+        existing = db.query(WellnessSession).filter_by(title=session_data["title"]).first()
+        if not existing:
             group = db.query(VideoGroups).filter_by(title=session_data["video_group_title"]).first()
             db.add(
                 WellnessSession(
@@ -648,6 +653,36 @@ try:
                     sort_order=faq_data.get("sort_order", 0),
                     created_by=admin.id,
                     updated_by=admin.id,
+                )
+            )
+
+    # ------------------------
+    # Subscription Plans
+    # ------------------------
+    for plan_data in SUBSCRIPTION_PLANS:
+        existing = db.query(SubscriptionPlan).filter_by(code=plan_data["code"]).first()
+        if existing:
+            existing.name = plan_data["name"]
+            existing.price = plan_data["price"]
+            existing.currency = plan_data["currency"]
+            existing.period = plan_data["period"]
+            existing.badge = plan_data["badge"]
+            existing.accent_color = plan_data["accent_color"]
+            existing.features = plan_data["features"]
+            existing.sort_order = plan_data["sort_order"]
+            existing.is_active = True
+        else:
+            db.add(
+                SubscriptionPlan(
+                    code=plan_data["code"],
+                    name=plan_data["name"],
+                    price=plan_data["price"],
+                    currency=plan_data["currency"],
+                    period=plan_data["period"],
+                    badge=plan_data["badge"],
+                    accent_color=plan_data["accent_color"],
+                    features=plan_data["features"],
+                    sort_order=plan_data["sort_order"],
                 )
             )
 

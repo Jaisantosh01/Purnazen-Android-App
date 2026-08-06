@@ -141,12 +141,13 @@ jobs:
           echo "dir=$OUT" >> "$GITHUB_OUTPUT"
           echo "Built:"; ls -lh "$OUT"
 
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.app }}-v${{ inputs.version }}
-          path: ${{ steps.artifacts.outputs.dir }}/*
-          retention-days: 30
+      # NOTE: no actions/upload-artifact here on purpose. The signed AAB/APK +
+      # sha256 are attached to the GitHub Release below (permanent, and NOT
+      # counted against the Actions artifact storage quota). A duplicate
+      # upload-artifact step previously accumulated ~2 GB across releases and
+      # exhausted the org's Actions storage quota ("Artifact storage quota has
+      # been hit"), which blocks all new uploads. Grab builds from the Release
+      # (or the private blob container) instead.
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2

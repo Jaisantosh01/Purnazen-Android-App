@@ -5,74 +5,130 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  StatusBar,
   ActivityIndicator,
+  RefreshControl,
+  TextInput,
 } from 'react-native';
-// @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import therapyService from '../services/therapyService';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
+import AppDialog from '../components/AppDialog';
+import PainScale from '../components/PainScale';
 
-const EMPTY_STATS = { sessions: 0, minutes: 0 };
 
 const TherapyHistoryScreen = ({ navigation }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const [history, setHistory]     = useState(null);
+  const [sessions, setSessions] = useState(null);
+  const [stats, setStats] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError]         = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
 
-  const fetchHistory = useCallback(async () => {
-    setIsLoading(true);
+  const [showCompleteDialog, setShowCompleteDialog] = useState(false);
+  const [completingSessionId, setCompletingSessionId] = useState(null);
+  // Wellness programmes aren't pain-relief routines, so they only collect a
+  // written note — the pain score stays for relief/acupressure sessions.
+  const [asksPain, setAsksPain] = useState(true);
+  const [painAfter, setPainAfter] = useState(5);
+  const [completeFeedback, setCompleteFeedback] = useState('');
+  const [savingComplete, setSavingComplete] = useState(false);
+
+  const fetchSessions = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    else setIsLoading(true);
     setError(null);
     try {
-      const data = await therapyService.getTherapyHistory();
-      setHistory(data);
+      const [groupData, historyData] = await Promise.all([
+        therapyService.getSessionGroups(),
+        therapyService.getTherapyHistory(),
+      ]);
+      setSessions(groupData?.sessions ?? []);
+      setStats(historyData?.stats ?? null);
     } catch (err) {
-      setError(err.message || 'Something went wrong. Please try again.');
+      setError(err.message || 'Something went wrong');
     } finally {
       setIsLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchHistory();
-  }, [fetchHistory]);
+    fetchSessions();
+  }, [fetchSessions]);
 
-  const sessions = history?.sessions ?? [];
-  // Calculate total sessions started and total duration
-  const totalSessions = sessions.length;
-  const totalMinutes = sessions.reduce((sum, s) => sum + (parseInt(s.duration) || 0), 0);
+  const totalSessions = sessions?.length ?? 0;
+  const totalMinutes = stats?.minutes ?? 0;
 
-  const navigateToSession = (session) => {
-    if (session.type === 'wellness') {
-      navigation.navigate('VideoPlayer', {
-        groupId: session.groupId,
-        groupTitle: session.groupTitle
-      });
-    } else if (session.type === 'quick_relief') {
-      navigation.navigate('ReliefSession', {
-        reliefId: session.groupId, // Assuming reliefId maps to groupId
-        reliefTitle: session.groupTitle,
-      });
+  const handleContinue = (session) => {
+    navigation.navigate('VideoPlayer', {
+      groupId: session.groupId,
+      sessionGroupId: session.id,
+      // Carry the type through so a resumed relief run keeps saving as relief
+      // and still closes on a pain score rather than a wellness remark.
+      sessionType: session.sessionType,
+    });
+  };
+
+  const handleComplete = (session) => {
+    setCompletingSessionId(session.id);
+    setAsksPain(session.sessionType !== 'wellness');
+    setPainAfter(5);
+    setCompleteFeedback('');
+    setShowCompleteDialog(true);
+  };
+
+  const handleSaveCompleteFeedback = async () => {
+    if (!completingSessionId) return;
+    setSavingComplete(true);
+    try {
+      await therapyService.completeSession(
+        completingSessionId,
+        asksPain ? Math.min(10, Math.max(0, painAfter)) : null,
+        completeFeedback.trim() || null,
+      );
+      setShowCompleteDialog(false);
+      setCompletingSessionId(null);
+      fetchSessions(true);
+    } catch {} finally {
+      setSavingComplete(false);
     }
+  };
+
+  const handleSkipCompleteFeedback = () => {
+    setShowCompleteDialog(false);
+    setCompletingSessionId(null);
+  };
+
+  // 'relief' is what a Quick Relief run is stored as — spell it out in full so
+  // the card reads "Quick Relief Session", matching where the user started it.
+  const sessionTypeLabel = (type) => {
+    const map = {
+      wellness: 'Wellness',
+      relief: 'Quick Relief',
+      yoga: 'Yoga',
+      meditation: 'Meditation',
+      breathing: 'Breathing',
+      acupressure: 'Acupressure',
+    };
+    return map[type] || type;
   };
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Therapy History" variant="light" />
+      <ScreenHeader title="Therapy History" variant="light" backBehavior="popToRoot" />
 
       {isLoading ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.stateText}>Loading history...</Text>
+          <Text style={styles.stateText}>Loading sessions...</Text>
         </View>
       ) : error ? (
         <View style={styles.centered}>
           <Text style={styles.stateTitle}>Failed to load history</Text>
           <Text style={styles.stateText}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={fetchHistory} activeOpacity={0.85}>
+          <TouchableOpacity style={styles.retryBtn} onPress={fetchSessions} activeOpacity={0.85}>
             <Text style={styles.retryText}>Try Again</Text>
           </TouchableOpacity>
         </View>
@@ -80,88 +136,140 @@ const TherapyHistoryScreen = ({ navigation }) => {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 30 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={() => fetchSessions(true)} tintColor={colors.primary} colors={[colors.primary]} />
+        }
       >
-        {/* ── Stats Row ── */}
         <View style={styles.statsRow}>
-          <View style={[styles.statBox, styles.statBorder]}>
-            <Text style={styles.statValue}>{totalSessions}</Text>
-            <Text style={styles.statLabel}>Sessions Started</Text>
-          </View>
           <View style={styles.statBox}>
+            <MCIcon name="playlist-check" size={17} color={colors.primary} />
+            <Text style={styles.statValue}>{totalSessions}</Text>
+            <Text style={styles.statLabel}>Sessions</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statBox}>
+            <MCIcon name="timer-outline" size={17} color={colors.primary} />
             <Text style={styles.statValue}>{totalMinutes}</Text>
-            <Text style={styles.statLabel}>Minutes Watched</Text>
+            <Text style={styles.statLabel}>Est. Minutes</Text>
           </View>
         </View>
 
-        {/* ── Session Cards ── */}
-        {sessions.length === 0 ? (
+        {(!sessions || sessions.length === 0) ? (
           <View style={styles.emptyState}>
+            <MCIcon name="clipboard-text-outline" size={48} color={colors.textMuted} />
             <Text style={styles.stateTitle}>No sessions yet</Text>
             <Text style={styles.stateText}>
-              Complete a wellness or relief session and it will show up here.
+              Start a therapy session and it will show up here.
             </Text>
           </View>
         ) : (
         <View style={styles.sessionList}>
-          {sessions.map((session, index) => (
-            <TouchableOpacity
-              key={session.id}
-              style={[
-                styles.sessionCard,
-                { backgroundColor: colors.card },
-                index < sessions.length - 1 && styles.sessionBorder,
-              ]}
-              onPress={() => navigateToSession(session)}
-              activeOpacity={0.7}
-            >
-              {/* Header: Video Name + Progress */}
-              <View style={styles.sessionHeader}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.sessionTitle}>{session.videoTitle}</Text>
-                  <Text style={styles.groupTitleText}>{session.groupTitle}</Text>
-                </View>
-                <Text style={styles.progressText}>
-                  {session.totalSessionsInGroup}/{session.totalVideosInGroup}
-                </Text>
-              </View>
+          {sessions.map((session) => {
+            const isInProgress = session.status === 'in_progress';
+            const progress = session.totalVideos > 0
+              ? Math.round((session.completedVideos / session.totalVideos) * 100)
+              : 0;
+            const fb = session.feedback;
 
-              {/* Separator */}
-              <View style={styles.separator} />
-
-              {/* Footer: Status + Time */}
-              <View style={styles.sessionFooter}>
-                <View style={[
-                  styles.statusBadge,
-                  session.status === 'Completed'
-                    ? styles.statusCompleted
-                    : styles.statusCancelled,
-                ]}>
-                  <Text style={[
-                    styles.statusText,
-                    session.status === 'Completed'
-                      ? styles.statusTextCompleted
-                      : styles.statusTextCancelled,
+            return (
+              <View key={session.id} style={[styles.sessionCard, { backgroundColor: colors.card }]}>
+                <View style={styles.cardHeader}>
+                  <View style={styles.cardHeaderLeft}>
+                    <Text style={styles.sessionType}>{sessionTypeLabel(session.sessionType)} Session</Text>
+                    <Text style={styles.sessionDate}>
+                      {session.createdAt
+                        ? new Date(session.createdAt).toLocaleDateString([], {
+                            month: 'short', day: 'numeric', year: 'numeric',
+                          })
+                        : ''}
+                    </Text>
+                  </View>
+                  <View style={[
+                    styles.statusBadge,
+                    isInProgress ? styles.statusInProgress : styles.statusCompleted,
                   ]}>
-                    {session.status}
+                    <Text style={[
+                      styles.statusText,
+                      { color: isInProgress ? colors.warning : colors.primary },
+                    ]}>
+                      {isInProgress ? 'In Progress' : 'Completed'}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.progressRow}>
+                  <View style={styles.progressBarBg}>
+                    <View style={[styles.progressBarFill, { width: `${progress}%` }]} />
+                  </View>
+                  <Text style={styles.progressLabel}>
+                    {session.completedVideos}/{session.totalVideos} videos
                   </Text>
                 </View>
-                <View style={styles.timeContainer}>
-                  <Text style={styles.timeText}>
-                    {session.modifiedAt || session.createdAt
-                      ? new Date(session.modifiedAt || session.createdAt).toLocaleString([], {
-                          month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-                        })
-                      : ''}
-                  </Text>
-                  <MCIcon name="calendar-clock-outline" size={14} color={colors.textMuted} style={{ marginLeft: 4 }} />
-                </View>
+
+                {fb && (
+                  <View style={styles.feedbackRow}>
+                    {fb.painBefore != null && (
+                      <Text style={styles.feedbackText}>
+                        Pain before: {fb.painBefore}/10
+                      </Text>
+                    )}
+                    {fb.painAfter != null && (
+                      <Text style={styles.feedbackTextRight}>
+                        Pain after: {fb.painAfter}/10
+                      </Text>
+                    )}
+                  </View>
+                )}
+
+                {isInProgress && (
+                  <View style={styles.actionRow}>
+                    <TouchableOpacity
+                      style={styles.continueBtn}
+                      onPress={() => handleContinue(session)}
+                      activeOpacity={0.85}
+                    >
+                      <MCIcon name="play" size={16} color={colors.white} />
+                      <Text style={styles.continueText}>Continue</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.completeBtn}
+                      onPress={() => handleComplete(session)}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.completeText}>Mark Complete</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
-            </TouchableOpacity>
-          ))}
+            );
+          })}
         </View>
         )}
       </ScrollView>
       )}
+
+      <AppDialog
+        visible={showCompleteDialog}
+        onClose={handleSkipCompleteFeedback}
+        onConfirm={handleSaveCompleteFeedback}
+        confirmLabel="Save"
+        cancelLabel="Skip"
+        confirmLoading={savingComplete}
+        icon="clipboard-text-outline"
+        title="Session Feedback"
+        subtitle={asksPain ? 'How severe is your pain now?' : 'How did this session go?'}
+      >
+        {asksPain && <PainScale value={painAfter} onChange={setPainAfter} label="Pain after" />}
+        <TextInput
+          style={styles.feedbackInput}
+          placeholder="Write your feedback here…"
+          placeholderTextColor={colors.textMuted}
+          value={completeFeedback}
+          onChangeText={setCompleteFeedback}
+          multiline
+          maxLength={1000}
+        />
+      </AppDialog>
     </View>
   );
 };
@@ -169,185 +277,87 @@ const TherapyHistoryScreen = ({ navigation }) => {
 export default TherapyHistoryScreen;
 
 const makeStyles = colors => StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.primaryLight,
-  },
+  root: { flex: 1, backgroundColor: colors.primaryLight },
 
-  // Header
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 50,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    backgroundColor: colors.card,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.surfaceMuted,
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backIcon: {
-    fontSize: 22,
-    color: colors.textPrimary,
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-
-  // Loading / error / empty states
   centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-    gap: 8,
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 32, gap: 8,
   },
   emptyState: {
-    alignItems: 'center',
-    paddingHorizontal: 32,
-    paddingVertical: 48,
-    gap: 8,
+    alignItems: 'center', paddingHorizontal: 32, paddingVertical: 48, gap: 12,
   },
-  stateTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  stateText: {
-    fontSize: 13,
-    color: colors.textMuted,
-    textAlign: 'center',
-  },
+  stateTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
+  stateText: { fontSize: 13, color: colors.textMuted, textAlign: 'center' },
   retryBtn: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 32,
-    paddingVertical: 12,
-    borderRadius: 14,
-    marginTop: 12,
+    backgroundColor: colors.primary, paddingHorizontal: 32, paddingVertical: 12,
+    borderRadius: 14, marginTop: 12,
   },
-  retryText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.white,
-  },
+  retryText: { fontSize: 14, fontWeight: '700', color: colors.white },
 
-  // Stats
+  // One compact strip rather than two tall stacked tiles — the old layout burned
+  // ~100px of vertical space on two numbers. Kept tight to the header and the
+  // list: the numbers are a glance, not the point of the screen.
   statsRow: {
-    flexDirection: 'row',
-    marginHorizontal: 16,
-    marginTop: 20,
-    marginBottom: 8,
-    gap: 16,
+    flexDirection: 'row', alignItems: 'center',
+    marginHorizontal: 16, marginTop: 8, marginBottom: 0,
+    backgroundColor: colors.card, borderRadius: 12, paddingVertical: 7,
+    elevation: 2, shadowColor: colors.black, shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05, shadowRadius: 4,
   },
   statBox: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 16,
-    backgroundColor: colors.card,
-    borderRadius: 14, // Rounded
-    elevation: 2,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
   },
-  statValue: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.primary,
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: colors.textPrimary,
-  },
+  statDivider: { width: StyleSheet.hairlineWidth, alignSelf: 'stretch', backgroundColor: colors.border },
+  statValue: { fontSize: 16, fontWeight: '700', color: colors.primary },
+  statLabel: { fontSize: 12, color: colors.textSecondary },
 
-  // Session List
-  sessionList: {
-    paddingHorizontal: 16,
-    marginTop: 16,
-  },
+  sessionList: { paddingHorizontal: 16, marginTop: 8 },
   sessionCard: {
-    padding: 16,
-    backgroundColor: colors.card, // White
-    borderRadius: 14,
-    marginBottom: 16,
-    elevation: 2,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    padding: 16, borderRadius: 14, marginBottom: 16,
+    elevation: 2, shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4,
   },
-
-  // Session Header
-  sessionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
+  cardHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12,
   },
-  sessionTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  groupTitleText: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  progressText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginLeft: 8,
-  },
-  separator: {
-    height: 1,
-    backgroundColor: colors.surfaceMuted,
-    marginVertical: 8,
-  },
-  sessionFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  timeText: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  timeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+  cardHeaderLeft: {},
+  sessionType: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
+  sessionDate: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
   statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
+    paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12,
   },
-  statusCompleted: {
-    backgroundColor: colors.primaryLight,
+  statusInProgress: { backgroundColor: colors.warning + '20' },
+  statusCompleted: { backgroundColor: colors.primaryLight },
+  statusText: { fontSize: 12, fontWeight: '700' },
+
+  progressRow: { marginBottom: 8 },
+  progressBarBg: {
+    height: 6, borderRadius: 3, backgroundColor: colors.surfaceMuted, marginBottom: 4,
   },
-  statusCancelled: {
-    backgroundColor: colors.surfaceMuted,
+  progressBarFill: { height: 6, borderRadius: 3, backgroundColor: colors.primary },
+  progressLabel: { fontSize: 12, color: colors.textMuted },
+
+  feedbackRow: {
+    flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8,
+    paddingVertical: 6, paddingHorizontal: 10,
+    backgroundColor: colors.surfaceMuted, borderRadius: 8,
   },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '700',
+  feedbackText: { fontSize: 12, color: colors.textPrimary },
+  feedbackTextRight: { fontSize: 12, color: colors.textPrimary, textAlign: 'right' },
+
+  actionRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  continueBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: colors.primary, paddingVertical: 10, paddingHorizontal: 20,
+    borderRadius: 12, flex: 1, justifyContent: 'center',
   },
-  statusTextCompleted: {
-    color: colors.primary,
+  continueText: { fontSize: 14, fontWeight: '700', color: colors.white },
+  completeBtn: {
+    paddingVertical: 10, paddingHorizontal: 20,
+    borderRadius: 12, borderWidth: 1, borderColor: colors.border,
+    flex: 1, alignItems: 'center', justifyContent: 'center',
   },
-  statusTextCancelled: {
-    color: colors.textSecondary,
-  },
+  completeText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
+
+  feedbackInput: { borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 12, fontSize: 14, color: colors.textPrimary, backgroundColor: colors.surfaceMuted, minHeight: 80, textAlignVertical: 'top' },
 });

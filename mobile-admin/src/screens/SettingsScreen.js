@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Switch,
   Modal,
   TextInput,
   ActivityIndicator,
@@ -17,9 +16,14 @@ import authService from '../services/authService';
 import socialAuthService from '../services/socialAuthService';
 import preferencesService from '../services/preferencesService';
 import biometricService from '../services/biometricService';
+import { getAutoUpdateEnabled, setAutoUpdateEnabled } from '../services/updateService';
 import { useAuthStore } from '../store/authStore';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
+import ThemeToggle from '../components/ThemeToggle';
+import AppToggle from '../components/AppToggle';
+import GenderSelect from '../components/GenderSelect';
+import DobInput, { isoToParts, validateDobParts } from '../components/DobInput';
 
 // Shared toggle ids with the backend user_preferences.notifications dict.
 const PREF_KEYS = {
@@ -52,7 +56,7 @@ const languageLabel = code => (LANGUAGES.find(l => l.code === code) || LANGUAGES
 
 const SettingsScreen = ({ navigation }) => {
   const user = useAuthStore(state => state.user);
-  const { colors, isDark, setMode } = useTheme();
+  const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const tint = hue => hue || colors.primary;
@@ -72,13 +76,7 @@ const SettingsScreen = ({ navigation }) => {
           <Text style={styles.settingTitle}>{title}</Text>
           {subtitle ? <Text style={styles.settingSubtitle}>{subtitle}</Text> : null}
         </View>
-        <Switch
-          value={value}
-          onValueChange={onToggle}
-          disabled={disabled}
-          trackColor={{ false: colors.border, true: colors.primary }}
-          thumbColor={colors.white}
-        />
+        <AppToggle value={value} onValueChange={onToggle} disabled={disabled} />
       </View>
     );
   };
@@ -106,6 +104,7 @@ const SettingsScreen = ({ navigation }) => {
   const [biometric, setBiometric]                 = useState(false);
   const [biometricBusy, setBiometricBusy]         = useState(false);
   const [language, setLanguage]                   = useState('en');
+  const [autoUpdate, setAutoUpdate]               = useState(true);
 
   // Hydrate toggles/values from the server (defaults kept offline).
   React.useEffect(() => {
@@ -120,6 +119,7 @@ const SettingsScreen = ({ navigation }) => {
       .catch(err => console.log('Preferences fetch failed:', err.message));
 
     biometricService.isEnabled().then(setBiometric).catch(() => {});
+    getAutoUpdateEnabled().then(setAutoUpdate).catch(() => {});
   }, []);
 
   const savePreference = payload => {
@@ -144,9 +144,6 @@ const SettingsScreen = ({ navigation }) => {
     savePreference({ language: code });
   };
 
-  // Dark mode is global — drives the persisted theme store via useTheme().
-  const toggleDarkMode = value => setMode(value ? 'dark' : 'light');
-
   // Biometric login uses the device keystore biometric prompt to enrol/disenrol.
   const toggleBiometric = async value => {
     setBiometricBusy(true);
@@ -170,6 +167,9 @@ const SettingsScreen = ({ navigation }) => {
   // Edit profile modal
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [fullName, setFullName]               = useState('');
+  const [profilePhone, setProfilePhone]       = useState('');
+  const [gender, setGender]                   = useState('');
+  const [dob, setDob]                         = useState({ dd: '', mm: '', yyyy: '' });
   // Edit phone modal
   const [showEditPhone, setShowEditPhone] = useState(false);
   const [phone, setPhone]                 = useState('');
@@ -191,6 +191,9 @@ const SettingsScreen = ({ navigation }) => {
 
   const openEditProfile = () => {
     setFullName(user?.full_name || '');
+    setProfilePhone(user?.phone || '');
+    setGender(user?.gender || '');
+    setDob(isoToParts(user?.date_of_birth));
     setFormError('');
     setShowEditProfile(true);
   };
@@ -285,11 +288,28 @@ const SettingsScreen = ({ navigation }) => {
 
   const handleSaveProfile = async () => {
     if (!fullName.trim()) { setFormError('Name cannot be empty.'); return; }
+    const trimmedPhone = profilePhone.trim();
+    if (trimmedPhone && !/^[+0-9 ()-]{6,10}$/.test(trimmedPhone)) {
+      setFormError('Enter a valid phone number.');
+      return;
+    }
+    const parsedDob = validateDobParts(dob);
+    if (!parsedDob.ok) {
+      setFormError('Enter a valid date of birth (DD/MM/YYYY).');
+      return;
+    }
     setIsSubmitting(true);
     try {
-      await authService.updateProfile({ fullName: fullName.trim() });
+      await authService.updateProfile({
+        fullName: fullName.trim(),
+        // undefined leaves the stored value alone. Phone in particular must not
+        // be sent as "" — the API's phone pattern rejects an empty string.
+        phone: trimmedPhone || undefined,
+        gender: gender || undefined,
+        dateOfBirth: parsedDob.iso,
+      });
       setShowEditProfile(false);
-      showAlert('Profile Updated', 'Your name has been updated.');
+      showAlert('Profile Updated', 'Your details have been saved.');
     } catch (err) {
       setFormError(err.message || 'Profile update failed.');
     } finally {
@@ -299,7 +319,7 @@ const SettingsScreen = ({ navigation }) => {
 
   const handleSavePhone = async () => {
     const trimmed = phone.trim();
-    if (trimmed && !/^[+0-9 ()-]{6,15}$/.test(trimmed)) {
+    if (trimmed && !/^[+0-9 ()-]{6,10}$/.test(trimmed)) {
       setFormError('Enter a valid phone number.');
       return;
     }
@@ -333,7 +353,7 @@ const SettingsScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Settings" subtitle="Manage your preferences" />
+      <ScreenHeader title="Settings" subtitle="Manage your preferences" backBehavior="popToRoot" right={<ThemeToggle />} />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
 
@@ -344,7 +364,7 @@ const SettingsScreen = ({ navigation }) => {
             <ArrowRow
               icon="account-edit-outline"
               title="Edit Profile"
-              subtitle="Update your name"
+              subtitle="Name, phone, gender and date of birth"
               onPress={openEditProfile}
             />
             <View style={styles.rowDivider} />
@@ -421,21 +441,24 @@ const SettingsScreen = ({ navigation }) => {
           <SectionHeader title="Appearance & Security" />
           <View style={styles.card}>
             <ToggleRow
-              icon="weather-night"
-              hue={colors.textSecondary}
-              title="Dark Mode"
-              subtitle="Switch to dark theme"
-              value={isDark}
-              onToggle={toggleDarkMode}
-            />
-            <View style={styles.rowDivider} />
-            <ToggleRow
               icon="fingerprint"
               title="Biometric Login"
               subtitle="Use fingerprint or Face ID"
               value={biometric}
               onToggle={toggleBiometric}
               disabled={biometricBusy}
+            />
+            <View style={styles.rowDivider} />
+            <ToggleRow
+              icon="cellphone-arrow-down"
+              hue={HUES.blue}
+              title="Auto-update"
+              subtitle="Prompt when a new version is available"
+              value={autoUpdate}
+              onToggle={value => {
+                setAutoUpdate(value);
+                setAutoUpdateEnabled(value);
+              }}
             />
             <View style={styles.rowDivider} />
             <ArrowRow
@@ -458,15 +481,35 @@ const SettingsScreen = ({ navigation }) => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Edit Profile</Text>
-            <Text style={styles.modalLabel}>Full Name</Text>
-            <TextInput
-              style={styles.modalInput}
-              value={fullName}
-              onChangeText={text => { setFullName(text); setFormError(''); }}
-              placeholder="Your name"
-              placeholderTextColor={colors.textMuted}
-              autoCapitalize="words"
-            />
+            <ScrollView
+              style={styles.modalScroll}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={styles.modalLabel}>Full Name</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={fullName}
+                onChangeText={text => { setFullName(text); setFormError(''); }}
+                placeholder="Your name"
+                placeholderTextColor={colors.textMuted}
+                autoCapitalize="words"
+              />
+              <Text style={styles.modalLabel}>Phone Number</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={profilePhone}
+                onChangeText={text => { setProfilePhone(text); setFormError(''); }}
+                placeholder="+91 98765 43210"
+                placeholderTextColor={colors.textMuted}
+                keyboardType="phone-pad"
+                maxLength={10}
+              />
+              <Text style={styles.modalLabel}>Gender</Text>
+              <GenderSelect value={gender} onChange={v => { setGender(v); setFormError(''); }} />
+              <Text style={styles.modalLabel}>Date of Birth</Text>
+              <DobInput value={dob} onChange={d => { setDob(d); setFormError(''); }} />
+            </ScrollView>
             {formError ? <Text style={styles.modalError}>{formError}</Text> : null}
             <View style={styles.modalActions}>
               <TouchableOpacity style={[styles.modalBtn, styles.modalBtnCancel]} onPress={() => setShowEditProfile(false)}>
@@ -494,6 +537,7 @@ const SettingsScreen = ({ navigation }) => {
               placeholder="+91 98765 43210"
               placeholderTextColor={colors.textMuted}
               keyboardType="phone-pad"
+              maxLength={10}
             />
             {formError ? <Text style={styles.modalError}>{formError}</Text> : null}
             <View style={styles.modalActions}>
@@ -708,18 +752,25 @@ const makeStyles = colors => StyleSheet.create({
   // Plain-modal forms (edit profile / phone / password / language).
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: colors.overlay,
     justifyContent: 'center',
     paddingHorizontal: 24,
   },
   modalCard: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.modalSurface,
     borderRadius: 18,
     padding: 20,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
+    borderWidth: 1,
+    borderColor: colors.modalBorder,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    elevation: 12,
   },
   modalTitle: { fontSize: 17, fontWeight: '700', color: colors.textPrimary, marginBottom: 16 },
+  // Caps the profile form so a tall keyboard can't push the actions off-screen.
+  modalScroll: { maxHeight: 420 },
   modalLabel: { fontSize: 12, fontWeight: '600', color: colors.textSecondary, marginBottom: 6, marginTop: 8 },
   modalInput: {
     borderWidth: 1,

@@ -2,6 +2,102 @@
 
 All notable changes to the Purnazen App are documented here.
 
+## [2026-07-26] — Profile photos end to end, appointment detail parity, location permission wiring
+
+### Added — profile photo for doctors, and photos rendered everywhere (all 3 apps)
+- **mobile-doctors** gets the photo picker its Settings → Edit Profile was
+  missing (`react-native-image-picker`, **new native dep — needs a rebuild**),
+  posting to the existing `POST /users/me/avatar`. The Profile header shows the
+  photo and is the tap-target for changing it.
+- New **`components/Avatar.js`**, byte-identical in all three apps: photo with an
+  initial fallback, and it resets its failure flag when the URL changes so a
+  re-signed SAS link gets a fresh attempt. Replaces per-screen avatar circles.
+- Photos that the backend was already serving but **nothing rendered** now show:
+  doctor photos in the patient app (Consult, Doctor Profile, Booking Confirmed,
+  Appointment Detail), patient photos in the doctor app (Appointments, Appointment
+  Detail, Patients, Patient Profile), and both in the admin console (User /
+  Doctor Management, Doctor Detail). Patient and admin Profile headers render
+  their own photo instead of a letter.
+- `Appointment.to_dict()` carries `userAvatar` + `doctorAvatar`, both resolved
+  live off the user row — a doctor's profile edit reaches every appointment
+  without any denormalised copy.
+
+### Fixed — photos that could never load
+- `doctors.py doctor_card` and `patients.py` returned the **raw `avatar_url`
+  column** (a bare blob path) instead of `User.avatar`, which signs it into a
+  fetchable SAS URL.
+- Avatar SAS URLs expire in ~60 min but the profile is cached in AsyncStorage
+  indefinitely. Each app now calls `authService.refreshProfile()` after bootstrap.
+
+### Fixed — doctor's appointment detail showed "Age N/A" / gender "N/A"
+- `GET /appointments/{id}` returned the bare appointment dict while
+  `GET /appointments/doctor` returned a patient-enriched row, so opening an
+  appointment from the list overwrote good data. Both now go through the new
+  `AppointmentService.serialize_for_doctor()`, which also backs `PUT`.
+
+### Fixed — location permission and the Settings toggle disagreeing
+- `permissionsService.requestAll()` stored its "already prompted" flag with
+  `AsyncStorage.multiSet`, **removed in AsyncStorage v3**. It threw after the OS
+  dialogs had been shown: the flag was never written (prompts on every launch)
+  and the caller's `locationEnabled` mirror never ran — which is why a granted
+  location permission left Settings → Location Access switched off.
+- Location now has a single owner. `locationStatus()` reads the OS grant *and*
+  the stored preference (repairing a stale `true` after the permission is revoked
+  in Android's App info), `enableLocation()` / `disableLocation()` write both,
+  and `ensureLocation()` gates the address screen — which had been calling
+  `PermissionsAndroid` directly and moving the grant without telling the
+  preference. Settings re-reads on focus. 9 new tests.
+
+### Security
+- `GET` / `PUT /appointments/{id}` were readable **and writable by any
+  authenticated account** — an IDOR over clinical data, and a patient could
+  `PUT paymentStatus: paid`. Both are now restricted to the patient, the owning
+  doctor and admins, with `payment_status` staff-only. 6 regression tests.
+- `require_role` printed the authenticated user's email and role to stdout on
+  every protected request.
+
+### Removed — orphaned modules
+- **mobile-doctors:** `PatientDetailScreen.js`, `PatientDetailsScreen.js` and
+  `services/userService.js` — unreachable (no navigator registered them;
+  `PatientProfileScreen` superseded them), plus the now-unused `USER_DETAIL`
+  endpoint and two stale "TODO: backend endpoint" comments.
+- **mobile-admin:** `ManageRolesScreen.js`, a "coming soon" stub imported but
+  never registered (the `ManageRoles` route points at `MetadataManagementScreen`),
+  and `components/NextVideoModal.js`, which nothing imported and which would
+  `ReferenceError` on import if anything did (module-scope `StyleSheet.create`
+  reading a `colors` **prop**). The admin app is now lint-error-free.
+- **mobile-users:** `utils/doctorAvatar.js`, superseded by `Avatar`.
+
+### Docs
+- `ARCHITECTURE.md` gains a **Cross-cutting flows** section covering profile-photo
+  storage and SAS resolution, the appointment serialization contract, and the
+  two-switch location model.
+
+## [2026-07-24] — In-app OTA install + post-sign-up biometric onboarding
+
+### Changed — OTA now downloads + installs in-app (all 3 apps)
+- `UpdatePrompt` no longer hands the SAS URL to the browser for a manual
+  sideload. A new shared native module **`OtaUpdater`**
+  (`android/.../com/purnazen/otaupdater/`, identical per app — FileProvider
+  authority derived from `context.packageName`) downloads the APK via Android's
+  `DownloadManager` **in the background** (system progress notification), verifies
+  the sha256, posts an **"Update ready to install"** notification, and launches
+  the OS installer via a `FileProvider` intent. **Forced** updates auto-download
+  on launch and install as soon as they land; **optional** updates offer
+  "Download & install" (can be sent to the background). Missing "install unknown
+  apps" consent deep-links the user to that screen and finishes on return.
+  Adds the `REQUEST_INSTALL_PACKAGES` permission + a `.otaprovider` FileProvider
+  per app; falls back to the old browser hand-off when the native module is
+  absent. Settings → Check for Updates uses the same flow. See `OTA_RELEASES.md`.
+
+### Added — offer biometric unlock right after sign-up (mobile-users)
+- A one-time **`BiometricSetupScreen`** now follows the profile-completion step
+  for new accounts (email + social), gated by `profileStore.pendingBiometricSetup`
+  (only set when `biometricService.isAvailable()`). It offers **Enable**
+  (mirrors Settings → Biometric Login) or **Skip for now**, and self-skips on
+  devices without enrolled biometrics. Permission onboarding is deferred until
+  the step is dismissed so system dialogs don't overlap.
+
 ## [2026-07-03] — Staff-app dark mode everywhere, themed cards/chips, per-app icons
 
 ### Changed — doctor & admin apps (full dark-mode coverage)

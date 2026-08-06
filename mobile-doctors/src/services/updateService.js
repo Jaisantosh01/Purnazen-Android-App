@@ -9,6 +9,7 @@
  * stays private. A release flagged `forced` makes the prompt non-dismissible
  * (see UpdatePrompt).
  */
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { APP_SLUG, APP_VERSION } from '../config';
@@ -16,6 +17,25 @@ import { APP_SLUG, APP_VERSION } from '../config';
 // Kept for backwards-compat with call sites (Settings) that imported it; the
 // backend now returns a `forced` boolean directly, so it's only a sentinel.
 export const FORCE_MARKER = 'purnazen:force-update';
+
+// Settings → Auto-update. Default ON. When OFF, optional updates stay quiet
+// until the user taps "Check for Updates"; forced releases still interrupt.
+const AUTO_UPDATE_KEY = 'pz_auto_update';
+
+export async function getAutoUpdateEnabled() {
+  try {
+    const v = await AsyncStorage.getItem(AUTO_UPDATE_KEY);
+    return v !== '0'; // missing → on
+  } catch {
+    return true;
+  }
+}
+
+export async function setAutoUpdateEnabled(enabled) {
+  try {
+    await AsyncStorage.setItem(AUTO_UPDATE_KEY, enabled ? '1' : '0');
+  } catch {}
+}
 
 // Compare dotted versions numerically: compareSemver('1.2.10','1.2.9') === 1.
 export function compareSemver(a, b) {

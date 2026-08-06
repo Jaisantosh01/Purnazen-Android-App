@@ -13,6 +13,7 @@ backend/.flaskenv
 
 # Trained-model artifacts (large; produced by backend/ml training, dropped in by the user)
 backend/app/ai/models/*.onnx
+backend/app/ai/models/tongue_yolo.pt
 backend/app/ai/face_landmarker.task
 # ML training scratch (datasets, checkpoints, runs) — keep the code, ignore the data
 backend/ml/data/

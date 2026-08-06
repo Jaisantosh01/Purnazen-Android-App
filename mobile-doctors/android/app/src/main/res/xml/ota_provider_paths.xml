@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FileProvider scope for the OTA installer: the downloaded APK lives under the
+     app-specific external files dir (getExternalFilesDir(DIRECTORY_DOWNLOADS)),
+     i.e. <external-files>/Download/. Authority: ${applicationId}.otaprovider. -->
+<paths>
+    <external-files-path name="ota_downloads" path="Download/" />
+</paths>

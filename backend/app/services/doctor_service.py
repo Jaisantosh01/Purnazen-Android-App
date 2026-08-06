@@ -51,13 +51,58 @@ VISIT_SLUG_TO_CONSULTATION_TYPE = {
 VISIT_TYPE_ORDER = {"Clinic Visit": 0, "Home Visit": 1, "Video Call": 2}
 
 
+def _first_present(data: dict, keys: tuple[str, ...], fallback):
+    """First key actually present in the payload, else the current value."""
+    for key in keys:
+        if key in data and data[key] is not None:
+            return data[key]
+    return fallback
+
+
+def _to_float(value):
+    """Coerce a lat/long coming off a text input; blank or junk -> None."""
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _sync_consultation_types(db: Session, doctor_id: uuid.UUID, entries) -> None:
+    """Replace the doctor's visit modes (clinic/home/video) and their prices.
+
+    ``entries`` is the admin payload: a list of
+    ``{"consultation_type_id": ..., "price": ...}``. A blank/absent price means
+    "charge the doctor's base consultation fee", stored as NULL.
+    """
+    from app.models.associations import DoctorConsultationType
+
+    db.query(DoctorConsultationType).filter_by(doctor_id=doctor_id).delete()
+    seen = set()
+    for entry in entries or []:
+        type_id = entry.get("consultation_type_id") if isinstance(entry, dict) else entry
+        if not type_id or str(type_id) in seen:
+            continue
+        seen.add(str(type_id))
+        price = _to_float(entry.get("price")) if isinstance(entry, dict) else None
+        db.add(
+            DoctorConsultationType(
+                doctor_id=doctor_id,
+                consultation_type_id=type_id,
+                price=price,
+            )
+        )
+
+
 class DoctorService:
 
     @staticmethod
     def get_doctors(
-        db: Session, page: int, limit: int, search: str, filter_key: str | None = None
+        db: Session, page: int, limit: int, search: str, filter_key: str | None = None,
+        is_active: bool | None = None,
     ):
-        return DoctorRepository.get_doctors(db, page, limit, search, filter_key)
+        return DoctorRepository.get_doctors(db, page, limit, search, filter_key, is_active)
 
     @staticmethod
     def get_doctor_by_id(db: Session, doctor_id: uuid.UUID) -> Doctor | None:
@@ -199,11 +244,17 @@ class DoctorService:
         if "phone" in data:
             doctor.user.phone = data.get("phone", doctor.user.phone)
 
-        # Update basic fields
+        # Update basic fields. The admin app round-trips the doctor_card shape,
+        # which names these `experience`/`fee` — accept both spellings or the
+        # edits are silently dropped.
         doctor.about = data.get("about", doctor.about)
         doctor.education = data.get("education", doctor.education)
-        doctor.experience_years = data.get("experience_years", doctor.experience_years)
-        doctor.consultation_fee = data.get("consultation_fee", doctor.consultation_fee)
+        doctor.experience_years = _first_present(
+            data, ("experience_years", "experience"), doctor.experience_years
+        )
+        doctor.consultation_fee = _first_present(
+            data, ("consultation_fee", "fee"), doctor.consultation_fee
+        )
         doctor.is_active = data.get("is_active", doctor.is_active)
         
         # Update mappings
@@ -225,6 +276,9 @@ class DoctorService:
             for spec_id in data["specialty_ids"]:
                 db.add(DoctorSpecialityMapping(doctor_id=doctor.id, speciality_id=spec_id, created_by=user.id))
 
+        if "consultation_types" in data:
+            _sync_consultation_types(db, doctor.id, data["consultation_types"])
+
         # Update slot timing availability
         if "slot_timing_ids" in data:
             from app.models.doctor_availability import DoctorAvailability
@@ -236,34 +290,61 @@ class DoctorService:
                     created_by=user.id,
                 ))
 
-        # Update Awards
+        # Update Awards — merged by id so ids stay stable across edits.
         if "awards" in data:
-            db.query(Award).filter_by(doctor_id=doctor.id).delete()
+            existing_awards = {
+                str(a.id): a
+                for a in db.query(Award).filter_by(doctor_id=doctor.id).all()
+            }
+            kept_awards = set()
             for award_data in data["awards"]:
-                db.add(Award(
-                    doctor_id=doctor.id,
-                    title=award_data["title"],
-                    issuer=award_data.get("issuer"),
-                    year=award_data.get("year"),
-                    description=award_data.get("description"),
-                    created_by=user.id
-                ))
+                award = existing_awards.get(str(award_data.get("id")))
+                if award is None:
+                    award = Award(doctor_id=doctor.id, created_by=user.id)
+                    db.add(award)
+                else:
+                    kept_awards.add(str(award.id))
+                    award.updated_by = user.id
+                award.title = award_data.get("title") or ""
+                award.issuer = award_data.get("issuer")
+                award.year = award_data.get("year")
+                award.description = award_data.get("description")
+            for award_id, award in existing_awards.items():
+                if award_id not in kept_awards:
+                    db.delete(award)
 
-        # Update Clinics
+        # Update Clinics — merged by id. A clinic that already has appointments
+        # booked against it cannot be deleted (appointments.clinic_id FK), so
+        # removing it deactivates it instead of blowing up the whole save.
         if "clinics" in data:
-            db.query(Clinic).filter_by(doctor_id=doctor.id).delete()
+            existing_clinics = {
+                str(c.id): c
+                for c in db.query(Clinic).filter_by(doctor_id=doctor.id).all()
+            }
+            kept_clinics = set()
             for clinic_data in data["clinics"]:
-                db.add(Clinic(
-                    doctor_id=doctor.id,
-                    name=clinic_data["name"],
-                    address=clinic_data["address"],
-                    city=clinic_data["city"],
-                    latitude=clinic_data.get("latitude"),
-                    longitude=clinic_data.get("longitude"),
-                    phone=clinic_data.get("phone"),
-                    is_primary=clinic_data.get("is_primary", False),
-                    created_by=user.id,
-                ))
+                clinic = existing_clinics.get(str(clinic_data.get("id")))
+                if clinic is None:
+                    clinic = Clinic(doctor_id=doctor.id, created_by=user.id)
+                    db.add(clinic)
+                else:
+                    kept_clinics.add(str(clinic.id))
+                    clinic.updated_by = user.id
+                clinic.name = clinic_data.get("name") or ""
+                clinic.address = clinic_data.get("address") or ""
+                clinic.city = clinic_data.get("city") or ""
+                clinic.latitude = _to_float(clinic_data.get("latitude"))
+                clinic.longitude = _to_float(clinic_data.get("longitude"))
+                clinic.phone = clinic_data.get("phone")
+                clinic.is_primary = bool(clinic_data.get("is_primary", False))
+                clinic.is_active = True
+            for clinic_id, clinic in existing_clinics.items():
+                if clinic_id in kept_clinics:
+                    continue
+                if AppointmentRepository.clinic_in_use(db, clinic.id):
+                    clinic.is_active = False
+                else:
+                    db.delete(clinic)
 
         doctor.updated_at = datetime.utcnow()
         doctor.updated_by = user.id
@@ -303,8 +384,8 @@ class DoctorService:
             specialty_id=data.get("specialty_ids", [None])[0] if data.get("specialty_ids") else None,
             about=data.get("about", ""),
             education=data.get("education", ""),
-            experience_years=data.get("experience", 0),
-            consultation_fee=data.get("fee", 0),
+            experience_years=_first_present(data, ("experience", "experience_years"), 0),
+            consultation_fee=_first_present(data, ("fee", "consultation_fee"), 0),
             created_by=user.id
         )
         db.add(new_doctor)
@@ -323,7 +404,10 @@ class DoctorService:
         if "specialty_ids" in data:
             for spec_id in data["specialty_ids"]:
                 db.add(DoctorSpecialityMapping(doctor_id=new_doctor.id, speciality_id=spec_id, created_by=user.id))
-        
+
+        if "consultation_types" in data:
+            _sync_consultation_types(db, new_doctor.id, data["consultation_types"])
+
         # Initialize slot timing availability
         if "slot_timing_ids" in data:
             from app.models.doctor_availability import DoctorAvailability
@@ -351,11 +435,11 @@ class DoctorService:
             for clinic_data in data["clinics"]:
                 db.add(Clinic(
                     doctor_id=new_doctor.id,
-                    name=clinic_data["name"],
-                    address=clinic_data["address"],
-                    city=clinic_data["city"],
-                    latitude=clinic_data.get("latitude"),
-                    longitude=clinic_data.get("longitude"),
+                    name=clinic_data.get("name") or "",
+                    address=clinic_data.get("address") or "",
+                    city=clinic_data.get("city") or "",
+                    latitude=_to_float(clinic_data.get("latitude")),
+                    longitude=_to_float(clinic_data.get("longitude")),
                     phone=clinic_data.get("phone"),
                     is_primary=clinic_data.get("is_primary", False),
                     created_by=user.id,

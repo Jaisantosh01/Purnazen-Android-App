@@ -7,10 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
   FlatList,
-  Switch,
   ActivityIndicator,
-  PermissionsAndroid,
-  Platform,
   Linking,
 } from 'react-native';
 import { showAlert } from '../utils/alert';
@@ -21,7 +18,9 @@ import { WebView } from 'react-native-webview';
 import Geolocation from '@react-native-community/geolocation';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
+import AppToggle from '../components/AppToggle';
 import consultService from '../services/consultService';
+import permissionsService from '../services/permissionsService';
 
 const NOMINATIM_SEARCH = 'https://nominatim.openstreetmap.org/search';
 const NOMINATIM_REVERSE = 'https://nominatim.openstreetmap.org/reverse';
@@ -166,38 +165,26 @@ const AddressManagementScreen = ({ navigation }) => {
     new Promise((resolve, reject) => Geolocation.getCurrentPosition(resolve, reject, options));
 
   const handleCurrentLocation = async () => {
-    if (Platform.OS === 'android') {
-      let granted;
-      try {
-        granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-          {
-            title: 'Location Permission',
-            message: 'Purnazen uses your location to fill in your address automatically.',
-            buttonPositive: 'Allow',
-            buttonNegative: 'Deny',
-          },
-        );
-      } catch {
-        granted = PermissionsAndroid.RESULTS.DENIED;
-      }
-      if (granted === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
-        // Android suppresses the dialog after repeated denials — Settings is
-        // the only way to grant from here.
-        showAlert(
-          'Location Permission Needed',
-          'Location access is turned off for this app. Enable it in Settings to use your current location.',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Open Settings', onPress: () => Linking.openSettings() },
-          ],
-        );
-        return;
-      }
-      if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-        showAlert('Permission Denied', 'Location permission is required to use your current location.');
-        return;
-      }
+    // Goes through permissionsService rather than PermissionsAndroid directly,
+    // so granting here also switches Settings → Location Access on instead of
+    // leaving the two disagreeing.
+    const { granted, blocked } = await permissionsService.ensureLocation();
+    if (blocked) {
+      // Android suppresses the dialog after repeated denials — Settings is
+      // the only way to grant from here.
+      showAlert(
+        'Location Permission Needed',
+        'Location access is turned off for this app. Enable it in Settings to use your current location.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+        ],
+      );
+      return;
+    }
+    if (!granted) {
+      showAlert('Permission Denied', 'Location permission is required to use your current location.');
+      return;
     }
 
     setLocating(true);
@@ -547,12 +534,7 @@ const AddressManagementScreen = ({ navigation }) => {
 
             <View style={styles.defaultRow}>
               <Text style={styles.defaultLabel}>Mark as default address</Text>
-              <Switch
-                value={isDefault}
-                onValueChange={setIsDefault}
-                trackColor={{ false: colors.border, true: colors.primaryLight }}
-                thumbColor={isDefault ? colors.primary : colors.textMuted}
-              />
+              <AppToggle value={isDefault} onValueChange={setIsDefault} />
             </View>
           </View>
 

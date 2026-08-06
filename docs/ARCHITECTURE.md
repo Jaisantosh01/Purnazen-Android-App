@@ -1,6 +1,6 @@
 # Architecture
 
-**Last updated:** 2026-07-03 (endpoint/model counts, navigation tree, doctor-app status refreshed after PR #22) · Face Analysis pipeline write-up: [FACE_ANALYSIS_AI.md](FACE_ANALYSIS_AI.md)
+**Last updated:** 2026-07-26 (added [Cross-cutting flows](#cross-cutting-flows): profile photos, appointment serialization, location permission) · Face Analysis pipeline write-up: [FACE_ANALYSIS_AI.md](FACE_ANALYSIS_AI.md)
 
 ## System Overview
 
@@ -10,8 +10,10 @@ brand-green), **`mobile-admin`** (admin, burnt-orange), **`mobile-doctors`**
 (doctor, clinical-blue). They share the same conventions and a common
 client-side pattern — `constants/theme.js` (light/dark palettes) + `hooks/useTheme.js`
 + `store/themeStore.js` for theming, `services/biometricService.js` for biometric
-unlock, and `utils/alert.js` + `components/AppAlertHost.js` for themed alerts —
-ported per app rather than shared as a package.
+unlock, `utils/alert.js` + `components/AppAlertHost.js` for themed alerts, and
+`components/{ScreenHeader,Avatar}.js` — ported per app rather than shared as a
+package. The last two are kept **byte-identical** across the three apps (branding
+comes from the theme tokens); change one and copy it to the other two.
 
 ```
 ┌─────────────────────────────┐         ┌──────────────────────────────┐
@@ -160,6 +162,93 @@ analyzers in a `ThreadPoolExecutor`, composite scoring, then persists
 - **Validation errors** return **400** (not FastAPI's default 422) with `{field: [messages]}` — same contract as the old Marshmallow validators.
 - **Auth dependencies**, not decorators: `Depends(get_access_payload)` ≈ old `@jwt_required()`, `Depends(get_refresh_payload)` ≈ `@jwt_required(refresh=True)`, `Depends(require_role("admin"))` ≈ `@role_required('admin')`.
 - **Adding a feature:** model → import in `db/base.py` → `alembic revision --autogenerate` → schema → repository → service → endpoint → include in `router.py` → tests.
+
+---
+
+## Cross-cutting flows
+
+Two things span the backend and all three apps and are easy to half-wire, so
+they are written down here rather than left to be re-derived per screen.
+
+### Profile photos
+
+One photo per **account**, on `users.avatar_url`, whatever the role — there is no
+separate doctor or patient photo. Two things can write it:
+
+| Source | Writes | Stores |
+|--------|--------|--------|
+| In-app upload — `POST /users/me/avatar` (multipart, ≤5 MB, jpeg/png/webp) | any authenticated role | Azure blob `avatars/{user_id}.{ext}` in `AZURE_BLOB_CONTAINER_NAME`; the **path** goes in the column |
+| Social sign-in (`services/social_auth.py`) | first login / link | the provider's `picture` **URL** verbatim |
+
+Reads must go through the **`User.avatar` property**, never the raw
+`avatar_url` column: the property runs the value through `generate_sas_url`,
+which signs a blob path into a fetchable URL and passes an `http…` URL through
+untouched. A response that leaks the raw column hands the client a bare blob
+path it cannot load.
+
+Every payload that carries a photo already does this:
+
+```
+User.to_dict()          → avatar_url   (own profile, admin user list)
+doctors.py doctor_card  → avatar       (catalog + doctor detail)
+patients.py             → avatarUrl    (doctor's patient list + detail)
+Appointment.to_dict()   → userAvatar, doctorAvatar
+```
+
+**SAS URLs expire** (`AZURE_SAS_EXPIRY_MINUTES`, default 60). The profile is
+cached in AsyncStorage, so a cached URL goes stale within the hour: each app
+calls `authService.refreshProfile()` (`GET /auth/me`) right after bootstrap to
+re-sign it. Client-side, `components/Avatar.js` (byte-identical in all three
+apps) renders the photo with an initial fallback and resets its failure flag
+whenever the URL changes, so a re-signed URL gets a fresh attempt.
+
+Because the photo hangs off the user row, a doctor changing their photo or name
+in the doctor app propagates by itself — `Appointment.to_dict()` reads
+`self.doctor.user.full_name` / `.avatar` live, so the patient's appointment list
+and the admin console pick it up on their next fetch. Nothing is denormalised.
+
+### Appointment serialization
+
+`Appointment.to_dict()` is the base shape both parties see. The doctor side needs
+the patient's profile on top of it (age, gender, contact, prior visits), which is
+what **`AppointmentService.serialize_for_doctor()`** adds.
+
+```
+GET  /appointments            → to_dict + isUpcoming            (patient's own list)
+GET  /appointments/doctor     → serialize_for_doctor            (doctor's list)
+GET  /appointments/{id}       → serialize_for_doctor for the owning doctor / admin,
+PUT  /appointments/{id}          plain to_dict for the patient
+```
+
+Route the doctor/admin paths through `serialize_for_doctor` — when the detail
+endpoint returned the bare dict, opening an appointment from the list replaced
+the enriched row with an unenriched one and the patient's age and gender flipped
+to "N/A" a moment after the screen rendered.
+
+Both `{id}` routes are restricted to the **two parties and an admin**;
+`payment_status` is staff-only (patients move it through the payments flow).
+
+### Location permission
+
+Location has two switches that must agree, and the app may use it only when both
+say yes:
+
+1. the **OS grant** (Android App info → Permissions) — device-local, and nothing
+   notifies the app when the user changes it there;
+2. **`locationEnabled`** in `user_preferences` — the in-app choice, which syncs
+   across devices.
+
+All of it goes through `mobile-users/src/services/permissionsService.js`:
+`locationStatus()` reads both (repairing a stored `true` when the grant is gone),
+`enableLocation()` / `disableLocation()` write both, and `ensureLocation()` is
+the gate for a feature that needs a fix right now. Settings re-reads on focus;
+callers must not reach for `PermissionsAndroid` directly, or the OS grant moves
+without the preference hearing about it.
+
+Only `mobile-users` requests location, and only for **address autofill**
+(`AddressManagementScreen` → `@react-native-community/geolocation` → Nominatim
+reverse geocode). The doctor and admin apps declare no location permission —
+their map links hand off to an external maps app, which needs none.
 
 ---
 

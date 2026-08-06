@@ -59,10 +59,19 @@ class WellnessSessionService:
         return WellnessSessionRepository.save(db, session)
 
     @staticmethod
-    def delete(db: Session, session_id: uuid.UUID, user: User) -> WellnessSession | None:
+    def delete(
+        db: Session, session_id: uuid.UUID, user: User, hard: bool = False
+    ) -> WellnessSession | None:
         session = WellnessSessionRepository.get_by_id(db, session_id)
         if not session:
             return None
+
+        if hard:
+            # Nothing references wellness_sessions, so the row can just go. The
+            # video group it pointed at is untouched.
+            db.delete(session)
+            db.commit()
+            return session
 
         session.is_active = False
         session.updated_by = user.id

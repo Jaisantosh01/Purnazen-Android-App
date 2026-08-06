@@ -16,12 +16,20 @@ from app.models.user import User
 from app.models.user_preference import UserPreference
 from app.repositories.user_repository import UserRepository
 from app.services.social_auth import SocialAuthError, verify_firebase
+from app.utils.email_validation import validate_account_email
 
 
 class AuthService:
 
     @staticmethod
     def register(db: Session, data: dict):
+        # Reject disposable/undeliverable addresses with a soft message and
+        # normalize the address before it becomes the account key.
+        check = validate_account_email(data.get("email", ""))
+        if not check["valid"]:
+            return {"success": False, "message": check["message"]}, 400
+        data["email"] = check["email"]
+
         existing_user = UserRepository.find_by_email(db, data["email"])
 
         if existing_user:
@@ -52,6 +60,14 @@ class AuthService:
                 "success": False,
                 "message": "Invalid email or password",
             }, 401
+
+        # An admin-deleted account keeps its row (records reference it) but must
+        # not be able to sign back in.
+        if user.is_active is False:
+            return {
+                "success": False,
+                "message": "This account has been deactivated. Please contact your administrator.",
+            }, 403
 
         # RBAC gate: reject a valid credential trying to use the wrong app.
         expected_role = data.get("expected_role")
@@ -123,6 +139,11 @@ class AuthService:
                 user.avatar_url = profile["avatar_url"]
             db.commit()
             db.refresh(user)
+        elif user.is_active is False:
+            return {
+                "success": False,
+                "message": "This account has been deactivated. Please contact your administrator.",
+            }, 403
         elif expected_role and (not user.role or user.role.name != expected_role):
             return {
                 "success": False,
@@ -236,6 +257,12 @@ class AuthService:
             user.gender = data["gender"]
         if data.get("date_of_birth") is not None:
             user.date_of_birth = data["date_of_birth"]
+        for field in ("blood_group", "height_cm", "weight_kg", "allergies", "conditions", "medications"):
+            if data.get(field) is not None:
+                value = data[field]
+                # An empty string is how the app clears a free-text field.
+                user_value = value.strip() or None if isinstance(value, str) else value
+                setattr(user, field, user_value)
         db.commit()
         db.refresh(user)
 
@@ -260,6 +287,47 @@ class AuthService:
             "message": "Password changed successfully",
             "access_token": create_access_token(str(user.id), user.token_version),
             "refresh_token": create_refresh_token(str(user.id), user.token_version),
+        }, 200
+
+    @staticmethod
+    def request_account_deletion(db: Session, user: User):
+        """Raise a deletion *request* for an admin to action.
+
+        Patients no longer wipe their own account from the app — the data has
+        clinical value (appointments, therapy history, scans) and the call is
+        the clinic's to make. This notifies every admin and leaves the account
+        untouched; the actual removal happens from the admin console.
+        """
+        from app.models.role import Role
+        from app.services.notification_service import NotificationService
+
+        if db.query(Doctor).filter_by(user_id=user.id).first():
+            return {
+                "success": False,
+                "message": "Doctor accounts cannot be deleted from the app",
+            }, 400
+
+        admin_ids = [
+            row[0]
+            for row in db.query(User.id)
+            .join(Role, User.role_id == Role.id)
+            .filter(Role.name == "admin", User.is_active.is_(True))
+            .all()
+        ]
+        for admin_id in admin_ids:
+            NotificationService.notify_safely(
+                db,
+                admin_id,
+                "system",
+                "account_deletion_requested",
+                "Account deletion requested",
+                f"{user.full_name} ({user.email}) has asked for their account to be deleted.",
+                {"userId": str(user.id), "email": user.email},
+            )
+
+        return {
+            "success": True,
+            "message": "Deletion request submitted",
         }, 200
 
     @staticmethod

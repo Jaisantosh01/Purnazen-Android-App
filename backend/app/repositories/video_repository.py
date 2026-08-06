@@ -1,5 +1,6 @@
 import uuid
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.video_groups import VideoGroups
@@ -81,6 +82,19 @@ class VideoRepository:
         return db.get(Videos, video_id)
 
     @staticmethod
+    def get_by_url(db: Session, video_url: str, active_only: bool = True) -> Videos | None:
+        """Find a video by its stored blob path (``video_url``).
+
+        Used to keep uploads idempotent (a retry updates the existing record
+        instead of creating a duplicate) and to resolve the DB record behind a
+        storage file for move/delete operations.
+        """
+        query = db.query(Videos).filter(Videos.video_url == video_url)
+        if active_only:
+            query = query.filter(Videos.is_active == True)
+        return query.order_by(Videos.created_at.desc()).first()
+
+    @staticmethod
     def get_by_group(db: Session, group_id: uuid.UUID, active_only: bool = True) -> list[Videos]:
         query = (
             db.query(Videos)
@@ -90,6 +104,26 @@ class VideoRepository:
         if active_only:
             query = query.filter(Videos.is_active == True, VideoGroupMapping.is_active == True)
         return query.order_by(VideoGroupMapping.sort_order).all()
+
+    @staticmethod
+    def count_active_in_group(db: Session, group_id: uuid.UUID) -> int:
+        """How many videos a group's catalog actually serves.
+
+        Mirrors ``get_by_group(active_only=True)``. Deleting a video only flips
+        ``Videos.is_active`` and unlinking one only flips the mapping's, so
+        counting mapping rows on their own reports videos nobody can play — which
+        is what made therapy history read "1/3 videos" for a group holding one.
+        """
+        return (
+            db.query(func.count(VideoGroupMapping.id))
+            .join(Videos, Videos.id == VideoGroupMapping.video_id)
+            .filter(
+                VideoGroupMapping.video_group_id == group_id,
+                VideoGroupMapping.is_active == True,
+                Videos.is_active == True,
+            )
+            .scalar()
+        ) or 0
 
     @staticmethod
     def create(db: Session, **fields) -> Videos:

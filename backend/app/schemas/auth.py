@@ -9,6 +9,12 @@ class RegisterRequest(BaseModel):
     password: str
 
 
+class EmailCheckRequest(BaseModel):
+    # Plain str (not EmailStr) so a malformed address returns a soft message
+    # instead of a 422 — the apps use this to validate as the user types.
+    email: str
+
+
 class AdminCreateUserRequest(BaseModel):
     full_name: str
     email: EmailStr
@@ -59,6 +65,15 @@ class UpdateProfileRequest(BaseModel):
     )
     gender: str | None = Field(default=None, max_length=10)
     date_of_birth: date | None = Field(default=None, alias="dateOfBirth")
+
+    # Health profile. Free-text fields accept "" so the patient can clear them;
+    # the numeric ranges just keep obvious typos out of the report.
+    blood_group: str | None = Field(default=None, alias="bloodGroup", max_length=5)
+    height_cm: float | None = Field(default=None, alias="heightCm", ge=30, le=280)
+    weight_kg: float | None = Field(default=None, alias="weightKg", ge=2, le=500)
+    allergies: str | None = Field(default=None, max_length=1000)
+    conditions: str | None = Field(default=None, max_length=1000)
+    medications: str | None = Field(default=None, max_length=1000)
 
 
 class ChangePasswordRequest(BaseModel):

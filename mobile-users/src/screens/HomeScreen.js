@@ -6,7 +6,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  StatusBar,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -17,13 +16,12 @@ import { ENDPOINTS } from '../constants/apiEndpoints';
 import wellnessService from '../services/wellnessService';
 import useTheme from '../hooks/useTheme';
 import notificationsService from '../services/notificationsService';
-import { useHeaderTopPadding } from '../components/ScreenHeader';
+import TabHeader from '../components/TabHeader';
 
 const HOME_WELLNESS_ROWS = 3; 
 const HOME_QUICK_RELIEF_LIMIT = 3; 
 
 const HomeScreen = ({ navigation }) => {
-  const headerTop = useHeaderTopPadding(16);
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [quickRelief, setQuickRelief] = useState([]);
@@ -68,20 +66,16 @@ const HomeScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.headerBg} />
-
       <ScrollView
         style={styles.container}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 24 }}
       >
         {/* ── Header ── */}
-        <View style={[styles.header, { paddingTop: headerTop }]}>
-          <View style={styles.headerRow}>
-            <View style={styles.headerTextCol}>
-              <Text style={styles.title}>{STRINGS.HOME_TITLE}</Text>
-              <Text style={styles.subtitle}>{STRINGS.HOME_SUBTITLE}</Text>
-            </View>
+        <TabHeader
+          title={STRINGS.HOME_TITLE}
+          subtitle={STRINGS.HOME_SUBTITLE}
+          right={
             <TouchableOpacity
               style={styles.bellBtn}
               onPress={() => navigation.navigate('NotificationCenter')}
@@ -96,8 +90,8 @@ const HomeScreen = ({ navigation }) => {
                 </View>
               )}
             </TouchableOpacity>
-          </View>
-        </View>
+          }
+        />
 
         {/* ── Quick Relief ── */}
         <View style={styles.section}>
@@ -171,6 +165,7 @@ const HomeScreen = ({ navigation }) => {
                     navigation.navigate('VideoPlayer', {
                       groupId: item.videoGroupId,
                       groupTitle: item.title,
+                      sessionType: 'wellness',
                     });
                   }
                 }}
@@ -244,16 +239,8 @@ const makeStyles = colors => StyleSheet.create({
     flex: 1,
   },
 
-  // Header
-  header: {
-    backgroundColor: colors.headerBg,
-    paddingHorizontal: 20,
-    paddingBottom: 28,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
-  },
-  headerRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  headerTextCol: { flex: 1 },
+  // Header — the card itself now comes from <TabHeader/>; only the bell, which
+  // is passed in as the header's `right` slot, is styled here.
   bellBtn: {
     width: 42, height: 42, borderRadius: 21,
     backgroundColor: 'rgba(255,255,255,0.18)',
@@ -268,17 +255,6 @@ const makeStyles = colors => StyleSheet.create({
     paddingHorizontal: 4,
   },
   bellBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
-  title: {
-    fontSize: 26,
-    color: colors.white,
-    fontWeight: '800',
-    letterSpacing: 0.2,
-  },
-  subtitle: {
-    color: 'rgba(255,255,255,0.75)',
-    fontSize: 13,
-    marginTop: 4,
-  },
 
   // Sections
   section: {

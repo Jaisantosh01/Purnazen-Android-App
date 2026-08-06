@@ -5,11 +5,11 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Switch,
   Modal,
   TextInput,
   ActivityIndicator,
 } from 'react-native';
+import { launchImageLibrary } from 'react-native-image-picker';
 import { showAlert } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -17,10 +17,16 @@ import authService from '../services/authService';
 import socialAuthService from '../services/socialAuthService';
 import preferencesService from '../services/preferencesService';
 import biometricService from '../services/biometricService';
-import { APP_VERSION } from '../config';
+import { getAutoUpdateEnabled, setAutoUpdateEnabled } from '../services/updateService';
 import { useAuthStore } from '../store/authStore';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
+import AppVersionFooter from '../components/AppVersionFooter';
+import Avatar from '../components/Avatar';
+import GenderSelect from '../components/GenderSelect';
+import DobInput, { isoToParts, validateDobParts } from '../components/DobInput';
+import ThemeToggle from '../components/ThemeToggle';
+import AppToggle from '../components/AppToggle';
 
 // Shared toggle ids with the backend user_preferences.notifications dict.
 const PREF_KEYS = {
@@ -34,26 +40,18 @@ const HUES = {
   purple: '#7C3AED',
   blue: '#0284C7',
   amber: '#F59E0B',
-  orange: '#EA580C',
   rose: '#E11D48',
 };
 const soft = hex => `${hex}22`;
 
-// Supported app languages. The selected code persists to user_preferences;
-// full UI translation (i18n) is wired separately.
-const LANGUAGES = [
-  { code: 'en', label: 'English',  native: 'English'   },
-  { code: 'hi', label: 'Hindi',    native: 'हिन्दी'    },
-  { code: 'mr', label: 'Marathi',  native: 'मराठी'     },
-  { code: 'ta', label: 'Tamil',    native: 'தமிழ்'      },
-  { code: 'te', label: 'Telugu',   native: 'తెలుగు'     },
-  { code: 'bn', label: 'Bengali',  native: 'বাংলা'      },
-];
-const languageLabel = code => (LANGUAGES.find(l => l.code === code) || LANGUAGES[0]).label;
+// NOTE: the "App Language" picker used to live here. It wrote a code to
+// user_preferences but no UI was ever translated, so choosing another language
+// changed nothing on screen. Removed rather than left as a lie — bring it back
+// together with real i18n (the `language` preference column is still there).
 
-const SettingsScreen = ({ navigation }) => {
+const SettingsScreen = ({ navigation, route }) => {
   const doctor = useAuthStore(state => state.doctor);
-  const { colors, isDark, setMode } = useTheme();
+  const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const tint = hue => hue || colors.primary;
@@ -73,13 +71,7 @@ const SettingsScreen = ({ navigation }) => {
           <Text style={styles.settingTitle}>{title}</Text>
           {subtitle ? <Text style={styles.settingSubtitle}>{subtitle}</Text> : null}
         </View>
-        <Switch
-          value={value}
-          onValueChange={onToggle}
-          disabled={disabled}
-          trackColor={{ false: colors.border, true: colors.primary }}
-          thumbColor={colors.white}
-        />
+        <AppToggle value={value} onValueChange={onToggle} disabled={disabled} />
       </View>
     );
   };
@@ -106,7 +98,7 @@ const SettingsScreen = ({ navigation }) => {
   const [appointmentAlerts, setAppointmentAlerts] = useState(true);
   const [biometric, setBiometric]                 = useState(false);
   const [biometricBusy, setBiometricBusy]         = useState(false);
-  const [language, setLanguage]                   = useState('en');
+  const [autoUpdate, setAutoUpdate]               = useState(true);
 
   // Hydrate toggles/values from the server (defaults kept offline).
   React.useEffect(() => {
@@ -116,11 +108,11 @@ const SettingsScreen = ({ navigation }) => {
         if (typeof prefs.pushEnabled === 'boolean') setNotifications(prefs.pushEnabled);
         const saved = prefs.notifications || {};
         if (PREF_KEYS.appointmentAlerts in saved) setAppointmentAlerts(saved[PREF_KEYS.appointmentAlerts]);
-        if (prefs.language) setLanguage(prefs.language);
       })
       .catch(err => console.log('Preferences fetch failed:', err.message));
 
     biometricService.isEnabled().then(setBiometric).catch(() => {});
+    getAutoUpdateEnabled().then(setAutoUpdate).catch(() => {});
   }, []);
 
   const savePreference = payload => {
@@ -137,16 +129,6 @@ const SettingsScreen = ({ navigation }) => {
     setter(value);
     savePreference({ notifications: { [prefKey]: value } });
   };
-
-  // Language — persist immediately on select.
-  const selectLanguage = code => {
-    setLanguage(code);
-    setShowLanguage(false);
-    savePreference({ language: code });
-  };
-
-  // Dark mode is global — drives the persisted theme store via useTheme().
-  const toggleDarkMode = value => setMode(value ? 'dark' : 'light');
 
   // Biometric login uses the device keystore biometric prompt to enrol/disenrol.
   const toggleBiometric = async value => {
@@ -171,6 +153,9 @@ const SettingsScreen = ({ navigation }) => {
   // Edit profile modal
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [fullName, setFullName]               = useState('');
+  const [gender, setGender]                   = useState('');
+  const [dob, setDob]                         = useState({ dd: '', mm: '', yyyy: '' });
+  const [avatarBusy, setAvatarBusy]           = useState(false);
   // Edit phone modal
   const [showEditPhone, setShowEditPhone] = useState(false);
   const [phone, setPhone]                 = useState('');
@@ -179,8 +164,6 @@ const SettingsScreen = ({ navigation }) => {
   const [newEmail, setNewEmail]           = useState('');
   const [emailPassword, setEmailPassword] = useState('');
   const [linkBusy, setLinkBusy]           = useState(false);
-  // Language modal
-  const [showLanguage, setShowLanguage]   = useState(false);
   // Change password modal
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [currentPassword, setCurrentPassword]       = useState('');
@@ -192,8 +175,40 @@ const SettingsScreen = ({ navigation }) => {
 
   const openEditProfile = () => {
     setFullName(doctor?.full_name || '');
+    setGender(doctor?.gender || '');
+    setDob(isoToParts(doctor?.date_of_birth));
     setFormError('');
     setShowEditProfile(true);
+  };
+
+  // Deep-link from the Profile header's photo — open straight into the form.
+  React.useEffect(() => {
+    if (route?.params?.openEditProfile) {
+      openEditProfile();
+      navigation.setParams({ openEditProfile: false });
+    }
+  }, [route?.params?.openEditProfile]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /**
+   * Pick and upload a profile photo. The upload is its own request (multipart
+   * to /users/me/avatar) and lands immediately — it isn't held until Save, so
+   * the store updates as soon as the server confirms and every screen showing
+   * the doctor's photo re-renders.
+   */
+  const pickAvatar = () => {
+    if (avatarBusy) return;
+    launchImageLibrary({ mediaType: 'photo', quality: 0.85, maxWidth: 1024, maxHeight: 1024 }, async (resp) => {
+      const uri = resp?.assets?.[0]?.uri;
+      if (resp?.didCancel || !uri) return;
+      setAvatarBusy(true);
+      try {
+        await authService.uploadAvatar(uri);
+      } catch (err) {
+        setFormError(err.message || 'Could not upload the photo.');
+      } finally {
+        setAvatarBusy(false);
+      }
+    });
   };
 
   const openEditPhone = () => {
@@ -286,11 +301,17 @@ const SettingsScreen = ({ navigation }) => {
 
   const handleSaveProfile = async () => {
     if (!fullName.trim()) { setFormError('Name cannot be empty.'); return; }
+    const parsedDob = validateDobParts(dob);
+    if (!parsedDob.ok) { setFormError('Enter a valid date of birth.'); return; }
     setIsSubmitting(true);
     try {
-      await authService.updateProfile({ fullName: fullName.trim() });
+      await authService.updateProfile({
+        fullName: fullName.trim(),
+        gender: gender || undefined,
+        dateOfBirth: parsedDob.iso,
+      });
       setShowEditProfile(false);
-      showAlert('Profile Updated', 'Your name has been updated.');
+      showAlert('Profile Updated', 'Your details have been saved.');
     } catch (err) {
       setFormError(err.message || 'Profile update failed.');
     } finally {
@@ -300,7 +321,7 @@ const SettingsScreen = ({ navigation }) => {
 
   const handleSavePhone = async () => {
     const trimmed = phone.trim();
-    if (trimmed && !/^[+0-9 ()-]{6,15}$/.test(trimmed)) {
+    if (trimmed && !/^[+0-9 ()-]{6,10}$/.test(trimmed)) {
       setFormError('Enter a valid phone number.');
       return;
     }
@@ -334,7 +355,7 @@ const SettingsScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Settings" subtitle="Manage your preferences" />
+      <ScreenHeader title="Settings" subtitle="Manage your preferences" backBehavior="popToRoot" right={<ThemeToggle />} />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
 
@@ -345,7 +366,7 @@ const SettingsScreen = ({ navigation }) => {
             <ArrowRow
               icon="account-edit-outline"
               title="Edit Profile"
-              subtitle="Update your name"
+              subtitle="Photo, name, gender & date of birth"
               onPress={openEditProfile}
             />
             <View style={styles.rowDivider} />
@@ -422,15 +443,6 @@ const SettingsScreen = ({ navigation }) => {
           <SectionHeader title="Appearance & Security" />
           <View style={styles.card}>
             <ToggleRow
-              icon="weather-night"
-              hue={colors.textSecondary}
-              title="Dark Mode"
-              subtitle="Switch to dark theme"
-              value={isDark}
-              onToggle={toggleDarkMode}
-            />
-            <View style={styles.rowDivider} />
-            <ToggleRow
               icon="fingerprint"
               title="Biometric Login"
               subtitle="Use fingerprint or Face ID"
@@ -439,18 +451,21 @@ const SettingsScreen = ({ navigation }) => {
               disabled={biometricBusy}
             />
             <View style={styles.rowDivider} />
-            <ArrowRow
-              icon="translate"
-              hue={HUES.orange}
-              title="Language"
-              subtitle="App display language"
-              valueText={languageLabel(language)}
-              onPress={() => setShowLanguage(true)}
+            <ToggleRow
+              icon="cellphone-arrow-down"
+              hue={HUES.blue}
+              title="Auto-update"
+              subtitle="Prompt when a new version is available"
+              value={autoUpdate}
+              onToggle={value => {
+                setAutoUpdate(value);
+                setAutoUpdateEnabled(value);
+              }}
             />
           </View>
         </View>
 
-        <Text style={styles.version}>Purnazen Doctor v{APP_VERSION}</Text>
+        <AppVersionFooter />
       </ScrollView>
 
       {/* Edit Profile modal */}
@@ -459,6 +474,21 @@ const SettingsScreen = ({ navigation }) => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Edit Profile</Text>
+
+            {/* Profile photo */}
+            <TouchableOpacity style={styles.avatarPicker} onPress={pickAvatar} activeOpacity={0.8} disabled={avatarBusy}>
+              {avatarBusy ? (
+                <View style={styles.avatarBusy}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                </View>
+              ) : (
+                <Avatar uri={doctor?.avatar_url} name={doctor?.full_name} size={72} borderWidth={1.5} />
+              )}
+              <Text style={styles.avatarAction}>
+                {avatarBusy ? 'Uploading…' : doctor?.avatar_url ? 'Change photo' : 'Add a photo'}
+              </Text>
+            </TouchableOpacity>
+
             <Text style={styles.modalLabel}>Full Name</Text>
             <TextInput
               style={styles.modalInput}
@@ -468,6 +498,10 @@ const SettingsScreen = ({ navigation }) => {
               placeholderTextColor={colors.textMuted}
               autoCapitalize="words"
             />
+            <Text style={styles.modalLabel}>Gender</Text>
+            <GenderSelect value={gender} onChange={v => { setGender(v); setFormError(''); }} />
+            <Text style={styles.modalLabel}>Date of Birth</Text>
+            <DobInput value={dob} onChange={d => { setDob(d); setFormError(''); }} />
             {formError ? <Text style={styles.modalError}>{formError}</Text> : null}
             <View style={styles.modalActions}>
               <TouchableOpacity style={[styles.modalBtn, styles.modalBtnCancel]} onPress={() => setShowEditProfile(false)}>
@@ -495,6 +529,7 @@ const SettingsScreen = ({ navigation }) => {
               placeholder="+91 98765 43210"
               placeholderTextColor={colors.textMuted}
               keyboardType="phone-pad"
+              maxLength={10}
             />
             {formError ? <Text style={styles.modalError}>{formError}</Text> : null}
             <View style={styles.modalActions}>
@@ -599,37 +634,6 @@ const SettingsScreen = ({ navigation }) => {
         </View>
       </Modal>
 
-      {/* Language selector modal */}
-      <Modal visible={showLanguage} transparent animationType="fade"
-        onRequestClose={() => setShowLanguage(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>App Language</Text>
-            {LANGUAGES.map(l => {
-              const active = language === l.code;
-              return (
-                <TouchableOpacity
-                  key={l.code}
-                  style={[styles.langRow, active && styles.langRowActive]}
-                  onPress={() => selectLanguage(l.code)}
-                  activeOpacity={0.8}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.langLabel}>{l.label}</Text>
-                    <Text style={styles.langNative}>{l.native}</Text>
-                  </View>
-                  {active ? <MCIcon name="check-circle" size={20} color={colors.primary} /> : null}
-                </TouchableOpacity>
-              );
-            })}
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnCancel]} onPress={() => setShowLanguage(false)}>
-                <Text style={styles.modalBtnCancelText}>Close</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 };
@@ -683,30 +687,7 @@ const makeStyles = colors => StyleSheet.create({
   settingSubtitle: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
   valueText: { fontSize: 13, color: colors.textMuted, fontWeight: '500' },
 
-  // Language selector rows
-  langRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceMuted,
-    marginBottom: 8,
-  },
-  langRowActive: { borderColor: colors.primary, backgroundColor: colors.primaryFaint },
-  langLabel: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
-  langNative: { fontSize: 12.5, color: colors.textMuted, marginTop: 1 },
-
-  version: {
-    textAlign: 'center',
-    fontSize: 12,
-    color: colors.borderStrong,
-    marginTop: 28,
-  },
-
-  // Plain-modal forms (edit profile / phone / password / language).
+  // Plain-modal forms (edit profile / phone / password).
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
@@ -721,6 +702,16 @@ const makeStyles = colors => StyleSheet.create({
     borderColor: colors.border,
   },
   modalTitle: { fontSize: 17, fontWeight: '700', color: colors.textPrimary, marginBottom: 16 },
+
+  avatarPicker: { alignItems: 'center', gap: 8, marginBottom: 6 },
+  avatarBusy: {
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: colors.primaryFaint,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: colors.border,
+  },
+  avatarAction: { fontSize: 12.5, fontWeight: '700', color: colors.primary },
+
   modalLabel: { fontSize: 12, fontWeight: '600', color: colors.textSecondary, marginBottom: 6, marginTop: 8 },
   modalInput: {
     borderWidth: 1,

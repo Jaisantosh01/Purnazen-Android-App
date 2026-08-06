@@ -48,3 +48,25 @@ jest.mock('@react-native-community/geolocation', () => ({
   clearWatch: jest.fn(),
   requestAuthorization: jest.fn(),
 }));
+
+// react-native-safe-area-context measures insets from the native view tree,
+// which isn't available under jest — so useSafeAreaInsets()/SafeAreaInsetsContext
+// throw ("No safe area value available") when a screen is rendered without a
+// real provider. Return static zero insets so screens (and ScreenHeader) render.
+jest.mock('react-native-safe-area-context', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  const inset = { top: 0, right: 0, bottom: 0, left: 0 };
+  const frame = { x: 0, y: 0, width: 390, height: 844 };
+  // Real context so useContext(SafeAreaInsetsContext) (e.g. in ScreenHeader) works.
+  const SafeAreaInsetsContext = React.createContext(inset);
+  return {
+    SafeAreaProvider: ({ children }) => children,
+    SafeAreaConsumer: ({ children }) => children(inset),
+    SafeAreaInsetsContext,
+    SafeAreaView: ({ children, ...props }) => React.createElement(View, props, children),
+    useSafeAreaInsets: () => inset,
+    useSafeAreaFrame: () => frame,
+    initialWindowMetrics: { frame, insets: inset },
+  };
+});

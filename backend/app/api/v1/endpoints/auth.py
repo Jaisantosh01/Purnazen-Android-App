@@ -15,6 +15,7 @@ from app.repositories.token_repository import TokenRepository
 from app.schemas.auth import (
     ChangeEmailRequest,
     ChangePasswordRequest,
+    EmailCheckRequest,
     LoginRequest,
     RegisterRequest,
     SocialLinkRequest,
@@ -22,6 +23,7 @@ from app.schemas.auth import (
     UpdateProfileRequest,
 )
 from app.services.auth_service import AuthService
+from app.utils.email_validation import validate_account_email
 from app.utils.responses import error_response, success_response
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -41,6 +43,21 @@ def register(request: Request, body: RegisterRequest, db: Session = Depends(get_
         return error_response(response["message"], status_code)
 
     return success_response(response["message"], response.get("user"), status_code)
+
+
+@router.post(
+    "/validate-email",
+    summary="Soft-check an email address before signup",
+    description=(
+        "Returns whether an email is usable for an account and, when not, a "
+        "soft human message. Rejects disposable/throwaway domains and (best "
+        "effort) domains with no mail server. Does not touch the database."
+    ),
+)
+@limiter.limit(settings.RATE_LIMIT_EMAIL_CHECK)
+def validate_email(request: Request, body: EmailCheckRequest):
+    result = validate_account_email(body.email)
+    return success_response("Email checked", result)
 
 
 @router.post(
@@ -213,6 +230,28 @@ def change_password(
         },
         status_code,
     )
+
+
+@router.post(
+    "/me/deletion-request",
+    summary="Request account deletion",
+    description=(
+        "Raises a deletion request for the authenticated user and notifies the "
+        "admins. Nothing is removed — an admin actions the request from the "
+        "console. This is what the patient app calls; `DELETE /me` stays for "
+        "admin/back-office use."
+    ),
+)
+def request_account_deletion(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    response, status_code = AuthService.request_account_deletion(db, user)
+
+    if not response["success"]:
+        return error_response(response["message"], status_code)
+
+    return success_response(response["message"], None, status_code)
 
 
 @router.delete(

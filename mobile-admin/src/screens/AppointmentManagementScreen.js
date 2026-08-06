@@ -26,6 +26,50 @@ const formatAddress = (addr) => {
   return addr.houseName ? `${addr.houseName}, ${parts.join(', ')}` : parts.join(', ');
 };
 
+/**
+ * Where the appointment happens, for the details popup.
+ *
+ * Prefers the API's unified `location` object (it carries the coordinates for
+ * both clinic and home visits) and falls back to the flat legacy fields.
+ * Returns null for video consultations, which have no place attached.
+ */
+const resolveLocation = (appt) => {
+  if (!appt) return null;
+  // `visitType` is the canonical slug; older payloads only carry the display
+  // name in `consultationType`.
+  const kind = (appt.visitType || appt.consultationType || '').toLowerCase();
+  const isHome = kind.includes('home');
+  const isClinic = kind.includes('clinic');
+  if (!isHome && !isClinic) return null;
+
+  const loc = appt.location;
+  const addr = appt.userAddress;
+
+  if (isHome) {
+    return {
+      sectionTitle: 'Patient Home Address',
+      icon: 'home-outline',
+      name: addr?.houseName || loc?.name || 'Patient Home',
+      address: loc?.address || formatAddress(addr),
+      landmark: addr?.landmark || null,
+      latitude: loc?.latitude ?? addr?.latitude,
+      longitude: loc?.longitude ?? addr?.longitude,
+      missingText: 'No home address was saved with this booking.',
+    };
+  }
+
+  return {
+    sectionTitle: 'Clinic Address',
+    icon: 'hospital-building',
+    name: appt.clinicName || loc?.name || 'Clinic',
+    address: loc?.address || appt.clinicAddress || '',
+    landmark: null,
+    latitude: loc?.latitude,
+    longitude: loc?.longitude,
+    missingText: 'No clinic address is set for this appointment.',
+  };
+};
+
 const openMap = (label, lat, lng) => {
   if (lat && lng) {
     const url = Platform.OS === 'ios'
@@ -162,7 +206,8 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
   const fetchConsultationTypes = () => {
     apiClient
       .get(ENDPOINTS.CONSULTATION_TYPES)
-      .then(res => setConsultationTypes(res.data || []))
+      // The endpoint returns full records; these tabs filter by name.
+      .then(res => setConsultationTypes((res.data || []).map(t => t?.name || t).filter(Boolean)))
       .catch(() => {});
   };
 
@@ -656,49 +701,43 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
                     </View>
                   </View>
 
-                  {selectedAppointment.consultationType?.toLowerCase().includes('clinic') && selectedAppointment.clinicName ? (
-                    <View style={styles.detailSection}>
-                      <Text style={styles.detailSectionTitle}>Clinic Address</Text>
-                      <TouchableOpacity
-                        style={styles.addressRow}
-                        onPress={() => openMap(
-                          selectedAppointment.clinicName + ', ' + (selectedAppointment.clinicAddress || ''),
-                          selectedAppointment.clinicLat,
-                          selectedAppointment.clinicLng,
+                  {(() => {
+                    const place = resolveLocation(selectedAppointment);
+                    if (!place) return null;
+                    return (
+                      <View style={styles.detailSection}>
+                        <Text style={styles.detailSectionTitle}>{place.sectionTitle}</Text>
+                        {place.address ? (
+                          <TouchableOpacity
+                            style={styles.addressRow}
+                            onPress={() => openMap(
+                              [place.name, place.address].filter(Boolean).join(', '),
+                              place.latitude,
+                              place.longitude,
+                            )}
+                            activeOpacity={0.7}
+                          >
+                            <MCIcon name={place.icon} size={18} color={colors.primary} style={styles.detailIcon} />
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.detailValue}>{place.name}</Text>
+                              <Text style={styles.addressText}>{place.address}</Text>
+                              {place.landmark ? (
+                                <Text style={styles.addressText}>Landmark: {place.landmark}</Text>
+                              ) : null}
+                            </View>
+                            <MCIcon name="map-marker-outline" size={20} color={colors.textMuted} />
+                          </TouchableOpacity>
+                        ) : (
+                          // Never render an empty section — say the address is
+                          // missing so it isn't mistaken for a display bug.
+                          <View style={styles.addressRow}>
+                            <MCIcon name="map-marker-off-outline" size={18} color={colors.textMuted} style={styles.detailIcon} />
+                            <Text style={styles.addressMissing}>{place.missingText}</Text>
+                          </View>
                         )}
-                        activeOpacity={0.7}
-                      >
-                        <MCIcon name="hospital-building" size={18} color={colors.primary} style={styles.detailIcon} />
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.detailValue}>{selectedAppointment.clinicName}</Text>
-                          <Text style={styles.addressText}>{selectedAppointment.clinicAddress}</Text>
-                        </View>
-                        <MCIcon name="map-marker-outline" size={20} color={colors.textMuted} />
-                      </TouchableOpacity>
-                    </View>
-                  ) : null}
-
-                  {selectedAppointment.consultationType?.toLowerCase().includes('home') && selectedAppointment.userAddress ? (
-                    <View style={styles.detailSection}>
-                      <Text style={styles.detailSectionTitle}>Home Address</Text>
-                      <TouchableOpacity
-                        style={styles.addressRow}
-                        onPress={() => openMap(
-                          formatAddress(selectedAppointment.userAddress),
-                          selectedAppointment.userAddress.lat,
-                          selectedAppointment.userAddress.lng,
-                        )}
-                        activeOpacity={0.7}
-                      >
-                        <MCIcon name="home-outline" size={18} color={colors.primary} style={styles.detailIcon} />
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.detailValue}>{selectedAppointment.userAddress.houseName || 'Home'}</Text>
-                          <Text style={styles.addressText}>{formatAddress(selectedAppointment.userAddress)}</Text>
-                        </View>
-                        <MCIcon name="map-marker-outline" size={20} color={colors.textMuted} />
-                      </TouchableOpacity>
-                    </View>
-                  ) : null}
+                      </View>
+                    );
+                  })()}
 
                   {selectedAppointment.userDescription ? (
                     <View style={styles.detailSection}>
@@ -761,8 +800,8 @@ const makeStyles = colors => StyleSheet.create({
   feeText: { fontSize: 14, fontWeight: '700', color: colors.primary },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 60 },
   emptyText: { marginTop: 12, fontSize: 15, color: colors.textMuted },
-  filterModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  filterModalContainer: { backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%', width: '100%', maxWidth: 640, alignSelf: 'center' },
+  filterModalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
+  filterModalContainer: { backgroundColor: colors.modalSurface, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%', width: '100%', maxWidth: 640, alignSelf: 'center' , borderWidth: 1, borderColor: colors.modalBorder, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 16, elevation: 12},
   filterModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
   filterModalTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
   filterModalBody: { padding: 20, paddingBottom: 32 },
@@ -802,8 +841,8 @@ const makeStyles = colors => StyleSheet.create({
   clearActionText: { fontSize: 14, fontWeight: '600', color: colors.danger },
   applyActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, justifyContent: 'center', paddingVertical: 12, borderRadius: 10, backgroundColor: colors.primary },
   applyActionText: { fontSize: 14, fontWeight: '700', color: colors.white },
-  calOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 30 },
-  calModal: { backgroundColor: colors.card, borderRadius: 16, padding: 20, width: '100%', maxWidth: 420, alignSelf: 'center' },
+  calOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', padding: 30 },
+  calModal: { backgroundColor: colors.modalSurface, borderRadius: 16, padding: 20, width: '100%', maxWidth: 420, alignSelf: 'center' , borderWidth: 1, borderColor: colors.modalBorder, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 16, elevation: 12},
   calModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   calModalTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
   calendarContainer: {},
@@ -818,9 +857,9 @@ const makeStyles = colors => StyleSheet.create({
   calDayNum: { fontSize: 14, fontWeight: '500', color: colors.textPrimary },
   calDayNumSelected: { color: colors.white, fontWeight: '700' },
   calDayToday: { color: colors.primary, fontWeight: '700' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center' },
+  modalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center' },
   modalScrollContent: { padding: 20, flexGrow: 1, justifyContent: 'center' },
-  modalCard: { backgroundColor: colors.card, borderRadius: 16, padding: 20, width: '100%', maxWidth: 560, alignSelf: 'center' },
+  modalCard: { backgroundColor: colors.modalSurface, borderRadius: 16, padding: 20, width: '100%', maxWidth: 560, alignSelf: 'center' , borderWidth: 1, borderColor: colors.modalBorder, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 16, elevation: 12},
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   modalTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
   detailRefRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
@@ -837,6 +876,7 @@ const makeStyles = colors => StyleSheet.create({
   detailDesc: { fontSize: 14, color: colors.textSecondary, lineHeight: 20, marginTop: 4, backgroundColor: colors.surfaceMuted, padding: 10, borderRadius: 8 },
   addressRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 4, borderRadius: 8, backgroundColor: colors.surfaceMuted },
   addressText: { fontSize: 13, color: colors.textSecondary, marginTop: 2, lineHeight: 18 },
+  addressMissing: { flex: 1, fontSize: 13, color: colors.textMuted, fontStyle: 'italic' },
   closeBtn: { backgroundColor: colors.primary, padding: 14, borderRadius: 10, alignItems: 'center', marginTop: 8 },
   closeBtnText: { color: colors.white, fontWeight: '700', fontSize: 15 },
 });

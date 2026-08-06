@@ -17,21 +17,19 @@ import { SPACING, RADIUS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
 import { useLeaveStore } from '../store/useLeaveStore';
 
-const LEAVE_STATUS_CHIPS = {
-  'Pending': { bg: '#FEF3C7', text: '#92400E' },
-  'Approved': { bg: '#ECFDF5', text: '#065F46' },
-  'Rejected': { bg: '#FEF2F2', text: '#991B1B' },
-  'Cancelled': { bg: '#F3F4F6', text: '#4B5563' },
-  'Completed': { bg: '#EFF6FF', text: '#1D4ED8' },
+// One accent hue per status; the chip/badge fill is a translucent wash of it
+// (`soft()`), so both light and dark themes stay legible. The old table baked in
+// pale hex fills with dark text, which turned to mud in dark mode.
+const STATUS_META = {
+  all:       { hue: '#7C3AED', label: 'All',       icon: 'cards-outline' },
+  pending:   { hue: '#F59E0B', label: 'Pending',   icon: 'clock-outline' },
+  approved:  { hue: '#10B981', label: 'Approved',  icon: 'check-circle-outline' },
+  rejected:  { hue: '#EF4444', label: 'Rejected',  icon: 'close-circle-outline' },
+  cancelled: { hue: '#6B7280', label: 'Cancelled', icon: 'minus-circle-outline' },
 };
-
-const STATUS_COLORS = {
-  pending: { primary: '#2563EB', bgLight: '#FEF3C7', textDark: '#92400E' }, // primary blue, badge yellow/orange
-  approved: { primary: '#10B981', bgLight: '#ECFDF5', textDark: '#065F46' }, // green
-  rejected: { primary: '#EF4444', bgLight: '#FEF2F2', textDark: '#991B1B' }, // red
-  cancelled: { primary: '#6B7280', bgLight: '#F3F4F6', textDark: '#4B5563' }, // grey
-  all: { primary: '#7C3AED', bgLight: '#F3E8FF', textDark: '#6D28D9' }, // purple
-};
+const STATUS_KEYS = ['all', 'pending', 'approved', 'rejected', 'cancelled'];
+const soft = hex => `${hex}22`;
+const statusMeta = status => STATUS_META[String(status || '').toLowerCase()] || STATUS_META.pending;
 
 const getStatusTitle = (status) => {
   if (!status) return '';
@@ -104,38 +102,33 @@ const getLeaveCardDate = (item) => {
   return `${start} - ${end}`;
 };
 
-const getLeaveDurationText = (item) => {
+const getLeaveDayCount = (item) => {
+  const start = item.start_date || item.startDate || item.leaveDate;
+  const end = item.end_date || item.endDate || start;
+  if (!start) return 0;
+  const ms = new Date(end).setHours(0, 0, 0, 0) - new Date(start).setHours(0, 0, 0, 0);
+  if (Number.isNaN(ms)) return 0;
+  return Math.max(1, Math.round(ms / 86400000) + 1);
+};
+
+// The clock row is deliberately date-free. It used to re-render the same date
+// range the calendar row above already shows — for every `single`/`multiple`
+// leave without times the two rows printed byte-identical text, which is what
+// made the cards look duplicated and padded out. Here it carries only what the
+// date can't say: the time window, the slot count, or the span in days.
+const getLeaveTimeText = (item) => {
   const type = item.leaveType || item.leave_type || item.type;
   const startT = item.startTime || item.start_time;
   const endT = item.endTime || item.end_time;
-  const start = formatDateStr(item.start_date || item.startDate || item.leaveDate);
-  const end = formatDateStr(item.end_date || item.endDate || item.leaveDate);
-  const dateRange = (!start || start === end) ? start : `${start} - ${end}`;
 
-  if (type === 'single') {
-    if (startT && endT) {
-      return `${dateRange} ${formatTime(startT)} - ${formatTime(endT)}`;
-    }
-    return dateRange || 'Full Day';
-  } else if (type === 'multiple') {
-    return dateRange || 'Multiple Days';
-  } else if (type === 'custom') {
+  if (type === 'custom') {
     const slotCount = item.slots?.length || 0;
-    return `${dateRange} (${slotCount} Slot${slotCount !== 1 ? 's' : ''})`;
+    return `${slotCount} slot${slotCount !== 1 ? 's' : ''}`;
   }
-  return dateRange || 'Full Day';
-};
+  if (startT && endT) return `${formatTime(startT)} - ${formatTime(endT)}`;
 
-const StatusBadge = ({ status }) => {
-  const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
-  const label = getStatusLabel(status);
-  const cfg = STATUS_CHIP_CONFIG[label] || STATUS_CHIP_CONFIG.Pending;
-  return (
-    <View style={[styles.badge, { backgroundColor: cfg.bg }]}>
-      <Text style={[styles.badgeText, { color: cfg.text }]}>{label}</Text>
-    </View>
-  );
+  const days = getLeaveDayCount(item);
+  return days > 1 ? `Full day · ${days} days` : 'Full day';
 };
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
@@ -205,38 +198,10 @@ const LeaveHistoryScreen = ({ route, navigation }) => {
     });
   }, [leaves, selectedStatus, searchQuery]);
 
-  const renderStatusIcon = (statusKey, isSelected) => {
-    let iconName = 'clock-outline';
-    let iconColor = STATUS_COLORS[statusKey].primary;
-    let bgCircleColor = STATUS_COLORS[statusKey].bgLight;
-
-    if (statusKey === 'pending') {
-      iconName = 'clock-outline';
-    } else if (statusKey === 'approved') {
-      iconName = 'check-circle-outline';
-    } else if (statusKey === 'rejected') {
-      iconName = 'close-circle-outline';
-    } else if (statusKey === 'cancelled') {
-      iconName = 'minus-circle-outline';
-    } else if (statusKey === 'all') {
-      iconName = 'cards-outline';
-    }
-
-    if (isSelected) {
-      iconColor = colors.white;
-      bgCircleColor = 'rgba(255, 255, 255, 0.2)';
-    }
-
-    return (
-      <View style={[styles.statusIconContainer, { backgroundColor: bgCircleColor }]}>
-        <MCIcon name={iconName} size={18} color={iconColor} />
-      </View>
-    );
-  };
-
   const renderItem = ({ item }) => {
     const sDateText = getStatusDateText(item);
     const appliedAt = item.appliedAt || item.applied_at;
+    const meta = statusMeta(item.status);
 
     return (
       <TouchableOpacity
@@ -244,40 +209,45 @@ const LeaveHistoryScreen = ({ route, navigation }) => {
         activeOpacity={0.7}
         onPress={() => navigation.navigate('LeaveDetail', { leaveId: item.id })}
       >
-        <View style={styles.historyCardLeft}>
-          <Text style={styles.historyCardReason}>{item.reason || 'Leave'}</Text>
-          
-          <View style={styles.historyCardMetaRow}>
-            <MCIcon name="calendar-outline" size={14} color={colors.textSecondary} style={styles.metaIcon} />
-            <Text style={styles.historyCardMetaText}>{getLeaveCardDate(item)}</Text>
-          </View>
-          
-          <View style={styles.historyCardMetaRow}>
-            <MCIcon name="clock-outline" size={14} color={colors.textSecondary} style={styles.metaIcon} />
-            <Text style={styles.historyCardMetaText}>{getLeaveDurationText(item)}</Text>
+        {/* Status stripe — reads the state of the row at a glance without the
+            badge having to compete with the reason for space. */}
+        <View style={[styles.statusStripe, { backgroundColor: meta.hue }]} />
+
+        <View style={styles.historyCardBody}>
+          <View style={styles.historyCardHeader}>
+            <Text style={styles.historyCardReason} numberOfLines={1}>{item.reason || 'Leave'}</Text>
+            <View style={[styles.statusBadge, { backgroundColor: soft(meta.hue) }]}>
+              <Text style={[styles.statusBadgeText, { color: meta.hue }]}>
+                {getStatusLabelText(item.status)}
+              </Text>
+            </View>
           </View>
 
-          {appliedAt ? (
-            <Text style={styles.historyCardAppliedText}>
-              Applied on: {formatDateTimeStr(appliedAt)}
-            </Text>
-          ) : null}
-
-          {sDateText ? (
-            <Text style={styles.historyCardDecisionText}>
-              {sDateText}
-            </Text>
-          ) : null}
-        </View>
-        
-        <View style={styles.historyCardRight}>
-          <View style={[styles.statusBadge, { backgroundColor: STATUS_COLORS[item.status.toLowerCase()]?.bgLight || '#F3F4F6', borderRadius: RADIUS.pill, paddingHorizontal: 10, paddingVertical: 5 }]}>
-            <Text style={[styles.statusBadgeText, { color: STATUS_COLORS[item.status.toLowerCase()]?.textDark || '#4B5563', fontSize: 10, fontWeight: '800' }]}>
-              {getStatusLabelText(item.status)}
-            </Text>
+          <View style={styles.historyCardMetaRow}>
+            <MCIcon name="calendar-outline" size={14} color={colors.textSecondary} />
+            <Text style={styles.historyCardMetaText} numberOfLines={1}>{getLeaveCardDate(item)}</Text>
           </View>
-          <MCIcon name="chevron-right" size={20} color={colors.textSecondary} style={styles.chevronIcon} />
+
+          <View style={styles.historyCardMetaRow}>
+            <MCIcon name="clock-outline" size={14} color={colors.textSecondary} />
+            <Text style={styles.historyCardMetaText} numberOfLines={1}>{getLeaveTimeText(item)}</Text>
+          </View>
+
+          {(appliedAt || sDateText) ? (
+            <View style={styles.historyCardFooter}>
+              {appliedAt ? (
+                <Text style={styles.historyCardAppliedText} numberOfLines={1}>
+                  Applied {formatDateTimeStr(appliedAt)}
+                </Text>
+              ) : null}
+              {sDateText ? (
+                <Text style={styles.historyCardDecisionText} numberOfLines={1}>{sDateText}</Text>
+              ) : null}
+            </View>
+          ) : null}
         </View>
+
+        <MCIcon name="chevron-right" size={20} color={colors.borderStrong} />
       </TouchableOpacity>
     );
   };
@@ -303,45 +273,42 @@ const LeaveHistoryScreen = ({ route, navigation }) => {
         </View>
       ) : (
         <View style={styles.container}>
-          {/* Status Summary Cards Row (Fixed Row, Fits One Row) */}
-          <View style={styles.statusCardsRow}>
-            {['all', 'pending', 'approved', 'rejected', 'cancelled'].map((statusKey) => {
+          {/* Status filter — five 96px-tall tiles used to be crammed edge-to-edge
+              into one fixed row, so "Cancelled" wrapped and the counts collided.
+              Now a scrollable chip row: label + count, readable at any width. */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.statusChipScroll}
+            contentContainerStyle={styles.statusChipRow}
+          >
+            {STATUS_KEYS.map((statusKey) => {
               const isSelected = selectedStatus === statusKey;
               const count = statusKey === 'all' ? leaves.length : (statusCounts[statusKey] || 0);
-              const title = getStatusTitle(statusKey);
-              const colorCfg = STATUS_COLORS[statusKey];
+              const meta = STATUS_META[statusKey];
 
               return (
                 <TouchableOpacity
                   key={statusKey}
                   style={[
-                    styles.statusCard,
-                    isSelected && { backgroundColor: colorCfg.primary, borderColor: colorCfg.primary }
+                    styles.statusChip,
+                    { borderColor: isSelected ? meta.hue : colors.border },
+                    isSelected && { backgroundColor: meta.hue },
                   ]}
                   activeOpacity={0.8}
                   onPress={() => setSelectedStatus(statusKey)}
                 >
-                  {renderStatusIcon(statusKey, isSelected)}
-                  <Text
-                    style={[
-                      styles.statusCardTitle,
-                      { color: isSelected ? colors.white : colorCfg.primary }
-                    ]}
-                  >
-                    {title}
+                  <MCIcon name={meta.icon} size={15} color={isSelected ? colors.white : meta.hue} />
+                  <Text style={[styles.statusChipLabel, { color: isSelected ? colors.white : colors.textPrimary }]}>
+                    {meta.label}
                   </Text>
-                  <Text
-                    style={[
-                      styles.statusCardCount,
-                      { color: isSelected ? colors.white : colorCfg.primary }
-                    ]}
-                  >
-                    {count}
-                  </Text>
+                  <View style={[styles.statusChipCount, { backgroundColor: isSelected ? 'rgba(255,255,255,0.25)' : soft(meta.hue) }]}>
+                    <Text style={[styles.statusChipCountText, { color: isSelected ? colors.white : meta.hue }]}>{count}</Text>
+                  </View>
                 </TouchableOpacity>
               );
             })}
-          </View>
+          </ScrollView>
 
           {/* Search Bar Row */}
           <View style={styles.searchRow}>
@@ -360,9 +327,17 @@ const LeaveHistoryScreen = ({ route, navigation }) => {
           {/* Filtered History List */}
           <FlatList
             data={filteredLeaves}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item) => String(item.id)}
             renderItem={renderItem}
-            contentContainerStyle={styles.list}
+            style={styles.listScroll}
+            // `flexGrow: 1` only when empty: it is what lets the empty state
+            // actually centre itself. The empty view used to carry `flex: 1`,
+            // which resolves to a 0 basis inside a content-sized container — so
+            // it collapsed to its own 80px padding and left a tall blank gap.
+            contentContainerStyle={[
+              styles.list,
+              filteredLeaves.length === 0 && styles.listEmpty,
+            ]}
             showsVerticalScrollIndicator={false}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
@@ -389,58 +364,47 @@ const makeStyles = colors =>
   StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1 },
-  list: { paddingHorizontal: SPACING.lg, paddingBottom: 40 },
+  // The list owns every pixel the chip row and search bar don't, rather than
+  // splitting the leftover height with them.
+  listScroll: { flex: 1 },
+  list: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.xl },
+  listEmpty: { flexGrow: 1, justifyContent: 'center' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: SPACING.md },
   errorText: { fontSize: 14.5, color: colors.textSecondary, textAlign: 'center', paddingHorizontal: SPACING.xl },
   retryBtn: { backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: RADIUS.md },
   retryBtnText: { color: colors.white, fontWeight: '800', fontSize: 14 },
 
-  statusCardsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  // RN gives every ScrollView `flexGrow: 1`, so a horizontal one in this flex
+  // column would claim a share of the leftover height instead of hugging its
+  // chips. props.style composes over that base style, so this pins it to
+  // content height.
+  statusChipScroll: { flexGrow: 0, flexShrink: 0 },
+  statusChipRow: {
+    paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md - 2,
-    marginBottom: SPACING.xs,
+    gap: SPACING.sm,
+    alignItems: 'center',
   },
-  statusCard: {
-    flex: 1,
+  statusChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingLeft: 12,
+    paddingRight: 8,
+    paddingVertical: 8,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1.5,
     backgroundColor: colors.card,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: 10,
+  },
+  statusChipLabel: { fontSize: 12.5, fontWeight: '700' },
+  statusChipCount: {
+    minWidth: 22,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: RADIUS.pill,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginHorizontal: 2,
-    minHeight: 96,
-    elevation: 2,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
   },
-  statusCardSelected: {
-    // Dynamic styles applied in component
-  },
-  statusCardTitle: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    marginTop: 4,
-    marginBottom: 2,
-    textAlign: 'center',
-  },
-  statusCardCount: {
-    fontSize: 18,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  statusIconContainer: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  statusChipCountText: { fontSize: 11, fontWeight: '800' },
 
   searchRow: {
     flexDirection: 'row',
@@ -475,66 +439,71 @@ const makeStyles = colors =>
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: SPACING.md,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     marginBottom: SPACING.sm,
+    paddingRight: SPACING.md,
+    overflow: 'hidden',
     elevation: 2,
     shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
   },
-  historyCardLeft: {
+  statusStripe: { width: 4, alignSelf: 'stretch' },
+  historyCardBody: {
     flex: 1,
-    gap: 4,
+    minWidth: 0,
+    padding: SPACING.md,
+    gap: 5,
+  },
+  historyCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
   },
   historyCardReason: {
+    flex: 1,
+    minWidth: 0,
     fontSize: 15,
     fontWeight: '800',
     color: colors.textPrimary,
-    marginBottom: 2,
   },
   historyCardMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  metaIcon: {
-    width: 16,
-    textAlign: 'center',
-  },
   historyCardMetaText: {
-    fontSize: 13,
+    flex: 1,
+    fontSize: 12.5,
     fontWeight: '600',
     color: colors.textSecondary,
+  },
+  historyCardFooter: {
+    marginTop: 3,
+    paddingTop: 6,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    gap: 2,
   },
   historyCardAppliedText: {
     fontSize: 11.5,
     fontWeight: '600',
     color: colors.textMuted,
-    marginTop: 4,
   },
   historyCardDecisionText: {
     fontSize: 11.5,
     fontWeight: '600',
     color: colors.textMuted,
   },
-  historyCardRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  chevronIcon: {
-    marginLeft: 2,
-  },
   statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
     borderRadius: RADIUS.pill,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   statusBadgeText: {
     fontSize: 10,
@@ -543,10 +512,9 @@ const makeStyles = colors =>
   },
 
   emptyStateContainer: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 80,
+    paddingVertical: SPACING.xxl,
     gap: 8,
   },
   emptyStateIcon: {

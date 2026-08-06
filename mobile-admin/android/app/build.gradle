@@ -131,7 +131,10 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         // Overridable from CI: -PpurnazenVersionCode / -PpurnazenVersionName
         versionCode = (project.findProperty('purnazenVersionCode') ?: 1).toString().toInteger()
-        versionName project.findProperty('purnazenVersionName') ?: "1.0"
+        // Falls back to package.json so a local build reports the same version
+        // the JS bundle shows (src/config APP_VERSION reads the same file).
+        versionName project.findProperty('purnazenVersionName') ?:
+            new groovy.json.JsonSlurper().parse(file("../../package.json")).version
     }
     signingConfigs {
         debug {

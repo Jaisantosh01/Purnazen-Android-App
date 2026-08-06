@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
@@ -20,8 +20,11 @@ router = APIRouter(tags=["Sessions"])
     summary="List wellness sessions",
     description="Wellness player catalog (yoga/meditation/breathing routines).",
 )
-def get_sessions(db: Session = Depends(get_db)):
-    sessions = SessionCatalogService.get_wellness_sessions(db)
+def get_sessions(
+    active_only: bool = Query(default=True, description="Filter to only active sessions"),
+    db: Session = Depends(get_db),
+):
+    sessions = SessionCatalogService.get_wellness_sessions(db, active_only)
     return success_response(
         "Sessions fetched successfully",
         {"sessions": sessions, "total": len(sessions)},
@@ -135,14 +138,15 @@ def update_wellness_session(
 @router.delete(
     "/sessions/{session_id}",
     summary="Delete wellness session",
-    description="Soft delete a wellness session.",
+    description="Soft delete a wellness session. Pass `hard=true` to remove it permanently.",
 )
 def delete_wellness_session(
     session_id: uuid.UUID,
+    hard: bool = Query(False, description="Permanently delete instead of deactivating."),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    session = WellnessSessionService.delete(db, session_id, user)
+    session = WellnessSessionService.delete(db, session_id, user, hard=hard)
     if not session:
         return error_response("Wellness session not found", 404)
     return success_response("Wellness session deleted successfully", {})

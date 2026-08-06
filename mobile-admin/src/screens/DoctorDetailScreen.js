@@ -5,12 +5,15 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Linking,
+  Platform,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { DoctorDetailSkeleton } from '../components/SkeletonLoader';
+import Avatar from '../components/Avatar';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 import { showAlert } from '../utils/alert';
@@ -98,16 +101,21 @@ const DoctorDetailScreen = ({ route, navigation }) => {
 
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.profileHeader}>
-          <View style={styles.avatarLarge}>
-             <MCIcon name="account" size={60} color={colors.white} />
-          </View>
+          <Avatar
+            uri={doctor.avatar}
+            name={doctor.name}
+            size={100}
+            backgroundColor={colors.primary}
+            textColor={colors.white}
+            style={styles.avatarLarge}
+          />
           <Text style={styles.name}>{doctor.name}</Text>
           <View style={styles.specialtiesContainer}>
             {doctor.specialties?.map((spec, index) => (
               <View key={index} style={styles.specialtyChip}>
                 <Text style={styles.specialtyText}>{spec}</Text>
               </View>
-            ))}
+              ))}
           </View>
         </View>
         
@@ -119,7 +127,7 @@ const DoctorDetailScreen = ({ route, navigation }) => {
           <InfoItem icon="head-check-outline" label="Expertise" value={doctor.expertise?.join(', ') || 'N/A'} />
           <InfoItem icon="translate" label="Languages" value={doctor.languages?.join(', ') || 'N/A'} />
           
-          {doctor.clinics && doctor.clinics.length > 0 && (
+              {doctor.clinics && doctor.clinics.length > 0 && (
             <View style={styles.clinicSection}>
               <Text style={styles.clinicHeader}>Clinics</Text>
               {doctor.clinics.map((clinic, index) => (
@@ -134,15 +142,50 @@ const DoctorDetailScreen = ({ route, navigation }) => {
                     )}
                   </View>
                   <View style={styles.clinicDetails}>
-                    <View style={styles.clinicDetailRow}>
+                    <TouchableOpacity
+                      style={styles.clinicDetailRow}
+                      activeOpacity={0.6}
+                      onPress={() => {
+                        const label = encodeURIComponent(clinic.name);
+                        if (clinic.latitude && clinic.longitude) {
+                          const { latitude, longitude } = clinic;
+                          if (Platform.OS === 'ios') {
+                            Linking.openURL(`maps://?q=${label}@${latitude},${longitude}`).catch(() =>
+                              Linking.openURL(`https://maps.apple.com/?q=${label}&ll=${latitude},${longitude}`)
+                            );
+                          } else {
+                            Linking.openURL(`geo:0,0?q=${latitude},${longitude}(${label})`).catch(() =>
+                              Linking.openURL(`https://www.google.com/maps?q=${latitude},${longitude}`)
+                            );
+                          }
+                        } else if (clinic.address) {
+                          const query = encodeURIComponent(`${clinic.address}, ${clinic.city}`);
+                          if (Platform.OS === 'ios') {
+                            Linking.openURL(`maps://?q=${query}`).catch(() =>
+                              Linking.openURL(`https://maps.apple.com/?q=${query}`)
+                            );
+                          } else {
+                            Linking.openURL(`geo:0,0?q=${query}`).catch(() =>
+                              Linking.openURL(`https://www.google.com/maps?q=${query}`)
+                            );
+                          }
+                        } else {
+                          showAlert('No Location', 'No location data available for this clinic.');
+                        }
+                      }}
+                    >
                       <MCIcon name="map-marker" size={16} color={colors.textMuted} />
-                      <Text style={styles.clinicDetailText}>{clinic.address}, {clinic.city}</Text>
-                    </View>
+                      <Text style={[styles.clinicDetailText, styles.addressLink]}>{clinic.address}, {clinic.city}</Text>
+                    </TouchableOpacity>
                     {clinic.phone && (
-                      <View style={styles.clinicDetailRow}>
+                      <TouchableOpacity
+                        style={styles.clinicDetailRow}
+                        activeOpacity={0.6}
+                        onPress={() => Linking.openURL(`tel:${clinic.phone.replace(/[^+\d]/g, '')}`)}
+                      >
                         <MCIcon name="phone" size={16} color={colors.textMuted} />
-                        <Text style={styles.clinicDetailText}>{clinic.phone}</Text>
-                      </View>
+                        <Text style={[styles.clinicDetailText, styles.phoneLink]}>{clinic.phone}</Text>
+                      </TouchableOpacity>
                     )}
                   </View>
                 </View>
@@ -159,9 +202,9 @@ const DoctorDetailScreen = ({ route, navigation }) => {
                         <View style={styles.awardContent}>
                             <Text style={styles.awardTitle}>{award.title} ({award.year})</Text>
                             <Text style={styles.awardIssuer}>{award.issuer}</Text>
-                        </View>
-                    </View>
-                ))}
+                  </View>
+                </View>
+              ))}
             </View>
           )}
 
@@ -195,7 +238,7 @@ const makeStyles = colors => StyleSheet.create({
   headerButton: { padding: 4 },
   content: { padding: 20, paddingBottom: 40 },
   profileHeader: { alignItems: 'center', marginBottom: 25 },
-  avatarLarge: { width: 100, height: 100, borderRadius: 50, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', marginBottom: 16, shadowColor: colors.primary, shadowOffset: {width: 0, height: 4}, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
+  avatarLarge: { marginBottom: 16, shadowColor: colors.primary, shadowOffset: {width: 0, height: 4}, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
   name: { fontSize: 24, fontWeight: '800', color: colors.textPrimary, marginBottom: 4 },
   specialtiesContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginTop: 4 },
   specialtyChip: { backgroundColor: colors.primaryLight, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 16, margin: 4 },
@@ -218,6 +261,8 @@ const makeStyles = colors => StyleSheet.create({
   clinicDetails: { marginLeft: 4, gap: 6 },
   clinicDetailRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   clinicDetailText: { fontSize: 13, color: colors.textSecondary, flex: 1 },
+  addressLink: { textDecorationLine: 'underline', color: colors.primary },
+  phoneLink: { textDecorationLine: 'underline', color: colors.primary },
   awardSection: { marginTop: 16, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 16 },
   awardHeader: { fontSize: 12, color: colors.textSecondary, marginBottom: 8, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
   awardItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },

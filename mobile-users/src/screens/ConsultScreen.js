@@ -15,7 +15,7 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import consultService from '../services/consultService';
 import useTheme from '../hooks/useTheme';
-import { doctorInitial } from '../utils/doctorAvatar';
+import Avatar from '../components/Avatar';
 import {TAG_ICONS} from '../constants/icons';
 import {CONSULT_SCREEN_FILTER_TABS_FALLBACK} from '../constants/miscellaneous';
 import { useHeaderTopPadding } from '../components/ScreenHeader';
@@ -140,20 +140,30 @@ const ConsultScreen = ({ navigation }) => {
       onPress={() => navigation.navigate('DoctorProfile', { doctor })}
     >
       <View style={styles.doctorTop}>
-        <View style={styles.avatarCircle}>
-          <Text style={styles.avatarIcon}>{doctorInitial(doctor.name)}</Text>
-        </View>
+        <Avatar uri={doctor.avatar} name={doctor.name} size={56} style={styles.avatarShape} />
         <View style={styles.doctorInfo}>
           {/* Fix 6: numberOfLines prevents long names from breaking layout */}
           <Text style={styles.doctorName} numberOfLines={1}>{doctor.name}</Text>
           <Text style={styles.doctorSpecialty} numberOfLines={1}>{doctor.specialties || ''}</Text>
 
+          {/* There is no review system yet, so `rating`/`reviews` come back as
+              0 for every doctor — showing "★ 0.0 (0)" read as a bad score. The
+              stars only appear once real reviews exist; experience is genuine
+              admin-entered data and stands on its own. */}
           <View style={styles.ratingRow}>
-            <MCIcon name="star" size={14} color={colors.warning} />
-            <Text style={styles.rating}> {doctor.rating}</Text>
-            <Text style={styles.reviews}> ({doctor.reviews})</Text>
-            <Text style={styles.separator}>  •  </Text>
-            <Text style={styles.experience}>{doctor.experience} years</Text>
+            {doctor.reviews > 0 && (
+              <>
+                <MCIcon name="star" size={14} color={colors.warning} />
+                <Text style={styles.rating}> {Number(doctor.rating).toFixed(1)}</Text>
+                <Text style={styles.reviews}> ({doctor.reviews})</Text>
+                {doctor.experience > 0 && <Text style={styles.separator}>  •  </Text>}
+              </>
+            )}
+            {doctor.experience > 0 && (
+              <Text style={styles.experience}>
+                {doctor.experience} {doctor.experience === 1 ? 'year' : 'years'} experience
+              </Text>
+            )}
           </View>
 
           {!!doctor.location && (
@@ -429,16 +439,8 @@ const makeStyles = colors => StyleSheet.create({
     flexDirection: 'row',
     marginBottom: 12,
   },
-  avatarCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 14,
-    backgroundColor: colors.primaryFaint,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  avatarIcon: { fontSize: 26, fontWeight: '800', color: colors.primary },
+  // Rounded square rather than a full circle — overrides Avatar's default.
+  avatarShape: { borderRadius: 14, marginRight: 12 },
   doctorInfo: { flex: 1 },
   doctorName: {
     fontSize: 15,

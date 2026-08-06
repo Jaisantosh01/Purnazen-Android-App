@@ -26,17 +26,26 @@ def test_faq_crud(client):
     assert updated["answer"] == "Updated A"
     assert updated["id"] == faq_id
 
-    # 4. Delete (soft-delete)
+    # 3b. Deactivating is what the "active" toggle does — the row stays.
+    response = client.put(f"/api/v1/support-faqs/{faq_id}", json={"is_active": False})
+    assert response.status_code == 200
+    assert response.json()["is_active"] is False
+    response = client.get("/api/v1/support-faqs/")
+    assert any(item["id"] == faq_id for item in response.json())
+
+    # 4. Delete removes the row outright. Delete used to be a soft-delete, but
+    #    since the edit screen already has an active toggle it was changed to a
+    #    hard delete (commit a399fa0) — this test still asserted the old
+    #    behaviour and was failing backend CI.
     response = client.delete(f"/api/v1/support-faqs/{faq_id}")
     assert response.status_code == 204
 
-    # 5. Item still in list but inactive
+    # 5. Gone from the list…
     response = client.get("/api/v1/support-faqs/")
-    deleted_item = next((item for item in response.json() if item["id"] == faq_id), None)
-    assert deleted_item is not None
-    assert deleted_item["is_active"] is False
+    assert all(item["id"] != faq_id for item in response.json())
 
-    # 6. Update still works on inactive item
+    # 6. …and no longer addressable.
     response = client.put(f"/api/v1/support-faqs/{faq_id}", json={"is_active": True})
-    assert response.status_code == 200
-    assert response.json()["is_active"] is True
+    assert response.status_code == 404
+    response = client.delete(f"/api/v1/support-faqs/{faq_id}")
+    assert response.status_code == 404

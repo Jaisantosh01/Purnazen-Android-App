@@ -15,10 +15,13 @@ import { useAuthStore } from '../store/authStore';
 import authService from '../services/authService';
 import therapyService from '../services/therapyService';
 import { StatsSkeleton } from '../components/SkeletonLoader';
+import AppVersionFooter from '../components/AppVersionFooter';
+import Avatar from '../components/Avatar';
 import { COLORS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
 import { useHeaderTopPadding } from '../components/ScreenHeader';
 import { checkForUpdate, FORCE_MARKER } from '../services/updateService';
+import { isOtaSupported, startBackgroundInstall } from '../services/otaUpdater';
 import { APP_VERSION } from '../config';
 
 // Icon backgrounds are a translucent wash of the icon hue so the tint reads
@@ -28,6 +31,7 @@ const soft = hex => `${hex}22`;
 const MENU_ITEMS = [
   { icon: 'calendar-clock',      iconColor: '#0891B2',           title: 'Appointments',    subtitle: 'View appointment history',  screen: 'AppointmentHistory' },
   { icon: 'history',             iconColor: COLORS.primary,      title: 'Therapy History', subtitle: 'View past sessions',        screen: 'TherapyHistory' },
+  { icon: 'clipboard-pulse-outline', iconColor: '#DC2626',       title: 'My Health Report', subtitle: 'Vitals, therapy & scan summary', screen: 'HealthReport' },
   { icon: 'map-marker-outline',  iconColor: '#16a34a',           title: 'My Addresses',    subtitle: 'Manage saved addresses',    screen: 'AddressManagement' },
   { icon: 'credit-card',         iconColor: COLORS.accent,       title: 'Subscriptions',   subtitle: 'Manage your plan',          screen: 'Subscriptions' },
   { icon: 'bell-outline',        iconColor: '#ea580c',           title: 'Notifications',   subtitle: 'Manage alerts',             screen: 'Notifications' },
@@ -45,9 +49,17 @@ const ProfileScreen = ({ navigation }) => {
   const [statsLoading, setStatsLoading] = useState(true);
 
   useEffect(() => {
-    therapyService
-      .getTherapyHistory()
-      .then(data => setStats(data?.stats ?? null))
+    Promise.all([
+      therapyService.getTherapyHistory(),
+      therapyService.getSessionGroups(),
+    ])
+      .then(([historyData, groupData]) => {
+        setStats({
+          sessions: groupData?.total ?? groupData?.sessions?.length ?? 0,
+          minutes: historyData?.stats?.minutes ?? 0,
+          avgRelief: historyData?.stats?.avgRelief ?? null,
+        });
+      })
       .catch(() => setStats(null))
       .finally(() => setStatsLoading(false));
   }, []);
@@ -64,6 +76,20 @@ const ProfileScreen = ({ navigation }) => {
         return;
       }
       const openApk = () => { Linking.openURL(u.apkUrl).catch(() => {}); };
+      // Prefer the in-app background download + install; fall back to the browser
+      // hand-off when the native OTA module isn't present.
+      const startUpdate = isOtaSupported()
+        ? () => {
+            startBackgroundInstall(
+              { url: u.apkUrl, version: u.version, sha256: u.sha256 },
+              { onError: () => showAlert('Update', 'The update download failed. Please try again later.') },
+            );
+            showAlert(
+              'Downloading update',
+              `Version ${u.version} is downloading in the background. It will install as soon as it's ready — the app may restart to finish.`,
+            );
+          }
+        : openApk;
       const notes = (u.notes || '')
         .split('\n')
         .filter(l => !l.includes(FORCE_MARKER))
@@ -74,10 +100,10 @@ const ProfileScreen = ({ navigation }) => {
         (u.forced ? '\n\nThis is a critical update and is required to continue.' : '') +
         (notes ? `\n\n${notes}` : '');
       const buttons = u.forced
-        ? [{ text: 'Update now', onPress: openApk }]
+        ? [{ text: 'Update now', onPress: startUpdate }]
         : [
             { text: 'Later', style: 'cancel' },
-            { text: 'Update now', onPress: openApk },
+            { text: 'Update now', onPress: startUpdate },
           ];
       showAlert(
         u.forced ? 'Update required' : 'Update available',
@@ -118,7 +144,6 @@ const ProfileScreen = ({ navigation }) => {
 
   const displayName = user?.full_name ?? 'Guest';
   const displayEmail = user?.email ?? '';
-  const avatarLetter = displayName.charAt(0).toUpperCase();
   const plan = user?.plan ?? 'Free';
 
   return (
@@ -133,9 +158,24 @@ const ProfileScreen = ({ navigation }) => {
         {/* ── Header ── */}
         <View style={[styles.header, { paddingTop: headerTop }]}>
           <View style={styles.profileRow}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarLetter}>{avatarLetter}</Text>
-            </View>
+            {/* Tapping the photo goes straight to the picker in Settings →
+                Edit Profile, which is the one place a photo can be changed. */}
+            <TouchableOpacity
+              style={styles.avatarWrap}
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate('Settings', { openEditProfile: true })}
+            >
+              <Avatar
+                uri={user?.avatar_url}
+                name={displayName}
+                size={64}
+                backgroundColor="rgba(255,255,255,0.25)"
+                textColor={colors.white}
+              />
+              <View style={styles.avatarEditBadge}>
+                <MCIcon name="camera-outline" size={12} color={colors.headerBg} />
+              </View>
+            </TouchableOpacity>
             <View style={styles.profileInfo}>
               <Text style={styles.profileName} numberOfLines={1}>{displayName}</Text>
               <Text style={styles.profileEmail} numberOfLines={1}>{displayEmail}</Text>
@@ -201,6 +241,8 @@ const ProfileScreen = ({ navigation }) => {
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
 
+        <AppVersionFooter />
+
       </ScrollView>
     </View>
   );
@@ -224,19 +266,18 @@ const makeStyles = colors => StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
-  avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(255,255,255,0.25)',
+  avatarWrap: { marginRight: 16 },
+  // Small "you can change this" affordance pinned to the photo.
+  avatarEditBadge: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 16,
-  },
-  avatarLetter: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.white,
   },
   profileInfo: { flex: 1 },
   profileName: {

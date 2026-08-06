@@ -1,6 +1,6 @@
 {
   "name": "purnazen-doctor",
-  "version": "0.0.1",
+  "version": "1.0.6",
   "private": true,
   "scripts": {
     "android": "adb reverse tcp:5000 tcp:5000 && react-native run-android --port 8082",
@@ -21,6 +21,7 @@
     "expo": "~56.0.0",
     "react": "19.2.3",
     "react-native": "^0.85.3",
+    "react-native-image-picker": "^8.2.1",
     "react-native-keychain": "^10.0.0",
     "react-native-safe-area-context": "^5.7.0",
     "react-native-screens": "^4.24.0",

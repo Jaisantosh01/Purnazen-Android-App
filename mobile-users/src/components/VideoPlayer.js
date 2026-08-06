@@ -32,6 +32,12 @@ const fmtTime = s => {
   return `${m}:${sec < 10 ? '0' : ''}${sec}`;
 };
 
+// Tallest the (non-fullscreen) frame may get, as a share of the window height.
+// Portrait clips used to be allowed 62%, which left the title and the rest of
+// the playlist crowded off the first screen; fullscreen is there for anyone who
+// wants the big frame.
+const MAX_FRAME_SHARE = 0.45;
+
 /**
  * VideoPlayer — modern, self-contained player with a custom control overlay.
  *
@@ -65,6 +71,7 @@ export default function VideoPlayer({
   sourceId,
   poster = null,
   autoPlay = true,
+  paused: externalPaused = false,
   onProgress,
   onEnd,
   onNext,
@@ -358,13 +365,13 @@ export default function VideoPlayer({
   );
 
   // Frame height from the video's aspect ratio: never shorter than a 16:9 strip
-  // (so landscape clips look right) and never taller than ~62% of the screen
-  // (so the playlist below stays reachable). Portrait clips fill that height.
-  // Measured width, not the window's, so a player embedded in a narrower card
-  // doesn't get sized for the full screen and letterbox itself.
+  // (so landscape clips look right) and never taller than MAX_FRAME_SHARE of the
+  // screen. Portrait clips fill that height. Measured width, not the window's,
+  // so a player embedded in a narrower card doesn't get sized for the full
+  // screen and letterbox itself.
   const baseW = frameW || screenW;
   const minH = (baseW * 9) / 16;
-  const maxH = screenH * 0.62;
+  const maxH = screenH * MAX_FRAME_SHARE;
   const playerH = Math.min(Math.max(baseW / aspect, minH), maxH);
 
   // Every overlay gets this explicit height: absolute boxes that rely on
@@ -392,7 +399,7 @@ export default function VideoPlayer({
           ref={videoRef}
           source={source}
           style={{ width: '100%', height: overlayH }}
-          paused={paused}
+          paused={paused || externalPaused}
           muted={muted}
           resizeMode="contain"
           repeat={false}

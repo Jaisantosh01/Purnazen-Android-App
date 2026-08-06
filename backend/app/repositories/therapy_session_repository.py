@@ -1,4 +1,5 @@
 import uuid
+from typing import Optional
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -6,28 +7,27 @@ from sqlalchemy.orm import Session
 from app.models.therapy_session import TherapySession
 from app.models.videos import Videos as Video
 from app.models.video_groups import VideoGroups as VideoGroup
-from app.models.video_group_mapping import VideoGroupMapping
+from app.repositories.video_repository import VideoRepository
 
 
 class TherapySessionRepository:
 
     @staticmethod
     def upsert(db: Session, user_id: uuid.UUID, data: dict) -> TherapySession:
-        # Map 'type' to 'session_type' for the model
         if "type" in data:
             data["session_type"] = data.pop("type")
 
-        # Find if session exists for this user, group, video, and type
-        session = (
-            db.query(TherapySession)
-            .filter(
-                TherapySession.user_id == user_id,
-                TherapySession.group_id == data["group_id"],
-                TherapySession.video_id == data["video_id"],
-                TherapySession.session_type == data["session_type"],
-            )
-            .first()
-        )
+        f = [
+            TherapySession.user_id == user_id,
+            TherapySession.group_id == data["group_id"],
+            TherapySession.video_id == data["video_id"],
+            TherapySession.session_type == data["session_type"],
+        ]
+        session_group_id = data.get("session_group_id")
+        if session_group_id:
+            f.append(TherapySession.session_group_id == session_group_id)
+
+        session = db.query(TherapySession).filter(*f).first()
 
         if session:
             for key, value in data.items():
@@ -54,8 +54,8 @@ class TherapySessionRepository:
 
         results = []
         for session in sessions:
-            # Query counts using VideoGroupMapping
-            total_videos_in_group = db.query(VideoGroupMapping).filter(VideoGroupMapping.video_group_id == session.group_id).count()
+            # Only videos the group still serves — see count_active_in_group.
+            total_videos_in_group = VideoRepository.count_active_in_group(db, session.group_id)
             total_sessions_in_group = (
                 db.query(TherapySession)
                 .filter(TherapySession.user_id == user_id, TherapySession.group_id == session.group_id)
@@ -70,14 +70,25 @@ class TherapySessionRepository:
         return results, total
 
     @staticmethod
-    def count_completed_by_group(db: Session, user_id: uuid.UUID, group_id: uuid.UUID) -> int:
+    def count_completed_by_group(
+        db: Session,
+        user_id: uuid.UUID,
+        group_id: uuid.UUID,
+        session_group_id: uuid.UUID | None = None,
+    ) -> int:
+        filters = [
+            TherapySession.user_id == user_id,
+            TherapySession.group_id == group_id,
+            TherapySession.status == "Completed",
+        ]
+        # Scoping to one session group keeps a repeat run counting from zero
+        # instead of inheriting the videos an earlier sitting already finished.
+        if session_group_id:
+            filters.append(TherapySession.session_group_id == session_group_id)
+
         return (
             db.query(func.count(TherapySession.id))
-            .filter(
-                TherapySession.user_id == user_id,
-                TherapySession.group_id == group_id,
-                TherapySession.status == "Completed",
-            )
+            .filter(*filters)
             .scalar()
         ) or 0
 

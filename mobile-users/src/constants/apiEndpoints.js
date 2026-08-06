@@ -16,6 +16,7 @@ export const ENDPOINTS = {
   LOGOUT: `${API_VERSION}/auth/logout`,
   REFRESH: `${API_VERSION}/auth/refresh`,
   ME: `${API_VERSION}/auth/me`,
+  ACCOUNT_DELETION_REQUEST: `${API_VERSION}/auth/me/deletion-request`,
   CHANGE_PASSWORD: `${API_VERSION}/auth/change-password`,
 
   // App releases (OTA) — backend-brokered update check + short-lived SAS download
@@ -25,6 +26,8 @@ export const ENDPOINTS = {
 
   // User preferences
   PREFERENCES: `${API_VERSION}/users/me/preferences`,
+  HEALTH_REPORT: `${API_VERSION}/users/me/health-report`,
+  AVATAR_UPLOAD: `${API_VERSION}/users/me/avatar`,
 
   // Notifications
   NOTIFICATIONS: `${API_VERSION}/notifications`,
@@ -74,6 +77,11 @@ export const ENDPOINTS = {
   // Consent
   CONSENT: `${API_VERSION}/consent`,
 
+  // Subscriptions
+  SUBSCRIPTION_PLANS: `${API_VERSION}/subscriptions/plans`,
+  SUBSCRIPTION_ME: `${API_VERSION}/subscriptions/me`,
+  SUBSCRIPTION_SUBSCRIBE: `${API_VERSION}/subscriptions/subscribe`,
+
   // Content Pages (terms, privacy — admin-configured)
   ROLES: `${API_VERSION}/roles`,
   CONTENT_PAGES: `${API_VERSION}/content-pages`,
@@ -106,10 +114,20 @@ export const ENDPOINTS = {
   // Therapy Feedback
   THERAPY_FEEDBACK: `${API_VERSION}/therapy-feedback`,
   THERAPY_FEEDBACK_BY_GROUP: (videoGroupId) => `${API_VERSION}/therapy-feedback/by-group/${videoGroupId}`,
+  THERAPY_FEEDBACK_BY_SESSION: (sessionGroupId) => `${API_VERSION}/therapy-feedback/by-session/${sessionGroupId}`,
   THERAPY_FEEDBACK_PAIN_AFTER: (feedbackId) => `${API_VERSION}/therapy-feedback/${feedbackId}/pain-after`,
 
-  // Therapy History — completed count
-  THERAPY_HISTORY_COMPLETED_COUNT: (groupId) => `${API_VERSION}/therapy-history/completed-count/${groupId}`,
+  // Therapy History — completed count. Pass sessionGroupId to count only the
+  // current sitting, not every run the user has ever done in this group.
+  THERAPY_HISTORY_COMPLETED_COUNT: (groupId, sessionGroupId) =>
+    `${API_VERSION}/therapy-history/completed-count/${groupId}` +
+    (sessionGroupId ? `?sessionGroupId=${sessionGroupId}` : ''),
+
+  // Therapy Session Groups
+  START_THERAPY_SESSION: `${API_VERSION}/therapy-history/start-session`,
+  THERAPY_SESSIONS_LIST: `${API_VERSION}/therapy-history/sessions`,
+  THERAPY_INCOMPLETE_SESSION: (groupId) => `${API_VERSION}/therapy-history/incomplete-session/${groupId}`,
+  COMPLETE_THERAPY_SESSION: (sessionGroupId) => `${API_VERSION}/therapy-history/sessions/${sessionGroupId}/complete`,
 
   // User Addresses
   USER_ADDRESSES: `${API_VERSION}/user-addresses`,

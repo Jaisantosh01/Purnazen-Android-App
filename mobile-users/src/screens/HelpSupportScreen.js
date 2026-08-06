@@ -14,6 +14,7 @@ import { showAlert } from '../utils/alert';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
+import AppVersionFooter from '../components/AppVersionFooter';
 import supportService from '../services/supportService';
 
 // App-meta links (Terms/Privacy/Rate/Share). These aren't content — they stay
@@ -71,7 +72,7 @@ const HelpSupportScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Help & Support" subtitle="We're here to help you" />
+      <ScreenHeader title="Help & Support" subtitle="We're here to help you" backBehavior="popToRoot" />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -178,10 +179,7 @@ const HelpSupportScreen = ({ navigation }) => {
               </View>
             </View>
 
-            <View style={styles.versionRow}>
-              <MCIcon name="information-outline" size={14} color={colors.textMuted} />
-              <Text style={styles.versionText}>  Purnazen v1.0.0 · Crafted for your wellness</Text>
-            </View>
+            <AppVersionFooter />
           </>
         )}
       </ScrollView>
@@ -284,6 +282,4 @@ const makeStyles = colors => StyleSheet.create({
   quickLinkLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   quickLinkText: { fontSize: 14, fontWeight: '500', color: colors.textPrimary },
 
-  versionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 28 },
-  versionText: { fontSize: 12, color: colors.textMuted },
 });

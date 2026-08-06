@@ -14,7 +14,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import consultService from '../services/consultService';
 import useTheme from '../hooks/useTheme';
 import { useMemo } from 'react';
-import { doctorInitial } from '../utils/doctorAvatar';
+import Avatar from '../components/Avatar';
 import ScreenHeader from '../components/ScreenHeader';
 
 // Visit type icon & label map
@@ -46,9 +46,7 @@ const openClinicMap = (clinic) => {
 // ── Basic doctor card shown immediately using data from route.params ──────────
 const DoctorBasicCard = ({ doctor, visitTypes, styles, colors }) => (
   <View style={styles.doctorCard}>
-    <View style={styles.avatarCircle}>
-      <Text style={styles.avatarIcon}>{doctorInitial(doctor.name)}</Text>
-    </View>
+    <Avatar uri={doctor.avatar} name={doctor.name} size={80} style={styles.avatarSpacing} />
     <Text style={styles.doctorName}>{doctor.name}</Text>
     <Text style={styles.doctorSpecialty}>
       {Array.isArray(doctor.specialties)
@@ -56,11 +54,15 @@ const DoctorBasicCard = ({ doctor, visitTypes, styles, colors }) => (
         : doctor.specialty || doctor.speciality || doctor.specialties || ''}
     </Text>
 
-    <View style={styles.ratingRow}>
-      <MCIcon name="star" size={15} color={colors.warning} style={styles.star} />
-      <Text style={styles.rating}>{doctor.rating}</Text>
-      <Text style={styles.reviews}>({doctor.reviews} reviews)</Text>
-    </View>
+    {/* Hidden until the doctor actually has reviews — the backend defaults
+        average_rating to 0, which rendered as a one-star-looking "0". */}
+    {doctor.reviews > 0 && (
+      <View style={styles.ratingRow}>
+        <MCIcon name="star" size={15} color={colors.warning} style={styles.star} />
+        <Text style={styles.rating}>{Number(doctor.rating).toFixed(1)}</Text>
+        <Text style={styles.reviews}>({doctor.reviews} reviews)</Text>
+      </View>
+    )}
 
     {!!doctor.location && (
       <View style={styles.locationRow}>
@@ -175,9 +177,11 @@ const DoctorProfileScreen = ({ navigation, route }) => {
                   <MCIcon name="school" size={20} color={colors.primary} style={styles.educationIcon} />
                   <View style={styles.educationInfo}>
                     <Text style={styles.educationDegree}>{detailData.education}</Text>
-                    <Text style={styles.educationExp}>
-                      {detailData.experience} years of experience
-                    </Text>
+                    {detailData.experience > 0 ? (
+                      <Text style={styles.educationExp}>
+                        {detailData.experience} {detailData.experience === 1 ? 'year' : 'years'} of experience
+                      </Text>
+                    ) : null}
                   </View>
                 </View>
               </View>
@@ -267,7 +271,9 @@ const DoctorProfileScreen = ({ navigation, route }) => {
                             <Text style={styles.clinicCity}>{clinic.city}</Text>
                           )}
                           {clinic.phone && (
-                            <Text style={styles.clinicPhone}>{clinic.phone}</Text>
+                            <TouchableOpacity onPress={() => Linking.openURL(`tel:${clinic.phone.replace(/[^+\d]/g, '')}`)}>
+                              <Text style={styles.clinicPhone}>{clinic.phone}</Text>
+                            </TouchableOpacity>
                           )}
                         </View>
                       </View>
@@ -316,16 +322,7 @@ const makeStyles = colors => StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.surfaceMuted,
   },
-  avatarCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.primaryFaint,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  avatarIcon: { fontSize: 34, fontWeight: '800', color: colors.primary },
+  avatarSpacing: { marginBottom: 12 },
   doctorName: {
     fontSize: 20,
     fontWeight: '700',
@@ -501,6 +498,7 @@ const makeStyles = colors => StyleSheet.create({
     fontSize: 12,
     color: colors.primary,
     fontWeight: '500',
+    textDecorationLine: 'underline',
   },
   mapHintRow: {
     flexDirection: 'row',

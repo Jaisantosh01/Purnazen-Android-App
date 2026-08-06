@@ -1,22 +1,4 @@
-const parseTimeToMinutes = (timeStr) => {
-  if (!timeStr) return -1;
-  const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-  if (!match) return -1;
-  let hours = parseInt(match[1], 10);
-  const minutes = parseInt(match[2], 10);
-  const ampm = match[3].toUpperCase();
-  
-  if (hours < 1 || hours > 12 || minutes < 0 || minutes > 59) {
-    return -1;
-  }
-  
-  if (ampm === 'PM' && hours < 12) {
-    hours += 12;
-  } else if (ampm === 'AM' && hours === 12) {
-    hours = 0;
-  }
-  return hours * 60 + minutes;
-};
+import { parseTimeToMinutes, matchesTimeSlot } from '../utils/appointmentAgenda';
 
 describe('parseTimeToMinutes helper', () => {
   it('correctly parses AM times', () => {
@@ -46,5 +28,27 @@ describe('parseTimeToMinutes helper', () => {
     expect(parseTimeToMinutes('12:60 AM')).toBe(-1);
     expect(parseTimeToMinutes('00:30 AM')).toBe(-1);
     expect(parseTimeToMinutes('invalid-time')).toBe(-1);
+  });
+});
+
+describe('matchesTimeSlot', () => {
+  it('keeps everything when no slot is chosen', () => {
+    expect(matchesTimeSlot('09:00 AM', 'all')).toBe(true);
+    expect(matchesTimeSlot(null, 'all')).toBe(true);
+  });
+
+  it('splits the day at the documented boundaries', () => {
+    expect(matchesTimeSlot('06:00 AM', 'morning')).toBe(true);
+    expect(matchesTimeSlot('11:59 AM', 'morning')).toBe(true);
+    expect(matchesTimeSlot('12:00 PM', 'morning')).toBe(false);
+    expect(matchesTimeSlot('12:00 PM', 'afternoon')).toBe(true);
+    expect(matchesTimeSlot('04:59 PM', 'afternoon')).toBe(true);
+    expect(matchesTimeSlot('05:00 PM', 'evening')).toBe(true);
+    expect(matchesTimeSlot('09:59 PM', 'evening')).toBe(true);
+    expect(matchesTimeSlot('10:00 PM', 'evening')).toBe(false);
+  });
+
+  it('drops rows whose time cannot be read once a slot is chosen', () => {
+    expect(matchesTimeSlot('', 'morning')).toBe(false);
   });
 });

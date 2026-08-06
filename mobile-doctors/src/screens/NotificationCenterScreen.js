@@ -154,7 +154,7 @@ const NotificationCenterScreen = ({ navigation }) => {
       <ScreenHeader
         title="Notifications"
         subtitle={unread ? `${unread} unread` : 'You are all caught up'}
-        onBack={() => navigation.goBack()}
+        backBehavior="popToRoot"
         right={
           items.length ? (
             <TouchableOpacity onPress={openMenu} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>

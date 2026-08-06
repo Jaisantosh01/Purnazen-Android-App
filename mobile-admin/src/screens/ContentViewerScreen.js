@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
@@ -29,28 +30,37 @@ const ContentViewerScreen = ({ route, navigation }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [expandedIds, setExpandedIds] = useState({});
+  const [refreshing, setRefreshing] = useState(false);
+  const [version, setVersion] = useState(null);
 
-  useEffect(() => {
-    setLoading(true);
-    if (type === 'faq') {
-      apiClient.get(ENDPOINTS.SUPPORT_FAQS)
-        .then(res => setData(Array.isArray(res) ? res : []))
-        .catch(() => setData([]))
-        .finally(() => setLoading(false));
-    } else {
-      apiClient.get(ENDPOINTS.ROLES)
-        .then(res => {
-          const roles = Array.isArray(res?.data) ? res.data : [];
-          const adminRole = roles.find(r => r.name?.toLowerCase() === 'admin');
-          const params = { type, is_active: true };
-          if (adminRole?.id) params.role_id = adminRole.id;
-          return apiClient.get(ENDPOINTS.CONTENT_PAGES, { params });
-        })
-        .then(res => setData(Array.isArray(res?.data) ? res.data : []))
-        .catch(() => setData([]))
-        .finally(() => setLoading(false));
+  const fetchData = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
+    try {
+      if (type === 'faq') {
+        const res = await apiClient.get(ENDPOINTS.SUPPORT_FAQS);
+        setData(Array.isArray(res) ? res : []);
+      } else {
+        const rolesRes = await apiClient.get(ENDPOINTS.ROLES);
+        const roles = Array.isArray(rolesRes?.data) ? rolesRes.data : [];
+        const adminRole = roles.find(r => r.name?.toLowerCase() === 'admin');
+        const params = { type, is_active: true };
+        if (adminRole?.id) params.role_id = adminRole.id;
+        const contentRes = await apiClient.get(ENDPOINTS.CONTENT_PAGES, { params });
+        const items = Array.isArray(contentRes?.data) ? contentRes.data : [];
+        setData(items);
+        setVersion(items[0]?.version || null);
+      }
+    } catch {
+      setData([]);
+      setVersion(null);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
   }, [type]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const toggleExpand = (id) => {
     setExpandedIds(prev => ({ ...prev, [id]: !prev[id] }));
@@ -61,6 +71,7 @@ const ContentViewerScreen = ({ route, navigation }) => {
       <ScreenHeader
         title={meta.title}
         subtitle={meta.subtitle}
+        subtitleRight={version ? `v${version}` : null}
         onBack={() => navigation.goBack()}
       />
 
@@ -69,7 +80,8 @@ const ContentViewerScreen = ({ route, navigation }) => {
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : type === 'faq' ? (
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchData(true)} colors={[colors.primary]} tintColor={colors.primary} />}>
           {data.length === 0 ? (
             <Text style={styles.emptyText}>No FAQs available</Text>
           ) : (
@@ -97,18 +109,13 @@ const ContentViewerScreen = ({ route, navigation }) => {
           )}
         </ScrollView>
       ) : (
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchData(true)} colors={[colors.primary]} tintColor={colors.primary} />}>
           {data.length === 0 ? (
             <Text style={styles.emptyText}>No data</Text>
           ) : (
             data.map((item) => (
               <View key={item.id} style={styles.contentCard}>
-                <Text style={styles.contentTitle}>{item.title || meta.title}</Text>
-                <View style={styles.contentVersion}>
-                  <Text style={styles.contentVersionText}>v{item.version || '1.0'}</Text>
-                  <View style={[styles.activeDot, { backgroundColor: item.isActive ? '#22C55E' : colors.textMuted }]} />
-                  <Text style={styles.contentStatus}>{item.isActive ? 'Active' : 'Inactive'}</Text>
-                </View>
                 {item.content && (
                   <View style={styles.contentBody}>
                     {renderRichText(item.content, colors)}
@@ -155,11 +162,6 @@ const makeStyles = colors => StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
-  contentTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginBottom: 6 },
-  contentVersion: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
-  contentVersionText: { fontSize: 12, color: colors.textMuted },
-  activeDot: { width: 8, height: 8, borderRadius: 4 },
-  contentStatus: { fontSize: 12, color: colors.textMuted },
   contentBody: { marginTop: 4 },
 });
 

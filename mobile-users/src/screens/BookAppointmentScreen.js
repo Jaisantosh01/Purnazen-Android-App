@@ -429,9 +429,20 @@ const BookAppointmentScreen = ({ navigation, route }) => {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Select Time</Text>
-          {slotsLoading ? (
+          {!selectedDate ? (
+            /* Without this the heading sat above a blank gap until a date was picked. */
+            <TouchableOpacity
+              style={styles.noSlotsCard}
+              activeOpacity={0.8}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <MCIcon name="calendar-clock" size={28} color={colors.textMuted} />
+              <Text style={styles.noSlotsTitle}>Pick a date first</Text>
+              <Text style={styles.noSlotsText}>Choose a date above to see the slots this doctor has open.</Text>
+            </TouchableOpacity>
+          ) : slotsLoading ? (
             <ActivityIndicator size="small" color={colors.primary} style={{ paddingVertical: 20 }} />
-          ) : timeSlots.length === 0 && selectedDate ? (
+          ) : timeSlots.length === 0 ? (
             <View style={styles.noSlotsCard}>
               <MCIcon name="clock-off-outline" size={28} color={colors.textMuted} />
               <Text style={styles.noSlotsTitle}>No Slots Available</Text>
@@ -670,7 +681,8 @@ const makeStyles = colors => StyleSheet.create({
   datePickerPlaceholder:{ flex: 1, fontSize: 14, color: colors.textMuted },
 
   calendarCard: {
-    backgroundColor: colors.card, borderRadius: 14, padding: 16,
+    backgroundColor: colors.card, borderRadius: 14,
+    paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8,
     shadowColor: colors.black, shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05, shadowRadius: 3, elevation: 1, marginTop: 10,
   },
@@ -683,7 +695,7 @@ const makeStyles = colors => StyleSheet.create({
   dayHeaders:    { flexDirection: 'row', marginBottom: 8 },
   dayHeader:     { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600', color: colors.textMuted },
   calendarGrid:  { flexDirection: 'row', flexWrap: 'wrap' },
-  dayCell:       { width: `${100 / 7}%`, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', marginVertical: 2 },
+  dayCell:       { width: `${100 / 7}%`, height: 40, alignItems: 'center', justifyContent: 'center', marginVertical: 1 },
   dayCellSelected: { backgroundColor: colors.primary, borderRadius: 20 },
   dayText:         { fontSize: 13, color: colors.textPrimary, fontWeight: '500' },
   dayTextFaded:    { color: colors.borderStrong },

@@ -42,6 +42,11 @@ def book_appointment(
 @router.put(
     "/{appointment_id}",
     summary="Update an appointment",
+    description=(
+        "Writable by the patient who booked it, the doctor it belongs to, or an "
+        "admin. `payment_status` is staff-only — patients move it through the "
+        "payments flow, not by writing to the appointment."
+    ),
 )
 def update_appointment(
     appointment_id: uuid.UUID,
@@ -49,10 +54,32 @@ def update_appointment(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    existing = db.get(Appointment, appointment_id)
+    if not existing:
+        return error_response("Appointment not found", 404)
+
+    role = user.role.name if user.role else None
+    is_patient = existing.user_id == user.id
+    is_owning_doctor = bool(existing.doctor and existing.doctor.user_id == user.id)
+    is_staff = is_owning_doctor or role == "admin"
+
+    # Same party rule as the read: without it any authenticated account could
+    # cancel — or mark paid — an appointment belonging to someone else.
+    if not (is_patient or is_staff):
+        return error_response("Appointment not found", 404)
+    if body.payment_status is not None and not is_staff:
+        return error_response("Not allowed to change the payment status", 403)
+
     appointment = AppointmentService.update(db, user, appointment_id, body)
     if not appointment:
         return error_response("Appointment not found", 404)
-    return success_response("Appointment updated successfully", appointment.to_dict())
+
+    payload = (
+        AppointmentService.serialize_for_doctor(db, appointment)
+        if is_staff
+        else appointment.to_dict()
+    )
+    return success_response("Appointment updated successfully", payload)
 
 
 @router.get(
@@ -108,6 +135,10 @@ def get_all_appointments_admin(
             joinedload(Appointment.doctor).joinedload(Doctor.specialty),
             joinedload(Appointment.consultation_type),
             joinedload(Appointment.user),
+            # The admin detail popup renders the clinic / home-visit address,
+            # so eager-load both instead of lazy-loading per row.
+            joinedload(Appointment.clinic),
+            joinedload(Appointment.user_address),
         )
         .order_by(Appointment.date.desc())
         .all()
@@ -119,18 +150,27 @@ def get_all_appointments_admin(
 @router.get(
     "/consultation-types",
     summary="Get all consultation types",
+    description="Active visit modes (Clinic Visit / Home Visit / Video Call). "
+    "Returns full records — the admin doctor editor needs the ids to attach "
+    "per-type pricing.",
 )
 def get_consultation_types(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     types = db.query(ConsultationType).filter(ConsultationType.is_active == True).all()
-    return success_response("Consultation types fetched", [t.name for t in types])
+    return success_response("Consultation types fetched", [t.to_dict() for t in types])
 
 
 @router.get(
     "/{appointment_id}",
     summary="Get appointment details",
+    description=(
+        "Readable by the patient who booked it, the doctor it belongs to, or an "
+        "admin. Doctors and admins additionally get the patient profile fields "
+        "(age, gender, contact) and the prior-visit count, matching the shape of "
+        "`GET /appointments/doctor`."
+    ),
 )
 def get_appointment_detail(
     appointment_id: uuid.UUID,
@@ -140,4 +180,22 @@ def get_appointment_detail(
     appointment = db.query(Appointment).filter(Appointment.id == appointment_id).first()
     if not appointment:
         return error_response("Appointment not found", 404)
-    return success_response("Appointment details fetched successfully", appointment.to_dict())
+
+    role = user.role.name if user.role else None
+    is_patient = appointment.user_id == user.id
+    is_owning_doctor = bool(
+        appointment.doctor and appointment.doctor.user_id == user.id
+    )
+
+    # An appointment is clinical data about a named patient — only the two
+    # parties and an admin may read it. Previously any authenticated account
+    # could fetch any appointment by id.
+    if not (is_patient or is_owning_doctor or role == "admin"):
+        return error_response("Appointment not found", 404)
+
+    if is_owning_doctor or role == "admin":
+        payload = AppointmentService.serialize_for_doctor(db, appointment)
+    else:
+        payload = appointment.to_dict()
+
+    return success_response("Appointment details fetched successfully", payload)

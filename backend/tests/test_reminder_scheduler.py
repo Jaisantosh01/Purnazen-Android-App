@@ -12,7 +12,7 @@ import pytest
 from app.models.appointment import Appointment
 from app.models.notification import Notification
 from app.services import reminder_scheduler
-from app.services.reminder_scheduler import send_due_reminders
+from app.services.reminder_scheduler import expire_stale_holds, send_due_reminders
 from tests.test_appointments import auth_headers, book_payload, slot_at
 from tests.test_doctors import add_availability, next_weekday, seed_doctor
 
@@ -90,3 +90,41 @@ def test_reminder_sent_exactly_once(client, db_session, scheduler_session):
     # A second tick inside the same window must not re-notify.
     assert send_due_reminders(now=now) == 0
     assert _reminder_count(db_session) == 2
+
+
+def test_stale_unpaid_hold_is_released(client, db_session, scheduler_session):
+    """An unpaid hold older than the TTL is cancelled, freeing the slot."""
+    from datetime import timedelta
+
+    _book_0900_appointment(client, db_session)
+    appt = db_session.query(Appointment).first()
+    assert appt.status == "pending" and appt.payment_status == "pending"
+
+    # Age the hold past the TTL by backdating created_at.
+    appt.created_at = datetime.utcnow() - timedelta(hours=1)
+    db_session.commit()
+
+    assert expire_stale_holds() == 1
+    db_session.refresh(appt)
+    assert appt.status == "cancelled"
+
+
+def test_fresh_and_paid_holds_are_kept(client, db_session, scheduler_session):
+    """A just-created hold (within TTL) and a paid booking are never released."""
+    _book_0900_appointment(client, db_session)
+    appt = db_session.query(Appointment).first()
+
+    # Fresh hold — inside the TTL window.
+    assert expire_stale_holds() == 0
+    db_session.refresh(appt)
+    assert appt.status == "pending"
+
+    # Paid booking, even if old, is not a hold and must be kept.
+    from datetime import timedelta
+    appt.payment_status = "paid"
+    appt.status = "booked"
+    appt.created_at = datetime.utcnow() - timedelta(hours=2)
+    db_session.commit()
+    assert expire_stale_holds() == 0
+    db_session.refresh(appt)
+    assert appt.status == "booked"

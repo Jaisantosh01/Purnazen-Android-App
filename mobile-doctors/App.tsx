@@ -16,6 +16,8 @@ import pushService from './src/services/pushService';
 // @ts-ignore
 import { navigationRef } from './src/navigation/navigationRef';
 // @ts-ignore
+import { makeTabPressResetListener } from './src/navigation/backHelpers';
+// @ts-ignore
 import { COLORS } from './src/constants/theme';
 // @ts-ignore
 import useTheme from './src/hooks/useTheme';
@@ -83,6 +85,14 @@ const TAB_ICONS: Record<string, { active: string; inactive: string }> = {
   Schedule: { active: 'calendar-clock', inactive: 'calendar-clock-outline' },
   Patients: { active: 'account-multiple', inactive: 'account-multiple-outline' },
   Profile: { active: 'account-circle', inactive: 'account-circle-outline' },
+};
+
+const TAB_ROOT_SCREENS: Record<string, string> = {
+  Dashboard: 'DashboardMain',
+  Appointments: 'AppointmentsMain',
+  Schedule: 'ScheduleMain',
+  Patients: 'PatientsMain',
+  Profile: 'ProfileMain',
 };
 
 function AppointmentsStackNavigator() {
@@ -184,11 +194,31 @@ function MainTabs() {
         },
         tabBarLabelStyle: { fontSize: 10, fontWeight: '600', paddingBottom: 2 },
       })}>
-      <Tab.Screen name="Dashboard" component={DashboardStackNavigator} />
-      <Tab.Screen name="Appointments" component={AppointmentsStackNavigator} />
-      <Tab.Screen name="Schedule" component={ScheduleStackNavigator} />
-      <Tab.Screen name="Patients" component={PatientsStackNavigator} />
-      <Tab.Screen name="Profile" component={ProfileStackNavigator} />
+      <Tab.Screen
+        name="Dashboard"
+        component={DashboardStackNavigator}
+        listeners={makeTabPressResetListener(navigationRef, 'Dashboard', TAB_ROOT_SCREENS.Dashboard)}
+      />
+      <Tab.Screen
+        name="Appointments"
+        component={AppointmentsStackNavigator}
+        listeners={makeTabPressResetListener(navigationRef, 'Appointments', TAB_ROOT_SCREENS.Appointments)}
+      />
+      <Tab.Screen
+        name="Schedule"
+        component={ScheduleStackNavigator}
+        listeners={makeTabPressResetListener(navigationRef, 'Schedule', TAB_ROOT_SCREENS.Schedule)}
+      />
+      <Tab.Screen
+        name="Patients"
+        component={PatientsStackNavigator}
+        listeners={makeTabPressResetListener(navigationRef, 'Patients', TAB_ROOT_SCREENS.Patients)}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileStackNavigator}
+        listeners={makeTabPressResetListener(navigationRef, 'Profile', TAB_ROOT_SCREENS.Profile)}
+      />
     </Tab.Navigator>
   );
 }
@@ -238,6 +268,12 @@ export default function App() {
         // never block app start on a biometric error
       }
       setBootstrapped(true);
+      // Re-read the profile once the UI is up. The cached copy can be hours or
+      // days old, and its avatar URL is a ~60-minute SAS link — without this the
+      // profile photo stops loading and any change made elsewhere never lands.
+      if (useAuthStore.getState().isLoggedIn) {
+        authService.refreshProfile();
+      }
     })();
   }, []);
 

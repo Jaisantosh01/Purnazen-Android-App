@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
-  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
 // @ts-ignore
@@ -15,8 +15,9 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { ListSkeleton } from '../components/SkeletonLoader';
+import Avatar from '../components/Avatar';
 import useTheme from '../hooks/useTheme';
-import { showAlert } from '../utils/alert';
+import { showAlert, showConfirm } from '../utils/alert';
 
 const ROLE_COLORS = {
   'admin': '#FF4D4D',
@@ -31,59 +32,92 @@ const UserManagementScreen = ({ navigation }) => {
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedRole, setSelectedRole] = useState('All');
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchData();
-    }, [])
-  );
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 400);
+    return () => clearTimeout(timer);
+  }, [search]);
 
-  const fetchData = () => {
-    setLoading(true);
-    Promise.all([
-      apiClient.get(ENDPOINTS.USERS),
-      apiClient.get(ENDPOINTS.ROLES),
-    ])
+  const fetchData = useCallback((pageNum = 1, append = false) => {
+    if (!append) setLoading(true);
+    else setLoadingMore(true);
+
+    const params = { page: pageNum, per_page: 20 };
+    if (debouncedSearch) params.search = debouncedSearch;
+    if (selectedRole !== 'All') params.role = selectedRole;
+
+    const promises = [apiClient.get(ENDPOINTS.USERS, { params })];
+    if (pageNum === 1) promises.push(apiClient.get(ENDPOINTS.ROLES));
+
+    Promise.all(promises)
       .then(([usersRes, rolesRes]) => {
-        setUsers(usersRes?.data || []);
-        setRoles([{ name: 'All', icon: 'account-group' }, ...(rolesRes?.data || [])]);
+        const newUsers = usersRes?.data?.users || [];
+        setUsers(prev => append ? [...prev, ...newUsers] : newUsers);
+        setHasMore(pageNum < (usersRes?.data?.total_pages || 0));
+        setPage(pageNum);
+        if (rolesRes) {
+          setRoles([{ name: 'All', icon: 'account-group' }, ...(rolesRes?.data || [])]);
+        }
       })
       .catch((err) => {
         console.error('Fetch error:', err);
         setUsers([]);
-        setRoles([{ name: 'All', icon: 'account-group' }]);
       })
-      .finally(() => setLoading(false));
-  };
+      .finally(() => { setLoading(false); setLoadingMore(false); });
+  }, [debouncedSearch, selectedRole]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchData(1);
+    }, [fetchData])
+  );
 
   const handleEdit = (item, rowMap) => {
     if (rowMap?.[item.id]) rowMap[item.id].closeRow();
-    navigation.navigate('EditUser', { user: item });
+    navigation.navigate('EditUser', { user: item, viewMode: false });
   };
 
   const handleDelete = (item, rowMap) => {
     if (rowMap?.[item.id]) rowMap[item.id].closeRow();
-    Alert.alert('Delete User', `Are you sure you want to delete ${item.full_name}?`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => {
+    // Themed dialog (AppAlertHost) rather than the OS Alert, so the confirm
+    // follows the app theme like every other destructive action.
+    showConfirm(
+      'Delete User',
+      `Delete ${item.full_name}? They are signed out immediately and can no ` +
+        `longer log in. Their appointments and records are kept, so you can ` +
+        `restore the account later.`,
+      () => {
         apiClient.delete(`${ENDPOINTS.USERS}/${item.id}`)
           .then(() => { showAlert('Success', 'User deleted'); fetchData(); })
-          .catch(() => showAlert('Error', 'Failed to delete user'));
-      }},
-    ]);
+          .catch(err => showAlert('Error', err?.message || 'Failed to delete user'));
+      },
+      { confirmLabel: 'Delete', destructive: true },
+    );
   };
 
-  const filteredUsers = users.filter(u => 
-    (selectedRole === 'All' || (u.role && u.role.toLowerCase() === selectedRole.toLowerCase())) &&
-    (u.full_name?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase()))
-  );
+  const handleRestore = (item, rowMap) => {
+    if (rowMap?.[item.id]) rowMap[item.id].closeRow();
+    apiClient.put(`${ENDPOINTS.USERS}/${item.id}`, { is_active: true })
+      .then(() => { showAlert('Success', 'User restored'); fetchData(); })
+      .catch(err => showAlert('Error', err?.message || 'Failed to restore user'));
+  };
+
+  const handleLoadMore = () => {
+    if (!loading && !loadingMore && hasMore) {
+      fetchData(page + 1, true);
+    }
+  };
 
   return (
     <View style={styles.root}>
       {/* Header removed from here as it is now in UnifiedUserDoctorScreen */}
 
-      {loading && filteredUsers.length === 0 ? (
+      {loading && users.length === 0 ? (
         <View>
           <View style={styles.searchContainer}>
             <MCIcon name="magnify" size={20} color={colors.textMuted} style={styles.searchIcon} />
@@ -99,7 +133,7 @@ const UserManagementScreen = ({ navigation }) => {
         </View>
       ) : (
       <SwipeListView
-        data={filteredUsers}
+        data={users}
         keyExtractor={item => item.id.toString()}
         leftOpenValue={80}
         rightOpenValue={-80}
@@ -145,19 +179,28 @@ const UserManagementScreen = ({ navigation }) => {
           </>
         }
         renderItem={({ item }) => {
-          const roleData = roles.find(r => r.name.toLowerCase() === (item.role || '').toLowerCase());
+          const isInactive = item.is_active === false;
           return (
             <TouchableOpacity
-              style={styles.userCard}
-              activeOpacity={0.8}
-              onPress={() => navigation.navigate('EditUser', { user: item })}
+              style={[styles.userCard, isInactive && styles.userCardInactive]}
+              activeOpacity={1}
+              onPress={() => navigation.navigate('EditUser', { user: item, viewMode: true })}
             >
-              <View style={[styles.avatar, { backgroundColor: colors.primaryLight }]}>
-                  <MCIcon name={roleData?.icon || 'account'} size={28} color={colors.primary} />
-              </View>
+              <Avatar
+                uri={item.avatar_url}
+                name={item.full_name}
+                size={48}
+                backgroundColor={colors.primaryLight}
+                style={styles.avatarSpacing}
+              />
               <View style={styles.userCardContent}>
                 <View style={styles.userNameContainer}>
                   <Text style={styles.userName}>{item.full_name}</Text>
+                  {isInactive && (
+                    <View style={styles.inactivePill}>
+                      <Text style={styles.inactivePillText}>Deleted</Text>
+                    </View>
+                  )}
                 </View>
                 <Text style={styles.userEmail}>{item.email}</Text>
               </View>
@@ -170,16 +213,30 @@ const UserManagementScreen = ({ navigation }) => {
               <MCIcon name="pencil" size={22} color="#fff" />
               <Text style={styles.backBtnText}>Edit</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.backBtn, styles.deleteBack]} onPress={() => handleDelete(data.item, rowMap)}>
-              <MCIcon name="delete" size={22} color="#fff" />
-              <Text style={styles.backBtnText}>Delete</Text>
-            </TouchableOpacity>
+            {data.item.is_active === false ? (
+              <TouchableOpacity style={[styles.backBtn, styles.restoreBack]} onPress={() => handleRestore(data.item, rowMap)}>
+                <MCIcon name="account-reactivate" size={22} color="#fff" />
+                <Text style={styles.backBtnText}>Restore</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={[styles.backBtn, styles.deleteBack]} onPress={() => handleDelete(data.item, rowMap)}>
+                <MCIcon name="delete" size={22} color="#fff" />
+                <Text style={styles.backBtnText}>Delete</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
         style={styles.list}
         contentContainerStyle={styles.listContainer}
         refreshing={loading}
-        onRefresh={fetchData}
+        onRefresh={() => fetchData(1)}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={loadingMore ? (
+          <View style={styles.footerLoader}>
+            <ActivityIndicator size="small" color={colors.primary} />
+          </View>
+        ) : null}
         closeOnRowPress={true}
         closeOnRowOpen={true}
         closeOnRowBeginSwipe={true}
@@ -236,11 +293,19 @@ const makeStyles = colors => StyleSheet.create({
     borderWidth: 1, 
     borderColor: colors.border 
   },
-  avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
+  userCardInactive: { backgroundColor: colors.surfaceMuted, borderColor: colors.borderStrong },
+  avatarSpacing: { marginRight: 16 },
   userCardContent: { flex: 1, marginRight: 12 },
-  userNameContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
+  userNameContainer: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
   userName: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
   userEmail: { fontSize: 13, color: colors.textMuted },
+  inactivePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    backgroundColor: '#EF444422',
+  },
+  inactivePillText: { fontSize: 10, fontWeight: '700', color: '#EF4444' },
   rowBack: {
     flex: 1,
     flexDirection: 'row',
@@ -265,7 +330,11 @@ const makeStyles = colors => StyleSheet.create({
   deleteBack: {
     backgroundColor: '#EF4444',
   },
+  restoreBack: {
+    backgroundColor: '#10B981',
+  },
   backBtnText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  footerLoader: { paddingVertical: 20, alignItems: 'center' },
 });
 
 export default UserManagementScreen;

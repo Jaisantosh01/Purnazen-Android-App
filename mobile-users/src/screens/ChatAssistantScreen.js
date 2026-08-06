@@ -14,6 +14,25 @@ import { ENDPOINTS } from '../constants/apiEndpoints';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 
+// Chat asks Mild/Moderate/Severe once; midpoints become therapy_feedback.painBefore
+// so we don't re-ask with a 0–10 slider before the video.
+const SEVERITY_TO_PAIN = {
+  mild: 2,
+  moderate: 5,
+  severe: 8,
+};
+
+function painBeforeFromHistory(history) {
+  for (const item of history) {
+    if (item.type !== 'user') continue;
+    const t = String(item.text || '').toLowerCase();
+    for (const [key, value] of Object.entries(SEVERITY_TO_PAIN)) {
+      if (t.includes(key)) return value;
+    }
+  }
+  return null;
+}
+
 const ChatAssistantScreen = ({ route, navigation }) => {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -27,20 +46,33 @@ const ChatAssistantScreen = ({ route, navigation }) => {
 
   const scrollViewRef = useRef();
 
-  const navigateToVideos = useCallback((groupId) => {
+  const navigateToVideos = useCallback((groupId, baseline = null) => {
     if (groupId) {
-      navigation.navigate('VideoPlayer', { groupId, groupTitle: reliefTitle });
+      navigation.navigate('VideoPlayer', {
+        groupId,
+        groupTitle: reliefTitle,
+        // Everything reached from a Quick Relief card is a relief run, not a
+        // wellness one — this is what the session gets filed as.
+        sessionType: 'relief',
+        painBefore: baseline?.painBefore ?? null,
+        painDescription: baseline?.painDescription ?? null,
+      });
     } else {
       navigation.navigate('Relief');
     }
   }, [navigation, reliefTitle]);
 
   const handleBrowseSession = useCallback((finalMsg) => {
-    // Go straight to the recommended session. The chat has already asked about
-    // the user's symptom/severity, so we don't re-prompt for a pain level here
-    // (that duplicated "How is your pain?" popup right after the chat).
-    navigateToVideos(finalMsg?.videoGroupId || null);
-  }, [navigateToVideos]);
+    const groupId = finalMsg?.videoGroupId;
+    if (!groupId) {
+      navigateToVideos(null);
+      return;
+    }
+    // Map the chatbot severity answer → painBefore (posted by VideoPlayer).
+    navigateToVideos(groupId, {
+      painBefore: painBeforeFromHistory(history),
+    });
+  }, [navigateToVideos, history]);
 
   useEffect(() => {
     apiClient
@@ -266,51 +298,6 @@ const makeStyles = colors => StyleSheet.create({
     justifyContent: 'center',
     marginTop: 10,
     gap: 10,
-  },
-  painRow: {
-    marginBottom: 16,
-  },
-  painLabel: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  painBtns: {
-    flexDirection: 'row',
-    gap: 4,
-  },
-  painBtn: {
-    flex: 1,
-    height: 38,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceMuted,
-  },
-  painBtnActive: {
-    backgroundColor: colors.primary,
-  },
-  painBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  painBtnTextActive: {
-    color: colors.white,
-    fontWeight: '800',
-  },
-  painInput: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    padding: 12,
-    fontSize: 14,
-    color: colors.textPrimary,
-    backgroundColor: colors.surfaceMuted,
-    minHeight: 80,
-    textAlignVertical: 'top',
   },
   startSessionText: {
     color: colors.white,

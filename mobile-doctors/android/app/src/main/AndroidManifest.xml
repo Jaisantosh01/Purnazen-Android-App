@@ -4,6 +4,11 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Lets the app trigger the OS package installer for in-app OTA updates -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Android 12+: apply our own update without a confirmation dialog (only
+         honoured once we're our own installer of record; see OtaUpdaterModule) -->
+    <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <application
@@ -33,5 +38,27 @@
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
       </activity>
+
+      <!-- Reports PackageInstaller session results and, crucially, relaunches the
+           app after a self-update replaces it (the process running the updater is
+           killed by the install, so nothing else survives to do it) -->
+      <receiver
+        android:name="com.purnazen.otaupdater.OtaInstallReceiver"
+        android:exported="false">
+        <intent-filter>
+          <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+        </intent-filter>
+      </receiver>
+
+      <!-- Serves the downloaded OTA APK to the system installer via a content URI -->
+      <provider
+        android:name="androidx.core.content.FileProvider"
+        android:authorities="${applicationId}.otaprovider"
+        android:exported="false"
+        android:grantUriPermissions="true">
+        <meta-data
+          android:name="android.support.FILE_PROVIDER_PATHS"
+          android:resource="@xml/ota_provider_paths" />
+      </provider>
     </application>
 </manifest>

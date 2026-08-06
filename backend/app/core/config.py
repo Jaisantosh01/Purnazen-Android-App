@@ -21,6 +21,18 @@ class Settings(BaseSettings):
     # time (containers run in UTC). India Standard Time by default.
     APP_TIMEZONE: str = "Asia/Kolkata"
 
+    # How long an unpaid booking "hold" (status=pending, payment_status=pending)
+    # keeps a slot reserved before the scheduler releases it. Without this a user
+    # who starts booking and abandons payment blocks that slot for everyone else
+    # forever. 15 min is comfortably longer than a payment flow takes.
+    UNPAID_HOLD_TTL_MINUTES: int = 15
+
+    # Registration runs an MX/deliverability lookup on the email domain. It is a
+    # live DNS call, so the automated tests turn it off (see tests/conftest.py):
+    # otherwise every fixture using a placeholder domain like `@test.com` is
+    # rejected, and the suite's result depends on the runner's DNS.
+    EMAIL_CHECK_DELIVERABILITY: bool = True
+
     # Comma-separated list of allowed origins; "*" allows all (dev only)
     CORS_ORIGINS: str = "*"
 
@@ -31,6 +43,8 @@ class Settings(BaseSettings):
     RATE_LIMIT_LOGIN: str = "5/minute"
     RATE_LIMIT_REGISTER: str = "3/minute"
     RATE_LIMIT_REFRESH: str = "10/minute"
+    # Soft email pre-check (called on blur/submit before registering).
+    RATE_LIMIT_EMAIL_CHECK: str = "20/minute"
 
     # Razorpay credentials (test-mode keys for the sandbox). When empty, the
     # payment provider runs in a local sandbox mode: orders are generated
@@ -48,6 +62,11 @@ class Settings(BaseSettings):
     # User uploads (face scan images, raw + processed). Kept apart from the
     # video container so scans never show up in the video catalog.
     AZURE_SCANS_CONTAINER_NAME: str = "uploads"
+    # Profile photos. Their own container for the same reason scans have one:
+    # avatars were previously written into the video container under an
+    # "avatars/" prefix, where the admin video browser listed them alongside
+    # the programme videos. Created on first upload if it doesn't exist.
+    AZURE_AVATARS_CONTAINER_NAME: str = "avatars"
     # SAS token lifetime for scan images (short-lived, per-request)
     AZURE_SAS_EXPIRY_MINUTES: int = 60
     # SAS token lifetime for video streaming (needs to outlive the longest video session)

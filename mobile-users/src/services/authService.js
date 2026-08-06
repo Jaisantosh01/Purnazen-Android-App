@@ -104,13 +104,22 @@ class AuthService {
    * Update profile fields; keeps the cached user and store in sync. Only the
    * keys provided are sent, so partial updates (e.g. just the phone) are fine.
    */
-  async updateProfile({ fullName, avatarUrl, phone, gender, dateOfBirth } = {}) {
+  async updateProfile({
+    fullName, avatarUrl, phone, gender, dateOfBirth,
+    bloodGroup, heightCm, weightKg, allergies, conditions, medications,
+  } = {}) {
     const payload = {};
     if (fullName !== undefined) payload.fullName = fullName;
     if (avatarUrl !== undefined) payload.avatarUrl = avatarUrl;
     if (phone !== undefined) payload.phone = phone;
     if (gender !== undefined) payload.gender = gender;
     if (dateOfBirth !== undefined) payload.dateOfBirth = dateOfBirth;
+    if (bloodGroup !== undefined) payload.bloodGroup = bloodGroup;
+    if (heightCm !== undefined) payload.heightCm = heightCm;
+    if (weightKg !== undefined) payload.weightKg = weightKg;
+    if (allergies !== undefined) payload.allergies = allergies;
+    if (conditions !== undefined) payload.conditions = conditions;
+    if (medications !== undefined) payload.medications = medications;
 
     const response = await apiClient.put(ENDPOINTS.ME, payload);
 
@@ -124,11 +133,50 @@ class AuthService {
     return user;
   }
 
+  /** Upload a profile photo (multipart) and sync the returned user. */
+  async uploadAvatar(filePath) {
+    const fileName = filePath.split('/').pop() || 'avatar.jpg';
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    const type = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+
+    const form = new FormData();
+    form.append('file', { uri: filePath, name: fileName, type });
+
+    const response = await apiClient.post(ENDPOINTS.AVATAR_UPLOAD, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 45000,
+    });
+
+    if (!response.success) {
+      throw new Error(response.message || 'Could not upload the photo');
+    }
+    return this._cacheUser(response.data.user);
+  }
+
   /** Cache an updated profile locally + in the store. */
   async _cacheUser(user) {
     await AsyncStorage.setItem('user', JSON.stringify(user));
     useAuthStore.getState().setAuth(user);
     return user;
+  }
+
+  /**
+   * Re-read the profile from the server and cache it.
+   *
+   * Not just a nicety: `avatar_url` is a short-lived Azure SAS URL (~60 min),
+   * so the copy persisted at login goes stale and the photo silently stops
+   * loading. Called on app start — see App.tsx. Never throws; an offline start
+   * simply keeps the cached profile.
+   */
+  async refreshProfile() {
+    try {
+      const response = await apiClient.get(ENDPOINTS.ME);
+      const user = response?.data?.user;
+      if (!user || user.role !== APP_ROLE) return null;
+      return this._cacheUser(user);
+    } catch {
+      return null;
+    }
   }
 
   /** Bind a Firebase-verified social identity to the logged-in account. */
@@ -184,17 +232,17 @@ class AuthService {
     await secureStorage.setTokens(access_token, refresh_token);
   }
 
-  /** Delete the account server-side, then clear the local session. */
-  async deleteAccount() {
-    const response = await apiClient.delete(ENDPOINTS.ME);
+  /**
+   * Ask an admin to delete the account. Patients can't remove their own record
+   * (the clinical history has to be retained until the clinic signs it off), so
+   * this only files the request — the session stays live.
+   */
+  async requestAccountDeletion() {
+    const response = await apiClient.post(ENDPOINTS.ACCOUNT_DELETION_REQUEST);
 
     if (!response.success) {
-      throw new Error(response.message || 'Account deletion failed');
+      throw new Error(response.message || 'Could not submit your request');
     }
-
-    await secureStorage.clearTokens();
-    await AsyncStorage.removeItem('user');
-    useAuthStore.getState().clearAuth();
   }
 
   getToken() {

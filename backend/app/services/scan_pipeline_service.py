@@ -214,12 +214,14 @@ def _run_face_pipeline(db, scan, img: "np.ndarray") -> dict:
         glow_score_engine,
         toxin_indicator,
     )
-    from app.ai.image_preprocessor import normalize_white_balance, estimate_skin_tone
+    from app.ai.image_preprocessor import normalize_exposure, normalize_white_balance, estimate_skin_tone
 
-    # Colour-constancy: neutralise the lighting cast once so every colour-based
-    # analyzer (redness, pigmentation, dark circles) sees comparable colours.
-    # Detection still runs on the original image; only analysis ROIs use WB.
-    img_wb = normalize_white_balance(img)
+    # Lighting normalisation, in two stages, so the same face scores consistently
+    # regardless of capture conditions (the top accuracy complaint):
+    #   1. white balance — neutralise the colour *cast* (warm/cool/green light);
+    #   2. exposure       — normalise absolute *brightness* (dim room vs harsh sun).
+    # Detection still runs on the original image; only analysis ROIs use this.
+    img_wb = normalize_exposure(normalize_white_balance(img))
 
     # Try full MediaPipe landmark pipeline first; fall back to OpenCV Haar cascade
     landmarks = []

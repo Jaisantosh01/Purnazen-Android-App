@@ -49,7 +49,10 @@ def get_patients(
                 "gender": appt.user.gender or "N/A",
                 "age": appt.user.age,
                 "ageStr": f"{appt.user.age} Years" if appt.user.age else "N/A",
-                "avatarUrl": appt.user.avatar_url,
+                # `.avatar`, not the raw `.avatar_url` column: the column holds a
+                # blob path, and only the property resolves it to a fetchable
+                # SAS URL (social-login URLs pass through untouched).
+                "avatarUrl": appt.user.avatar,
                 "totalConsultations": 1 if appt.status == "completed" else 0,
                 "lastVisit": appt.date.strftime("%d %b %Y") if is_valid_visit else None,
                 "lastVisitDate": appt.date if is_valid_visit else None,
@@ -122,7 +125,7 @@ def get_patient_detail(
         "gender": patient_user.gender or "N/A",
         "phone": patient_user.phone or "N/A",
         "email": patient_user.email,
-        "avatarUrl": patient_user.avatar_url,
+        "avatarUrl": patient_user.avatar,
         "totalConsultations": total_consultations,
         "lastVisit": last_visit
     }
