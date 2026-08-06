@@ -8,6 +8,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useMemo } from 'react';
 import useTheme from '../hooks/useTheme';
 import Avatar from '../components/Avatar';
+import { canPopToStackRoot } from '../navigation/backHelpers';
 
 const BookingConfirmedScreen = ({ navigation, route }) => {
   const { doctor, date, time, visitType, fee, bookingRef, appointmentId } = route.params;
@@ -21,7 +22,7 @@ const BookingConfirmedScreen = ({ navigation, route }) => {
     const parent = navigation.getParent();
     if (parent) parent.navigate('Home');
     else navigation.navigate('Home');
-    navigation.popToTop();
+    if (canPopToStackRoot(navigation)) navigation.popToTop();
   };
 
   return (

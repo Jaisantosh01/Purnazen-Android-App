@@ -17,6 +17,7 @@ import { showSuccess, showError } from '../utils/toast';
 import { SPACING, RADIUS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
 import { showAlert } from '../utils/alert';
+import { canPopToStackRoot } from '../navigation/backHelpers';
 
 // ─── Section config ──────────────────────────────────────────────────────────────
 const SECTIONS = [
@@ -224,7 +225,8 @@ const ConsultationNotesScreen = ({ route, navigation }) => {
       await appointmentService.updateStatus(appointment.id, 'completed');
       showSuccess('Appointment marked as completed.');
       reset();
-      navigation.popToTop();
+      if (canPopToStackRoot(navigation)) navigation.popToTop();
+      else if (navigation.canGoBack?.()) navigation.goBack();
     } catch (e) {
       showError(e?.message || 'Could not complete appointment.');
     } finally {
