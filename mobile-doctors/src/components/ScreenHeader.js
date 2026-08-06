@@ -5,6 +5,7 @@ import { NavigationContext } from '@react-navigation/native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import useTheme from '../hooks/useTheme';
+import { canPopToStackRoot } from '../navigation/backHelpers';
 
 /**
  * ScreenHeader — the single source of truth for the top "header card".
@@ -79,7 +80,13 @@ export default function ScreenHeader({
 
   const handleBack = () => {
     if (onBack) return onBack();
-    if (backBehavior === 'popToRoot' && typeof navigation?.popToTop === 'function' && canGoBack) {
+    // Use this stack's depth — not canGoBack() — or POP_TO_TOP errors when only
+    // a parent navigator has history.
+    if (
+      backBehavior === 'popToRoot' &&
+      typeof navigation?.popToTop === 'function' &&
+      canPopToStackRoot(navigation)
+    ) {
       return navigation.popToTop();
     }
     if (canGoBack) navigation.goBack();

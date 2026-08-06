@@ -9,6 +9,7 @@ import {
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import useTheme from '../hooks/useTheme';
+import { popToStackRoot } from '../navigation/backHelpers';
 
 const FACE_TIPS = [
   'Ensure good, even lighting on your face',
@@ -44,7 +45,7 @@ const ScanErrorScreen = ({ navigation, route }) => {
   };
 
   const handleGoHome = () => {
-    navigation.popToTop();
+    popToStackRoot(navigation);
   };
 
   return (
