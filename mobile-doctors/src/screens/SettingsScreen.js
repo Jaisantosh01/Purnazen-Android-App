@@ -17,6 +17,7 @@ import authService from '../services/authService';
 import socialAuthService from '../services/socialAuthService';
 import preferencesService from '../services/preferencesService';
 import biometricService from '../services/biometricService';
+import { getAutoUpdateEnabled, setAutoUpdateEnabled } from '../services/updateService';
 import { useAuthStore } from '../store/authStore';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
@@ -97,6 +98,7 @@ const SettingsScreen = ({ navigation, route }) => {
   const [appointmentAlerts, setAppointmentAlerts] = useState(true);
   const [biometric, setBiometric]                 = useState(false);
   const [biometricBusy, setBiometricBusy]         = useState(false);
+  const [autoUpdate, setAutoUpdate]               = useState(true);
 
   // Hydrate toggles/values from the server (defaults kept offline).
   React.useEffect(() => {
@@ -110,6 +112,7 @@ const SettingsScreen = ({ navigation, route }) => {
       .catch(err => console.log('Preferences fetch failed:', err.message));
 
     biometricService.isEnabled().then(setBiometric).catch(() => {});
+    getAutoUpdateEnabled().then(setAutoUpdate).catch(() => {});
   }, []);
 
   const savePreference = payload => {
@@ -318,7 +321,7 @@ const SettingsScreen = ({ navigation, route }) => {
 
   const handleSavePhone = async () => {
     const trimmed = phone.trim();
-    if (trimmed && !/^[+0-9 ()-]{6,15}$/.test(trimmed)) {
+    if (trimmed && !/^[+0-9 ()-]{6,10}$/.test(trimmed)) {
       setFormError('Enter a valid phone number.');
       return;
     }
@@ -352,7 +355,7 @@ const SettingsScreen = ({ navigation, route }) => {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Settings" subtitle="Manage your preferences" right={<ThemeToggle />} />
+      <ScreenHeader title="Settings" subtitle="Manage your preferences" backBehavior="popToRoot" right={<ThemeToggle />} />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
 
@@ -447,6 +450,18 @@ const SettingsScreen = ({ navigation, route }) => {
               onToggle={toggleBiometric}
               disabled={biometricBusy}
             />
+            <View style={styles.rowDivider} />
+            <ToggleRow
+              icon="cellphone-arrow-down"
+              hue={HUES.blue}
+              title="Auto-update"
+              subtitle="Prompt when a new version is available"
+              value={autoUpdate}
+              onToggle={value => {
+                setAutoUpdate(value);
+                setAutoUpdateEnabled(value);
+              }}
+            />
           </View>
         </View>
 
@@ -514,6 +529,7 @@ const SettingsScreen = ({ navigation, route }) => {
               placeholder="+91 98765 43210"
               placeholderTextColor={colors.textMuted}
               keyboardType="phone-pad"
+              maxLength={10}
             />
             {formError ? <Text style={styles.modalError}>{formError}</Text> : null}
             <View style={styles.modalActions}>

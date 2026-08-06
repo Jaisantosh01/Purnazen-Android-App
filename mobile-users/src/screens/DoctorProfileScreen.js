@@ -271,7 +271,9 @@ const DoctorProfileScreen = ({ navigation, route }) => {
                             <Text style={styles.clinicCity}>{clinic.city}</Text>
                           )}
                           {clinic.phone && (
-                            <Text style={styles.clinicPhone}>{clinic.phone}</Text>
+                            <TouchableOpacity onPress={() => Linking.openURL(`tel:${clinic.phone.replace(/[^+\d]/g, '')}`)}>
+                              <Text style={styles.clinicPhone}>{clinic.phone}</Text>
+                            </TouchableOpacity>
                           )}
                         </View>
                       </View>
@@ -496,6 +498,7 @@ const makeStyles = colors => StyleSheet.create({
     fontSize: 12,
     color: colors.primary,
     fontWeight: '500',
+    textDecorationLine: 'underline',
   },
   mapHintRow: {
     flexDirection: 'row',

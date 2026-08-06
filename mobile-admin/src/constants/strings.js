@@ -10,3 +10,9 @@ export const STRINGS = {
   CONSULT_TITLE: 'Book a Consultation',
   CONSULT_SUB: 'Talk to an expert today',
 };
+
+export const GENDERS = [
+  { id: 1, name: 'Male' },
+  { id: 2, name: 'Female' },
+  { id: 3, name: 'Others' },
+];

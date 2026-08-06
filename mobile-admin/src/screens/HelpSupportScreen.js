@@ -22,7 +22,7 @@ const HelpSupportScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Help & Support" subtitle="Get assistance" />
+      <ScreenHeader title="Help & Support" subtitle="Get assistance" backBehavior="popToRoot" />
 
       <ScrollView
         showsVerticalScrollIndicator={false}

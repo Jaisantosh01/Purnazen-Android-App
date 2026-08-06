@@ -101,6 +101,7 @@ const ProfileCompletionScreen = () => {
             onChangeText={t => { setPhone(t); setError(''); }}
             placeholder="+91 98765 43210"
             keyboardType="phone-pad"
+            maxLength={10}
             containerStyle={styles.field}
           />
 

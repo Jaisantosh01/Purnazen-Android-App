@@ -15,6 +15,7 @@ import { ENDPOINTS } from '../constants/apiEndpoints';
 import { RoutineCardSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
 import { useHeaderTopPadding } from '../components/ScreenHeader';
+import { popToStackRoot } from '../navigation/backHelpers';
 
 // FaceGlow brand hero colour — a fixed magenta banner in both light and dark.
 const GLOW = '#C850C0';
@@ -58,7 +59,7 @@ const FaceGlowScreen = ({ navigation }) => {
           <View style={styles.headerTopRow}>
             <TouchableOpacity
               style={styles.backBtn}
-              onPress={() => navigation.goBack()}
+              onPress={() => popToStackRoot(navigation)}
             >
               <MCIcon name="arrow-left" size={22} color={colors.white} />
             </TouchableOpacity>

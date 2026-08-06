@@ -212,7 +212,7 @@ const SlotManagementScreen = ({ navigation }) => {
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={[styles.slotCard, !item.is_active && styles.inactiveCard]}
-                activeOpacity={0.85}
+                activeOpacity={1}
                 onPress={() => openEditModal(item)}
               >
                 <View style={styles.slotTimeWrap}>

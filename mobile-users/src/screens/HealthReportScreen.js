@@ -57,20 +57,54 @@ const HealthReportScreen = () => {
 
   const onShare = () => {
     if (!report) return;
-    const { patient, vitals, therapy, appointments } = report;
+    const { patient, vitals, medical, therapy, appointments, latestFaceScan, latestTongueScan } = report;
     const lines = [
       `Purnazen health report — ${fmtDate(report.generatedAt)}`,
       '',
+      'Patient',
       `Name: ${patient.name || DASH}`,
       `Age / Gender: ${patient.age ?? DASH} / ${patient.gender || DASH}`,
       `Blood group: ${patient.bloodGroup || DASH}`,
       `Height / Weight: ${vitals.heightCm ?? DASH} cm / ${vitals.weightKg ?? DASH} kg`,
       vitals.bmi != null ? `BMI: ${vitals.bmi} (${vitals.bmiBand})` : null,
       '',
+      'Medical background',
+      `Allergies: ${medical.allergies || DASH}`,
+      `Conditions: ${medical.conditions || DASH}`,
+      `Medication: ${medical.medications || DASH}`,
+      '',
       `Therapy: ${therapy.completedSessions} sessions · ${therapy.totalMinutes} min`,
       `Appointments: ${appointments.completed} completed · ${appointments.upcoming} upcoming`,
-    ].filter(Boolean);
-    Share.share({ message: lines.join('\n') }).catch(() => {});
+      appointments.lastVisit ? `Last visit: ${fmtDate(appointments.lastVisit)}` : null,
+    ];
+
+    if (latestFaceScan) {
+      lines.push(
+        '',
+        'Latest face scan',
+        `Taken on: ${fmtDate(latestFaceScan.takenAt)}`,
+        `Wellness score: ${fmtScore(latestFaceScan.wellnessScore)}`,
+        `Hydration: ${fmtScore(latestFaceScan.hydrationScore)}`,
+        `Glow: ${fmtScore(latestFaceScan.glowScore)}`,
+        latestFaceScan.skinAge != null ? `Skin age: ${latestFaceScan.skinAge}` : null,
+      );
+    }
+
+    if (latestTongueScan) {
+      lines.push(
+        '',
+        'Latest tongue scan',
+        `Taken on: ${fmtDate(latestTongueScan.takenAt)}`,
+        `Tongue colour: ${latestTongueScan.tongueColour || DASH}`,
+        `Coat colour: ${latestTongueScan.coatColour || DASH}`,
+        `Coat thickness: ${latestTongueScan.coatThickness || DASH}`,
+        `Moisture: ${latestTongueScan.moisture || DASH}`,
+        `Shape: ${latestTongueScan.shape || DASH}`,
+      );
+    }
+
+    lines.push('', 'Generated with Purnazen. Not a medical diagnosis.');
+    Share.share({ message: lines.filter(Boolean).join('\n') }).catch(() => {});
   };
 
   const Section = ({ icon, title, children, action }) => (
@@ -94,7 +128,7 @@ const HealthReportScreen = () => {
   if (loading) {
     return (
       <View style={styles.root}>
-        <ScreenHeader title="My Health Report" variant="light" />
+        <ScreenHeader title="My Health Report" variant="light" backBehavior="popToRoot" />
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.stateText}>Building your report…</Text>
@@ -106,7 +140,7 @@ const HealthReportScreen = () => {
   if (error || !report) {
     return (
       <View style={styles.root}>
-        <ScreenHeader title="My Health Report" variant="light" />
+        <ScreenHeader title="My Health Report" variant="light" backBehavior="popToRoot" />
         <View style={styles.centered}>
           <MCIcon name="alert-circle-outline" size={44} color={colors.danger} />
           <Text style={styles.stateTitle}>Couldn’t load your report</Text>
@@ -128,6 +162,7 @@ const HealthReportScreen = () => {
         title="My Health Report"
         subtitle={`Generated ${fmtDate(report.generatedAt)}`}
         variant="light"
+        backBehavior="popToRoot"
         right={(
           <TouchableOpacity onPress={onShare} hitSlop={HIT} activeOpacity={0.7}>
             {/* variant="light" paints the header on colors.surface, so the icon

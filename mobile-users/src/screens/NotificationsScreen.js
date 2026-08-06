@@ -84,7 +84,7 @@ const NotificationsScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Notifications" subtitle="Manage your alerts" />
+      <ScreenHeader title="Notifications" subtitle="Manage your alerts" backBehavior="popToRoot" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
 

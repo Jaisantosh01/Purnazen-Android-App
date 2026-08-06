@@ -117,7 +117,7 @@ const TherapyHistoryScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Therapy History" variant="light" />
+      <ScreenHeader title="Therapy History" variant="light" backBehavior="popToRoot" />
 
       {isLoading ? (
         <View style={styles.centered}>

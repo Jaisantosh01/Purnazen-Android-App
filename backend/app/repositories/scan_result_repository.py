@@ -8,9 +8,18 @@ from app.models.scan_result import ScanResult
 
 class ScanResultRepository:
 
+    # Columns that may be set from a scores dict (everything else is ignored —
+    # e.g. tongue_detected is a pipeline gate, not a DB field).
+    _SCORE_COLUMNS = {
+        c.key
+        for c in ScanResult.__table__.columns
+        if c.key not in {"id", "scan_id", "created_at"}
+    }
+
     @staticmethod
     def create(db: Session, scan_id: int, scores: dict) -> ScanResult:
-        result = ScanResult(scan_id=scan_id, **scores)
+        payload = {k: v for k, v in scores.items() if k in ScanResultRepository._SCORE_COLUMNS}
+        result = ScanResult(scan_id=scan_id, **payload)
         db.add(result)
         db.commit()
         db.refresh(result)

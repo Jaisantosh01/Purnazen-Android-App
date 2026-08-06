@@ -36,6 +36,6 @@ export const quickEmailIssue = email => {
 // Phone: format check only. Real ownership verification needs an OTP/SMS round
 // trip (Firebase Phone Auth = paid SMS), so we validate the shape and leave
 // verification out. Mirrors the backend UpdateProfileRequest.phone pattern.
-export const PHONE_RE = /^[+0-9 ()-]{6,15}$/;
+export const PHONE_RE = /^[+0-9 ()-]{6,10}$/;
 
 export const isValidPhone = phone => PHONE_RE.test(String(phone || '').trim());

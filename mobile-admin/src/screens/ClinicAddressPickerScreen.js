@@ -12,6 +12,7 @@ import {
   Linking,
 } from 'react-native';
 import { showAlert } from '../utils/alert';
+import { isValidPhone } from '../utils/validators';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { WebView } from 'react-native-webview';
 import Geolocation from '@react-native-community/geolocation';
@@ -250,6 +251,12 @@ const ClinicAddressPickerScreen = ({ navigation }) => {
       return;
     }
 
+    const trimmedPhone = phone.trim();
+    if (trimmedPhone && !isValidPhone(trimmedPhone)) {
+      showAlert('Validation Error', 'Enter a valid phone number.');
+      return;
+    }
+
     _pendingClinic = {
       name: clinicName.trim(),
       address: address.trim(),
@@ -410,6 +417,7 @@ const ClinicAddressPickerScreen = ({ navigation }) => {
               value={phone}
               onChangeText={setPhone}
               keyboardType="phone-pad"
+              maxLength={10}
             />
           </View>
 

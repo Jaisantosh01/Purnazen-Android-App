@@ -17,6 +17,7 @@ import scanService from '../services/scanService';
 import useScanStore from '../store/scanStore';
 import useTheme from '../hooks/useTheme';
 import { useHeaderTopPadding } from '../components/ScreenHeader';
+import { popToStackRoot } from '../navigation/backHelpers';
 
 function glowColor(score, muted = '#9CA3AF') {
   if (score == null) return muted;
@@ -65,9 +66,9 @@ const ScanHistoryScreen = ({ navigation, route }) => {
   const headerTop = useHeaderTopPadding();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  // Face and tongue histories are kept separate — each entry point passes its
-  // own scanType so the two report types are never mixed in one list.
-  const scanType = route?.params?.scanType === 'tongue' ? 'tongue' : 'face';
+  // Default from the entry route, then let the user flip Skin ↔ Tongue tabs.
+  const initialType = route?.params?.scanType === 'tongue' ? 'tongue' : 'face';
+  const [scanType, setScanType] = useState(initialType);
   const isTongue = scanType === 'tongue';
   // Score shown per row: glow for skin scans, wellness for tongue scans.
   const scoreOf = useCallback(
@@ -81,7 +82,13 @@ const ScanHistoryScreen = ({ navigation, route }) => {
   const setHistory = useScanStore(s => s.setHistory);
   const removeScanFromHistory = useScanStore(s => s.removeScanFromHistory);
 
+  // Keep tab in sync if another screen navigates here with a different scanType.
+  useEffect(() => {
+    setScanType(route?.params?.scanType === 'tongue' ? 'tongue' : 'face');
+  }, [route?.params?.scanType]);
+
   const load = useCallback(async () => {
+    setLoading(true);
     try {
       const data = await scanService.getHistory({ scanType, limit: 50 });
       const scans = data?.scans ?? [];
@@ -137,31 +144,59 @@ const ScanHistoryScreen = ({ navigation, route }) => {
   const completed = items.filter(s => s.status === 'completed' && scoreOf(s) != null);
   const trendPoints = [...completed].reverse().map(scoreOf); // oldest→newest
 
+  const TabBar = (
+    <View style={styles.tabs}>
+      {[
+        { key: 'face', label: 'Skin', icon: 'face-recognition' },
+        { key: 'tongue', label: 'Tongue', icon: 'emoticon-tongue-outline' },
+      ].map(t => {
+        const on = scanType === t.key;
+        return (
+          <TouchableOpacity
+            key={t.key}
+            style={[styles.tabBtn, on && styles.tabBtnOn]}
+            onPress={() => { if (!on) setScanType(t.key); }}
+            activeOpacity={0.85}
+          >
+            <MCIcon name={t.icon} size={16} color={on ? colors.white : colors.textSecondary} />
+            <Text style={[styles.tabText, on && styles.tabTextOn]}>{t.label}</Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor="#C850C0" />
 
       <View style={[styles.header, { paddingTop: headerTop }]}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => popToStackRoot(navigation)}>
           <MCIcon name="arrow-left" size={22} color={colors.white} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{isTongue ? 'Tongue Scan History' : 'Skin Scan History'}</Text>
+        <Text style={styles.headerTitle}>Scan History</Text>
         <View style={{ width: 38 }} />
       </View>
+
+      {TabBar}
 
       {loading ? (
         <View style={styles.center}><ActivityIndicator color="#C850C0" size="large" /></View>
       ) : items.length === 0 ? (
         <View style={styles.center}>
-          <MCIcon name="history" size={48} color={colors.borderStrong} />
-          <Text style={styles.emptyTitle}>No scans yet</Text>
+          <MCIcon
+            name={isTongue ? 'emoticon-tongue-outline' : 'history'}
+            size={48}
+            color={colors.borderStrong}
+          />
+          <Text style={styles.emptyTitle}>No {isTongue ? 'tongue' : 'skin'} scans yet</Text>
           <Text style={styles.emptySub}>
             {isTongue
               ? 'Run a tongue scan to start tracking your wellness over time.'
               : 'Run a face scan to start tracking your skin over time.'}
           </Text>
           <TouchableOpacity
-            style={styles.scanCta}
+            style={[styles.scanCta, isTongue && styles.scanCtaTongue]}
             onPress={() => navigation.navigate(isTongue ? 'TongueScan' : 'FaceScan', { scanType })}
           >
             <Text style={styles.scanCtaText}>Start a scan</Text>
@@ -240,10 +275,35 @@ const makeStyles = colors => StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   headerTitle: { fontSize: 18, fontWeight: '800', color: colors.white },
+  tabs: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginTop: 14,
+    marginBottom: 4,
+    backgroundColor: colors.card,
+    borderRadius: 14,
+    padding: 4,
+    gap: 4,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  tabBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 11,
+  },
+  tabBtnOn: { backgroundColor: '#C850C0' },
+  tabText: { fontSize: 13.5, fontWeight: '700', color: colors.textSecondary },
+  tabTextOn: { color: colors.white },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 10 },
   emptyTitle: { fontSize: 17, fontWeight: '700', color: colors.textPrimary },
   emptySub: { fontSize: 13.5, color: colors.textMuted, textAlign: 'center' },
   scanCta: { marginTop: 12, backgroundColor: '#C850C0', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 28 },
+  scanCtaTongue: { backgroundColor: '#fa7921' },
   scanCtaText: { color: colors.white, fontWeight: '700', fontSize: 15 },
 
   trendCard: {

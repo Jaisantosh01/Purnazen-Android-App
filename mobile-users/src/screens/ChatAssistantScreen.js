@@ -6,16 +6,32 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  TextInput,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import useTheme from '../hooks/useTheme';
-import AppDialog from '../components/AppDialog';
-import PainScale from '../components/PainScale';
 import ScreenHeader from '../components/ScreenHeader';
+
+// Chat asks Mild/Moderate/Severe once; midpoints become therapy_feedback.painBefore
+// so we don't re-ask with a 0–10 slider before the video.
+const SEVERITY_TO_PAIN = {
+  mild: 2,
+  moderate: 5,
+  severe: 8,
+};
+
+function painBeforeFromHistory(history) {
+  for (const item of history) {
+    if (item.type !== 'user') continue;
+    const t = String(item.text || '').toLowerCase();
+    for (const [key, value] of Object.entries(SEVERITY_TO_PAIN)) {
+      if (t.includes(key)) return value;
+    }
+  }
+  return null;
+}
 
 const ChatAssistantScreen = ({ route, navigation }) => {
   const { colors } = useTheme();
@@ -27,16 +43,6 @@ const ChatAssistantScreen = ({ route, navigation }) => {
   const [history, setHistory] = useState([]);
   const [currentQuestionId, setCurrentQuestionId] = useState(startQuestionId);
   const [loading, setLoading] = useState(true);
-
-  // Pre-session pain baseline. It is carried into the player rather than saved
-  // here: the feedback row has to hang off the session group, and that group
-  // doesn't exist until VideoPlayerScreen starts the run. The player writes the
-  // baseline and closes the pair with painAfter at the end, so therapy history
-  // shows a before → after on one record.
-  const [showPainModal, setShowPainModal] = useState(false);
-  const [painLevel, setPainLevel] = useState(5);
-  const [painDescription, setPainDescription] = useState('');
-  const [pendingGroupId, setPendingGroupId] = useState(null);
 
   const scrollViewRef = useRef();
 
@@ -62,29 +68,11 @@ const ChatAssistantScreen = ({ route, navigation }) => {
       navigateToVideos(null);
       return;
     }
-    setPendingGroupId(groupId);
-    setPainLevel(5);
-    setPainDescription('');
-    setShowPainModal(true);
-  }, [navigateToVideos]);
-
-  const handleSkipPain = useCallback(() => {
-    setShowPainModal(false);
-    navigateToVideos(pendingGroupId);
-    setPendingGroupId(null);
-  }, [navigateToVideos, pendingGroupId]);
-
-  const handleSavePain = useCallback(() => {
-    const groupId = pendingGroupId;
-    if (!groupId) return;
-
-    setShowPainModal(false);
+    // Map the chatbot severity answer → painBefore (posted by VideoPlayer).
     navigateToVideos(groupId, {
-      painBefore: Math.min(10, Math.max(0, painLevel)),
-      painDescription: painDescription.trim() || null,
+      painBefore: painBeforeFromHistory(history),
     });
-    setPendingGroupId(null);
-  }, [pendingGroupId, painLevel, painDescription, navigateToVideos]);
+  }, [navigateToVideos, history]);
 
   useEffect(() => {
     apiClient
@@ -206,28 +194,6 @@ const ChatAssistantScreen = ({ route, navigation }) => {
            </TouchableOpacity>
         </View>
       )}
-
-      <AppDialog
-        visible={showPainModal}
-        onClose={handleSkipPain}
-        onConfirm={handleSavePain}
-        confirmLabel="Start Session"
-        cancelLabel="Skip"
-        icon="heart-plus-outline"
-        title="How is your pain?"
-        subtitle="Tell us where you're starting from, so you can see the difference after the session."
-      >
-        <PainScale value={painLevel} onChange={setPainLevel} label="Pain right now" />
-        <TextInput
-          style={styles.painInput}
-          placeholder="Describe your pain (optional)"
-          placeholderTextColor={colors.textMuted}
-          value={painDescription}
-          onChangeText={setPainDescription}
-          multiline
-          maxLength={500}
-        />
-      </AppDialog>
     </View>
   );
 };
@@ -332,17 +298,6 @@ const makeStyles = colors => StyleSheet.create({
     justifyContent: 'center',
     marginTop: 10,
     gap: 10,
-  },
-  painInput: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    padding: 12,
-    fontSize: 14,
-    color: colors.textPrimary,
-    backgroundColor: colors.surfaceMuted,
-    minHeight: 80,
-    textAlignVertical: 'top',
   },
   startSessionText: {
     color: colors.white,

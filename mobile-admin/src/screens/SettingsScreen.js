@@ -16,6 +16,7 @@ import authService from '../services/authService';
 import socialAuthService from '../services/socialAuthService';
 import preferencesService from '../services/preferencesService';
 import biometricService from '../services/biometricService';
+import { getAutoUpdateEnabled, setAutoUpdateEnabled } from '../services/updateService';
 import { useAuthStore } from '../store/authStore';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
@@ -103,6 +104,7 @@ const SettingsScreen = ({ navigation }) => {
   const [biometric, setBiometric]                 = useState(false);
   const [biometricBusy, setBiometricBusy]         = useState(false);
   const [language, setLanguage]                   = useState('en');
+  const [autoUpdate, setAutoUpdate]               = useState(true);
 
   // Hydrate toggles/values from the server (defaults kept offline).
   React.useEffect(() => {
@@ -117,6 +119,7 @@ const SettingsScreen = ({ navigation }) => {
       .catch(err => console.log('Preferences fetch failed:', err.message));
 
     biometricService.isEnabled().then(setBiometric).catch(() => {});
+    getAutoUpdateEnabled().then(setAutoUpdate).catch(() => {});
   }, []);
 
   const savePreference = payload => {
@@ -286,7 +289,7 @@ const SettingsScreen = ({ navigation }) => {
   const handleSaveProfile = async () => {
     if (!fullName.trim()) { setFormError('Name cannot be empty.'); return; }
     const trimmedPhone = profilePhone.trim();
-    if (trimmedPhone && !/^[+0-9 ()-]{6,15}$/.test(trimmedPhone)) {
+    if (trimmedPhone && !/^[+0-9 ()-]{6,10}$/.test(trimmedPhone)) {
       setFormError('Enter a valid phone number.');
       return;
     }
@@ -316,7 +319,7 @@ const SettingsScreen = ({ navigation }) => {
 
   const handleSavePhone = async () => {
     const trimmed = phone.trim();
-    if (trimmed && !/^[+0-9 ()-]{6,15}$/.test(trimmed)) {
+    if (trimmed && !/^[+0-9 ()-]{6,10}$/.test(trimmed)) {
       setFormError('Enter a valid phone number.');
       return;
     }
@@ -350,7 +353,7 @@ const SettingsScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Settings" subtitle="Manage your preferences" right={<ThemeToggle />} />
+      <ScreenHeader title="Settings" subtitle="Manage your preferences" backBehavior="popToRoot" right={<ThemeToggle />} />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
 
@@ -446,6 +449,18 @@ const SettingsScreen = ({ navigation }) => {
               disabled={biometricBusy}
             />
             <View style={styles.rowDivider} />
+            <ToggleRow
+              icon="cellphone-arrow-down"
+              hue={HUES.blue}
+              title="Auto-update"
+              subtitle="Prompt when a new version is available"
+              value={autoUpdate}
+              onToggle={value => {
+                setAutoUpdate(value);
+                setAutoUpdateEnabled(value);
+              }}
+            />
+            <View style={styles.rowDivider} />
             <ArrowRow
               icon="translate"
               hue={HUES.orange}
@@ -488,6 +503,7 @@ const SettingsScreen = ({ navigation }) => {
                 placeholder="+91 98765 43210"
                 placeholderTextColor={colors.textMuted}
                 keyboardType="phone-pad"
+                maxLength={10}
               />
               <Text style={styles.modalLabel}>Gender</Text>
               <GenderSelect value={gender} onChange={v => { setGender(v); setFormError(''); }} />
@@ -521,6 +537,7 @@ const SettingsScreen = ({ navigation }) => {
               placeholder="+91 98765 43210"
               placeholderTextColor={colors.textMuted}
               keyboardType="phone-pad"
+              maxLength={10}
             />
             {formError ? <Text style={styles.modalError}>{formError}</Text> : null}
             <View style={styles.modalActions}>

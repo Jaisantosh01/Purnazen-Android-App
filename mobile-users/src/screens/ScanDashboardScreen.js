@@ -15,6 +15,7 @@ import scanService from '../services/scanService';
 import TrendChart from '../components/scan/TrendChart';
 import useTheme from '../hooks/useTheme';
 import { useHeaderTopPadding } from '../components/ScreenHeader';
+import { popToStackRoot } from '../navigation/backHelpers';
 
 const GLOW = '#C850C0';
 
@@ -124,11 +125,14 @@ const ScanDashboardScreen = ({ navigation }) => {
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor={GLOW} />
       <View style={[styles.header, { paddingTop: headerTop }]}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.iconBtn} onPress={() => popToStackRoot(navigation)}>
           <MCIcon name="arrow-left" size={22} color={colors.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{mode === 'face' ? 'Skin Dashboard' : 'Tongue Dashboard'}</Text>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.navigate('ScanHistory')}>
+        <TouchableOpacity
+          style={styles.iconBtn}
+          onPress={() => navigation.navigate('ScanHistory', { scanType: mode === 'tongue' ? 'tongue' : 'face' })}
+        >
           <MCIcon name="history" size={22} color={colors.white} />
         </TouchableOpacity>
       </View>

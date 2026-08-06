@@ -16,6 +16,7 @@ import { APPOINTMENT_STATUS_COLORS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
 import { APPOINTMENT_HISTORY_STATUS_LABELS } from '../constants/strings';
 import { useHeaderTopPadding } from '../components/ScreenHeader';
+import { popToStackRoot } from '../navigation/backHelpers';
 
 
 const STATUS_COLORS = APPOINTMENT_STATUS_COLORS;
@@ -116,7 +117,7 @@ const AppointmentHistoryScreen = ({ navigation }) => {
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
 
       <View style={[styles.header, { paddingTop: headerTop }]}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => popToStackRoot(navigation)}>
           <MCIcon name="arrow-left" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Appointments</Text>

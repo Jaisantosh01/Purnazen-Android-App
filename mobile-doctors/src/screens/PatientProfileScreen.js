@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -59,6 +60,17 @@ const PatientProfileScreen = ({ route, navigation }) => {
         .toUpperCase()
         .slice(0, 2)
     : '';
+
+  const handleCall = () => {
+    if (!patient?.phone) return;
+    const dialable = patient.phone.replace(/[^+\d]/g, '');
+    Linking.openURL(`tel:${dialable}`).catch(() => {});
+  };
+
+  const handleEmail = () => {
+    if (!patient?.email) return;
+    Linking.openURL(`mailto:${patient.email}`).catch(() => {});
+  };
 
   const handleMenuPress = (menuId) => {
     if (!patient) return;
@@ -134,14 +146,34 @@ const PatientProfileScreen = ({ route, navigation }) => {
 
               {/* Contact Information */}
               <View style={styles.contactContainer}>
-                <View style={styles.contactRow}>
-                  <MCIcon name="phone-outline" size={18} color={colors.textSecondary} style={styles.contactIcon} />
-                  <Text style={styles.contactText}>{patient.phone || 'N/A'}</Text>
-                </View>
-                <View style={styles.contactRow}>
-                  <MCIcon name="email-outline" size={18} color={colors.textSecondary} style={styles.contactIcon} />
-                  <Text style={styles.contactText}>{patient.email || 'N/A'}</Text>
-                </View>
+                {patient.phone ? (
+                  <TouchableOpacity
+                    style={styles.contactRow}
+                    onPress={handleCall}
+                    activeOpacity={0.7}>
+                    <MCIcon name="phone-outline" size={18} color={colors.textSecondary} style={styles.contactIcon} />
+                    <Text style={[styles.contactText, styles.contactLink]}>{patient.phone}</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={styles.contactRow}>
+                    <MCIcon name="phone-outline" size={18} color={colors.textSecondary} style={styles.contactIcon} />
+                    <Text style={styles.contactText}>N/A</Text>
+                  </View>
+                )}
+                {patient.email ? (
+                  <TouchableOpacity
+                    style={styles.contactRow}
+                    onPress={handleEmail}
+                    activeOpacity={0.7}>
+                    <MCIcon name="email-outline" size={18} color={colors.textSecondary} style={styles.contactIcon} />
+                    <Text style={[styles.contactText, styles.contactLink]}>{patient.email}</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={styles.contactRow}>
+                    <MCIcon name="email-outline" size={18} color={colors.textSecondary} style={styles.contactIcon} />
+                    <Text style={styles.contactText}>N/A</Text>
+                  </View>
+                )}
               </View>
             </View>
 
@@ -263,6 +295,10 @@ const makeStyles = colors =>
     fontSize: 13.5,
     color: colors.textPrimary,
     fontWeight: '500',
+  },
+  contactLink: {
+    color: colors.primary,
+    textDecorationLine: 'underline',
   },
 
   // Summary Row (Side-by-Side Cards)
