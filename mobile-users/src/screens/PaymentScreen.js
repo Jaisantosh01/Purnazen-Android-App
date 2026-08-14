@@ -8,7 +8,9 @@ import { showAlert } from '../utils/alert';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import consultService from '../services/consultService';
 import useTheme from '../hooks/useTheme';
+import useTaxConfig from '../hooks/useTaxConfig';
 import ScreenHeader from '../components/ScreenHeader';
+import { appointmentBreakdown, formatRupees, gstLabel } from '../utils/tax';
 
 const PAYMENT_METHODS = [
   { id: 'card',   label: 'Credit/Debit Card', icon: 'credit-card-outline' },
@@ -25,9 +27,19 @@ const WALLETS = [
 const PaymentScreen = ({ navigation, route }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const { doctor, fee, appointmentId } = route.params;
-  const gst = Math.round(fee * 0.18);
-  const total = fee + gst;
+  const { doctor, fee, appointment, appointmentId } = route.params;
+
+  // The rate is admin-configured, so it is read off the booked appointment
+  // rather than assumed. The live config is only a fallback for appointments
+  // booked before GST existed, and the backend charges whatever the row says
+  // regardless — these figures exist to show the patient the same number.
+  const { gstPercentage } = useTaxConfig();
+  const charges = useMemo(
+    () => appointmentBreakdown(appointment ?? { fee }, gstPercentage ?? 0),
+    [appointment, fee, gstPercentage],
+  );
+  const total = charges.total;
+  const showsGst = charges.gstPercentage > 0;
 
   const [selectedMethod, setSelectedMethod] = useState('card');
   const [selectedWallet, setSelectedWallet] = useState(null);
@@ -65,7 +77,7 @@ const PaymentScreen = ({ navigation, route }) => {
 
       showAlert(
         'Payment Successful!',
-        `₹${total} paid successfully for your appointment with ${doctor.name}.`,
+        `${formatRupees(total)} paid successfully for your appointment with ${doctor.name}.`,
         [{ text: 'OK', onPress: () => navigation.navigate('ConsultMain') }]
       );
     } catch (err) {
@@ -86,16 +98,20 @@ const PaymentScreen = ({ navigation, route }) => {
           <View style={styles.summaryCard}>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Consultation Fee</Text>
-              <Text style={styles.summaryValue}>₹{fee}</Text>
+              <Text style={styles.summaryValue}>
+                {formatRupees(charges.base)}{showsGst ? ' + Tax' : ''}
+              </Text>
             </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>GST (18%)</Text>
-              <Text style={styles.summaryValue}>₹{gst}</Text>
-            </View>
+            {showsGst ? (
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>{gstLabel(charges.gstPercentage)}</Text>
+                <Text style={styles.summaryValue}>+ {formatRupees(charges.gst)}</Text>
+              </View>
+            ) : null}
             <View style={styles.divider} />
             <View style={styles.summaryRow}>
               <Text style={styles.totalLabel}>Total Amount</Text>
-              <Text style={styles.totalValue}>₹{total}</Text>
+              <Text style={styles.totalValue}>{formatRupees(total)}</Text>
             </View>
           </View>
         </View>
@@ -224,7 +240,7 @@ const PaymentScreen = ({ navigation, route }) => {
         <TouchableOpacity style={styles.payBtn} onPress={handlePay} activeOpacity={0.85} disabled={isProcessing}>
           {isProcessing
             ? <ActivityIndicator color={colors.white} />
-            : <Text style={styles.payBtnText}>Pay ₹{total}</Text>
+            : <Text style={styles.payBtnText}>Pay {formatRupees(total)}</Text>
           }
         </TouchableOpacity>
       </View>

@@ -18,6 +18,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import authService from '../services/authService';
 import socialAuthService from '../services/socialAuthService';
 import useTheme from '../hooks/useTheme';
+import { STRINGS } from '../constants/strings';
 import { isValidEmail } from '../utils/validators';
 
 const LoginScreen = ({ navigation }) => {
@@ -116,6 +117,7 @@ const LoginScreen = ({ navigation }) => {
           </View>
           <Text style={styles.appName}>Purnazen</Text>
           <Text style={styles.tagline}>AI Assisted Acupressure & Wellness</Text>
+          <Text style={styles.brandTagline}>{STRINGS.BRAND_TAGLINE}</Text>
         </Animated.View>
       </View>
 
@@ -284,6 +286,13 @@ const makeStyles = colors => StyleSheet.create({
   },
   appName: { fontSize: 32, fontWeight: '800', color: colors.white, letterSpacing: 0.3, marginBottom: 6, textAlign: 'center' },
   tagline: { fontSize: 13.5, color: 'rgba(255,255,255,0.85)', letterSpacing: 0.2, textAlign: 'center' },
+  brandTagline: {
+    marginTop: 8,
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.92)',
+    textAlign: 'center',
+  },
 
   card: {
     backgroundColor: colors.card,

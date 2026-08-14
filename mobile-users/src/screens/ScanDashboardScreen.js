@@ -81,6 +81,15 @@ const ScanDashboardScreen = ({ navigation }) => {
 
   useEffect(() => { loadDashboard(mode); }, [mode, loadDashboard]);
 
+  // Refresh on return: deleting a scan in Scan History changes the count, the
+  // latest result and the trend, and this screen would otherwise keep showing
+  // figures for a scan that no longer exists. The listener is registered while
+  // the screen is already focused, so it doesn't double-fetch on entry.
+  useEffect(
+    () => navigation.addListener('focus', () => loadDashboard(mode)),
+    [navigation, mode, loadDashboard],
+  );
+
   const selectMetric = async (key) => {
     setMetric(key);
     if (key === 'glow_score') {

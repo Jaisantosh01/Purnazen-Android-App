@@ -94,6 +94,17 @@ const ManageScreen = ({ navigation }) => {
         },
       ],
     },
+    {
+      title: 'Billing',
+      items: [
+        {
+          icon: 'percent-outline',
+          title: 'GST',
+          subtitle: 'Set the tax applied to consultation fees',
+          screen: 'TaxSettings',
+        },
+      ],
+    },
   ];
 
   return (

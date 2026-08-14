@@ -33,6 +33,7 @@ from app.api.v1.endpoints import user_addresses
 from app.api.v1.endpoints import notifications
 from app.api.v1.endpoints import content_pages
 from app.api.v1.endpoints import subscriptions
+from app.api.v1.endpoints import tax
 
 api_router = APIRouter()
 
@@ -69,4 +70,5 @@ api_router.include_router(user_addresses.router)
 api_router.include_router(notifications.router)
 api_router.include_router(content_pages.router)
 api_router.include_router(subscriptions.router)
+api_router.include_router(tax.router)
 api_router.include_router(support_faqs.router, prefix="/support-faqs", tags=["Support FAQs"])

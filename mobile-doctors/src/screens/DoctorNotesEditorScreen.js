@@ -5,6 +5,8 @@ import {
   TextInput,
   StyleSheet,
   TouchableOpacity,
+  TouchableWithoutFeedback,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -56,33 +58,42 @@ const DoctorNotesEditorScreen = ({ route, navigation }) => {
       <KeyboardAvoidingView
         style={styles.flex1}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={styles.editorWrap}>
-          <View style={styles.labelRow}>
-            <MCIcon name="note-text-outline" size={18} color={colors.primary} />
-            <Text style={styles.labelText}>Doctor Notes</Text>
-          </View>
-          <TextInput
-            style={styles.textInput}
-            placeholder="Enter your clinical notes about the consultation…"
-            placeholderTextColor={colors.textMuted}
-            multiline
-            textAlignVertical="top"
-            autoFocus
-            value={text}
-            onChangeText={setText}
-          />
-        </View>
+        {/* Tapping anywhere off the field puts the keyboard away — the whole body
+            is covered, not just the editor, so the margin around the Save button
+            works too. `accessible={false}` keeps the wrapper out of the screen
+            reader's focus order, and Save still receives its own taps. Dismissing
+            only blurs the input: the note lives in state, so nothing is lost. */}
+        <TouchableWithoutFeedback accessible={false} onPress={Keyboard.dismiss}>
+          <View style={styles.flex1}>
+            <View style={styles.editorWrap}>
+              <View style={styles.labelRow}>
+                <MCIcon name="note-text-outline" size={18} color={colors.primary} />
+                <Text style={styles.labelText}>Doctor Notes</Text>
+              </View>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Enter your clinical notes about the consultation…"
+                placeholderTextColor={colors.textMuted}
+                multiline
+                textAlignVertical="top"
+                autoFocus
+                value={text}
+                onChangeText={setText}
+              />
+            </View>
 
-        <View style={styles.footer}>
-          <TouchableOpacity
-            style={[styles.saveBtn, (!text.trim() || saving) && styles.btnDisabled]}
-            activeOpacity={0.85}
-            disabled={!text.trim() || saving}
-            onPress={handleSave}>
-            <MCIcon name="content-save-outline" size={20} color={colors.white} />
-            <Text style={styles.saveBtnText}>{saving ? 'Saving…' : 'Save'}</Text>
-          </TouchableOpacity>
-        </View>
+            <View style={styles.footer}>
+              <TouchableOpacity
+                style={[styles.saveBtn, (!text.trim() || saving) && styles.btnDisabled]}
+                activeOpacity={0.85}
+                disabled={!text.trim() || saving}
+                onPress={handleSave}>
+                <MCIcon name="content-save-outline" size={20} color={colors.white} />
+                <Text style={styles.saveBtnText}>{saving ? 'Saving…' : 'Save'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
     </View>
   );

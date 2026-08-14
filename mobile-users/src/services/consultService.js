@@ -154,6 +154,17 @@ class ConsultService {
     }
   }
 
+  /** Admin-configured tax rates. Used to quote a fee before an appointment
+   *  exists; once one does, its own snapshot wins. */
+  async getTaxConfig() {
+    try {
+      const json = await this.get(ENDPOINTS.TAX_CONFIG);
+      return json?.data;
+    } catch (err) {
+      throw new Error(err?.message ?? 'Failed to fetch tax configuration');
+    }
+  }
+
   async verifyPayment({ orderId, paymentId, signature }) {
     try {
       const json = await this.post(ENDPOINTS.PAYMENT_VERIFY, {

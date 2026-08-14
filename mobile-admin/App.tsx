@@ -56,6 +56,7 @@ import NotificationAdminScreen from './src/screens/NotificationAdminScreen';
 import ContentManagementScreen from './src/screens/ContentManagementScreen';
 import ContentDetailScreen from './src/screens/ContentDetailScreen';
 import ContentEditorScreen from './src/screens/ContentEditorScreen';
+import TaxSettingsScreen from './src/screens/TaxSettingsScreen';
 import ManageScreen from './src/screens/ManageScreen';
 
 const RootStack = createNativeStackNavigator();
@@ -141,6 +142,8 @@ function ManageStackNavigator() {
       <ManageStack.Screen name="ContentManagement" component={ContentManagementScreen} />
       <ManageStack.Screen name="ContentEditor" component={ContentEditorScreen} />
       <ManageStack.Screen name="ContentDetail" component={ContentDetailScreen} />
+      {/* Billing */}
+      <ManageStack.Screen name="TaxSettings" component={TaxSettingsScreen} />
     </ManageStack.Navigator>
   );
 }

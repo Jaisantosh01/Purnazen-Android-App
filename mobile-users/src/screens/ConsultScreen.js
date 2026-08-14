@@ -15,6 +15,7 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import consultService from '../services/consultService';
 import useTheme from '../hooks/useTheme';
+import useTaxConfig from '../hooks/useTaxConfig';
 import Avatar from '../components/Avatar';
 import {TAG_ICONS} from '../constants/icons';
 import {CONSULT_SCREEN_FILTER_TABS_FALLBACK} from '../constants/miscellaneous';
@@ -73,6 +74,11 @@ const ConsultScreen = ({ navigation }) => {
   const [error, setError]               = useState(null);
   const [page, setPage]                 = useState(1);
   const [hasMore, setHasMore]           = useState(true);
+
+  // The listed fee is pre-tax, so it is labelled as such — otherwise the number
+  // here and the total at checkout look like two different prices.
+  const { gstPercentage } = useTaxConfig();
+  const showsTax = (gstPercentage ?? 0) > 0;
 
   // Fix 8: ref to detect and ignore stale responses from rapid filter switching
   const fetchIdRef = useRef(0);
@@ -194,7 +200,10 @@ const ConsultScreen = ({ navigation }) => {
       <View style={styles.cardFooter}>
         <View>
           <Text style={styles.feeLabel}>Starts at only</Text>
-          <Text style={styles.feeAmount}>₹{doctor.minFee ?? doctor.fee}</Text>
+          <Text style={styles.feeAmount}>
+            ₹{doctor.minFee ?? doctor.fee}
+            {showsTax ? <Text style={styles.feeTax}> + Tax</Text> : null}
+          </Text>
         </View>
         <View style={[
           styles.availabilityBadge,
@@ -524,6 +533,11 @@ const makeStyles = colors => StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
     color: colors.primary,
+  },
+  feeTax: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textMuted,
   },
   availabilityBadge: {
     paddingHorizontal: 12,

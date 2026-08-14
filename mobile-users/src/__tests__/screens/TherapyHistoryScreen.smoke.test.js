@@ -35,6 +35,21 @@ jest.mock('../../services/therapyService', () => ({
         totalVideos: 2,
         createdAt: '2026-06-08T09:00:00Z',
       },
+      {
+        id: 3,
+        sessionType: 'relief',
+        groupTitle: 'Back Relief',
+        groupId: 'g3',
+        status: 'completed',
+        completedVideos: 2,
+        totalVideos: 2,
+        createdAt: '2026-06-05T09:00:00Z',
+        feedback: {
+          painBefore: 8,
+          painAfter: 3,
+          userFeedback: 'Lower back felt much looser afterwards',
+        },
+      },
     ],
   }),
   completeSession: jest.fn().mockResolvedValue({}),
@@ -89,5 +104,26 @@ describe('TherapyHistoryScreen', () => {
     const allText = flattenText(tree.toJSON());
     expect(allText).toContain('Sessions');
     expect(allText).toContain('Minutes');
+  });
+
+  it('shows the feedback message left against a session', async () => {
+    let tree;
+    await act(async () => {
+      tree = renderer.create(<TherapyHistoryScreen navigation={navigation} />);
+    });
+    const allText = flattenText(tree.toJSON());
+    expect(allText).toContain('Your feedback');
+    expect(allText).toContain('Lower back felt much looser afterwards');
+  });
+
+  it('omits the feedback block for sessions with none', async () => {
+    let tree;
+    await act(async () => {
+      tree = renderer.create(<TherapyHistoryScreen navigation={navigation} />);
+    });
+    // Only one of the three mocked sessions carries a remark, so the label must
+    // not repeat — an empty quote block on the other two would be a regression.
+    const allText = flattenText(tree.toJSON());
+    expect(allText.match(/Your feedback/g)).toHaveLength(1);
   });
 });

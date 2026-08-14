@@ -17,6 +17,7 @@ import useTheme from '../hooks/useTheme';
 import { APPOINTMENT_HISTORY_STATUS_LABELS } from '../constants/strings';
 import { useHeaderTopPadding } from '../components/ScreenHeader';
 import { popToStackRoot } from '../navigation/backHelpers';
+import { appointmentBreakdown, formatRupees } from '../utils/tax';
 
 
 const STATUS_COLORS = APPOINTMENT_STATUS_COLORS;
@@ -91,8 +92,10 @@ const AppointmentHistoryScreen = ({ navigation }) => {
           <Text style={styles.detailValue}>{item.consultationType}</Text>
         </View>
         <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Fee</Text>
-          <Text style={styles.detailValue}>₹{item.fee}</Text>
+          <Text style={styles.detailLabel}>Total</Text>
+          <Text style={styles.detailValue}>
+            {formatRupees(appointmentBreakdown(item).total)}
+          </Text>
         </View>
       </View>
 

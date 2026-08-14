@@ -91,7 +91,12 @@ const HomeScreen = ({ navigation }) => {
               )}
             </TouchableOpacity>
           }
-        />
+        >
+          <View style={styles.taglineChip}>
+            <MCIcon name="leaf" size={14} color="#fff" />
+            <Text style={styles.taglineText}>{STRINGS.BRAND_TAGLINE}</Text>
+          </View>
+        </TabHeader>
 
         {/* ── Quick Relief ── */}
         <View style={styles.section}>
@@ -255,6 +260,25 @@ const makeStyles = colors => StyleSheet.create({
     paddingHorizontal: 4,
   },
   bellBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
+
+  // Brand tagline, in the hero's `children` slot. Fixed white-on-brand like the
+  // rest of TabHeader's text, so it reads the same in both schemes.
+  taglineChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 7,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+  },
+  taglineText: {
+    flexShrink: 1,
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
 
   // Sections
   section: {
