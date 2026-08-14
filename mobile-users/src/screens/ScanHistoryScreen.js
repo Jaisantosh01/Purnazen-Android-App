@@ -32,6 +32,13 @@ function formatDate(iso) {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+/** "face scan from 3 Aug 2026" — identifies one scan in prose. */
+function describeScan(item) {
+  const kind = item?.scanType === 'tongue' ? 'tongue scan' : 'face scan';
+  const taken = formatDate(item?.createdAt);
+  return taken ? `${kind} from ${taken}` : kind;
+}
+
 /** Lightweight glow-score trend line (no chart lib). `points` oldest→newest. */
 function GlowTrend({ points, styles, colors, title = 'Glow score over time' }) {
   const W = 300;
@@ -79,6 +86,7 @@ const ScanHistoryScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [opening, setOpening] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
   const setHistory = useScanStore(s => s.setHistory);
   const removeScanFromHistory = useScanStore(s => s.removeScanFromHistory);
 
@@ -122,23 +130,36 @@ const ScanHistoryScreen = ({ navigation, route }) => {
     }
   };
 
+  // Names the scan being removed (type + date) so it is unmistakable *which*
+  // one is going, and so a mis-tap on the wrong row is caught at the dialog.
   const confirmDelete = (item) => {
-    showAlert('Delete scan?', 'This permanently removes the scan and its results.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await scanService.deleteScan(item.id);
-            removeScanFromHistory(item.id);
-            setItems(prev => prev.filter(s => s.id !== item.id));
-          } catch (e) {
-            showAlert('Error', 'Could not delete this scan.');
-          }
+    if (deletingId) return;
+    showAlert(
+      'Delete this scan?',
+      `Your ${describeScan(item)} will be permanently deleted, along with its `
+        + 'results and recommendations. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeletingId(item.id);
+            try {
+              await scanService.deleteScan(item.id);
+              // Drop it from the shared store too, so the dashboard's "latest
+              // scan" card doesn't keep showing a scan that no longer exists.
+              removeScanFromHistory(item.id);
+              setItems(prev => prev.filter(s => s.id !== item.id));
+            } catch (e) {
+              showAlert('Error', 'Could not delete this scan. Please try again.');
+            } finally {
+              setDeletingId(null);
+            }
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
   const completed = items.filter(s => s.status === 'completed' && scoreOf(s) != null);
@@ -216,13 +237,15 @@ const ScanHistoryScreen = ({ navigation, route }) => {
 
           {items.map(item => {
             const score = scoreOf(item);
+            const isDeleting = deletingId === item.id;
             return (
               <TouchableOpacity
                 key={item.id}
-                style={styles.row}
+                style={[styles.row, isDeleting && styles.rowDeleting]}
                 activeOpacity={0.8}
                 onPress={() => openScan(item)}
                 onLongPress={() => confirmDelete(item)}
+                disabled={isDeleting}
               >
                 <View style={[styles.scoreBadge, { borderColor: glowColor(score, colors.textMuted) }]}>
                   <Text style={[styles.scoreNum, { color: glowColor(score, colors.textMuted) }]}>
@@ -239,12 +262,25 @@ const ScanHistoryScreen = ({ navigation, route }) => {
                       : item.status}
                   </Text>
                 </View>
+                {/* Long-press still works, but it was the only way to delete and
+                    nothing on screen said so — a visible button is discoverable. */}
+                {isDeleting ? (
+                  <ActivityIndicator size="small" color={colors.textMuted} style={styles.deleteBtn} />
+                ) : (
+                  <TouchableOpacity
+                    style={styles.deleteBtn}
+                    onPress={() => confirmDelete(item)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Delete ${describeScan(item)}`}
+                  >
+                    <MCIcon name="trash-can-outline" size={20} color={colors.textMuted} />
+                  </TouchableOpacity>
+                )}
                 <MCIcon name="chevron-right" size={22} color={colors.textMuted} />
               </TouchableOpacity>
             );
           })}
-
-          <Text style={styles.hint}>Long-press a scan to delete it</Text>
         </ScrollView>
       )}
 
@@ -334,7 +370,8 @@ const makeStyles = colors => StyleSheet.create({
   scoreNum: { fontSize: 17, fontWeight: '800' },
   rowDate: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
   rowMeta: { fontSize: 12.5, color: colors.textMuted, marginTop: 2, textTransform: 'capitalize' },
-  hint: { fontSize: 12, color: colors.textMuted, textAlign: 'center', marginTop: 8 },
+  rowDeleting: { opacity: 0.5 },
+  deleteBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
 
   overlay: {
     ...StyleSheet.absoluteFillObject,

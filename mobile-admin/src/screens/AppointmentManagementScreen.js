@@ -690,7 +690,29 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
                       </View>
                       <View style={styles.detailGridItem}>
                         <Text style={styles.detailLabel}>Fee</Text>
-                        <Text style={styles.detailValue}>{selectedAppointment.fee != null ? `₹${selectedAppointment.fee}` : '—'}</Text>
+                        <Text style={styles.detailValue}>
+                          {selectedAppointment.fee != null ? `₹${selectedAppointment.fee}` : '—'}
+                          {selectedAppointment.gstAmount ? ' + Tax' : ''}
+                        </Text>
+                      </View>
+                      {/* GST as billed on this appointment — the snapshot taken when
+                          it was booked, not today's rate. Hidden on tax-free rows
+                          (rate set to 0, or booked before GST was configurable). */}
+                      {selectedAppointment.gstAmount ? (
+                        <View style={styles.detailGridItem}>
+                          <Text style={styles.detailLabel}>
+                            GST ({selectedAppointment.gstPercentage}%)
+                          </Text>
+                          <Text style={styles.detailValue}>+ ₹{selectedAppointment.gstAmount}</Text>
+                        </View>
+                      ) : null}
+                      <View style={styles.detailGridItem}>
+                        <Text style={styles.detailLabel}>Total</Text>
+                        <Text style={styles.detailValue}>
+                          {selectedAppointment.totalAmount != null
+                            ? `₹${selectedAppointment.totalAmount}`
+                            : '—'}
+                        </Text>
                       </View>
                       <View style={styles.detailGridItem}>
                         <Text style={styles.detailLabel}>Payment</Text>

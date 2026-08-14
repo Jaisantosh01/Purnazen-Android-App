@@ -43,7 +43,9 @@ class TherapyService:
         ) or 0
 
         if completed >= total:
-            TherapySessionGroupRepository.complete(db, session.session_group_id)
+            TherapySessionGroupRepository.complete(
+                db, session.session_group_id, session.user_id
+            )
 
     @staticmethod
     def get_history(db: Session, user_id: uuid.UUID, page: int, limit: int) -> dict:
@@ -113,7 +115,9 @@ class TherapyService:
 
     @staticmethod
     def complete_session(db: Session, user_id: uuid.UUID, session_group_id: uuid.UUID, pain_after: int | None = None, user_feedback: str | None = None) -> dict | None:
-        sg = TherapySessionGroupRepository.complete(db, session_group_id, pain_after, user_feedback)
+        sg = TherapySessionGroupRepository.complete(
+            db, session_group_id, user_id, pain_after, user_feedback
+        )
         if not sg:
             return None
 

@@ -86,9 +86,12 @@ class TherapySessionGroupRepository:
         return results, total
 
     @staticmethod
-    def complete(db: Session, session_group_id: uuid.UUID, pain_after: int | None = None, user_feedback: str | None = None) -> TherapySessionGroup | None:
+    def complete(db: Session, session_group_id: uuid.UUID, user_id: uuid.UUID, pain_after: int | None = None, user_feedback: str | None = None) -> TherapySessionGroup | None:
         sg = db.get(TherapySessionGroup, session_group_id)
-        if not sg:
+        # A run — and the feedback written against it — belongs to the patient
+        # who did it; knowing the id must not be enough to close or annotate
+        # somebody else's session.
+        if not sg or sg.user_id != user_id:
             return None
         sg.status = "completed"
         if pain_after is not None or user_feedback is not None:

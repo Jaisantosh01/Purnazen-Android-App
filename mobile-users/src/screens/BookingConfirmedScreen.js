@@ -9,11 +9,20 @@ import { useMemo } from 'react';
 import useTheme from '../hooks/useTheme';
 import Avatar from '../components/Avatar';
 import { canPopToStackRoot } from '../navigation/backHelpers';
+import { appointmentBreakdown, formatRupees, gstLabel } from '../utils/tax';
 
 const BookingConfirmedScreen = ({ navigation, route }) => {
-  const { doctor, date, time, visitType, fee, bookingRef, appointmentId } = route.params;
+  const { doctor, date, time, visitType, fee, appointment, bookingRef, appointmentId } = route.params;
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  // Off the booked row, so this matches the checkout figure exactly. `fee` is
+  // the fallback for a booking that somehow arrived without the row attached.
+  const charges = useMemo(
+    () => appointmentBreakdown(appointment ?? { fee }),
+    [appointment, fee],
+  );
+  const showsGst = charges.gstPercentage > 0;
 
   // "Back to Home" only switched the *tab*; this screen stayed on top of the
   // Consult stack, so re-opening Consult landed back on the confirmation.
@@ -84,11 +93,30 @@ const BookingConfirmedScreen = ({ navigation, route }) => {
               </View>
             </View>
           ) : null}
+
+          <View style={styles.divider} />
+
+          <View style={styles.chargeRow}>
+            <Text style={styles.chargeLabel}>Consultation Fee</Text>
+            <Text style={styles.chargeValue}>
+              {formatRupees(charges.base)}{showsGst ? ' + Tax' : ''}
+            </Text>
+          </View>
+          {showsGst ? (
+            <View style={styles.chargeRow}>
+              <Text style={styles.chargeLabel}>{gstLabel(charges.gstPercentage)}</Text>
+              <Text style={styles.chargeValue}>+ {formatRupees(charges.gst)}</Text>
+            </View>
+          ) : null}
+          <View style={styles.chargeRow}>
+            <Text style={styles.chargeTotalLabel}>Total Amount</Text>
+            <Text style={styles.chargeTotalValue}>{formatRupees(charges.total)}</Text>
+          </View>
         </View>
 
         <TouchableOpacity
           style={styles.payBtn}
-          onPress={() => navigation.navigate('Payment', { doctor, fee, appointmentId })}
+          onPress={() => navigation.navigate('Payment', { doctor, fee, appointment, appointmentId })}
           activeOpacity={0.85}
         >
           <Text style={styles.payBtnText}>Proceed to Payment</Text>
@@ -181,6 +209,16 @@ const makeStyles = colors => StyleSheet.create({
   detailIcon: { fontSize: 18, marginTop: 2, color: colors.primary },
   detailLabel: { fontSize: 11, color: colors.textMuted, marginBottom: 2 },
   detailValue: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
+  chargeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  chargeLabel: { fontSize: 13, color: colors.textSecondary },
+  chargeValue: { fontSize: 13, fontWeight: '600', color: colors.textPrimary },
+  chargeTotalLabel: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
+  chargeTotalValue: { fontSize: 16, fontWeight: '700', color: colors.primary },
   payBtn: {
     width: '100%',
     flexDirection: 'row',

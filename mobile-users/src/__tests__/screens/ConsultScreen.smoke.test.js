@@ -30,6 +30,7 @@ jest.mock('../../services/consultService', () => ({
     hasMore: false,
     total: 1,
   }),
+  getTaxConfig: jest.fn().mockResolvedValue({ gstPercentage: 18 }),
 }));
 
 const navigation = { navigate: jest.fn(), goBack: jest.fn() };
