@@ -5,7 +5,7 @@ export const STRINGS = {
   APP_TAGLINE: 'AI Assisted Acupressure & Wellness App',
   // The brand promise, shown on the landing surfaces (Home hero, sign-in,
   // sign-up) under the "what this app is" line.
-  BRAND_TAGLINE: 'Relieve Pain Naturally whenever and wherever you are!!',
+  BRAND_TAGLINE: 'Relieve Pain Naturally whenever and wherever you are.',
   BANNER_TITLE: 'Premium Wellness Plan',
   BANNER_SUB: 'Unlock all sessions',
   WELLNESS_SECTION: 'Wellness',

@@ -74,7 +74,7 @@ const HomeScreen = ({ navigation }) => {
         {/* ── Header ── */}
         <TabHeader
           title={STRINGS.HOME_TITLE}
-          subtitle={STRINGS.HOME_SUBTITLE}
+          // subtitle={STRINGS.HOME_SUBTITLE}
           right={
             <TouchableOpacity
               style={styles.bellBtn}

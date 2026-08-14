@@ -49,53 +49,52 @@ const DoctorNotesEditorScreen = ({ route, navigation }) => {
   };
 
   return (
-    <View style={styles.root}>
-      <ScreenHeader
-        title={mode === 'edit' ? 'Edit Doctor Note' : 'Doctor Notes'}
-        onBack={() => navigation.goBack()}
-      />
+    // The dismiss wrapper sits at the screen root, so tapping anywhere off the
+    // field puts the keyboard away — header and Save-button margin included, not
+    // just the editor body. `accessible={false}` keeps it out of the screen
+    // reader's focus order; the back button and Save are nested touchables, so
+    // they still win their own taps. Dismissing only blurs the input: the note
+    // lives in state, so nothing is lost.
+    <TouchableWithoutFeedback accessible={false} onPress={Keyboard.dismiss}>
+      <View style={styles.root}>
+        <ScreenHeader
+          title={mode === 'edit' ? 'Edit Doctor Note' : 'Doctor Notes'}
+          onBack={() => navigation.goBack()}
+        />
 
-      <KeyboardAvoidingView
-        style={styles.flex1}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        {/* Tapping anywhere off the field puts the keyboard away — the whole body
-            is covered, not just the editor, so the margin around the Save button
-            works too. `accessible={false}` keeps the wrapper out of the screen
-            reader's focus order, and Save still receives its own taps. Dismissing
-            only blurs the input: the note lives in state, so nothing is lost. */}
-        <TouchableWithoutFeedback accessible={false} onPress={Keyboard.dismiss}>
-          <View style={styles.flex1}>
-            <View style={styles.editorWrap}>
-              <View style={styles.labelRow}>
-                <MCIcon name="note-text-outline" size={18} color={colors.primary} />
-                <Text style={styles.labelText}>Doctor Notes</Text>
-              </View>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Enter your clinical notes about the consultation…"
-                placeholderTextColor={colors.textMuted}
-                multiline
-                textAlignVertical="top"
-                autoFocus
-                value={text}
-                onChangeText={setText}
-              />
+        <KeyboardAvoidingView
+          style={styles.flex1}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={styles.editorWrap}>
+            <View style={styles.labelRow}>
+              <MCIcon name="note-text-outline" size={18} color={colors.primary} />
+              <Text style={styles.labelText}>Doctor Notes</Text>
             </View>
-
-            <View style={styles.footer}>
-              <TouchableOpacity
-                style={[styles.saveBtn, (!text.trim() || saving) && styles.btnDisabled]}
-                activeOpacity={0.85}
-                disabled={!text.trim() || saving}
-                onPress={handleSave}>
-                <MCIcon name="content-save-outline" size={20} color={colors.white} />
-                <Text style={styles.saveBtnText}>{saving ? 'Saving…' : 'Save'}</Text>
-              </TouchableOpacity>
-            </View>
+            <TextInput
+              style={styles.textInput}
+              placeholder="Enter your clinical notes about the consultation…"
+              placeholderTextColor={colors.textMuted}
+              multiline
+              textAlignVertical="top"
+              autoFocus
+              value={text}
+              onChangeText={setText}
+            />
           </View>
-        </TouchableWithoutFeedback>
-      </KeyboardAvoidingView>
-    </View>
+
+          <View style={styles.footer}>
+            <TouchableOpacity
+              style={[styles.saveBtn, (!text.trim() || saving) && styles.btnDisabled]}
+              activeOpacity={0.85}
+              disabled={!text.trim() || saving}
+              onPress={handleSave}>
+              <MCIcon name="content-save-outline" size={20} color={colors.white} />
+              <Text style={styles.saveBtnText}>{saving ? 'Saving…' : 'Save'}</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
+    </TouchableWithoutFeedback>
   );
 };
 
