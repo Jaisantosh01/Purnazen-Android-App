@@ -13,6 +13,7 @@ class PaymentService:
     @staticmethod
     def process(db: Session, user: User, data: ProcessPaymentRequest):
         appointment = None
+        amount = data.amount
         if data.appointment_id is not None:
             appointment = db.get(Appointment, data.appointment_id)
             if not appointment or appointment.user_id != user.id:
@@ -22,9 +23,15 @@ class PaymentService:
                     "success": False,
                     "message": "This appointment is already paid",
                 }, 400
+            # The fee-plus-GST total is settled at booking time and stored on the
+            # appointment, so charge that rather than the client's figure: the
+            # order can then never drift from what the app displayed, and the
+            # amount isn't something a caller can talk down.
+            if appointment.total_amount is not None:
+                amount = float(appointment.total_amount)
 
         order = payment_provider.create_order(
-            data.amount,
+            amount,
             data.currency,
             receipt=f"apt-{data.appointment_id}" if data.appointment_id else "adhoc",
         )
@@ -33,7 +40,7 @@ class PaymentService:
             db,
             user_id=user.id,
             appointment_id=appointment.id if appointment else None,
-            amount=data.amount,
+            amount=amount,
             currency=data.currency,
             provider="razorpay",
             order_id=order["order_id"],
@@ -45,7 +52,7 @@ class PaymentService:
             "payment": payment.to_dict(),
             "orderId": order["order_id"],
             "keyId": order["key_id"],
-            "amount": data.amount,
+            "amount": amount,
             "currency": data.currency,
             "mode": order["mode"],
         }

@@ -17,6 +17,7 @@ import { APPOINTMENT_HISTORY_STATUS_LABELS, APPOINTMENT_PAYMENT_LABELS } from '.
 import { useHeaderTopPadding } from '../components/ScreenHeader';
 import Avatar from '../components/Avatar';
 import LocationCard from '../components/LocationCard';
+import { appointmentBreakdown, formatRupees, gstLabel } from '../utils/tax';
 
 
 const STATUS_COLORS = APPOINTMENT_DETAIL_STATUS_COLORS;
@@ -38,6 +39,11 @@ const AppointmentDetailScreen = ({ navigation, route }) => {
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { appointment } = route.params;
+
+  // Straight off the row's own GST snapshot, so the detail view keeps agreeing
+  // with what was charged even after an admin changes the rate.
+  const charges = useMemo(() => appointmentBreakdown(appointment), [appointment]);
+  const showsGst = charges.gstPercentage > 0;
 
   const copyLink = useCallback(() => {
     if (appointment.meetingLink) {
@@ -157,7 +163,17 @@ const AppointmentDetailScreen = ({ navigation, route }) => {
               </View>
             ) : null}
 
-            <DetailRow label="Fee" value={`₹${appointment.fee}`} highlight />
+            <DetailRow
+              label="Consultation Fee"
+              value={`${formatRupees(charges.base)}${showsGst ? ' + Tax' : ''}`}
+            />
+            {showsGst ? (
+              <DetailRow
+                label={gstLabel(charges.gstPercentage)}
+                value={`+ ${formatRupees(charges.gst)}`}
+              />
+            ) : null}
+            <DetailRow label="Total Amount" value={formatRupees(charges.total)} highlight />
           </View>
         </View>
 

@@ -16,9 +16,11 @@ import { showAlert } from '../utils/alert';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import consultService from '../services/consultService';
 import useTheme from '../hooks/useTheme';
+import useTaxConfig from '../hooks/useTaxConfig';
 import ScreenHeader from '../components/ScreenHeader';
 import AppDialog from '../components/AppDialog';
 import {DAYS, MONTHS} from '../constants/strings';
+import { feeBreakdown, formatRupees, gstLabel } from '../utils/tax';
 
 // Clinic visit always comes first, then home, then video.
 const VISIT_ORDER = { clinic: 0, home: 1, video: 2 };
@@ -112,6 +114,15 @@ const BookAppointmentScreen = ({ navigation, route }) => {
   };
 
   const selectedVisitData = visitTypes.find(v => v.id === selectedVisit);
+
+  // Quoted at the live admin rate; the backend re-derives and stores the same
+  // figures on the appointment when the booking is confirmed.
+  const { gstPercentage } = useTaxConfig();
+  const charges = useMemo(
+    () => feeBreakdown(selectedVisitData?.fee, gstPercentage),
+    [selectedVisitData?.fee, gstPercentage],
+  );
+  const showsGst = charges.gstPercentage > 0;
 
   useEffect(() => {
     const applyVisitTypes = (list) => {
@@ -233,6 +244,9 @@ const BookAppointmentScreen = ({ navigation, route }) => {
         time: selectedTime.time,
         visitType: selectedVisitData?.title,
         fee: selectedVisitData?.fee,
+        // The booked row carries the GST the backend settled on, so the
+        // confirmation and checkout quote the same total this screen did.
+        appointment: booking,
         bookingRef: booking?.reference,
         appointmentId: booking?.id,
       });
@@ -335,6 +349,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
                 <View style={styles.visitCardFooter}>
                   <Text style={[styles.visitFee, selectedVisit === visit.id && styles.visitFeeActive]}>
                     ₹{visit.fee}
+                    {showsGst ? <Text style={styles.visitFeeTax}> + Tax</Text> : null}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -563,7 +578,12 @@ const BookAppointmentScreen = ({ navigation, route }) => {
         <View style={styles.bottomRow}>
           <View>
             <Text style={styles.totalLabel}>Total Amount</Text>
-            <Text style={styles.totalAmount}>₹{selectedVisitData?.fee}</Text>
+            <Text style={styles.totalAmount}>{formatRupees(charges.total)}</Text>
+            {showsGst ? (
+              <Text style={styles.totalBreakdown}>
+                {formatRupees(charges.base)} + {gstLabel(charges.gstPercentage)} {formatRupees(charges.gst)}
+              </Text>
+            ) : null}
           </View>
           <TouchableOpacity
             style={[styles.confirmBtn, (!selectedDate || !selectedTime) && styles.confirmBtnDisabled]}
@@ -670,6 +690,7 @@ const makeStyles = colors => StyleSheet.create({
   visitCardFooter:  { marginTop: 'auto', width: '100%', alignItems: 'center', paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.surfaceMuted },
   visitFee:         { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
   visitFeeActive:   { color: colors.primary },
+  visitFeeTax:      { fontSize: 11, fontWeight: '600', color: colors.textMuted },
 
   /* Date Picker Row */
   datePickerRow: {
@@ -804,6 +825,7 @@ const makeStyles = colors => StyleSheet.create({
   bottomRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   totalLabel:    { fontSize: 12, color: colors.textMuted, marginBottom: 2 },
   totalAmount:   { fontSize: 20, fontWeight: '700', color: colors.primary },
+  totalBreakdown:{ fontSize: 11, color: colors.textMuted, marginTop: 2 },
   confirmBtn:    { backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 24 },
   confirmBtnDisabled: { backgroundColor: colors.borderStrong },
   confirmBtnText:     { fontSize: 15, fontWeight: '700', color: colors.white },

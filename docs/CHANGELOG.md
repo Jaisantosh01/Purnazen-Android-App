@@ -2,6 +2,73 @@
 
 All notable changes to the Purnazen App are documented here.
 
+## [2026-08-14] — Configurable GST, brand tagline, scan deletion, session feedback
+
+### Added — GST configured in the admin panel, applied end to end
+- **New `tax_settings` table** (singleton row, id=1, like `notification_settings`)
+  holding one `gst_percentage`. Reached through `GET /v1/tax/config` (any signed-in
+  account) and `PUT /v1/tax/config` (admin only). 0 is a valid rate and is how tax
+  is switched off, so there is no separate enabled flag to keep in sync.
+  Migration **`d1c2b3a4e5f6`** — run `alembic upgrade head`.
+- **Admin → Manage → Billing → GST**: presets (0/5/12/18/28) plus a custom rate,
+  and a worked ₹1000 preview of the exact fee / GST / total lines the patient sees.
+- **`appointments` snapshot the rate at booking time** (`gst_percentage`,
+  `gst_amount`). `Appointment.to_dict()` gains `gstPercentage`, `gstAmount` and
+  `totalAmount`; `fee` keeps its old meaning (pre-tax). Editing the rate therefore
+  never restates a booking that was already quoted, and rows booked before this
+  release carry no snapshot and stay tax-free — which is what was charged for them.
+- **`TaxService`** is the one place money is rounded (2dp, ROUND_HALF_UP);
+  `mobile-users/src/utils/tax.js` mirrors it exactly, so the quote, the checkout
+  total and the receipt cannot disagree by a paisa. Covered by matched test cases
+  on both sides.
+- Patient app shows the base fee followed by **"+ Tax"**, the GST line as
+  **"+ ₹<amount>"**, and a total including GST — on Consult, Doctor Profile, Book
+  Appointment, Booking Confirmed, Payment, Appointment Detail and Appointment
+  History. The admin appointment detail shows the same breakdown.
+- New `useTaxConfig` hook (process-lifetime cache) for the screens that quote a
+  fee before an appointment exists; once one does, its snapshot wins.
+
+### Added — brand tagline
+- "Relieve Pain Naturally whenever and wherever you are!!" (`STRINGS.BRAND_TAGLINE`)
+  on the patient app's landing surfaces: the Home hero, and the sign-in / sign-up
+  heroes under the existing "AI Assisted Acupressure & Wellness" line.
+
+### Added — deleting a single scan
+- Scan History rows get a visible trash button on both the Skin and Tongue tabs;
+  the long-press shortcut still works but was previously the *only* way to delete
+  and nothing on screen said so. The confirmation names the scan being removed
+  ("Your face scan from 1 Aug 2026 will be permanently deleted…") so a mis-tap is
+  caught at the dialog, and only that scan is deleted (`DELETE /v1/face-glow/scan/{id}`
+  cascades its result + recommendations).
+- The Scan Dashboard refetches on focus, so a deletion no longer leaves its count,
+  latest result and trend showing a scan that is gone.
+
+### Added — session feedback in Session History
+- Therapy History renders the remark left in the end-of-session popup against the
+  session it belongs to, plus any doctor response. Sessions with no remark drop the
+  block entirely rather than showing an empty quote.
+
+### Fixed — session feedback was reachable and clobberable across accounts
+- `GET /v1/therapy-feedback/by-session/{id}` returned **any** user's feedback and
+  `PUT /v1/therapy-feedback/{id}/pain-after` would overwrite it — an id was enough.
+  Both are now scoped to the owning patient (404 otherwise), as is
+  `POST /v1/therapy-history/sessions/{id}/complete`, which could close and annotate
+  someone else's run.
+- `update_pain_after` assigned `pain_after` and `user_feedback` unconditionally, so
+  whichever of the two entry points ran second (the player collects the remark,
+  "Mark Complete" collects the score) erased the other's answer. Each field is now
+  written only when submitted.
+
+### Fixed — payment amount is no longer taken from the client
+- `POST /v1/payments/process` builds the order from the appointment's stored total
+  instead of the caller's `amount`, so checkout charges exactly what was quoted and
+  the figure cannot be talked down by a crafted request.
+
+### Fixed — Doctor Notes keypad
+- Tapping anywhere outside the field in the doctor app's Doctor Notes editor now
+  dismisses the keyboard (the whole body is covered, so the margin around Save works
+  too). Save still receives its own taps and the typed note is untouched.
+
 ## [2026-07-26] — Profile photos end to end, appointment detail parity, location permission wiring
 
 ### Added — profile photo for doctors, and photos rendered everywhere (all 3 apps)

@@ -35,15 +35,15 @@ def get_feedback_by_group(
 @router.get(
     "/by-session/{session_group_id}",
     summary="Get therapy feedback by session group",
-    description="Returns the therapy feedback record for a specific session group, "
-    "or 404 if none exists.",
+    description="Returns the authenticated user's therapy feedback record for a "
+    "specific session group, or 404 if none exists.",
 )
 def get_feedback_by_session(
     session_group_id: uuid.UUID,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    result = TherapyFeedbackService.get_by_session(db, session_group_id)
+    result = TherapyFeedbackService.get_by_session(db, session_group_id, user.id)
     if result is None:
         return error_response("Therapy feedback not found for this session", 404)
     return success_response("Therapy feedback found", result)

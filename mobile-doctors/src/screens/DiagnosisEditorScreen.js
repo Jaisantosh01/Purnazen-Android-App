@@ -5,6 +5,8 @@ import {
   TextInput,
   StyleSheet,
   TouchableOpacity,
+  TouchableWithoutFeedback,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -47,44 +49,52 @@ const DiagnosisEditorScreen = ({ route, navigation }) => {
   };
 
   return (
-    <View style={styles.root}>
-      <ScreenHeader
-        title={mode === 'edit' ? 'Edit Diagnosis' : 'Diagnosis'}
-        onBack={() => navigation.goBack()}
-      />
+    // The dismiss wrapper sits at the screen root, so tapping anywhere off the
+    // field puts the keyboard away — header and Save-button margin included, not
+    // just the editor body. `accessible={false}` keeps it out of the screen
+    // reader's focus order; the back button and Save are nested touchables, so
+    // they still win their own taps. Dismissing only blurs the input: the text
+    // lives in state, so nothing is lost.
+    <TouchableWithoutFeedback accessible={false} onPress={Keyboard.dismiss}>
+      <View style={styles.root}>
+        <ScreenHeader
+          title={mode === 'edit' ? 'Edit Diagnosis' : 'Diagnosis'}
+          onBack={() => navigation.goBack()}
+        />
 
-      <KeyboardAvoidingView
-        style={styles.flex1}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={styles.editorWrap}>
-          <View style={styles.labelRow}>
-            <MCIcon name="stethoscope" size={18} color={colors.primary} />
-            <Text style={styles.labelText}>Diagnosis</Text>
+        <KeyboardAvoidingView
+          style={styles.flex1}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={styles.editorWrap}>
+            <View style={styles.labelRow}>
+              <MCIcon name="stethoscope" size={18} color={colors.primary} />
+              <Text style={styles.labelText}>Diagnosis</Text>
+            </View>
+            <TextInput
+              style={styles.textInput}
+              placeholder="Enter diagnosis details…"
+              placeholderTextColor={colors.textMuted}
+              multiline
+              textAlignVertical="top"
+              autoFocus
+              value={text}
+              onChangeText={setText}
+            />
           </View>
-          <TextInput
-            style={styles.textInput}
-            placeholder="Enter diagnosis details…"
-            placeholderTextColor={colors.textMuted}
-            multiline
-            textAlignVertical="top"
-            autoFocus
-            value={text}
-            onChangeText={setText}
-          />
-        </View>
 
-        <View style={styles.footer}>
-          <TouchableOpacity
-            style={[styles.saveBtn, (!text.trim() || saving) && styles.btnDisabled]}
-            activeOpacity={0.85}
-            disabled={!text.trim() || saving}
-            onPress={handleSave}>
-            <MCIcon name="content-save-outline" size={20} color={colors.white} />
-            <Text style={styles.saveBtnText}>{saving ? 'Saving…' : 'Save'}</Text>
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </View>
+          <View style={styles.footer}>
+            <TouchableOpacity
+              style={[styles.saveBtn, (!text.trim() || saving) && styles.btnDisabled]}
+              activeOpacity={0.85}
+              disabled={!text.trim() || saving}
+              onPress={handleSave}>
+              <MCIcon name="content-save-outline" size={20} color={colors.white} />
+              <Text style={styles.saveBtnText}>{saving ? 'Saving…' : 'Save'}</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
+    </TouchableWithoutFeedback>
   );
 };
 

@@ -18,6 +18,7 @@ from app.services.doctor_service import (
     VISIT_SLUG_TO_CONSULTATION_TYPE,
 )
 from app.services.notification_service import NotificationService
+from app.services.tax_service import TaxService
 
 # Google Meet integration — gracefully skipped when the service is unavailable
 try:
@@ -76,6 +77,13 @@ class AppointmentService:
             else None
         )
 
+        fee = data.fee if data.fee is not None else float(doctor.consultation_fee)
+        # Snapshot the GST rate in force right now. Everything downstream (the
+        # confirmation screen, checkout, the receipt) reads it back off the row,
+        # so a later change to the admin rate cannot alter this booking's total.
+        gst_percentage = TaxService.gst_percentage(db)
+        gst_amount = TaxService.gst_amount(fee, gst_percentage)
+
         appointment = AppointmentRepository.create(
             db,
             user_id=user.id,
@@ -86,7 +94,9 @@ class AppointmentService:
             slot_timing_id=data.slot_timing_id,
             clinic_id=data.clinic_id,
             user_address_id=data.user_address_id,
-            fee=data.fee if data.fee is not None else float(doctor.consultation_fee),
+            fee=fee,
+            gst_percentage=gst_percentage,
+            gst_amount=gst_amount,
             status="pending",
             payment_status="pending",
             user_description=data.user_description,
@@ -230,7 +240,8 @@ class AppointmentService:
 
         new_payment = appointment.payment_status
         if new_payment != old_payment_status and new_payment == "paid":
-            fee = f"₹{appointment.fee}" if appointment.fee is not None else ""
+            # The charged figure, not the pre-tax fee — this mirrors the receipt.
+            fee = f"₹{appointment.total_amount}" if appointment.total_amount is not None else ""
             NotificationService.notify_safely(
                 db, patient_id, category="payment", event="payment_paid",
                 title="Payment received",

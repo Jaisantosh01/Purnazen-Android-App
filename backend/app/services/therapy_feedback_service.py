@@ -25,8 +25,8 @@ class TherapyFeedbackService:
         return feedback.to_dict()
 
     @staticmethod
-    def get_by_session(db: Session, session_group_id: uuid.UUID):
-        feedback = TherapyFeedbackRepository.get_by_session(db, session_group_id)
+    def get_by_session(db: Session, session_group_id: uuid.UUID, user_id: uuid.UUID):
+        feedback = TherapyFeedbackRepository.get_by_session(db, session_group_id, user_id)
         if not feedback:
             return None
         return feedback.to_dict()

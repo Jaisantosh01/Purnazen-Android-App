@@ -36,6 +36,14 @@ class Appointment(Base):
     user_description = Column(Text, nullable=True)
     doctor_description = Column(Text, nullable=True)
     fee = Column(Numeric(10, 2))
+    # GST snapshot taken at booking time from the admin-configured rate. Kept on
+    # the row rather than recomputed on read so that changing the rate in the
+    # admin panel never rewrites the total a patient was already quoted — and so
+    # the booking summary, checkout and the receipt can never disagree.
+    # NULL on appointments booked before GST was configurable: those are treated
+    # as tax-free, which is exactly what was charged for them.
+    gst_percentage = Column(Numeric(5, 2), nullable=True)
+    gst_amount = Column(Numeric(10, 2), nullable=True)
     status = Column(String(20), nullable=False, default="pending")  # pending | booked | cancelled | completed
     payment_status = Column(
         String(20), nullable=False, default="pending", server_default="pending"
@@ -62,6 +70,16 @@ class Appointment(Base):
     def reference(self):
         # id is a UUID; produce a short readable reference
         return f"APT-{str(self.id)[:8].upper()}"
+
+    @property
+    def total_amount(self):
+        """Fee including GST — the figure charged at checkout.
+
+        Legacy rows carry no GST snapshot, so this collapses to the bare fee.
+        """
+        if self.fee is None:
+            return None
+        return self.fee + (self.gst_amount or 0)
 
     def to_dict(self):
         clinic = self.clinic
@@ -127,7 +145,12 @@ class Appointment(Base):
             "userAddress": user_addr.to_dict() if user_addr else None,
             "location": location,
             "meetingLink": self.meeting_link,
+            # `fee` stays the pre-tax consultation fee (unchanged meaning for
+            # existing clients); `totalAmount` is what the patient actually pays.
             "fee": float(self.fee) if self.fee is not None else None,
+            "gstPercentage": float(self.gst_percentage) if self.gst_percentage is not None else None,
+            "gstAmount": float(self.gst_amount) if self.gst_amount is not None else 0.0,
+            "totalAmount": float(self.total_amount) if self.total_amount is not None else None,
             "status": self.status,
             "paymentStatus": self.payment_status,
             "userDescription": self.user_description,

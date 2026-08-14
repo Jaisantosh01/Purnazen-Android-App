@@ -32,10 +32,15 @@ class TherapyFeedbackRepository:
         )
 
     @staticmethod
-    def get_by_session(db: Session, session_group_id: uuid.UUID) -> TherapyFeedback | None:
+    def get_by_session(
+        db: Session, session_group_id: uuid.UUID, user_id: uuid.UUID
+    ) -> TherapyFeedback | None:
         return (
             db.query(TherapyFeedback)
-            .filter(TherapyFeedback.session_group_id == session_group_id)
+            .filter(
+                TherapyFeedback.session_group_id == session_group_id,
+                TherapyFeedback.user_id == user_id,
+            )
             .first()
         )
 
@@ -52,12 +57,20 @@ class TherapyFeedbackRepository:
         )
 
     @staticmethod
-    def update_pain_after(db: Session, feedback_id: uuid.UUID, user_id: uuid.UUID, pain_after: int, user_feedback: str | None) -> TherapyFeedback | None:
+    def update_pain_after(db: Session, feedback_id: uuid.UUID, user_id: uuid.UUID, pain_after: int | None, user_feedback: str | None) -> TherapyFeedback | None:
         feedback = TherapyFeedbackRepository.get_by_id(db, feedback_id)
-        if not feedback:
+        # Feedback belongs to the patient who left it — an id alone must not be
+        # enough to read or overwrite somebody else's row.
+        if not feedback or feedback.user_id != user_id:
             return None
-        feedback.pain_after = pain_after
-        feedback.user_feedback = user_feedback
+        # Only write what was actually submitted. Both fields are optional and
+        # the two entry points send them separately (the player collects a
+        # remark, "Mark Complete" collects a score), so assigning unconditionally
+        # let whichever came second erase the other's answer.
+        if pain_after is not None:
+            feedback.pain_after = pain_after
+        if user_feedback is not None:
+            feedback.user_feedback = user_feedback
         feedback.updated_by = user_id
         db.commit()
         db.refresh(feedback)

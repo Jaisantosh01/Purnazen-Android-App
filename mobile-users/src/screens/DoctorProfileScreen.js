@@ -13,6 +13,7 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import consultService from '../services/consultService';
 import useTheme from '../hooks/useTheme';
+import useTaxConfig from '../hooks/useTaxConfig';
 import { useMemo } from 'react';
 import Avatar from '../components/Avatar';
 import ScreenHeader from '../components/ScreenHeader';
@@ -101,6 +102,11 @@ const DoctorProfileScreen = ({ navigation, route }) => {
   const [visitTypes, setVisitTypes] = useState([]);
   const [isLoading, setIsLoading]   = useState(false);
   const [error, setError]           = useState(null);
+
+  // The headline price is pre-tax; label it so it reads as the same number the
+  // booking summary starts from rather than a different, cheaper one.
+  const { gstPercentage } = useTaxConfig();
+  const showsTax = (gstPercentage ?? 0) > 0;
 
   const fetchDoctorDetail = useCallback(async () => {
     setIsLoading(true);
@@ -294,6 +300,7 @@ const DoctorProfileScreen = ({ navigation, route }) => {
             ₹{visitTypes.length > 0
               ? Math.min(...visitTypes.map(v => v.fee))
               : doctor.minFee ?? doctor.fee}
+            {showsTax ? <Text style={styles.feeTax}> + Tax</Text> : null}
           </Text>
         </View>
         <TouchableOpacity
@@ -538,6 +545,7 @@ const makeStyles = colors => StyleSheet.create({
   feeSection: {},
   feeLabel: { fontSize: 12, color: colors.textMuted, marginBottom: 2 },
   feeAmount: { fontSize: 20, fontWeight: '700', color: colors.primary },
+  feeTax: { fontSize: 11, fontWeight: '600', color: colors.textMuted },
   bookBtn: {
     backgroundColor: colors.primary,
     borderRadius: 14,

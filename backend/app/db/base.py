@@ -48,6 +48,7 @@ from app.models.user_address import UserAddress  # noqa: E402,F401
 from app.models.notification import Notification  # noqa: E402,F401
 from app.models.device_token import DeviceToken  # noqa: E402,F401
 from app.models.notification_setting import NotificationSetting  # noqa: E402,F401
+from app.models.tax_setting import TaxSetting  # noqa: E402,F401
 from app.models.content_page import ContentPage  # noqa: E402,F401
 from app.models.broadcast import Broadcast  # noqa: E402,F401
 from app.models.subscription_plan import SubscriptionPlan  # noqa: E402,F401

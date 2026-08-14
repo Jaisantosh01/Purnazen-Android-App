@@ -206,7 +206,7 @@ const TherapyHistoryScreen = ({ navigation }) => {
                   </Text>
                 </View>
 
-                {fb && (
+                {fb && (fb.painBefore != null || fb.painAfter != null) && (
                   <View style={styles.feedbackRow}>
                     {fb.painBefore != null && (
                       <Text style={styles.feedbackText}>
@@ -220,6 +220,31 @@ const TherapyHistoryScreen = ({ navigation }) => {
                     )}
                   </View>
                 )}
+
+                {/* The remark the user left in the end-of-session popup. Absent
+                    for sessions where they skipped it, so the block is dropped
+                    entirely rather than showing an empty quote. */}
+                {fb?.userFeedback?.trim() ? (
+                  <View style={styles.noteCard}>
+                    <MCIcon name="comment-quote-outline" size={14} color={colors.primary} />
+                    <View style={styles.noteTextCol}>
+                      <Text style={styles.noteLabel}>Your feedback</Text>
+                      <Text style={styles.noteText}>{fb.userFeedback.trim()}</Text>
+                    </View>
+                  </View>
+                ) : null}
+
+                {/* Replies left against this session by the treating doctor or
+                    an admin, so the user sees the response in the same place. */}
+                {fb?.doctorFeedback?.trim() ? (
+                  <View style={[styles.noteCard, styles.noteCardResponse]}>
+                    <MCIcon name="stethoscope" size={14} color={colors.primary} />
+                    <View style={styles.noteTextCol}>
+                      <Text style={styles.noteLabel}>Doctor's response</Text>
+                      <Text style={styles.noteText}>{fb.doctorFeedback.trim()}</Text>
+                    </View>
+                  </View>
+                ) : null}
 
                 {isInProgress && (
                   <View style={styles.actionRow}>
@@ -344,6 +369,20 @@ const makeStyles = colors => StyleSheet.create({
   },
   feedbackText: { fontSize: 12, color: colors.textPrimary },
   feedbackTextRight: { fontSize: 12, color: colors.textPrimary, textAlign: 'right' },
+
+  noteCard: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+    paddingVertical: 8, paddingHorizontal: 10, marginBottom: 8,
+    backgroundColor: colors.primaryLight, borderRadius: 8,
+    borderLeftWidth: 3, borderLeftColor: colors.primary,
+  },
+  noteCardResponse: { backgroundColor: colors.surfaceMuted },
+  noteTextCol: { flex: 1 },
+  noteLabel: {
+    fontSize: 10.5, fontWeight: '800', color: colors.textMuted,
+    letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 2,
+  },
+  noteText: { fontSize: 12.5, color: colors.textPrimary, lineHeight: 18 },
 
   actionRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
   continueBtn: {
