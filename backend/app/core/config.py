@@ -1,11 +1,30 @@
+import logging
+
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
+
+# The values committed in source so a fresh clone runs. They are placeholders,
+# they are public, and a deployment running on either of them is signing tokens
+# anyone can forge. Named here so the startup check can recognise them.
+_PLACEHOLDER_SECRET_KEY = "dev-only-secret-key-change-this-in-production!!"
+_PLACEHOLDER_JWT_SECRET_KEY = "dev-only-jwt-secret-key-change-this-in-production!!"
+
+# Environments where the placeholders and a permissive CORS policy are fine.
+_DEV_ENVIRONMENTS = {"development", "dev", "local", "test", "testing"}
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables / .env file."""
 
-    SECRET_KEY: str = "dev-only-secret-key-change-this-in-production!!"
-    JWT_SECRET_KEY: str = "dev-only-jwt-secret-key-change-this-in-production!!"
+    # development | staging | production. The Docker image sets this to
+    # "production", so any container is production unless deliberately told
+    # otherwise — a deploy cannot end up in dev mode by forgetting a variable.
+    ENVIRONMENT: str = "development"
+
+    SECRET_KEY: str = _PLACEHOLDER_SECRET_KEY
+    JWT_SECRET_KEY: str = _PLACEHOLDER_JWT_SECRET_KEY
     DATABASE_URL: str = "postgresql://postgres:sneha1234@localhost:5432/Wellness_db_v1"
 
     JWT_ALGORITHM: str = "HS256"
@@ -33,10 +52,20 @@ class Settings(BaseSettings):
     # rejected, and the suite's result depends on the runner's DNS.
     EMAIL_CHECK_DELIVERABILITY: bool = True
 
-    # Comma-separated list of allowed origins; "*" allows all (dev only)
-    CORS_ORIGINS: str = "*"
+    # Comma-separated list of allowed origins. Empty by default and empty means
+    # *no* cross-origin browser access — which is correct for an API whose
+    # clients are mobile apps, and which fails visibly (a blocked request in a
+    # browser console) rather than invisibly. It used to default to "*", so a
+    # Container App that never set the variable ran wide open and nothing said
+    # so. "*" is rejected outright in production: combined with
+    # allow_credentials=True it is also silently ignored by Starlette, so it
+    # never did what it looked like it did.
+    CORS_ORIGINS: str = ""
 
-    # Empty string disables Redis (in-memory rate limits, DB-only blocklist)
+    # Empty string disables Redis (in-memory rate limits, DB-only blocklist).
+    # With more than one replica that means limits are enforced PER PROCESS: the
+    # effective limit becomes N x what is configured here. Set this in any
+    # environment that scales past one replica — startup warns loudly if not.
     REDIS_URL: str = ""
 
     RATE_LIMIT_ENABLED: bool = True
@@ -72,11 +101,9 @@ class Settings(BaseSettings):
     # SAS token lifetime for video streaming (needs to outlive the longest video session)
     AZURE_VIDEO_SAS_EXPIRY_MINUTES: int = 240
 
-    # App release distribution (OTA). A PRIVATE container holds the signed APKs;
-    # the backend mints a short-lived read-only SAS so the in-app updater can
-    # download without the container ever being public. CI uploads here.
-    AZURE_RELEASES_CONTAINER_NAME: str = "app-releases"
-    AZURE_RELEASE_SAS_EXPIRY_MINUTES: int = 15
+    # Published-version registry. The apps are distributed through Play and the
+    # App Store; this records which version is current so a running build can
+    # tell the user it is out of date. No binaries are stored or served.
     # Shared secret the release CI presents (X-Release-Token) to register a new
     # version. Separate from user auth so CI needs no user login. Empty => the
     # register endpoint is disabled.
@@ -105,8 +132,53 @@ class Settings(BaseSettings):
     LOCAL_UPLOADS_DIR: str = "uploads"
 
     @property
+    def is_production(self) -> bool:
+        return self.ENVIRONMENT.strip().lower() not in _DEV_ENVIRONMENTS
+
+    @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+
+    @model_validator(mode="after")
+    def _refuse_unsafe_production_config(self):
+        """Fail fast rather than boot into a silently insecure state.
+
+        Every one of these was overridable by an environment variable before —
+        the problem was that nothing enforced it, so a deploy that forgot one
+        started up healthy, served traffic, and gave no sign at all. This turns
+        each into a non-zero exit with a message naming the variable.
+        """
+        if not self.is_production:
+            return self
+
+        problems = []
+        if self.SECRET_KEY == _PLACEHOLDER_SECRET_KEY:
+            problems.append("SECRET_KEY is still the placeholder committed in source")
+        if self.JWT_SECRET_KEY == _PLACEHOLDER_JWT_SECRET_KEY:
+            problems.append("JWT_SECRET_KEY is still the placeholder committed in source")
+        if self.CORS_ORIGINS.strip() == "*":
+            problems.append(
+                'CORS_ORIGINS is "*" — list the allowed origins explicitly, or '
+                "leave it empty if no browser client needs cross-origin access"
+            )
+        if problems:
+            raise ValueError(
+                "Refusing to start with ENVIRONMENT=" + self.ENVIRONMENT + ":\n  - "
+                + "\n  - ".join(problems)
+                + "\nSet these as container secrets. To run locally, set "
+                "ENVIRONMENT=development."
+            )
+
+        # Not fatal — a single-replica deployment is still correctly limited —
+        # but it is a silent correctness hole the moment it scales out.
+        if self.RATE_LIMIT_ENABLED and not self.REDIS_URL:
+            logger.warning(
+                "RATE_LIMIT_ENABLED is on but REDIS_URL is empty: rate limits are "
+                "per-process. With N replicas the effective limit is N x the "
+                "configured value. Set REDIS_URL to an Azure Cache for Redis "
+                "instance before scaling past one replica."
+            )
+        return self
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

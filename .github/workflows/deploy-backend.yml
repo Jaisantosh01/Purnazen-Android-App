@@ -63,13 +63,16 @@ jobs:
 
       - name: Deploy to Container App
         env:
-          # OTA + Firebase config (sourced from repo secrets/vars); applied here
-          # because the Container App control plane is configured during deploy,
-          # not locally.
+          # Runtime config (sourced from repo secrets/vars); applied here because
+          # the Container App control plane is configured during deploy, not
+          # locally.
           REG_TOKEN: ${{ secrets.RELEASE_REGISTER_TOKEN }}
-          REL_CONTAINER: ${{ vars.AZURE_RELEASES_CONTAINER }}
           SCANS_CONTAINER: ${{ vars.AZURE_SCANS_CONTAINER }}
           FIREBASE_SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          APP_SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
+          APP_JWT_SECRET_KEY: ${{ secrets.BACKEND_JWT_SECRET_KEY }}
+          CORS_ORIGINS: ${{ vars.CORS_ORIGINS }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
         run: |
           APP="${{ vars.BACKEND_CONTAINERAPP }}"
           RG="${{ vars.AZURE_RESOURCE_GROUP }}"
@@ -77,11 +80,43 @@ jobs:
           # (AZURE_BLOB_CONTAINER_NAME) is listed wholesale by the admin video
           # browser, so user uploads must never land there.
           EXTRA_ENV="AZURE_SCANS_CONTAINER_NAME=${SCANS_CONTAINER:-uploads}"
+
+          # The image sets ENVIRONMENT=production, and a production process
+          # refuses to boot on the placeholder signing keys committed in source
+          # (app/core/config.py). Fail here, with a message naming the missing
+          # secret, rather than rolling out a revision that crash-loops.
+          MISSING=""
+          [ -n "$APP_SECRET_KEY" ]     || MISSING="$MISSING BACKEND_SECRET_KEY"
+          [ -n "$APP_JWT_SECRET_KEY" ] || MISSING="$MISSING BACKEND_JWT_SECRET_KEY"
+          if [ -n "$MISSING" ]; then
+            echo "::error::Missing repository secret(s):$MISSING — generate with 'openssl rand -hex 32'. The backend will not start without them."
+            exit 1
+          fi
+          az containerapp secret set --name "$APP" --resource-group "$RG" \
+            --secrets "app-secret-key=$APP_SECRET_KEY" "app-jwt-secret-key=$APP_JWT_SECRET_KEY" --output none
+          EXTRA_ENV="$EXTRA_ENV ENVIRONMENT=production SECRET_KEY=secretref:app-secret-key JWT_SECRET_KEY=secretref:app-jwt-secret-key"
+
+          # Empty is a valid, and the safe, value: no cross-origin browser
+          # access. Only set it when an origin list is actually configured.
+          if [ -n "$CORS_ORIGINS" ]; then
+            EXTRA_ENV="$EXTRA_ENV CORS_ORIGINS=$CORS_ORIGINS"
+          fi
+
+          # Without Redis, rate limits are per-replica: the effective limit is
+          # N x the configured value. Required before scaling past one replica.
+          if [ -n "$REDIS_URL" ]; then
+            az containerapp secret set --name "$APP" --resource-group "$RG" \
+              --secrets "redis-url=$REDIS_URL" --output none
+            EXTRA_ENV="$EXTRA_ENV REDIS_URL=secretref:redis-url"
+          else
+            echo "::warning::REDIS_URL secret not set — rate limits will be per-replica."
+          fi
+
           if [ -n "$REG_TOKEN" ]; then
             # Store the CI register token as a Container App secret and reference it.
             az containerapp secret set --name "$APP" --resource-group "$RG" \
               --secrets "release-register-token=$REG_TOKEN" --output none
-            EXTRA_ENV="$EXTRA_ENV RELEASE_REGISTER_TOKEN=secretref:release-register-token AZURE_RELEASES_CONTAINER_NAME=${REL_CONTAINER:-app-releases}"
+            EXTRA_ENV="$EXTRA_ENV RELEASE_REGISTER_TOKEN=secretref:release-register-token"
           fi
           if [ -n "$FIREBASE_SA_JSON" ]; then
             # One credential powers FCM push + social-login token verification

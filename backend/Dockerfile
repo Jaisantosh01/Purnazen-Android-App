@@ -23,10 +23,15 @@ RUN apt-get update \
         curl \
     && rm -rf /var/lib/apt/lists/*
 
+# ENVIRONMENT=production here rather than in the deployment config, so a
+# container is production by construction: the startup checks in core/config.py
+# (placeholder secrets, wildcard CORS) cannot be skipped by forgetting to set a
+# variable. Override it explicitly to run this image in a dev mode.
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    ENVIRONMENT=production \
     PORT=5000
 
 WORKDIR /app

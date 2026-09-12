@@ -16,6 +16,7 @@ from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.limiter import limiter
 from app.utils.responses import error_response
+from app.web.legal import router as legal_router
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +91,12 @@ async def lifespan(app: FastAPI):
     On shutdown: release MediaPipe resources cleanly.
     """
     # --- Startup ---
+    logger.info(
+        "Starting in ENVIRONMENT=%s; CORS origins: %s",
+        settings.ENVIRONMENT,
+        settings.cors_origins_list or "(none — no cross-origin browser access)",
+    )
+
     detector = None
     try:
         from app.ai.face_detector import get_face_detector
@@ -150,6 +157,11 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(api_router, prefix=settings.API_V1_PREFIX)
+
+    # Public HTML: the privacy policy, terms, and the data-deletion page Play
+    # Console links to. Mounted at the root rather than under /api/v1 — a
+    # reviewer opens these in a browser, and they should read as pages.
+    app.include_router(legal_router)
 
     # Serve locally-saved scan images in dev/test mode (no Cloudinary required).
     uploads_dir = os.path.join(os.getcwd(), settings.LOCAL_UPLOADS_DIR)
