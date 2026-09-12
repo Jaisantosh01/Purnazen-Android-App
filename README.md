@@ -141,19 +141,36 @@ npm start
 
 ### iOS builds
 
-`scripts/build-ios.sh` does the whole loop on a Mac — npm ci, `pod install`,
-`xcodebuild` — and writes every line of output to `build-logs/ios-build.log`:
+Two scripts, both macOS-only, both logging everything to `build-logs/`.
 
 ```bash
-scripts/build-ios.sh                     # users app, simulator, Debug
+scripts/ios-firebase-config.sh           # once: fetch GoogleService-Info.plist
+scripts/build-ios.sh                     # build + run in the simulator
+scripts/build-ios.sh mobile-users build  # compile only
 scripts/build-ios.sh mobile-users device # generic iOS device, Release, unsigned
 ```
 
-Each app needs its own `GoogleService-Info.plist` (Firebase console → iOS app →
-bundle id `com.purnazen`) dropped into `<app>/ios/<target>/`. Without it the app
-compiles but crashes at launch, because sign-in, push and Crashlytics all
-initialise from it. Signing a distributable `.ipa` additionally needs an Apple
-Developer account and a provisioning profile for that bundle id.
+`ios-firebase-config.sh` uses your `firebase login` session to find (or register)
+the iOS app for the right bundle id and write `GoogleService-Info.plist` into
+`<app>/ios/<target>/`. Commit the result — this repo already tracks the Android
+`google-services.json`, and the iOS file gets the same treatment. Without it the
+app compiles but dies on the splash screen: sign-in, push and Crashlytics all
+initialise from it.
+
+`build-ios.sh` runs `npm ci` if needed, `pod install`, `xcodebuild`, then boots a
+simulator, installs, launches, and harvests the simulator log and any crash
+report into `build-logs/ios-build.log`. A launch failure never reaches the
+terminal, so that file is what to read — and what to share.
+
+Still outstanding for an iOS **release** (none of it blocks development):
+
+- An Apple Developer account, a registered `com.purnazen` bundle id and a
+  provisioning profile — `device` mode builds unsigned until then.
+- An APNs key uploaded to Firebase before push works on iOS at all.
+- The Crashlytics dSYM upload build phase
+  (`${PODS_ROOT}/FirebaseCrashlytics/run`). Crashes are collected without it,
+  but the stacks arrive unsymbolicated.
+- App icons: `Images.xcassets/AppIcon.appiconset` is still empty.
 
 ### Tests
 
