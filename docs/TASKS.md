@@ -147,4 +147,4 @@ T40/T41 social slice (→ C1/C2), T42-T49 (→ D1-D7), T14 (→ A2).
 - **Windows native builds:** enable long paths (see root README); admin-app
   ninja fix documented in the repo memory / local.properties.
 - **Local signed APKs:** `scripts/build-apks.sh` (Docker). Cloud:
-  [DEPLOYMENT.md](DEPLOYMENT.md) / [AZURE_RUNBOOK.md](AZURE_RUNBOOK.md).
+  `.github/workflows/deploy-backend.yml` / `scripts/provision-azure-prod.sh`.

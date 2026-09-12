@@ -1,5 +1,48 @@
 # Going Live on Google Play — Services, Costs, Compliance & AI Model Strategy
 
+> **Status — 12 September 2026** (branch `refactorWithEnhancements_12Sep_AG`)
+>
+> This document is the analysis. The P0 blockers and the P1 required items below
+> have now been implemented; the rows still open are the ones that need a Play
+> Console account, an Apple Developer account, a lawyer or a designer, not code.
+>
+> **Done in code**
+>
+> - §2.1 Self-update — the OTA subsystem is deleted from all three apps and the
+>   backend (`REQUEST_INSTALL_PACKAGES`, `UPDATE_PACKAGES_WITHOUT_USER_ACTION`,
+>   the `otaupdater` Kotlin package, the FileProvider, the SAS download
+>   endpoint, the blob-upload workflow). Replaced by `UpdateBanner`, which deep-
+>   links to the store listing.
+> - §2.2 Health claims — `toxin_indicator` is `dullness_index` end to end
+>   (migration `a1c0ffee0002`), and `<MedicalDisclaimer />` is on every surface
+>   that renders a health metric.
+> - Paywall — every plan price is 0 in the database (migration `a1c0ffee0003`),
+>   all billing language is gone from the UI, and `POST /subscriptions/subscribe`
+>   returns 402 for any priced plan.
+> - Signing — a release build with no upload keystore now fails instead of
+>   silently signing with the public Android debug key.
+> - `versionCode` is derived from the semantic version, not `github.run_number`.
+> - R8 is on, with keep rules, and the mapping file is uploaded to Crashlytics
+>   and attached to the GitHub Release.
+> - Firebase Crashlytics in all three apps; error reporting ported to Doctor and
+>   Admin, which had none.
+> - Privacy policy, terms and account deletion are public HTML at `/legal/*`.
+> - The backend refuses to boot in production on the committed placeholder
+>   secrets or a wildcard CORS policy.
+> - CI runs jest + tsc + eslint for all three apps, not just Users.
+>
+> **Still open — not code**
+>
+> - Play Console organisation account, D-U-N-S, and the distribution decision
+>   for the Doctor and Admin apps (closed testing tracks recommended).
+> - Store listing assets: 512x512 icon, 1024x500 feature graphic, screenshots,
+>   descriptions.
+> - Lawyer-reviewed privacy policy and terms copy to put in `content_pages`.
+> - Azure Cache for Redis, so rate limits hold across replicas.
+> - Registering the Play App Signing certificate in Firebase after enrolment —
+>   see the certificate note in §7. This one only fails in production.
+
+
 **Status:** planning document
 **Written:** 2026-07-22
 **Scope:** all three apps (`com.purnazen`, `com.purnazen.doctor`, `com.purnazen.admin`) + the FastAPI backend
@@ -37,9 +80,9 @@ This is the actual inventory, read off the code — not aspirational.
 | **Firebase Cloud Messaging** | `@react-native-firebase/messaging` (all 3 apps), `backend/app/services/fcm_service.py` | Push notifications when app is closed | Wired, needs prod project |
 | **Firebase Authentication** | `@react-native-firebase/auth`, `backend/app/services/social_auth.py` | Google sign-in; backend verifies the ID token and issues its **own** JWTs — Firebase is not the identity store | Wired, GitHub provider removed in the users app |
 | **Razorpay** | `backend/app/core/payment_provider.py`, `services/payment_service.py` | Appointment payments. Falls back to a **local sandbox** mode when keys are absent | Wired, sandbox-only today |
-| **Azure Container Apps** | `.github/workflows/deploy-backend.yml`, `docs/DEPLOYMENT.md` | Runs the FastAPI backend | Provisioned and verified |
+| **Azure Container Apps** | `.github/workflows/deploy-backend.yml` | Runs the FastAPI backend | Provisioned and verified |
 | **Azure Database for PostgreSQL (Flexible, B1ms)** | `DATABASE_URL` | Primary datastore | Provisioned |
-| **Azure Blob Storage** | `backend/app/utils/azure_storage.py`, `services/upload_service.py`, `video_service.py` | Session videos (SAS-signed URLs), scan image uploads, **and private APK distribution** (`app-releases` container) | Provisioned |
+| **Azure Blob Storage** | `backend/app/utils/azure_storage.py`, `services/upload_service.py`, `video_service.py` | Session videos (SAS-signed URLs) and scan image uploads | Provisioned |
 | **Azure Container Registry** | `az acr build` in CI | Backend image builds | Provisioned |
 | **Google Calendar / Meet** | `backend/app/services/google_meet_service.py` | Creates Meet links for video consultations via a service account | Wired, degrades gracefully when unconfigured |
 | **Redis** (optional) | `REDIS_URL` | Cross-worker rate limits + JWT blocklist cache | Optional, currently in-memory |

@@ -58,9 +58,15 @@ scripts/.provision*.log
 mobile-*/ios/build/
 mobile-*/ios/DerivedData/
 mobile-*/ios/Pods/
-mobile-*/ios/Podfile.lock
+# Podfile.lock is deliberately NOT ignored. It pins the exact pod versions the
+# build was verified against; ignoring it means every machine and every CI run
+# resolves its own set, which is how "works on my Mac" happens. Pods/ stays
+# ignored — that is the installed output, not the lock.
+mobile-*/ios/*.xcworkspace
 mobile-*/ios/*.xcuserstate
 mobile-*/ios/.xcode.env.local
+mobile-*/ios/xcuserdata/
+mobile-*/ios/**/xcuserdata/
 
 # ===== GENERAL =====
 .DS_Store
@@ -73,6 +79,9 @@ Thumbs.db
 *.log.err
 *.log.out
 __pycache__/
+
+# Local build logs (scripts/build-ios.sh writes here)
+build-logs/
 
 # SQLite dev fallback
 backend/*.db

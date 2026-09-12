@@ -2,6 +2,141 @@
 
 All notable changes to the Purnazen App are documented here.
 
+## [2026-09-12] — Play release gate: self-update removed, health claims, paywall, build hardening
+
+Everything here comes from the release-readiness audit against Google Play's
+2026 requirements. The six P0 blockers and the eleven P1 required items are
+implemented; what is left needs a Play Console account, a lawyer or a designer.
+Status summary at the top of [GO_LIVE_PLAYSTORE.md](GO_LIVE_PLAYSTORE.md).
+
+### Removed — the OTA self-update subsystem, everywhere
+- The apps no longer download or install an APK. Play's *Device and Network
+  Abuse* policy forbids a Play-distributed app updating itself outside Play,
+  with no exemption for "but our APK is signed and hash-verified" — and the
+  mechanism was well-built, which made it a removal risk rather than a bug.
+- Deleted from all three apps: `otaUpdater.js`, `UpdatePrompt.js`, the
+  `com.purnazen.otaupdater` Kotlin package (module, package, install receiver),
+  `ota_provider_paths.xml`, the `REQUEST_INSTALL_PACKAGES` and
+  `UPDATE_PACKAGES_WITHOUT_USER_ACTION` permissions, and the OTA FileProvider.
+  Roughly 3,900 lines of client code, byte-identical across the three apps.
+- Backend: `GET /app-releases/{app}/{version}/download` (the SAS minting
+  endpoint) and `generate_release_sas_url` are gone, along with the
+  `AZURE_RELEASES_CONTAINER_NAME` / `AZURE_RELEASE_SAS_EXPIRY_MINUTES` settings
+  and the `apk_blob_path` / `sha256` columns (migration **`a1c0ffee0001`**).
+  What survives is a published-*version* registry, which is metadata only.
+- CI: the `Upload Release to Blob (OTA)` workflow is deleted; `release-mobile`
+  no longer logs in to Azure or uploads a binary anywhere the apps can reach.
+- `mobile-admin` declared `POST_NOTIFICATIONS` only for the OTA install-ready
+  notification and has no messaging dependency at all — removed with it.
+
+### Added — a store update banner in its place
+- `UpdateBanner` keeps polling `/app-releases/latest`, and when a newer version
+  exists shows a banner that deep-links to `market://details?id=<package>`
+  (`itms-apps://` on iOS) with an https fallback. `forced` removes the dismiss
+  affordance. No new dependency, and Play auto-updates on Wi-Fi regardless.
+- `updateService` shrinks to the version check plus `openStoreListing`.
+
+### Changed — health-policy language
+- `toxin_indicator` → `dullness_index` end to end: the analyzer module, the
+  `scan_results` column (migration **`a1c0ffee0002`**), the API field
+  (`toxinIndicator` → `dullnessIndex`), the recommendation engine, the dashboard
+  service, and the two user-facing labels ("Toxin indicator", "Toxin Load" →
+  "Skin dullness"). The metric measures luminance uniformity and saturation
+  falloff in a photograph; the old name asserted a physiological state of the
+  user's body, which is a health claim this app cannot make.
+- The "Detox Water" recommendation is reworded, and the tongue scan's "TCM
+  Tongue Diagnosis" note no longer calls tongue markers "diagnostic".
+- **New `<MedicalDisclaimer />`**, persistent and non-dismissible, on every
+  surface that renders a health metric: scan results, scan dashboard, scan
+  comparison, face glow, and (in a light-on-dark overlay variant) the face and
+  tongue capture screens. One component, one string in `constants/strings.js`.
+
+### Fixed — the paywall granted paid plans for free
+- `POST /subscriptions/subscribe` had no payment step, no purchase token, no
+  receipt and no signature check: any authenticated user could set their own
+  plan to Pro. It now returns **402** for any plan with `price > 0`, so pricing
+  a plan before purchase verification exists makes it unsubscribable rather
+  than free.
+- Every plan price is 0 in the database (migration **`a1c0ffee0003`**) and in
+  the seed catalog — not merely hidden, since `GET /subscriptions/plans`
+  returns `price`. Prices, currency symbols, billing periods, "Upgrade" and the
+  free-trial line are gone from the Plans screen.
+
+### Changed — Android release builds
+- **Signing fails closed.** A release build with no `PURNAZEN_UPLOAD_STORE_FILE`
+  used to fall back to the *debug* keystore, whose private key ships with the
+  Android SDK — producing an artifact indistinguishable from a real release.
+  It now fails with a message naming the variables; `-PallowDebugSigning=true`
+  is the explicit, warned-about escape hatch. The check runs on the task graph,
+  so `assembleDebug` and IDE sync are unaffected.
+- **`versionCode` is deterministic:** `MAJOR*1000000 + MINOR*1000 + PATCH`
+  instead of `github.run_number`, which is scoped to the workflow file and
+  resets to 1 if it is renamed — an unrecoverable state, since Play requires a
+  permanently increasing integer per package.
+- **R8 is on** (`minifyEnabled` + `shrinkResources`) with keep rules in
+  `proguard-rules.pro` for the RN bridge, this app's native modules, Hermes,
+  Firebase and ML Kit. The mapping file is attached to the GitHub Release.
+
+### Added — crash reporting
+- **Firebase Crashlytics** in all three apps: one dependency, one Gradle
+  classpath line, one conditional `apply plugin`, native symbol upload on
+  release. Covers what the homegrown reporter cannot see — native crashes,
+  ANRs, startup crashes, unhandled promise rejections, and symbolication.
+- `services/crashReporting.js` installs a global `ErrorUtils` handler and a
+  promise-rejection tracker from `index.js`, before the component tree exists.
+  `setUserId` is wired through `authStore`, the one choke point login, logout
+  and bootstrap all pass through.
+- `/errors/report` is unchanged and stays: handled failures belong in our own
+  logs, in our own payload shape, next to the server request that failed.
+- `errorReportingService` and `ErrorBoundary` are ported to **mobile-doctors**
+  and **mobile-admin**, which had no error reporting of any kind.
+- `errorReportingService` stops reporting a hardcoded `app_version` of `1.0.0`.
+
+### Added — public legal pages
+- `GET /legal/privacy`, `/legal/terms` and `/legal/delete-account` render as
+  HTML, unauthenticated, at root-level URLs. The policy existed only as JSON
+  from an API endpoint; Play needs a page a reviewer can read in a browser.
+- The deletion page states what is deleted, what is retained (clinical records,
+  payment records) and a 30-day turnaround — the URL for Play Console's
+  data-deletion field.
+
+### Changed — backend configuration safety
+- A process with `ENVIRONMENT=production` **refuses to boot** on the placeholder
+  `SECRET_KEY` / `JWT_SECRET_KEY` committed in source, or on `CORS_ORIGINS="*"`.
+  The Docker image sets `ENVIRONMENT=production`, so a container is production
+  by construction rather than by remembering a variable.
+- `CORS_ORIGINS` defaults to empty (no cross-origin browser access) instead of
+  `"*"`. The old default meant a Container App that never set it ran wide open
+  and nothing said so.
+- Startup warns loudly when rate limiting is on and `REDIS_URL` is empty: with
+  N replicas the effective limit is N x the configured value.
+- `deploy-backend.yml` fails with a named secret rather than rolling out a
+  revision that crash-loops on the new checks.
+
+### Added — iOS
+- The `mobile-users` iOS target is configured for a real build: bundle id
+  `com.purnazen` (was the React Native template default), display name, the
+  camera / photo library / Face ID / location usage strings (location was an
+  **empty string**, a guaranteed App Review rejection), `UIAppFonts`,
+  `ITSAppUsesNonExemptEncryption`, a filled-in `PrivacyInfo.xcprivacy`, and
+  `$RNFirebaseAsStaticFramework` in the Podfile.
+- **`scripts/build-ios.sh`** runs the whole loop on a Mac and logs it to
+  `build-logs/ios-build.log`.
+
+### Changed — CI and repo hygiene
+- CI runs jest + tsc + eslint for **all three apps**. Doctor and Admin had no
+  lint or type gate; turning it on surfaced 8 real errors in Doctor (duplicate
+  StyleSheet keys that had silently never applied, and a `useMemo` dependency
+  recomputing on every render), now fixed.
+- `backend/pytest.ini` scopes collection to `tests/`, so `sandbox/` scripts that
+  import cv2 directly no longer take the whole suite down on a machine without
+  the CV stack.
+- Removed a stray root `package-lock.json` and a `backend/package.json` +
+  lockfile that pulled in `@react-native-picker/picker` — an `npm install` run
+  in the wrong directory.
+- `Podfile.lock` is no longer gitignored. Fixed broken links to
+  `DEPLOYMENT.md` / `AZURE_RUNBOOK.md`, which do not exist.
+
 ## [2026-08-14] — Configurable GST, brand tagline, scan deletion, session feedback
 
 ### Added — GST configured in the admin panel, applied end to end
@@ -255,7 +390,7 @@ All notable changes to the Purnazen App are documented here.
 The in-app "Check for Updates" polled the **private** prod repo's GitHub Releases
 API, which 401s unauthenticated — so updates never surfaced in prod. Replaced with
 a backend-brokered flow against a **private** blob container. Full setup +
-runbook: [OTA_RELEASES.md](OTA_RELEASES.md).
+runbook: OTA_RELEASES.md.
 
 ### Added — backend
 - `app_releases` table + model/schema/repository/service and endpoints under

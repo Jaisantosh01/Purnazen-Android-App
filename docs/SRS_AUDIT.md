@@ -106,7 +106,7 @@ are not built, but the native admin & doctor apps now cover most of that scope.
 |----------|--------|-------|
 | Load < 3s | Partial | Splash + bootstrap; not formally measured. |
 | 1,000+ concurrent users | Partial | FastAPI + Postgres + Redis cache; not load-tested (TASKS D7). |
-| Secure data + payments | Done | Keychain tokens, HMAC payment verify, no card data stored; OTA via short-lived SAS. |
+| Secure data + payments | Done | Keychain tokens, HMAC payment verify, no card data stored; store-managed app distribution. |
 | Simple UI | Done | Dark mode across all screens; themed alerts. |
 | Android (initial) | Done | Android-first; three co-installable apps. |
 

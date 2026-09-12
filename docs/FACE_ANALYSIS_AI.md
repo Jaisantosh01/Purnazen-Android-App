@@ -198,16 +198,16 @@ glow = hydration·0.20 + (100−oiliness)·0.10 + (100−wrinkle)·0.15
      + elasticity·0.10 + muscle_tone·0.05 + (100−inflammation)·0.05
 ```
 
-**Toxin indicator** (`toxin_indicator.compute`):
+**Dullness index** (`dullness_index.compute`):
 
 ```
-toxin = dark_circle·0.40 + oiliness·0.30 + (100−glow)·0.30
+dullness = dark_circle·0.40 + oiliness·0.30 + (100−glow)·0.30
 ```
 
 **Skin-age estimate** — heuristic around a 30-year baseline, nudged by wrinkle
 and elasticity, clamped to `[18, 70]`.
 
-**Overall wellness score** — `glow·0.7 + (100 − toxin)·0.3`.
+**Overall wellness score** — `glow·0.7 + (100 − dullness)·0.3`.
 
 `raw_metrics` carries the audit trail: `blur_score`, `lighting`,
 `landmark_count`, `cv_fallback`, and the sprint tag.
@@ -231,7 +231,7 @@ to **8** items sorted by priority. Representative rules:
 | inflammation > 60 | Heat in Blood | Reduce refined sugars / cooling foods |
 | oiliness > 70 | Dampness-heat | Reduce dairy + Gua Sha |
 | elasticity < 40 | Qi/Blood deficiency | Collagen-rich foods |
-| toxin > 60 | Dampness toxins | Detox water / lymphatic drainage |
+| dullness > 60 | Hydration Habit | Water through the day + gua sha flow |
 | muscle_tone < 40 | Qi deficiency | *Facial Acupressure* routine |
 | pore > 60 | Dampness | Reduce sugar |
 | (tongue rules — yellow coat / dry / pale / dark-red body) | Damp-heat / Yin def. / Qi-Blood def. / Heat in Blood | matched routines & foods |

@@ -140,7 +140,7 @@ elasticity_score       NUMERIC(5,2)
 muscle_tone_score      NUMERIC(5,2)
 inflammation_score     NUMERIC(5,2)
 glow_score             NUMERIC(5,2)  -- weighted composite
-toxin_indicator        NUMERIC(5,2)
+dullness_index         NUMERIC(5,2)
 -- Tongue metrics (NULL for face scans):
 tongue_body_color      VARCHAR(30)   -- 'pale'|'red'|'dark_red'|'purple'|'normal'
 tongue_coat_color      VARCHAR(30)   -- 'white'|'yellow'|'grey'|'none'
@@ -236,7 +236,7 @@ backend/app/
 │   │   ├── muscle_tone_analyzer.py            -- bilateral landmark symmetry + jaw angle
 │   │   ├── inflammation_analyzer.py           -- Lab mean a* (redness) + LBP spot count
 │   │   ├── glow_score_engine.py               -- weighted composite (see weights below)
-│   │   └── toxin_indicator.py                 -- dark_circle + oiliness + (100 − glow)
+│   │   └── dullness_index.py                  -- dark_circle + oiliness + (100 − glow)
 │   └── tongue/                                          ✅ Sprint 4
 │       ├── segmenter.py             ✅  -- GrabCut isolation of tongue region (reddish-mask refine, ellipse fallback)
 │       ├── color_analyzer.py        ✅  -- Lab/HSV TCM classification
@@ -347,7 +347,7 @@ All endpoints require a valid access token (`Authorization: Bearer {token}`).
         hydration, oiliness, wrinkle, pigmentation, dark_circle,
         pore, elasticity, muscle_tone, inflammation
   19. glow_score_engine.compute(all_analyzer_outputs)
-  20. toxin_indicator.compute(dark_circle_score, puffiness, dullness)
+  20. dullness_index.compute(dark_circle_score, oiliness, glow)
   21. Create ScanResult record (all numeric scores + raw_metrics JSON)
   22. recommendation_engine_service.generate(scan_result) → ordered list (≥15 TCM rules)
   23. Create ScanRecommendation records (bulk insert)
@@ -382,7 +382,7 @@ Same flow as face scan, with these changes at steps 16–20:
 | Zone | Landmark Indices | Analyzer Used By |
 |------|-----------------|-----------------|
 | Forehead center | 10, 151, 9, 8 | wrinkle, elasticity |
-| Under-eye L/R | 226–229 / 446–449 | dark_circle, toxin |
+| Under-eye L/R | 226–229 / 446–449 | dark_circle, dullness |
 | Cheeks L/R | 116, 123 / 345, 352 | hydration, pigmentation |
 | T-zone (nose bridge) | 1, 4, 19, 94 | oiliness |
 | Jawline | 172, 136, 150, 149, 176, 148, 152, 377 | elasticity, muscle_tone |
@@ -405,7 +405,7 @@ Minimum 15 rules mapping score thresholds to recommendations:
 | `wrinkle_score > 60` | Yin/Blood deficiency | Tip: antioxidant foods; routine: NightRepair |
 | `pigmentation_score > 60` | Blood stagnation | Routine: GuaShaFlow |
 | `elasticity_score < 40` | Qi/Blood deficiency | Tip: collagen-rich foods; routine: FacialAcupressure |
-| `toxin_indicator > 60` | Dampness toxins | Tip: detox water; routine: GuaShaFlow |
+| `dullness_index > 60` | Hydration Habit | Tip: water through the day; routine: GuaShaFlow |
 | `muscle_tone_score < 40` | Qi deficiency | Routine: FacialAcupressure (face yoga) |
 | `tongue_coat_color = yellow` | Damp-heat | Tip: cooling foods; routine: GuaShaFlow |
 | `tongue_moisture = dry` | Yin deficiency | Tip: yin-nourishing foods; routine: NightRepair |

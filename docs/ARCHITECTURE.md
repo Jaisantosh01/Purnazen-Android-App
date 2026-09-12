@@ -74,7 +74,7 @@ backend/
 │   │                        #   - home, sessions, therapy_history, therapy_feedback, chat
 │   │                        #   - face_glow, face_scan
 │   │                        #   - videos (+ video groups + Azure Blob upload), support (CMS),
-│   │                        #     dashboard (admin stats), app_releases (OTA)
+│   │                        #     dashboard (admin stats), app_releases (versions)
 │   ├── core/
 │   │   ├── config.py        # Settings (pydantic-settings): secrets, DB URL, expiries,
 │   │   │                    #   CORS_ORIGINS, REDIS_URL, RATE_LIMIT_*, RAZORPAY_KEY_*
@@ -98,7 +98,7 @@ backend/
 │   │   ├── face_detector.py      # MediaPipe FaceLandmarker singleton (+ Haar fallback)
 │   │   ├── image_preprocessor.py # resize, blur/lighting checks, landmark-indexed ROIs
 │   │   ├── face_landmarker.task   # MediaPipe model asset (auto-downloaded if absent)
-│   │   └── analyzers/             # 9 metric analyzers + glow_score_engine + toxin_indicator
+│   │   └── analyzers/             # 9 metric analyzers + glow_score_engine + dullness_index
 │   └── utils/responses.py   # success_response / error_response (JSON envelope)
 ├── alembic/                 # Plain Alembic (env.py reads settings.DATABASE_URL)
 │   └── versions/            # 59 revisions — heads were merged 2026-06-17; if you hit a
@@ -141,7 +141,7 @@ model → migration pattern): `doctor_leaves`, `slot_timings`, `roles`,
 | `face_glow_routines` | Face Glow routine catalog (DB-backed; Redis cache-aside) |
 | `user_consents` | GDPR consents (scan_storage/ai_training/gdpr_data; granted/revoked + IP/UA) |
 | `face_scans` | Uploaded scan records: image refs, status, `progress_stage`, `face_detected`/`face_confidence`, `blur_score`, `lighting_quality`, `landmarks_json` |
-| `scan_results` | Per-scan metric scores (9 metrics + glow/toxin/skin-age/overall) + raw_metrics |
+| `scan_results` | Per-scan metric scores (9 metrics + glow/dullness/skin-age/overall) + raw_metrics |
 | `scan_recommendations` | TCM recommendations per scan (type, priority, title, body, routine key) |
 
 ### Face Analysis pipeline (Sprint 3)
@@ -294,7 +294,7 @@ mobile-users/src/
 │                            #   wellnessService, reliefService, therapyService,
 │                            #   preferencesService, scanService, consentService,
 │                            #   supportService, biometricService, permissionsService,
-│                            #   updateService (OTA), errorReportingService
+│                            #   updateService (store check), errorReportingService
 ├── screens/                 # Screens (see FEATURES.md) — incl. RegisterScreen and the
 │                            #   scan flow (FaceScan/ScanProcessing/ScanResults/ScanError)
 ├── components/              # QuickCards, ErrorBoundary, ServiceUnavailable,

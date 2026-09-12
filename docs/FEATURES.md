@@ -27,7 +27,7 @@ across the three mobile apps and the shared FastAPI backend.
 
 All three share the same stack (RN 0.85 / Expo SDK 56) and client patterns:
 dark mode (`useTheme` + persisted `themeStore`), biometric login, themed alerts,
-JWT keychain storage with silent 401 refresh, and backend-brokered OTA updates.
+JWT keychain storage with silent 401 refresh, and a store-update banner.
 
 ---
 
@@ -85,7 +85,7 @@ JWT keychain storage with silent 401 refresh, and backend-brokered OTA updates.
 ## Face & tongue analysis
 
 Real classical-CV pipeline: MediaPipe FaceLandmarker + 9 OpenCV/skimage
-analyzers producing glow/toxin/skin-age scores + TCM recommendations, with a
+analyzers producing glow/dullness/skin-age scores + wellness recommendations, with a
 graceful-degradation ladder. Details: [FACE_ANALYSIS_AI.md](FACE_ANALYSIS_AI.md).
 
 | Feature | Frontend | Backend | Status | Notes |
@@ -106,7 +106,7 @@ graceful-degradation ladder. Details: [FACE_ANALYSIS_AI.md](FACE_ANALYSIS_AI.md)
 | Notification preferences | `NotificationsScreen`, Settings | `GET/PUT /users/me/preferences` | Done | Push *delivery* (FCM) still open |
 | Help & Support | `HelpSupportScreen` | `GET /support/help` | Done | DB-backed contacts + FAQs (2026-06-26); some rows still "coming soon" |
 | Subscriptions | `SubscriptionsScreen` | — | UI only | Hardcoded plans; no billing, no plan gating (TASKS T14) |
-| In-app updates (OTA) | `updateService` | `GET /app-releases/latest`, `/download` | Done | Backend-brokered private-blob flow; see [OTA_RELEASES.md](OTA_RELEASES.md) |
+| Update banner | `updateService`, `UpdateBanner` | `GET /app-releases/latest` | Done | Version check only; tapping deep-links to the store listing. The app never downloads or installs a build itself — Play's Device and Network Abuse policy forbids it. |
 | Error reporting | `ErrorBoundary` + service | `POST /errors/report` | Done | |
 | Download my data | Settings row | — | UI only | Alert stub; no export pipeline |
 | Push notifications (FCM) | — | — | Planned | Preferences persist but nothing is delivered |
@@ -179,12 +179,12 @@ across 27 endpoint modules** (counted from `app/api/v1/endpoints/`, 2026-07-03).
 | roles | 4 | admin | Role CRUD |
 | slot-timings | 4 | admin | Slot template CRUD |
 | support | 7 | users, (admin CRUD) | Help content + contacts/FAQs CMS |
-| app-releases | 3 | all apps + CI | OTA registry: latest, SAS download, CI register |
+| app-releases | 2 | all apps + CI | Published-version registry: latest version, CI register. Metadata only. |
 | errors | 1 | all apps | Client crash/error reports |
 
 Infrastructure: Azure Container Apps deploy via OIDC GitHub Actions
-([DEPLOYMENT.md](DEPLOYMENT.md), [AZURE_RUNBOOK.md](AZURE_RUNBOOK.md)); signed
-APKs distributed OTA from a private blob container ([OTA_RELEASES.md](OTA_RELEASES.md));
+(`.github/workflows/deploy-backend.yml`, `scripts/provision-azure-prod.sh`); signed
+Apps distributed through Google Play and the App Store;
 local Docker APK builds (`scripts/build-apks.sh`).
 
 ---
