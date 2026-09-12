@@ -9,43 +9,42 @@ require Pod::Executable.execute_command('node', ['-p',
 platform :ios, '16.4'
 prepare_react_native_project!
 
-# react-native-firebase's pods build as static frameworks rather than plain
-# static libraries. Not strictly required without `use_frameworks!`, but it is
-# what react-native-firebase documents and it keeps the two linkage stories from
-# diverging if USE_FRAMEWORKS is ever set below.
+# Required by the `use_frameworks! :linkage => :static` below: it tells
+# react-native-firebase to build its own pods as static frameworks to match.
 $RNFirebaseAsStaticFramework = true
 
-linkage = ENV['USE_FRAMEWORKS']
-if linkage != nil
-  Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
-  use_frameworks! :linkage => linkage.to_sym
-end
+# Static FRAMEWORKS, not static libraries — and this is not a preference.
+#
+# FirebaseAuth is a Swift pod. Firebase's umbrella header does this:
+#
+#     #if __has_include("FirebaseAuth-umbrella.h")
+#       ...
+#       #import <FirebaseAuth/FirebaseAuth-Swift.h>
+#     #endif
+#
+# Built as a static LIBRARY, CocoaPods symlinks the umbrella header into
+# Pods/Headers/Public/FirebaseAuth/ — so the guard passes — but the generated
+# Swift interop header is published to a sibling "Swift Compatibility Header"
+# directory and exposed only through a separate `FirebaseAuth.Swift` module. So
+# `<FirebaseAuth/FirebaseAuth-Swift.h>` does not resolve, and every target that
+# imports <Firebase/Firebase.h> without depending on Auth fails to compile.
+# RNFBMessaging is exactly that target:
+#
+#     Pods/Headers/Private/Firebase/Firebase.h:40:15:
+#       error: 'FirebaseAuth/FirebaseAuth-Swift.h' file not found
+#
+# Built as a FRAMEWORK, the generated header lands inside
+# FirebaseAuth.framework/Headers/ and the import resolves. This is the
+# configuration Firebase's umbrella header assumes, and the one Firebase and
+# react-native-firebase document for Swift products.
+#
+# Overridable for debugging: USE_FRAMEWORKS=dynamic pod install.
+linkage = (ENV['USE_FRAMEWORKS'] || 'static').to_sym
+Pod::UI.puts "Configuring Pods with #{linkage}ally linked frameworks"
+use_frameworks! :linkage => linkage
 
 target 'wellness' do
   use_expo_modules!
-
-  # Firebase's Swift pods (FirebaseAuth, FirebaseCoreInternal, FirebaseCrashlytics,
-  # FirebaseSessions) cannot be integrated as static libraries unless the
-  # Objective-C pods they import generate module maps. Without this, `pod install`
-  # stops with:
-  #
-  #   [!] The following Swift pods cannot yet be integrated as static libraries:
-  #       The Swift pod `FirebaseAuth` depends upon `FirebaseAuthInterop`,
-  #       `FirebaseAppCheckInterop`, `GoogleUtilities`, and `RecaptchaInterop`,
-  #       which do not define modules.
-  #
-  # Declared one by one rather than with a global `use_modular_headers!`: the
-  # global switch turns modular headers on for every pod in the project,
-  # including React Native's, where a pod whose public headers use non-modular
-  # imports then fails to compile. This is exactly the set the error names — if
-  # a Firebase upgrade adds another, the next `pod install` will name it too.
-  pod 'FirebaseAuthInterop', :modular_headers => true
-  pod 'FirebaseAppCheckInterop', :modular_headers => true
-  pod 'FirebaseCoreExtension', :modular_headers => true
-  pod 'GoogleUtilities', :modular_headers => true
-  pod 'GoogleDataTransport', :modular_headers => true
-  pod 'RecaptchaInterop', :modular_headers => true
-  pod 'nanopb', :modular_headers => true
 
   if ENV['EXPO_USE_COMMUNITY_AUTOLINKING'] == '1'
     config_command = ['node', '-e', "process.argv=['', '', 'config'];require('@react-native-community/cli').run()"];

@@ -148,7 +148,14 @@ scripts/ios-firebase-config.sh           # once: fetch GoogleService-Info.plist
 scripts/build-ios.sh                     # build + run in the simulator
 scripts/build-ios.sh mobile-users build  # compile only
 scripts/build-ios.sh mobile-users device # generic iOS device, Release, unsigned
+CLEAN=1 scripts/build-ios.sh             # wipe Pods + DerivedData first
 ```
+
+Pods build as **static frameworks** (`use_frameworks! :linkage => :static`),
+which is not optional: FirebaseAuth is a Swift pod, and Firebase's umbrella
+header imports `<FirebaseAuth/FirebaseAuth-Swift.h>`, a path that only exists
+when the pod is a framework. The Podfile explains it at the point of the
+setting. Run with `CLEAN=1` after any change to that linkage.
 
 `ios-firebase-config.sh` uses your `firebase login` session to find (or register)
 the iOS app for the right bundle id and write `GoogleService-Info.plist` into

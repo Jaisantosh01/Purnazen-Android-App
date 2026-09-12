@@ -6,6 +6,7 @@
 #   scripts/build-ios.sh mobile-users run         # same, explicit
 #   scripts/build-ios.sh mobile-users build       # compile only, no simulator
 #   scripts/build-ios.sh mobile-users device      # generic iOS device, Release, unsigned
+#   CLEAN=1 scripts/build-ios.sh                  # wipe Pods + DerivedData first
 #
 # Everything — every command and all of its output — goes to
 # build-logs/ios-build.log, and in `run` mode the simulator's own log for the
@@ -91,6 +92,16 @@ if command -v ruby >/dev/null; then
 fi
 
 cd "$ROOT/$APP"
+
+# ── Clean ───────────────────────────────────────────────────────────────────
+# Changing pod linkage (static libraries <-> frameworks) leaves Pods, the lock
+# file and DerivedData describing the old arrangement, and the next build then
+# fails in ways that have nothing to do with the change. Required after a
+# Podfile linkage edit; harmless otherwise, just slow.
+if [ "${CLEAN:-0}" = "1" ]; then
+  say "-- CLEAN=1: removing ios/Pods, ios/Podfile.lock and ios/build"
+  rm -rf ios/Pods ios/Podfile.lock ios/build
+fi
 
 # ── JS dependencies ─────────────────────────────────────────────────────────
 if [ ! -d node_modules ]; then
