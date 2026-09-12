@@ -60,20 +60,55 @@ say ""
 
 # Fails fast and legibly if the CLI session has expired, rather than three
 # commands later with a confusing permission error.
-run firebase projects:list --json || die "firebase is not authenticated, or cannot reach the API. Run: firebase login"
-node -e "
-  const fs=require('fs');
-  const txt=fs.readFileSync('$LOG','utf8');
-  const i=txt.lastIndexOf('{\"status\"');
-  if (i<0) process.exit(1);
-  const res=JSON.parse(txt.slice(i));
-  const ids=(res.result||[]).map(p=>p.projectId);
-  if (!ids.includes('$PROJECT')) {
-    console.error('Project $PROJECT is not visible to this firebase login. Visible: '+ids.join(', '));
-    process.exit(1);
-  }
-" >> "$LOG" 2>&1 || die "project $PROJECT is not accessible with the current firebase login (see log)"
+#
+# Parse the command's stdout, never the log: the CLI pretty-prints its JSON and
+# writes progress lines around it, so anything that pattern-matches the log file
+# is reading the wrong thing. `json_slice` trims to the first brace and hands the
+# rest to a JSON parser, which is the only reliable way to read this output.
+json_slice() { node -e "
+  let s='';
+  process.stdin.on('data', d => s += d).on('end', () => {
+    const i = s.indexOf('{');
+    process.stdout.write(i < 0 ? '' : s.slice(i));
+  });
+"; }
+
+PROJECTS_JSON="$(firebase projects:list --json 2>>"$LOG" | json_slice)"
+printf '\n$ firebase projects:list --json\n%s\n' "$PROJECTS_JSON" >> "$LOG"
+[ -n "$PROJECTS_JSON" ] || die "firebase is not authenticated, or cannot reach the API. Run: firebase login"
+
+VISIBLE="$(printf '%s' "$PROJECTS_JSON" | node -e "
+  let s=''; process.stdin.on('data',d=>s+=d).on('end',()=>{
+    try { process.stdout.write((JSON.parse(s).result||[]).map(p=>p.projectId).join(' ')); }
+    catch { process.stdout.write(''); }
+  });
+")"
+case " $VISIBLE " in
+  *" $PROJECT "*) ;;
+  *) die "project $PROJECT is not visible to this firebase login. Visible: ${VISIBLE:-<none>}. Run: firebase login --reauth" ;;
+esac
 say "auth:    ok"
+
+# Empty output here means "no app with that bundle id" — and, if the output could
+# not be read or parsed, it would mean the same thing, so the script would go on
+# to create a DUPLICATE app. Hence: unreadable output is a non-zero return, kept
+# distinct from an empty result, and the caller turns that into a failure.
+#
+# Note it returns rather than calling die(): this runs inside "$(...)", where an
+# exit only ends the subshell and the script would carry on regardless.
+find_app_id() {
+  local bundle="$1" raw
+  raw="$(firebase apps:list IOS --project "$PROJECT" --json 2>>"$LOG" | json_slice)"
+  printf '\n$ firebase apps:list IOS --project %s --json\n%s\n' "$PROJECT" "$raw" >> "$LOG"
+  [ -n "$raw" ] || return 1
+  printf '%s' "$raw" | node -e "
+    let s=''; process.stdin.on('data',d=>s+=d).on('end',()=>{
+      const r = JSON.parse(s).result || [];
+      const hit = r.find(a => (a.bundleId || '') === process.argv[1]);
+      process.stdout.write(hit ? hit.appId : '');
+    });
+  " "$bundle"
+}
 
 for APP in $APPS; do
   case "$APP" in
@@ -96,29 +131,15 @@ for APP in $APPS; do
     say "      Fetching the plist anyway; the app will not find its config until they match."
   fi
 
-  APP_ID=$(firebase apps:list IOS --project "$PROJECT" --json 2>>"$LOG" | node -e "
-    let s=''; process.stdin.on('data',d=>s+=d).on('end',()=>{
-      try {
-        const r=JSON.parse(s).result||[];
-        const hit=r.find(a=>(a.bundleId||'')==='$BUNDLE');
-        process.stdout.write(hit?hit.appId:'');
-      } catch { process.stdout.write(''); }
-    });
-  ")
+  APP_ID="$(find_app_id "$BUNDLE")" \
+    || die "could not read the iOS app list from the Firebase CLI (see log)"
 
   if [ -z "$APP_ID" ]; then
     say "   no iOS app registered for $BUNDLE — creating it"
     run firebase apps:create IOS "$DISPLAY" --bundle-id "$BUNDLE" --project "$PROJECT" \
       || die "firebase apps:create for $BUNDLE"
-    APP_ID=$(firebase apps:list IOS --project "$PROJECT" --json 2>>"$LOG" | node -e "
-      let s=''; process.stdin.on('data',d=>s+=d).on('end',()=>{
-        try {
-          const r=JSON.parse(s).result||[];
-          const hit=r.find(a=>(a.bundleId||'')==='$BUNDLE');
-          process.stdout.write(hit?hit.appId:'');
-        } catch { process.stdout.write(''); }
-      });
-    ")
+    APP_ID="$(find_app_id "$BUNDLE")" \
+      || die "could not read the iOS app list from the Firebase CLI (see log)"
     [ -n "$APP_ID" ] || die "created the app but could not find it in apps:list"
   fi
   say "   appId:  $APP_ID"

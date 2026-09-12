@@ -9,11 +9,10 @@ require Pod::Executable.execute_command('node', ['-p',
 platform :ios, '16.4'
 prepare_react_native_project!
 
-# The Firebase SDK ships as static frameworks. Without this, react-native-firebase
-# links against them as static libraries and the build fails at link time with
-# missing Firebase symbols (or, worse, duplicate-symbol errors once more than one
-# Firebase module is in the project — this app has app, auth, messaging and
-# crashlytics).
+# react-native-firebase's pods build as static frameworks rather than plain
+# static libraries. Not strictly required without `use_frameworks!`, but it is
+# what react-native-firebase documents and it keeps the two linkage stories from
+# diverging if USE_FRAMEWORKS is ever set below.
 $RNFirebaseAsStaticFramework = true
 
 linkage = ENV['USE_FRAMEWORKS']
@@ -24,6 +23,29 @@ end
 
 target 'wellness' do
   use_expo_modules!
+
+  # Firebase's Swift pods (FirebaseAuth, FirebaseCoreInternal, FirebaseCrashlytics,
+  # FirebaseSessions) cannot be integrated as static libraries unless the
+  # Objective-C pods they import generate module maps. Without this, `pod install`
+  # stops with:
+  #
+  #   [!] The following Swift pods cannot yet be integrated as static libraries:
+  #       The Swift pod `FirebaseAuth` depends upon `FirebaseAuthInterop`,
+  #       `FirebaseAppCheckInterop`, `GoogleUtilities`, and `RecaptchaInterop`,
+  #       which do not define modules.
+  #
+  # Declared one by one rather than with a global `use_modular_headers!`: the
+  # global switch turns modular headers on for every pod in the project,
+  # including React Native's, where a pod whose public headers use non-modular
+  # imports then fails to compile. This is exactly the set the error names — if
+  # a Firebase upgrade adds another, the next `pod install` will name it too.
+  pod 'FirebaseAuthInterop', :modular_headers => true
+  pod 'FirebaseAppCheckInterop', :modular_headers => true
+  pod 'FirebaseCoreExtension', :modular_headers => true
+  pod 'GoogleUtilities', :modular_headers => true
+  pod 'GoogleDataTransport', :modular_headers => true
+  pod 'RecaptchaInterop', :modular_headers => true
+  pod 'nanopb', :modular_headers => true
 
   if ENV['EXPO_USE_COMMUNITY_AUTOLINKING'] == '1'
     config_command = ['node', '-e', "process.argv=['', '', 'config'];require('@react-native-community/cli').run()"];

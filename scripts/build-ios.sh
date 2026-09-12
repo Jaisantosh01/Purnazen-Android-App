@@ -69,6 +69,27 @@ xcodebuild -version >> "$LOG" 2>&1 || die "xcodebuild is present but not usable 
 say "Xcode: $(xcodebuild -version 2>/dev/null | head -1)"
 say "node:  $(node --version)"
 
+# Ruby drives CocoaPods, and macOS still ships 2.6. Expo's precompiled-pod path
+# calls Array#filter_map, which arrived in Ruby 2.7 — on 2.6 every spm.config.json
+# read fails with "undefined method `filter_map'", Expo silently falls back to
+# building those pods from source, and the build takes far longer for no visible
+# reason. Loud, not fatal: it degrades the build rather than breaking it.
+if command -v ruby >/dev/null; then
+  RUBY_V="$(ruby -e 'print RUBY_VERSION' 2>/dev/null)"
+  say "ruby:  ${RUBY_V:-unknown}$(command -v ruby | sed 's|^| at |')"
+  case "$RUBY_V" in
+    1.*|2.*)
+      say ""
+      say "!! Ruby $RUBY_V is macOS's system Ruby. Expect a wall of"
+      say "   'undefined method filter_map' warnings from Expo, a much slower"
+      say "   build, and an ancient bundler. Install a current Ruby:"
+      say "     brew install ruby     # then put its bin dir ahead of /usr/bin in PATH"
+      say "     # or: rbenv install 3.3.6 && rbenv local 3.3.6"
+      say ""
+      ;;
+  esac
+fi
+
 cd "$ROOT/$APP"
 
 # ── JS dependencies ─────────────────────────────────────────────────────────
