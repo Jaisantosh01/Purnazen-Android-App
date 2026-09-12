@@ -27,7 +27,9 @@ import Toast from './src/components/Toast';
 // @ts-ignore
 import AppAlertHost from './src/components/AppAlertHost';
 // @ts-ignore
-import UpdatePrompt from './src/components/UpdatePrompt';
+// @ts-ignore
+import ErrorBoundary from './src/components/ErrorBoundary';
+import UpdateBanner from './src/components/UpdateBanner';
 // @ts-ignore
 import useToastStore from './src/utils/toast';
 
@@ -269,6 +271,7 @@ export default function App() {
   }
 
   return (
+    <ErrorBoundary screen="App">
     <GestureHandlerRootView style={{ flex: 1 }}>
       <NavigationContainer
         ref={navigationRef}
@@ -287,8 +290,9 @@ export default function App() {
         </RootStack.Navigator>
         <Toast message={message} type={type} visible={visible} onHide={hide} />
         <AppAlertHost />
-        <UpdatePrompt />
+        <UpdateBanner />
       </NavigationContainer>
     </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 }

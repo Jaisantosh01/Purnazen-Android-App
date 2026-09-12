@@ -28,7 +28,9 @@ import Toast from './src/components/Toast';
 // @ts-ignore
 import AppAlertHost from './src/components/AppAlertHost';
 // @ts-ignore
-import UpdatePrompt from './src/components/UpdatePrompt';
+// @ts-ignore
+import ErrorBoundary from './src/components/ErrorBoundary';
+import UpdateBanner from './src/components/UpdateBanner';
 // @ts-ignore
 import useToastStore from './src/utils/toast';
 
@@ -296,6 +298,7 @@ export default function App() {
   }
 
   return (
+    <ErrorBoundary screen="App">
     <NavigationContainer ref={navigationRef} theme={navTheme}>
       <RootStack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
         {isLoggedIn ? (
@@ -306,7 +309,8 @@ export default function App() {
       </RootStack.Navigator>
       <Toast message={message} type={type} visible={visible} onHide={hide} />
       <AppAlertHost />
-      <UpdatePrompt />
+      <UpdateBanner />
     </NavigationContainer>
+    </ErrorBoundary>
   );
 }

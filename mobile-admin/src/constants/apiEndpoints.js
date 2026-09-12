@@ -20,8 +20,10 @@ export const ENDPOINTS = {
 
   // App releases (OTA) — backend-brokered update check + short-lived SAS download
   APP_RELEASE_LATEST: slug => `${API_VERSION}/app-releases/latest?app=${slug}`,
-  APP_RELEASE_DOWNLOAD: (slug, version) =>
-    `${API_VERSION}/app-releases/${slug}/${encodeURIComponent(version)}/download`,
+
+  // Handled client-side failures, for our own logs. Crashes and ANRs go
+  // to Crashlytics (see services/crashReporting).
+  ERROR_REPORT: `${API_VERSION}/errors/report`,
 
   // User preferences
   PREFERENCES: `${API_VERSION}/users/me/preferences`,

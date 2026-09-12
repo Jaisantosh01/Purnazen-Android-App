@@ -6,16 +6,14 @@ APP_SLUGS = {"mobile-users", "mobile-admin", "mobile-doctors"}
 
 
 class RegisterAppReleaseRequest(BaseModel):
-    """Payload the release CI posts (with the X-Release-Token header) after it
-    has uploaded the signed APK to the private releases container."""
+    """Payload the release CI posts (with the X-Release-Token header) once a
+    build has been published to the stores. Version metadata only."""
 
     model_config = ConfigDict(populate_by_name=True)
 
     app_slug: str = Field(alias="appSlug", min_length=1, max_length=40)
     version: str = Field(min_length=1, max_length=20)
-    apk_blob_path: str = Field(alias="apkBlobPath", min_length=1, max_length=255)
     version_code: Optional[int] = Field(alias="versionCode", default=None)
-    sha256: Optional[str] = Field(default=None, max_length=64)
     notes: Optional[str] = None
     forced: bool = False
 

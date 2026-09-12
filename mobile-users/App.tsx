@@ -34,7 +34,7 @@ import AppAlertHost from './src/components/AppAlertHost';
 // @ts-ignore
 import ErrorBoundary from './src/components/ErrorBoundary';
 // @ts-ignore
-import UpdatePrompt from './src/components/UpdatePrompt';
+import UpdateBanner from './src/components/UpdateBanner';
 // @ts-ignore
 import useToastStore from './src/utils/toast';
 
@@ -372,7 +372,7 @@ export default function App() {
       </RootStack.Navigator>
       <Toast message={message} type={type} visible={visible} onHide={hide} />
       <AppAlertHost />
-      <UpdatePrompt />
+      <UpdateBanner />
     </NavigationContainer>
     </ErrorBoundary>
   );

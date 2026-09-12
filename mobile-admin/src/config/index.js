@@ -25,16 +25,21 @@ export const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:500
 
 export const API_VERSION = '/api/v1';
 
-// ── Live-update (OTA) config ─────────────────────────────────────────────────
-// APP_SLUG matches the release tag prefix `<slug>-v<version>` used by the
-// "Release Mobile Apps" workflow. APP_VERSION is the running marketing version:
-// release builds inject it (EXPO_PUBLIC_APP_VERSION) to match the gradle
-// versionName, and every other build falls back to package.json — the same value
-// build.gradle defaults versionName to. Nothing is hardcoded here, so a dev build
-// no longer reports itself as "0.0.0".
+// ── Update check / store identity ────────────────────────────────────────────
+// The app is distributed through the stores and never installs code itself.
+// APP_SLUG keys the backend's published-version lookup (and matches the release
+// tag prefix `<slug>-v<version>`); APP_VERSION is the running marketing version
+// — release builds inject it (EXPO_PUBLIC_APP_VERSION) to match the gradle
+// versionName, and every other build falls back to package.json, so a dev build
+// no longer reports itself as "0.0.0". The package name / App Store id are what
+// the "Update" affordance deep-links to.
 export const APP_SLUG = 'mobile-admin';
 export const APP_VERSION = process.env.EXPO_PUBLIC_APP_VERSION || packageJson.version;
 export const GITHUB_REPO = 'Calypsion-Innovations/PurnaZen_Android_App';
+export const ANDROID_PACKAGE_NAME = 'com.purnazen.admin';
+// Assigned by App Store Connect once the app is registered; until then the
+// iOS deep link resolves to the store's "not found" page rather than crashing.
+export const IOS_APP_STORE_ID = process.env.EXPO_PUBLIC_IOS_APP_STORE_ID || '';
 
 // ── RBAC ─────────────────────────────────────────────────────────────────────
 // The single backend role this app serves. Login is gated to this role both

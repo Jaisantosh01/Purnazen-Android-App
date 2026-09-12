@@ -17,9 +17,10 @@ from app.db.base_class import Base
 
 
 class AppRelease(Base):
-    """A published, signed APK for one of the apps, stored in the private
-    releases container. The newest active row per `app_slug` is what the in-app
-    updater compares against.
+    """A version of one of the apps published to the app stores. The newest
+    active row per `app_slug` is what a running build compares itself against to
+    decide whether to show the "update available" banner. Metadata only — the
+    binaries live in Play / App Store Connect, never here.
     """
 
     __tablename__ = "app_releases"
@@ -28,8 +29,6 @@ class AppRelease(Base):
     app_slug = Column(String(40), nullable=False, index=True)  # mobile-users | mobile-admin | mobile-doctors
     version = Column(String(20), nullable=False)
     version_code = Column(Integer, nullable=True)
-    apk_blob_path = Column(String(255), nullable=False)  # path within the releases container
-    sha256 = Column(String(64), nullable=True)
     notes = Column(Text, nullable=True)
     forced = Column(Boolean, default=False, server_default="false")
     is_active = Column(Boolean, default=True, server_default="true")
@@ -49,6 +48,5 @@ class AppRelease(Base):
             "versionCode": self.version_code,
             "forced": bool(self.forced),
             "notes": self.notes or "",
-            "sha256": self.sha256,
             "createdAt": self.created_at.isoformat() if self.created_at else None,
         }
