@@ -167,7 +167,9 @@ const ScheduleScreen = ({ navigation }) => {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const currentUser = useAuthStore(s => s.doctor);
   const rawLeaves = useLeaveStore((s) => s.leaves);
-  const leaves = Array.isArray(rawLeaves) ? rawLeaves : [];
+  // Memoised: a fresh [] on every render made every useMemo below depend on a
+  // new array identity each time, so all of them recomputed on every render.
+  const leaves = useMemo(() => (Array.isArray(rawLeaves) ? rawLeaves : []), [rawLeaves]);
   const fetchLeaves = useLeaveStore((s) => s.fetchLeaves);
   const [selectedStatus, setSelectedStatus] = useState('pending');
   const [loading, setLoading] = useState(true);
@@ -642,17 +644,6 @@ const makeStyles = colors => StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
   },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: RADIUS.pill,
-  },
-  statusBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-
   // Segmented Control Styles
   segmentedWrapper: {
     paddingHorizontal: SPACING.lg,

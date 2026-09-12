@@ -3,7 +3,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [prod, Development]
 
 jobs:
   backend:
@@ -36,11 +36,18 @@ jobs:
         run: python -m pytest -q
 
   frontend:
-    name: Frontend — mobile-users (jest + tsc + eslint)
+    # All three apps, not just mobile-users: Doctor and Admin shipped for months
+    # with no lint or type gate at all, which is how three byte-identical copies
+    # of the same subsystem drifted apart unnoticed.
+    name: Frontend — ${{ matrix.app }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [mobile-users, mobile-doctors, mobile-admin]
     defaults:
       run:
-        working-directory: mobile-users
+        working-directory: ${{ matrix.app }}
     steps:
       - uses: actions/checkout@v4
 
@@ -48,18 +55,19 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: mobile-users/package-lock.json
+          cache-dependency-path: ${{ matrix.app }}/package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
+      # --passWithNoTests: mobile-doctors has no suite yet. The gate that
+      # actually catches things there is tsc + eslint; this keeps the job green
+      # rather than silently dropping the app from CI again.
       - name: Jest
-        run: npx jest --ci
+        run: npx jest --ci --passWithNoTests
 
       - name: TypeScript
         run: npx tsc --noEmit
 
       - name: ESLint
         run: npx eslint src App.tsx
-
-# registered on prod 2026-06-24

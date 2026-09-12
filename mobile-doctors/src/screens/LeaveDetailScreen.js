@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -80,7 +80,6 @@ const LeaveDetailScreen = ({ navigation, route }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { leaveId } = route.params;
-  const leaves = useLeaveStore((s) => s.leaves);
   const cancelLeave = useLeaveStore((s) => s.cancelLeave);
 
   const [loading, setLoading] = useState(false);
@@ -91,22 +90,25 @@ const LeaveDetailScreen = ({ navigation, route }) => {
   const [loadingSlots, setLoadingSlots] = useState(false);
 
   // Sync / Fetch single detail
-  const loadDetail = async () => {
+  const loadDetail = useCallback(async () => {
     setLoading(true);
     try {
       const data = await leaveService.get(leaveId);
       setDetail(data);
     } catch (err) {
       console.warn('Failed to load leave detail:', err);
-      // Fallback to store item if API call fails
-      const cached = leaves.find((l) => l.id === leaveId);
+      // Fallback to the store item if the API call fails. Read the store
+      // imperatively instead of closing over `leaves`: subscribing would make
+      // this callback — and the effect below that depends on it — re-run every
+      // time any leave anywhere changed, re-fetching the detail each time.
+      const cached = useLeaveStore.getState().leaves?.find((l) => l.id === leaveId);
       if (cached) {
         setDetail(cached);
       }
     } finally {
       setLoading(false);
     }
-  };
+  }, [leaveId]);
 
   useEffect(() => {
     loadDetail();
@@ -123,7 +125,7 @@ const LeaveDetailScreen = ({ navigation, route }) => {
       }
     };
     loadSlots();
-  }, [leaveId]);
+  }, [leaveId, loadDetail]);
 
   if (loading && !detail) {
     return (
