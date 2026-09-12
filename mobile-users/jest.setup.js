@@ -5,6 +5,22 @@ jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest'),
 );
 
+// @react-native-firebase packages ship ESM-only dist builds *and* a native
+// TurboModule, so neither the import nor the call survives jest. crashReporting
+// is imported transitively by the auth store, which nearly every suite reaches,
+// so without this mock the failure is "Unexpected token 'export'" in files that
+// have nothing to do with Firebase.
+jest.mock('@react-native-firebase/crashlytics', () => {
+  const instance = {
+    setCrashlyticsCollectionEnabled: jest.fn(),
+    setAttributes: jest.fn(),
+    setUserId: jest.fn(),
+    log: jest.fn(),
+    recordError: jest.fn(),
+  };
+  return { __esModule: true, default: () => instance };
+});
+
 // react-native-vision-camera has a native TurboModule that throws on import
 // under jest. Stub the surface the scan screens use.
 jest.mock('react-native-vision-camera', () => ({

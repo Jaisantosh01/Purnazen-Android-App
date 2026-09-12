@@ -2,6 +2,9 @@ name: Release Mobile Apps
 
 # Manual only. Builds a signed AAB + APK for one or all apps, renames them
 # purnazen-<app>-v<version>.(aab|apk), and publishes a GitHub Release per app.
+# The AAB is what goes to Play; the APK is for internal QA sideloading only.
+# The apps no longer self-update — Play owns distribution — so nothing here
+# uploads a binary anywhere the apps can reach.
 on:
   workflow_dispatch:
     inputs:
@@ -14,6 +17,10 @@ on:
       version:
         description: "Marketing version, e.g. 1.0.0"
         required: true
+        type: string
+      version_code:
+        description: "Override versionCode (optional; default is derived from the version — see the build step)"
+        required: false
         type: string
       api_base_url:
         description: "Override backend base URL (optional; defaults to the API_BASE_URL repo variable). Not stored in source."
@@ -29,19 +36,18 @@ on:
         default: true
         type: boolean
       force_update:
-        description: "Force users onto this version (non-dismissible in-app update prompt)"
+        description: "Force users onto this version (non-dismissible in-app update banner pointing at the store)"
         required: false
         default: false
         type: boolean
-      upload_to_blob:
-        description: "Also upload the APK to the private releases container + register with the backend (CI principal needs Storage Blob Data Contributor on the storage account). Off: use the 'Upload Release to Blob (OTA)' workflow later."
+      register_version:
+        description: "Register this version with the backend so older builds show the update banner (needs RELEASE_REGISTER_TOKEN)"
         required: false
-        default: false
+        default: true
         type: boolean
 
 permissions:
   contents: write          # create releases + tags
-  id-token: write          # OIDC federated login to Azure (blob upload)
 
 concurrency:
   group: release-mobile-${{ inputs.app }}-${{ inputs.version }}
@@ -52,6 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set.outputs.matrix }}
+      version_code: ${{ steps.code.outputs.version_code }}
     steps:
       - id: set
         run: |
@@ -60,6 +67,41 @@ jobs:
           else
             echo 'matrix={"app":["${{ inputs.app }}"]}' >> "$GITHUB_OUTPUT"
           fi
+
+      # versionCode used to be github.run_number. Play requires a strictly
+      # increasing integer per package, *permanently* — and run_number is scoped
+      # to the workflow file, resetting to 1 if the file is ever renamed or
+      # recreated. A reset is unrecoverable: Play rejects every subsequent
+      # upload until the counter climbs back past the highest code already
+      # published.
+      #
+      # Derive it from the version instead: MAJOR*1000000 + MINOR*1000 + PATCH.
+      # Deterministic (two runs of the same version produce the same code),
+      # monotonic with the version, and it leaves room for 999 minors and 999
+      # patches. 1.0.0 -> 1000000, 1.2.3 -> 1002003, 2.0.0 -> 2000000.
+      - id: code
+        env:
+          OVERRIDE: ${{ inputs.version_code }}
+        run: |
+          set -euo pipefail
+          if [ -n "$OVERRIDE" ]; then
+            case "$OVERRIDE" in
+              ''|*[!0-9]*) echo "::error::version_code must be a positive integer"; exit 1 ;;
+            esac
+            echo "version_code=$OVERRIDE" >> "$GITHUB_OUTPUT"
+            echo "versionCode overridden: $OVERRIDE"; exit 0
+          fi
+          VER="${{ inputs.version }}"
+          if ! echo "$VER" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::version must be MAJOR.MINOR.PATCH (got '$VER'), or pass version_code explicitly"; exit 1
+          fi
+          MAJ=${VER%%.*}; REST=${VER#*.}; MIN=${REST%%.*}; PAT=${REST#*.}
+          if [ "$MIN" -gt 999 ] || [ "$PAT" -gt 999 ]; then
+            echo "::error::minor/patch must be <= 999 for this versionCode scheme"; exit 1
+          fi
+          CODE=$(( MAJ * 1000000 + MIN * 1000 + PAT ))
+          echo "version_code=$CODE" >> "$GITHUB_OUTPUT"
+          echo "versionCode for $VER -> $CODE"
 
   build:
     needs: prepare
@@ -124,7 +166,7 @@ jobs:
           chmod +x gradlew
           ./gradlew --no-daemon \
             -PpurnazenVersionName="${{ inputs.version }}" \
-            -PpurnazenVersionCode=${{ github.run_number }} \
+            -PpurnazenVersionCode=${{ needs.prepare.outputs.version_code }} \
             :app:bundleRelease :app:assembleRelease
 
       - name: Collect + rename artifacts
@@ -141,13 +183,27 @@ jobs:
           echo "dir=$OUT" >> "$GITHUB_OUTPUT"
           echo "Built:"; ls -lh "$OUT"
 
+      # R8 is on for release builds, so the mapping file is the only way a
+      # Crashlytics stack trace (or a Play vitals one) is readable. The
+      # Crashlytics Gradle plugin uploads it automatically, but keep a copy on
+      # the Release too — Firebase retention is shorter than Play's.
+      - name: Attach R8 mapping file
+        run: |
+          set -e
+          MAP=$(find "${{ matrix.app }}/android/app/build/outputs/mapping/release" -name 'mapping.txt' | head -n1 || true)
+          if [ -n "$MAP" ]; then
+            cp "$MAP" "${{ steps.artifacts.outputs.dir }}/purnazen-${{ matrix.app }}-v${{ inputs.version }}-mapping.txt"
+            echo "Attached $MAP"
+          else
+            echo "::warning::no mapping.txt found — is minifyEnabled off?"
+          fi
+
       # NOTE: no actions/upload-artifact here on purpose. The signed AAB/APK +
       # sha256 are attached to the GitHub Release below (permanent, and NOT
       # counted against the Actions artifact storage quota). A duplicate
       # upload-artifact step previously accumulated ~2 GB across releases and
       # exhausted the org's Actions storage quota ("Artifact storage quota has
-      # been hit"), which blocks all new uploads. Grab builds from the Release
-      # (or the private blob container) instead.
+      # been hit"), which blocks all new uploads. Grab builds from the Release.
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
@@ -156,63 +212,36 @@ jobs:
           name: ${{ matrix.app }} v${{ inputs.version }}
           body: |
             Automated release of **${{ matrix.app }}** v${{ inputs.version }}
-            (versionCode ${{ github.run_number }}, commit ${{ github.sha }}).
+            (versionCode ${{ needs.prepare.outputs.version_code }}, commit ${{ github.sha }}).
 
             ${{ inputs.release_notes }}
-            ${{ inputs.force_update && '<!-- purnazen:force-update -->' || '' }}
           prerelease: ${{ inputs.prerelease }}
           files: ${{ steps.artifacts.outputs.dir }}/*
 
-      # ── OTA distribution: upload the signed APK to the PRIVATE releases
-      # container and register the version with the backend, which serves the
-      # in-app updater (short-lived SAS). Opt-in via the upload_to_blob input;
-      # releases published without it can be backfilled any time with the
-      # "Upload Release to Blob (OTA)" workflow.
-      - name: Azure login (OIDC)
-        if: ${{ inputs.upload_to_blob && vars.AZURE_STORAGE_ACCOUNT != '' }}
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Upload APK to private releases container + register version
-        if: ${{ inputs.upload_to_blob && vars.AZURE_STORAGE_ACCOUNT != '' }}
+      # Records the published version so older installs can show the "update
+      # available" banner and deep-link to the store listing. Metadata only —
+      # no binary leaves this runner for anywhere the apps can reach.
+      - name: Register published version with backend
+        if: ${{ inputs.register_version }}
         env:
-          STORAGE_ACCOUNT: ${{ vars.AZURE_STORAGE_ACCOUNT }}
-          CONTAINER: ${{ vars.AZURE_RELEASES_CONTAINER }}
           API_BASE_URL: ${{ inputs.api_base_url != '' && inputs.api_base_url || vars.API_BASE_URL }}
           REGISTER_TOKEN: ${{ secrets.RELEASE_REGISTER_TOKEN }}
           RELEASE_NOTES: ${{ inputs.release_notes }}
           FORCE_UPDATE: ${{ inputs.force_update }}
+          VERSION_CODE: ${{ needs.prepare.outputs.version_code }}
         run: |
           set -euo pipefail
-          APP="${{ matrix.app }}"; VER="${{ inputs.version }}"
-          CONTAINER="${CONTAINER:-app-releases}"
-          BASE="purnazen-${APP}-v${VER}"
-          APK="${{ steps.artifacts.outputs.dir }}/${BASE}.apk"
-          BLOB="releases/${APP}/${VER}/${BASE}.apk"
-          SHA=$(sha256sum "$APK" | awk '{print $1}')
-
-          echo "Uploading $APK -> $CONTAINER/$BLOB"
-          az storage blob upload \
-            --account-name "$STORAGE_ACCOUNT" \
-            --container-name "$CONTAINER" \
-            --name "$BLOB" --file "$APK" \
-            --auth-mode login --overwrite true \
-            --content-type application/vnd.android.package-archive
-
-          echo "Registering v$VER with backend"
+          if [ -z "${REGISTER_TOKEN:-}" ]; then
+            echo "::warning::RELEASE_REGISTER_TOKEN not set — skipping version registration"; exit 0
+          fi
           PAYLOAD=$(jq -n \
-            --arg slug "$APP" --arg ver "$VER" --arg path "$BLOB" \
-            --arg sha "$SHA" --arg notes "$RELEASE_NOTES" \
-            --argjson code ${{ github.run_number }} \
-            --argjson forced ${FORCE_UPDATE} \
-            '{appSlug:$slug, version:$ver, apkBlobPath:$path, versionCode:$code, sha256:$sha, notes:$notes, forced:$forced}')
+            --arg slug "${{ matrix.app }}" --arg ver "${{ inputs.version }}" \
+            --arg notes "$RELEASE_NOTES" \
+            --argjson code "$VERSION_CODE" \
+            --argjson forced "$FORCE_UPDATE" \
+            '{appSlug:$slug, version:$ver, versionCode:$code, notes:$notes, forced:$forced}')
           curl -fsS -X POST "${API_BASE_URL%/}/api/v1/app-releases" \
             -H "Content-Type: application/json" \
             -H "X-Release-Token: ${REGISTER_TOKEN}" \
             -d "$PAYLOAD"
-          echo "Registered."
-
-# registered on prod 2026-06-24
+          echo "Registered v${{ inputs.version }} (code $VERSION_CODE)."

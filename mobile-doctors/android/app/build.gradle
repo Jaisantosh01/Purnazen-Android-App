@@ -65,9 +65,17 @@ react {
 }
 
 /**
- * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
+ * R8 on release builds: shrink, optimise and obfuscate.
+ *
+ * Off until now, which meant a larger AAB, no obfuscation, and — once
+ * Crashlytics landed — no mapping file to make a stack trace readable. Keep
+ * rules live in proguard-rules.pro; read the note at the top of that file
+ * before reaching for this flag.
  */
-def enableProguardInReleaseBuilds = false
+def enableProguardInReleaseBuilds = true
+
+// Opt-in escape hatch for a local, non-distributable release build.
+def allowDebugSigning = (project.findProperty('allowDebugSigning') ?: 'false').toString().toBoolean()
 
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
@@ -108,8 +116,8 @@ android {
         }
         release {
             // Populated from environment variables in CI (see the
-            // release-mobile workflow). Left empty for local builds, which then
-            // fall back to the debug key below.
+            // release-mobile workflow). When absent the config stays empty and
+            // the release build type refuses to sign — see below.
             def storeFilePath = System.getenv("PURNAZEN_UPLOAD_STORE_FILE")
             if (storeFilePath) {
                 storeFile file(storeFilePath)
@@ -124,12 +132,62 @@ android {
             signingConfig signingConfigs.debug
         }
         release {
-            // Use the real upload keystore when CI provides it; otherwise the
-            // debug key so local `assembleRelease` still works without secrets.
-            signingConfig System.getenv("PURNAZEN_UPLOAD_STORE_FILE") ? signingConfigs.release : signingConfigs.debug
+            // Sign with the real upload keystore, or do not sign at all.
+            //
+            // This used to fall back to signingConfigs.debug when the keystore
+            // env var was unset, so a keyless `./gradlew assembleRelease`
+            // produced a file named like a release, shaped like a release, and
+            // signed with the Android debug key — whose private key ships with
+            // the SDK and is known to everyone. Nothing about the artifact said
+            // so. That is a build you can hand someone by accident.
+            //
+            // `-PallowDebugSigning=true` is the deliberate escape hatch for
+            // smoke-testing a minified build locally; you have to ask for it by
+            // name, and the build warns while it does it.
+            def uploadStore = System.getenv("PURNAZEN_UPLOAD_STORE_FILE")
+            if (uploadStore) {
+                signingConfig signingConfigs.release
+            } else if (allowDebugSigning) {
+                logger.warn("WARNING: signing the release build with the DEBUG key " +
+                            "(-PallowDebugSigning=true). This artifact must never be " +
+                            "distributed or uploaded to Play.")
+                signingConfig signingConfigs.debug
+            } else {
+                // Unsigned, and the task-graph check below fails the build
+                // before it gets this far for a real release task.
+                signingConfig null
+            }
+            // Without this a native crash (ML Kit, Hermes, JNI, the camera
+            // stack) arrives as raw addresses. `mappingFileUploadEnabled` is on
+            // by default for release; native symbols are not.
+            if (file('google-services.json').exists()) {
+                firebaseCrashlytics {
+                    nativeSymbolUploadEnabled true
+                }
+            }
             minifyEnabled enableProguardInReleaseBuilds
+            shrinkResources enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
+    }
+}
+
+// Fail a release build that has no upload keystore — but only when a release
+// task is actually being run. Throwing during configuration instead would
+// break `assembleDebug`, `tasks`, and IDE sync for every developer who does not
+// have the keystore, which is all of them.
+gradle.taskGraph.whenReady { graph ->
+    def wantsRelease = graph.allTasks.any { t ->
+        t.project == project && t.name ==~ /(?i)(assemble|bundle|install)Release.*/
+    }
+    if (wantsRelease && !System.getenv("PURNAZEN_UPLOAD_STORE_FILE") && !allowDebugSigning) {
+        throw new GradleException(
+            "Release build requires the upload keystore.\n" +
+            "  Set PURNAZEN_UPLOAD_STORE_FILE (plus PURNAZEN_UPLOAD_STORE_PASSWORD,\n" +
+            "  PURNAZEN_UPLOAD_KEY_ALIAS, PURNAZEN_UPLOAD_KEY_PASSWORD), or pass\n" +
+            "  -PallowDebugSigning=true to build a debug-signed artifact that must\n" +
+            "  never be distributed."
+        )
     }
 }
 
@@ -149,6 +207,9 @@ dependencies {
 // builds and runs normally with device push disabled.
 if (file('google-services.json').exists()) {
     apply plugin: 'com.google.gms.google-services'
+    // Crashlytics rides on the same config file. Kept inside this guard
+    // so a checkout without google-services.json still builds.
+    apply plugin: 'com.google.firebase.crashlytics'
 } else {
     logger.lifecycle('google-services.json not found - Firebase push disabled for this build.')
 }
