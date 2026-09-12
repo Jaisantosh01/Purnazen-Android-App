@@ -101,6 +101,19 @@ cd "$ROOT/$APP"
 if [ "${CLEAN:-0}" = "1" ]; then
   say "-- CLEAN=1: removing ios/Pods, ios/Podfile.lock and ios/build"
   rm -rf ios/Pods ios/Podfile.lock ios/build
+elif [ -f ios/Podfile.lock ] && [ -d ios/build ]; then
+  # CocoaPods records the Podfile's SHA1 in the lock. When it no longer matches,
+  # the Podfile has changed since the last install — and if what changed was pod
+  # linkage, DerivedData still describes the old arrangement and the build fails
+  # for reasons that have nothing to do with the edit. Pods themselves are left
+  # to `pod install`, which handles its own incremental update; only the
+  # expensive, misleading half is thrown away.
+  LOCK_SUM="$(awk '/^PODFILE CHECKSUM/{print $3}' ios/Podfile.lock)"
+  CUR_SUM="$(ruby -rdigest -e 'print Digest::SHA1.hexdigest(File.read(ARGV[0]))' ios/Podfile 2>/dev/null || true)"
+  if [ -n "${LOCK_SUM:-}" ] && [ -n "${CUR_SUM:-}" ] && [ "$LOCK_SUM" != "$CUR_SUM" ]; then
+    say "-- Podfile changed since the last pod install — clearing ios/build"
+    rm -rf ios/build
+  fi
 fi
 
 # ── JS dependencies ─────────────────────────────────────────────────────────
@@ -137,8 +150,26 @@ fi
 # ── CocoaPods ───────────────────────────────────────────────────────────────
 cd ios
 if [ -f ../Gemfile ] && command -v bundle >/dev/null; then
+  # A Gemfile.lock recording "BUNDLED WITH 1.17.2" makes a modern Bundler
+  # install 1.17.2 and re-exec itself as that version — and Bundler 1.x calls
+  # String#untaint, removed in Ruby 3.2, so it dies before doing any work:
+  #
+  #   undefined method 'untaint' for an instance of String (NoMethodError)
+  #
+  # That lockfile is an artifact of a run on macOS's system Ruby 2.6 and cannot
+  # be used from a current one. Regenerating it costs nothing.
+  if [ -f ../Gemfile.lock ]; then
+    LOCK_BUNDLER="$(awk '/^BUNDLED WITH/{getline; gsub(/[[:space:]]/,""); print; exit}' ../Gemfile.lock)"
+    case "${LOCK_BUNDLER:-}" in
+      1.*)
+        say "-- removing Gemfile.lock: pins Bundler $LOCK_BUNDLER, unusable on Ruby ${RUBY_V:-3+}"
+        rm -f ../Gemfile.lock
+        ;;
+    esac
+  fi
   say "-- bundle install"
-  ( cd .. && run bundle install ) || die "bundle install (try: gem install bundler)"
+  ( cd .. && run bundle install ) \
+    || die "bundle install. On macOS's system Ruby, 'gem install' needs write access to /Library/Ruby and will refuse — install a current Ruby instead: brew install ruby"
   say "-- pod install (bundle exec)"
   ( cd .. && run bundle exec pod install --project-directory=ios ) || die "pod install"
 else
