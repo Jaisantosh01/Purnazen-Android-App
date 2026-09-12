@@ -132,11 +132,11 @@ def test_glow_score_engine():
     return s_perfect, s_worst
 
 
-def test_toxin_indicator():
-    from app.ai.analyzers import toxin_indicator
+def test_dullness_index():
+    from app.ai.analyzers import dullness_index
     # positional: compute(dark_circle_score, oiliness_score, glow_score)
-    high = toxin_indicator.compute(80, 80, 20)
-    low  = toxin_indicator.compute(10, 10, 90)
+    high = dullness_index.compute(80, 80, 20)
+    low  = dullness_index.compute(10, 10, 90)
     assert 0 <= high <= 100 and 0 <= low <= 100
     assert high > low
     return high, low
@@ -155,7 +155,7 @@ TESTS = {
     "muscle_tone":     test_muscle_tone,
     "inflammation":    test_inflammation,
     "glow_score":      test_glow_score_engine,
-    "toxin_indicator": test_toxin_indicator,
+    "dullness_index": test_dullness_index,
 }
 
 if __name__ == "__main__":

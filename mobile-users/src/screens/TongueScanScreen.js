@@ -21,6 +21,7 @@ import useScanStore from '../store/scanStore';
 import useTheme from '../hooks/useTheme';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import TongueOverlayGuide from '../components/scan/TongueOverlayGuide';
+import MedicalDisclaimer from '../components/MedicalDisclaimer';
 
 const QUALITY_CHECK_INTERVAL_MS = 2500;
 
@@ -413,6 +414,8 @@ const TongueScanScreen = ({ navigation }) => {
         <Text style={styles.tipText}>{TIPS[tipIndex]}</Text>
       </View>
 
+      <MedicalDisclaimer variant="overlay" style={styles.disclaimerOverlay} />
+
       {/* Bottom controls */}
       <View style={styles.bottomBar}>
         <TouchableOpacity
@@ -446,8 +449,8 @@ const TongueScanScreen = ({ navigation }) => {
         <TouchableOpacity
           style={styles.sideBtn}
           onPress={() => showAlert(
-            'TCM Tongue Diagnosis',
-            'Traditional Chinese Medicine uses tongue colour, coating and moisture as diagnostic markers for organ system health and Qi balance.',
+            'About the tongue scan',
+            'Traditional Chinese Medicine looks at the tongue\'s colour, coating and moisture as part of its wellness tradition. Purnazen records what the camera can see and describes it — it is not a diagnosis.',
             [{ text: 'Got it' }],
           )}
           activeOpacity={0.7}
@@ -504,6 +507,14 @@ const makeStyles = (colors, insets) => StyleSheet.create({
   // Quality hint
 
   // Tip row above bottom bar
+  // Sits directly above the cycling tip, clear of the capture controls
+  // (bottomBar is 140 tall) and of the overlay guide's cutout.
+  disclaimerOverlay: {
+    position: 'absolute',
+    bottom: 176,
+    left: 0,
+    right: 0,
+  },
   tipRow: {
     position: 'absolute',
     bottom: 148,

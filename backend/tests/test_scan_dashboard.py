@@ -32,7 +32,7 @@ def _seed(db, user_id, glows, base_days_ago=3):
             scan_id=scan.id, glow_score=glow, overall_wellness_score=glow - 2,
             hydration_score=60, oiliness_score=40, wrinkle_score=30, pigmentation_score=25,
             dark_circle_score=35, pore_score=30, elasticity_score=65, muscle_tone_score=70,
-            inflammation_score=20, toxin_indicator=30, skin_age_estimate=28,
+            inflammation_score=20, dullness_index=30, skin_age_estimate=28,
             raw_metrics={"scoring_method": "cv"},
         ))
         db.commit()

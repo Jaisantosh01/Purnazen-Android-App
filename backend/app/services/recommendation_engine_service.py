@@ -50,7 +50,7 @@ def generate(scan_result: Any) -> list[dict]:
     wrinkle      = _get(scan_result, "wrinkle_score")
     pigmentation = _get(scan_result, "pigmentation_score")
     elasticity   = _get(scan_result, "elasticity_score")
-    toxin        = _get(scan_result, "toxin_indicator")
+    dullness     = _get(scan_result, "dullness_index")
     muscle_tone  = _get(scan_result, "muscle_tone_score")
     pore         = _get(scan_result, "pore_score")
     overall      = _get(scan_result, "overall_wellness_score")
@@ -285,20 +285,20 @@ def generate(scan_result: Any) -> list[dict]:
         })
 
     # -----------------------------------------------------------------------
-    # Rule 9 (priority 8): High toxin indicator → Dampness toxins
+    # Rule 9 (priority 8): High dullness index → hydration + gentle massage
     # -----------------------------------------------------------------------
-    if toxin is not None and toxin > 60:
+    if dullness is not None and dullness > 60:
         recs.append({
             "recommendation_type": "wellness_tip",
             "priority": 8,
-            "title": "Detox Water",
+            "title": "Hydration Habit",
             "description": (
-                "Elevated toxin indicators suggest Dampness accumulation. "
-                "Start each morning with warm lemon water and stay well "
-                "hydrated throughout the day to support lymphatic drainage."
+                "Your skin is reading duller than usual in this scan. "
+                "Start the morning with a glass of water, keep hydrated "
+                "through the day, and try the gua sha flow below."
             ),
             "routine_key": "GuaShaFlow",
-            "tip_category": "detox",
+            "tip_category": "hydration",
         })
 
     # -----------------------------------------------------------------------

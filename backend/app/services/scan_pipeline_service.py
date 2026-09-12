@@ -212,7 +212,7 @@ def _run_face_pipeline(db, scan, img: "np.ndarray") -> dict:
         muscle_tone_analyzer,
         inflammation_analyzer,
         glow_score_engine,
-        toxin_indicator,
+        dullness_index,
     )
     from app.ai.image_preprocessor import normalize_exposure, normalize_white_balance, estimate_skin_tone
 
@@ -340,7 +340,7 @@ def _run_face_pipeline(db, scan, img: "np.ndarray") -> dict:
             }
 
     computed_glow = glow_score_engine.compute(partial_scores)
-    computed_toxin = toxin_indicator.compute(
+    computed_dullness = dullness_index.compute(
         partial_scores["dark_circle_score"], partial_scores["oiliness_score"], computed_glow
     )
 
@@ -352,7 +352,7 @@ def _run_face_pipeline(db, scan, img: "np.ndarray") -> dict:
         18, 58,
     ))
 
-    overall_wellness_score = round(computed_glow * 0.7 + (100.0 - computed_toxin) * 0.3, 2)
+    overall_wellness_score = round(computed_glow * 0.7 + (100.0 - computed_dullness) * 0.3, 2)
 
     blur_score = float(getattr(scan, "blur_score", 0.0) or 0.0)
     lighting   = str(getattr(scan, "lighting_quality", "unknown") or "unknown")
@@ -377,7 +377,7 @@ def _run_face_pipeline(db, scan, img: "np.ndarray") -> dict:
     return {
         **partial_scores,
         "glow_score":             computed_glow,
-        "toxin_indicator":        computed_toxin,
+        "dullness_index":         computed_dullness,
         "overall_wellness_score": overall_wellness_score,
         "skin_age_estimate":      skin_age,
         "raw_metrics":            raw_metrics,

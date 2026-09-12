@@ -14,6 +14,7 @@ import scanService from '../services/scanService';
 import useTheme from '../hooks/useTheme';
 import { useHeaderTopPadding } from '../components/ScreenHeader';
 import { popToStackRoot } from '../navigation/backHelpers';
+import MedicalDisclaimer from '../components/MedicalDisclaimer';
 
 // metricKey → { label, higherIsBetter }
 const METRICS = {
@@ -27,7 +28,7 @@ const METRICS = {
   darkCircleScore:      { label: 'Dark circles', higher: false },
   poreScore:            { label: 'Pores', higher: false },
   inflammationScore:    { label: 'Inflammation', higher: false },
-  toxinIndicator:       { label: 'Toxin indicator', higher: false },
+  dullnessIndex:        { label: 'Skin dullness', higher: false },
 };
 
 function fmtDate(iso) {
@@ -176,6 +177,7 @@ const ScanComparisonScreen = ({ navigation, route }) => {
               <Text style={styles.hint}>Green = improvement vs your previous scan</Text>
             </>
           )}
+          <MedicalDisclaimer />
         </ScrollView>
       )}
     </View>

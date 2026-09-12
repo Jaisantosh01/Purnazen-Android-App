@@ -7,7 +7,7 @@ from app.services import recommendation_engine_service as engine
 BASE = dict(
     hydration_score=70, oiliness_score=30, wrinkle_score=20, pigmentation_score=25,
     dark_circle_score=30, pore_score=30, elasticity_score=70, muscle_tone_score=70,
-    inflammation_score=15, glow_score=75, toxin_indicator=20,
+    inflammation_score=15, glow_score=75, dullness_index=20,
     overall_wellness_score=75,
 )
 
@@ -25,7 +25,7 @@ def test_capped_at_max_and_sorted_by_priority():
     recs = _gen(
         hydration_score=20, oiliness_score=80, wrinkle_score=80, pigmentation_score=80,
         dark_circle_score=80, pore_score=80, elasticity_score=20, muscle_tone_score=20,
-        inflammation_score=80, glow_score=20, toxin_indicator=80, overall_wellness_score=20,
+        inflammation_score=80, glow_score=20, dullness_index=80, overall_wellness_score=20,
     )
     assert len(recs) <= 8
     priorities = [r["priority"] for r in recs]

@@ -16,6 +16,7 @@ import TrendChart from '../components/scan/TrendChart';
 import useTheme from '../hooks/useTheme';
 import { useHeaderTopPadding } from '../components/ScreenHeader';
 import { popToStackRoot } from '../navigation/backHelpers';
+import MedicalDisclaimer from '../components/MedicalDisclaimer';
 
 const GLOW = '#C850C0';
 
@@ -298,6 +299,8 @@ const ScanDashboardScreen = ({ navigation }) => {
               </TouchableOpacity>
             </View>
           )}
+
+          <MedicalDisclaimer />
         </ScrollView>
       )}
     </View>

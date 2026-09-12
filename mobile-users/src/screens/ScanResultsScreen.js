@@ -17,6 +17,7 @@ import RecommendationCard from '../components/scan/RecommendationCard';
 import useTheme from '../hooks/useTheme';
 import { useHeaderTopPadding } from '../components/ScreenHeader';
 import { popToStackRoot } from '../navigation/backHelpers';
+import MedicalDisclaimer from '../components/MedicalDisclaimer';
 
 const METRIC_LABELS = {
   hydrationScore: 'Hydration',
@@ -27,7 +28,7 @@ const METRIC_LABELS = {
   poreScore: 'Pores',
   elasticityScore: 'Elasticity',
   inflammationScore: 'Inflammation',
-  toxinIndicator: 'Toxin indicator',
+  dullnessIndex: 'Skin dullness',
 };
 
 const TONGUE_SHARE_ROWS = [
@@ -81,7 +82,7 @@ const FACE_METRIC_KEYS = [
   'poreScore',
   'elasticityScore',
   'inflammationScore',
-  'toxinIndicator',
+  'dullnessIndex',
 ];
 
 function glowColor(score) {
@@ -319,6 +320,8 @@ const ScanResultsScreen = ({ navigation, route }) => {
             <Text style={styles.doneBtnText}>Done</Text>
           </TouchableOpacity>
         </View>
+
+        <MedicalDisclaimer />
 
       </ScrollView>
     </View>

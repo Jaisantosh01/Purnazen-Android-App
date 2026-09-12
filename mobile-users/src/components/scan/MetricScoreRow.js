@@ -12,7 +12,7 @@ const METRIC_LABELS = {
   elasticityScore:   { label: 'Elasticity',    higherIsBetter: true  },
   inflammationScore: { label: 'Inflammation',  higherIsBetter: false },
   glowScore:         { label: 'Glow Score',    higherIsBetter: true  },
-  toxinIndicator:    { label: 'Toxin Load',    higherIsBetter: false },
+  dullnessIndex:     { label: 'Skin Dullness', higherIsBetter: false },
 };
 
 function scoreColor(value, higherIsBetter) {

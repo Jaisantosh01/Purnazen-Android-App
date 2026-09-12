@@ -22,6 +22,7 @@ import useScanStore from '../store/scanStore';
 import useTheme from '../hooks/useTheme';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import FaceOverlayGuide from '../components/scan/FaceOverlayGuide';
+import MedicalDisclaimer from '../components/MedicalDisclaimer';
 
 // On-device checks are near-instant, so we can run them at a smooth cadence.
 // The server fallback keeps the old conservative interval (network-bound).
@@ -472,6 +473,8 @@ const FaceScanScreen = ({ navigation }) => {
         <View style={{ width: 38 }} />
       </View>
 
+      <MedicalDisclaimer variant="overlay" style={styles.disclaimerOverlay} />
+
       {/* Bottom controls */}
       <View style={styles.bottomBar}>
         <TouchableOpacity
@@ -558,6 +561,14 @@ const makeStyles = (colors, insets) => StyleSheet.create({
   },
   headerTitle: { fontSize: 18, fontWeight: '800', color: '#fff' },
 
+  // Above the capture controls (bottomBar is 140 tall), clear of the
+  // overlay guide's cutout.
+  disclaimerOverlay: {
+    position: 'absolute',
+    bottom: 152,
+    left: 0,
+    right: 0,
+  },
   bottomBar: {
     position: 'absolute',
     bottom: 0, left: 0, right: 0,

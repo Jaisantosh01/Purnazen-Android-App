@@ -22,7 +22,7 @@ class ScanResult(Base):
     muscle_tone_score = Column(Numeric(5, 2), nullable=True)
     inflammation_score = Column(Numeric(5, 2), nullable=True)
     glow_score = Column(Numeric(5, 2), nullable=True)
-    toxin_indicator = Column(Numeric(5, 2), nullable=True)
+    dullness_index = Column(Numeric(5, 2), nullable=True)
     # Tongue metrics (NULL for face scans)
     tongue_body_color = Column(String(30), nullable=True)
     tongue_coat_color = Column(String(30), nullable=True)
@@ -52,7 +52,7 @@ class ScanResult(Base):
             "muscleToneScore": _f(self.muscle_tone_score),
             "inflammationScore": _f(self.inflammation_score),
             "glowScore": _f(self.glow_score),
-            "toxinIndicator": _f(self.toxin_indicator),
+            "dullnessIndex": _f(self.dullness_index),
             "tongueBodyColor": self.tongue_body_color,
             "tongueCoatColor": self.tongue_coat_color,
             "tongueCoatThick": self.tongue_coat_thick,

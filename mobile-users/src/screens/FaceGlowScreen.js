@@ -16,6 +16,7 @@ import { RoutineCardSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
 import { useHeaderTopPadding } from '../components/ScreenHeader';
 import { popToStackRoot } from '../navigation/backHelpers';
+import MedicalDisclaimer from '../components/MedicalDisclaimer';
 
 // FaceGlow brand hero colour — a fixed magenta banner in both light and dark.
 const GLOW = '#C850C0';
@@ -196,6 +197,8 @@ const FaceGlowScreen = ({ navigation }) => {
             </View>
           </View>
         </View>
+
+        <MedicalDisclaimer />
 
       </ScrollView>
     </View>

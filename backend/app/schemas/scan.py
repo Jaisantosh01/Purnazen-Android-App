@@ -19,7 +19,7 @@ class ScanResultData(BaseModel):
     muscleToneScore: Optional[float] = None
     inflammationScore: Optional[float] = None
     glowScore: Optional[float] = None
-    toxinIndicator: Optional[float] = None
+    dullnessIndex: Optional[float] = None
     overallWellnessScore: Optional[float] = None
     skinAgeEstimate: Optional[int] = None
     # Tongue fields

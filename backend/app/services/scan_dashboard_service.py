@@ -14,7 +14,7 @@ from app.repositories.scan_result_repository import ScanResultRepository
 
 # Numeric metrics clients may chart/compare.
 TREND_METRICS = {
-    "glow_score", "overall_wellness_score", "toxin_indicator", "skin_age_estimate",
+    "glow_score", "overall_wellness_score", "dullness_index", "skin_age_estimate",
     "hydration_score", "oiliness_score", "wrinkle_score", "pigmentation_score",
     "dark_circle_score", "pore_score", "elasticity_score", "muscle_tone_score",
     "inflammation_score",
@@ -24,7 +24,7 @@ TREND_METRICS = {
 _COMPARE_KEYS = [
     "glowScore", "overallWellnessScore", "hydrationScore", "oilinessScore",
     "wrinkleScore", "pigmentationScore", "darkCircleScore", "poreScore",
-    "elasticityScore", "muscleToneScore", "inflammationScore", "toxinIndicator",
+    "elasticityScore", "muscleToneScore", "inflammationScore", "dullnessIndex",
 ]
 
 # Categorical tongue markers: (camelCase to_dict key, human label).

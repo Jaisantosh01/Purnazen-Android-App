@@ -6,8 +6,6 @@ export const STRINGS = {
   // The brand promise, shown on the landing surfaces (Home hero, sign-in,
   // sign-up) under the "what this app is" line.
   BRAND_TAGLINE: 'Relieve Pain Naturally whenever and wherever you are.',
-  BANNER_TITLE: 'Premium Wellness Plan',
-  BANNER_SUB: 'Unlock all sessions',
   WELLNESS_SECTION: 'Wellness',
   SEE_ALL: 'See All',
   FACE_GLOW_TITLE: 'Face Glow',
@@ -15,6 +13,17 @@ export const STRINGS = {
   CONSULT_TITLE: 'Book a Consultation',
   CONSULT_SUB: 'Talk to an expert today',
 };
+
+// Google Play's Health apps policy requires a non-medical-device app that shows
+// health information to say so, plainly and without the user having to go
+// looking. Rendered by <MedicalDisclaimer /> on every surface that presents a
+// scan score. One string, one place to change it.
+export const MEDICAL_DISCLAIMER =
+  'Purnazen is a wellness app, not a medical device. Scans and scores are ' +
+  'general wellness information only — they do not diagnose, treat, cure or ' +
+  'prevent any medical condition. Please talk to a qualified doctor about any ' +
+  'health concern.';
+
 
 
 export const APPOINTMENT_HISTORY_STATUS_LABELS = {

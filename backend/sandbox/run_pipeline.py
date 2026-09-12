@@ -47,7 +47,7 @@ def run(image_path=None):
         hydration_analyzer, oiliness_analyzer, wrinkle_analyzer,
         pigmentation_analyzer, dark_circle_analyzer, pore_analyzer,
         elasticity_analyzer, muscle_tone_analyzer, inflammation_analyzer,
-        glow_score_engine, toxin_indicator,
+        glow_score_engine, dullness_index,
     )
     from app.services.scan_pipeline_service import _detect_face_opencv, _rois_from_bbox
 
@@ -139,15 +139,15 @@ def run(image_path=None):
         "muscle_tone_score": scores["muscle_tone"],
         "inflammation_score": scores["inflammation"],
     })
-    toxin = toxin_indicator.compute(scores["dark_circle"], scores["oiliness"], glow)
-    wellness = round(glow * 0.7 + (100.0 - toxin) * 0.3, 2)
+    dullness = dullness_index.compute(scores["dark_circle"], scores["oiliness"], glow)
+    wellness = round(glow * 0.7 + (100.0 - dullness) * 0.3, 2)
     skin_age = int(np.clip(30 + (scores["wrinkle"] - 40) * 0.3 - (scores["elasticity"] - 60) * 0.2, 18, 70))
 
     elapsed = time.perf_counter() - t0
 
     result = {
         "glow_score": round(glow, 2),
-        "toxin_indicator": round(toxin, 2),
+        "dullness_index": round(dullness, 2),
         "overall_wellness_score": wellness,
         "skin_age_estimate": skin_age,
         "blur_score": round(blur, 1),

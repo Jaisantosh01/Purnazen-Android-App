@@ -17,6 +17,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import healthReportService from '../services/healthReportService';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
+import MedicalDisclaimer from '../components/MedicalDisclaimer';
 
 const DASH = '—';
 
@@ -253,10 +254,10 @@ const HealthReportScreen = () => {
           </Section>
         )}
 
-        <Text style={styles.disclaimer}>
-          This summary is generated from your activity in Purnazen. It is not a medical
-          diagnosis — always discuss it with your doctor.
+        <Text style={styles.summaryNote}>
+          This summary is generated from your activity in Purnazen.
         </Text>
+        <MedicalDisclaimer />
       </ScrollView>
     </View>
   );
@@ -314,7 +315,7 @@ const makeStyles = colors => StyleSheet.create({
   rowValue: { flex: 1.2, fontSize: 13, fontWeight: '600', color: colors.textPrimary, textAlign: 'right' },
   emptyNote: { fontSize: 12.5, lineHeight: 18, color: colors.textMuted, paddingVertical: 14 },
 
-  disclaimer: {
+  summaryNote: {
     marginHorizontal: 16, marginTop: 22,
     fontSize: 11.5, lineHeight: 17, color: colors.textMuted, textAlign: 'center',
   },
