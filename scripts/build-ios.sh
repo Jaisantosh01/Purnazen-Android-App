@@ -70,22 +70,42 @@ xcodebuild -version >> "$LOG" 2>&1 || die "xcodebuild is present but not usable 
 say "Xcode: $(xcodebuild -version 2>/dev/null | head -1)"
 say "node:  $(node --version)"
 
-# Ruby drives CocoaPods, and macOS still ships 2.6. Expo's precompiled-pod path
-# calls Array#filter_map, which arrived in Ruby 2.7 — on 2.6 every spm.config.json
-# read fails with "undefined method `filter_map'", Expo silently falls back to
-# building those pods from source, and the build takes far longer for no visible
-# reason. Loud, not fatal: it degrades the build rather than breaking it.
+# Ruby drives CocoaPods, and the version matters in both directions. The
+# expected line is in .ruby-version; rbenv/chruby/asdf pick it up on their own,
+# a plain `brew install ruby` does not, so say when they disagree.
+#
+#   too old (macOS's 2.6): Expo's precompiled-pod path calls Array#filter_map,
+#     added in 2.7 — every spm.config.json read fails, Expo silently rebuilds
+#     those pods from source, and the build takes far longer for no visible
+#     reason. Bundler is ancient too.
+#   too new (4.x): the pinned CocoaPods here is 1.15.2, from early 2024, and
+#     was never built against Ruby 4. Ruby 4 also ships json 3.x, which dropped
+#     the `quirks_mode` keyword that activesupport 7.2 still passes — see the
+#     json pin in the Gemfile.
+#
+# Loud, not fatal, in both directions: some of it degrades rather than breaks.
 if command -v ruby >/dev/null; then
   RUBY_V="$(ruby -e 'print RUBY_VERSION' 2>/dev/null)"
-  say "ruby:  ${RUBY_V:-unknown}$(command -v ruby | sed 's|^| at |')"
+  WANT_RUBY="$(cat "$ROOT/$APP/.ruby-version" 2>/dev/null | tr -d '[:space:]')"
+  say "ruby:  ${RUBY_V:-unknown}$(command -v ruby | sed 's|^| at |')${WANT_RUBY:+ (.ruby-version wants $WANT_RUBY)}"
   case "$RUBY_V" in
     1.*|2.*)
       say ""
-      say "!! Ruby $RUBY_V is macOS's system Ruby. Expect a wall of"
-      say "   'undefined method filter_map' warnings from Expo, a much slower"
-      say "   build, and an ancient bundler. Install a current Ruby:"
-      say "     brew install ruby     # then put its bin dir ahead of /usr/bin in PATH"
-      say "     # or: rbenv install 3.3.6 && rbenv local 3.3.6"
+      say "!! Ruby $RUBY_V is macOS's system Ruby — too old for this toolchain."
+      say "   Expect 'undefined method filter_map' warnings from Expo, a much"
+      say "   slower build, and a Bundler that cannot run on anything modern."
+      say ""
+      ;;
+    4.*|5.*|6.*|7.*|8.*|9.*)
+      say ""
+      say "!! Ruby $RUBY_V is newer than this toolchain was built for."
+      say "   CocoaPods is pinned at 1.15.2 (early 2024) by the Gemfile, and"
+      say "   Ruby 4 ships json 3.x, which removed a keyword activesupport 7.2"
+      say "   still passes. The Gemfile pins json < 3 to work around that one,"
+      say "   but if pod install fails in another Ruby-compatibility way, the"
+      say "   reliable fix is the version in .ruby-version:"
+      say "     brew install ruby@3.3"
+      say "     export PATH=\"\$(brew --prefix ruby@3.3)/bin:\$PATH\""
       say ""
       ;;
   esac
@@ -171,7 +191,8 @@ if [ -f ../Gemfile ] && command -v bundle >/dev/null; then
   ( cd .. && run bundle install ) \
     || die "bundle install. On macOS's system Ruby, 'gem install' needs write access to /Library/Ruby and will refuse — install a current Ruby instead: brew install ruby"
   say "-- pod install (bundle exec)"
-  ( cd .. && run bundle exec pod install --project-directory=ios ) || die "pod install"
+  ( cd .. && run bundle exec pod install --project-directory=ios ) \
+    || die "pod install.${RUBY_V:+ Running Ruby $RUBY_V;} an ArgumentError or NoMethodError from inside a gem here is a Ruby-version mismatch, not a Podfile problem — see .ruby-version and the note in the Gemfile."
 else
   command -v pod >/dev/null || die "CocoaPods not found. Install it: sudo gem install cocoapods"
   say "-- pod install"

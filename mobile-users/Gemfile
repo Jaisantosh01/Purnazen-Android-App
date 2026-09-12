@@ -15,3 +15,19 @@ gem 'logger'
 gem 'benchmark'
 gem 'mutex_m'
 gem 'nkf'
+
+# json 3.0 removed the `quirks_mode` keyword from JSON.generate, and
+# activesupport 7.2 still passes it:
+#
+#   activesupport/lib/active_support/json/encoding.rb:110
+#     ::JSON.generate(jsonified, quirks_mode: true, max_nesting: false)
+#
+# Ruby 4 ships json 3.x, so `pod install` dies with
+# "ArgumentError - unknown keyword: quirks_mode" the moment anything calls
+# to_json — which Expo's autolinking does for every pod it resolves
+# (expo-modules-autolinking/scripts/ios/cocoapods/sandbox.rb:29).
+#
+# Pinned rather than upgrading activesupport, because the activesupport version
+# is itself pinned by the cocoapods/xcodeproj constraints above. Drop this once
+# an activesupport that has stopped passing quirks_mode is resolvable here.
+gem 'json', '< 3'
