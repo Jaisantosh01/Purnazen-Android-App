@@ -9,6 +9,13 @@ require Pod::Executable.execute_command('node', ['-p',
 platform :ios, '16.4'
 prepare_react_native_project!
 
+# The Firebase SDK ships as static frameworks. Without this, react-native-firebase
+# links against them as static libraries and the build fails at link time with
+# missing Firebase symbols (or, worse, duplicate-symbol errors once more than one
+# Firebase module is in the project — this app has app, auth, messaging and
+# crashlytics).
+$RNFirebaseAsStaticFramework = true
+
 linkage = ENV['USE_FRAMEWORKS']
 if linkage != nil
   Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green

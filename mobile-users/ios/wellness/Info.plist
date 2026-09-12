@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>wellness</string>
+	<string>Purnazen</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -34,8 +34,24 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Purnazen uses the camera to take the face and tongue photographs your wellness scan is based on. Photos are only uploaded when you tap to submit a scan.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Purnazen needs access to your photos so you can choose an existing picture for a scan or as your profile photo.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Purnazen uses Face ID to unlock the app so you do not have to type your password every time.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string></string>
+	<string>Purnazen uses your location to fill in your address and to find clinics near you. You can skip this and type your address instead.</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>MaterialCommunityIcons.ttf</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIRequiredDeviceCapabilities</key>
