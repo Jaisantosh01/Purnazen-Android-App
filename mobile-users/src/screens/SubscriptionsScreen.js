@@ -30,7 +30,7 @@ const DEFAULT_PLANS = [
     ],
   },
   {
-    code: 'premium', name: 'Premium', price: 499, currency: 'INR', period: 'month',
+    code: 'premium', name: 'Premium', price: 0, currency: 'INR', period: 'forever',
     badge: 'Most Popular', accentColor: '#1FA77A', sortOrder: 1,
     features: [
       { text: 'Unlimited wellness sessions', included: true },
@@ -42,7 +42,7 @@ const DEFAULT_PLANS = [
     ],
   },
   {
-    code: 'pro', name: 'Pro', price: 999, currency: 'INR', period: 'month',
+    code: 'pro', name: 'Pro', price: 0, currency: 'INR', period: 'forever',
     badge: null, accentColor: '#7C3AED', sortOrder: 2,
     features: [
       { text: 'Unlimited wellness sessions', included: true },
@@ -55,10 +55,11 @@ const DEFAULT_PLANS = [
   },
 ];
 
-const CURRENCY_SYMBOL = { INR: '₹', USD: '$', EUR: '€' };
-
-const priceLabel = (plan) => `${CURRENCY_SYMBOL[plan.currency] || ''}${plan.price}`;
-const periodLabel = (plan) => (plan.period === 'forever' ? 'Forever' : `/${plan.period}`);
+// Every plan is free while Purnazen is in beta, so this screen carries no
+// price, no currency symbol, no billing period and no "upgrade" language. The
+// backend enforces the same thing rather than trusting the UI: subscribing to
+// any plan with a price returns 402 (see SubscriptionService.subscribe). If
+// plans ever become paid, the work is Play Billing — not un-hiding a price.
 
 // #RRGGBB → rgba() so a plan's accent doubles as a soft, smooth card wash.
 const hexToRgba = (hex, a) => {
@@ -128,9 +129,7 @@ const SubscriptionsScreen = () => {
   const handleSubscribe = (plan) => {
     showConfirm(
       `Switch to ${plan.name}?`,
-      plan.price > 0
-        ? `You'll move to the ${plan.name} plan at ${priceLabel(plan)}${periodLabel(plan)}.`
-        : `You'll move to the ${plan.name} plan.`,
+      `You'll move to the ${plan.name} plan. It's free while Purnazen is in beta.`,
       async () => {
         setSubscribing(plan.code);
         try {
@@ -143,13 +142,13 @@ const SubscriptionsScreen = () => {
           setSubscribing(null);
         }
       },
-      { confirmLabel: plan.price > 0 ? 'Upgrade' : 'Switch' },
+      { confirmLabel: 'Switch' },
     );
   };
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Subscriptions" subtitle="Choose the right plan for you" backBehavior="popToRoot" />
+      <ScreenHeader title="Plans" subtitle="Free while Purnazen is in beta" backBehavior="popToRoot" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
 
@@ -185,8 +184,8 @@ const SubscriptionsScreen = () => {
                 <View>
                   <Text style={[styles.planName, { color: p.accent }]}>{plan.name}</Text>
                   <View style={styles.priceRow}>
-                    <Text style={[styles.planPrice, { color: p.accent }]}>{priceLabel(plan)}</Text>
-                    <Text style={styles.planPeriod}>{periodLabel(plan)}</Text>
+                    <Text style={[styles.planPrice, { color: p.accent }]}>Free</Text>
+                    <Text style={styles.planPeriod}>while in beta</Text>
                   </View>
                 </View>
                 {isCurrent ? (
@@ -220,7 +219,7 @@ const SubscriptionsScreen = () => {
                 >
                   {isBusy
                     ? <ActivityIndicator size="small" color={colors.white} />
-                    : <Text style={styles.selectBtnText}>Get {plan.name}</Text>}
+                    : <Text style={styles.selectBtnText}>Switch to {plan.name}</Text>}
                 </TouchableOpacity>
               ) : null}
             </View>
@@ -230,7 +229,9 @@ const SubscriptionsScreen = () => {
         <View style={styles.note}>
           <MCIcon name="information-outline" size={14} color={colors.textMuted} />
           <Text style={styles.noteText}>
-            {'  '}All paid plans include a 7-day free trial. Cancel anytime.
+            {'  '}Every plan is free while Purnazen is in beta. Switch between
+            them as often as you like — there is nothing to pay and nothing to
+            cancel. Doctor consultations are booked and paid for separately.
           </Text>
         </View>
 

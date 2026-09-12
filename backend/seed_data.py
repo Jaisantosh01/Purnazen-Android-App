@@ -497,9 +497,12 @@ SUBSCRIPTION_PLANS = [
     {
         "code": "premium",
         "name": "Premium",
-        "price": 499,
+        # Free during the beta. See SubscriptionService.subscribe: the subscribe
+        # endpoint refuses any plan with a price, because there is no purchase
+        # verification behind it yet.
+        "price": 0,
         "currency": "INR",
-        "period": "month",
+        "period": "forever",
         "badge": "Most Popular",
         "accent_color": "#1FA77A",
         "sort_order": 1,
@@ -515,9 +518,9 @@ SUBSCRIPTION_PLANS = [
     {
         "code": "pro",
         "name": "Pro",
-        "price": 999,
+        "price": 0,          # free during the beta — see the note above
         "currency": "INR",
-        "period": "month",
+        "period": "forever",
         "badge": None,
         "accent_color": "#7C3AED",
         "sort_order": 2,

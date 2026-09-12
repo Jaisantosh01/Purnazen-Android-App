@@ -18,6 +18,8 @@ def auth_headers(client, email="sub@example.com"):
 
 
 def seed_plans(db_session):
+    """The shipped catalog: every plan free while the app is in beta, matching
+    seed_data.SUBSCRIPTION_PLANS and the a1c0ffee0003 migration."""
     db_session.add_all(
         [
             SubscriptionPlan(
@@ -25,12 +27,12 @@ def seed_plans(db_session):
                 features=[{"text": "Basic yoga", "included": True}],
             ),
             SubscriptionPlan(
-                code="premium", name="Premium", price=499, period="month", sort_order=1,
+                code="premium", name="Premium", price=0, period="forever", sort_order=1,
                 badge="Most Popular", accent_color="#1FA77A",
                 features=[{"text": "Unlimited sessions", "included": True}],
             ),
             SubscriptionPlan(
-                code="pro", name="Pro", price=999, period="month", sort_order=2,
+                code="pro", name="Pro", price=0, period="forever", sort_order=2,
                 accent_color="#7C3AED", features=[],
             ),
         ]
@@ -45,7 +47,10 @@ def test_list_plans_is_public_and_ordered(client, db_session):
     plans = res.json()["data"]["plans"]
     assert [p["code"] for p in plans] == ["free", "premium", "pro"]  # by sort_order
     premium = plans[1]
-    assert premium["price"] == 499.0
+    # Zero in the database, not merely hidden in the UI — the API returns
+    # `price`, and a reviewer reading network traffic sees this value.
+    assert premium["price"] == 0.0
+    assert all(p["price"] == 0.0 for p in plans)
     assert premium["badge"] == "Most Popular"
     assert premium["accentColor"] == "#1FA77A"
     assert premium["features"] == [{"text": "Unlimited sessions", "included": True}]
@@ -73,8 +78,38 @@ def test_me_requires_auth(client):
     assert client.get("/api/v1/subscriptions/me").status_code == 401
 
 
-def test_subscribe_to_paid_plan_sets_period_end(client, db_session):
+def test_subscribe_to_priced_plan_is_refused(client, db_session):
+    """The guard that turns the old bug into an invariant.
+
+    `POST /subscribe` has no payment step, no purchase token, no receipt and no
+    signature check — it sets the user's plan to whatever they ask for. That is
+    harmless only while every plan is free. Pricing a plan without first
+    building purchase verification must make it unsubscribable, not free.
+    """
     seed_plans(db_session)
+    priced = db_session.query(SubscriptionPlan).filter_by(code="pro").first()
+    priced.price = 999
+    priced.period = "month"
+    db_session.commit()
+
+    headers = auth_headers(client)
+    res = client.post(
+        "/api/v1/subscriptions/subscribe", json={"plan_code": "pro"}, headers=headers
+    )
+    assert res.status_code == 402
+
+    # and the user is left on the plan they were already on
+    me = client.get("/api/v1/subscriptions/me", headers=headers).json()["data"]["subscription"]
+    assert me["planCode"] == "free"
+
+
+def test_subscribe_to_free_recurring_plan_sets_period_end(client, db_session):
+    """A free plan on a monthly period still gets a rolling period end."""
+    seed_plans(db_session)
+    monthly = db_session.query(SubscriptionPlan).filter_by(code="premium").first()
+    monthly.period = "month"
+    db_session.commit()
+
     headers = auth_headers(client)
     res = client.post(
         "/api/v1/subscriptions/subscribe", json={"plan_code": "premium"}, headers=headers
@@ -83,7 +118,7 @@ def test_subscribe_to_paid_plan_sets_period_end(client, db_session):
     sub = res.json()["data"]["subscription"]
     assert sub["planCode"] == "premium"
     assert sub["status"] == "active"
-    assert sub["currentPeriodEnd"] is not None  # monthly plan gets a rolling period
+    assert sub["currentPeriodEnd"] is not None
 
     # persisted — /me now reflects the new plan
     me = client.get("/api/v1/subscriptions/me", headers=headers).json()["data"]["subscription"]
@@ -133,4 +168,4 @@ def test_subscriptions_are_per_user(client, db_session):
 
     other = auth_headers(client, email="other-sub@example.com")
     me = client.get("/api/v1/subscriptions/me", headers=other).json()["data"]["subscription"]
-    assert me["planCode"] == "free"  # unaffected by the first user's upgrade
+    assert me["planCode"] == "free"  # unaffected by the first user's plan change
