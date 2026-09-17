@@ -10,7 +10,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity,
-  ActivityIndicator, Share,
+  ActivityIndicator, Share, Linking,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -18,6 +18,7 @@ import healthReportService from '../services/healthReportService';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 import MedicalDisclaimer from '../components/MedicalDisclaimer';
+import { showAlert } from '../utils/alert';
 
 const DASH = '—';
 
@@ -39,6 +40,22 @@ const HealthReportScreen = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [exporting, setExporting] = useState(false);
+
+  // The PDF is rendered by the backend; the browser gets a 10-minute link so
+  // the user can save or share it from there without a file-system module here.
+  const onExportPdf = async () => {
+    setExporting(true);
+    try {
+      const url = await healthReportService.exportPdfUrl();
+      if (!url) throw new Error('No link returned');
+      await Linking.openURL(url);
+    } catch (err) {
+      showAlert('Export failed', err.message || 'Could not prepare the PDF. Please try again.');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -74,7 +91,7 @@ const HealthReportScreen = () => {
       `Conditions: ${medical.conditions || DASH}`,
       `Medication: ${medical.medications || DASH}`,
       '',
-      `Therapy: ${therapy.completedSessions} sessions · ${therapy.totalMinutes} min`,
+      `Therapy: ${therapy.completedSessions} sessions · ${therapy.totalMinutes} min · ${therapy.streakDays ?? 0}-day streak`,
       `Appointments: ${appointments.completed} completed · ${appointments.upcoming} upcoming`,
       appointments.lastVisit ? `Last visit: ${fmtDate(appointments.lastVisit)}` : null,
     ];
@@ -202,6 +219,20 @@ const HealthReportScreen = () => {
           </Text>
         )}
 
+        {/* Export */}
+        <View style={styles.exportRow}>
+          <TouchableOpacity style={styles.exportBtn} onPress={onExportPdf} disabled={exporting} activeOpacity={0.85}>
+            {exporting
+              ? <ActivityIndicator size="small" color={colors.white} />
+              : <MCIcon name="file-pdf-box" size={18} color={colors.white} />}
+            <Text style={styles.exportText}>{exporting ? 'Preparing…' : 'Export PDF'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.exportGhost} onPress={onShare} activeOpacity={0.85}>
+            <MCIcon name="share-variant-outline" size={18} color={colors.primary} />
+            <Text style={styles.exportGhostText}>Share text</Text>
+          </TouchableOpacity>
+        </View>
+
         <Section icon="account-outline" title="PATIENT">
           <Row label="Name" value={patient.name} />
           <Row label="Age" value={patient.age != null ? `${patient.age}` : null} />
@@ -222,9 +253,36 @@ const HealthReportScreen = () => {
           )}
         </Section>
 
-        <Section icon="history" title="THERAPY">
-          <Row label="Completed sessions" value={`${therapy.completedSessions}`} />
-          <Row label="Total minutes" value={`${therapy.totalMinutes}`} last />
+        <Section icon="history" title="WELLNESS & THERAPY">
+          <View style={styles.therapyStrip}>
+            {[
+              { value: therapy.completedSessions, label: 'sessions' },
+              { value: therapy.totalMinutes, label: 'minutes' },
+              { value: therapy.streakDays ?? 0, label: 'day streak' },
+            ].map(x => (
+              <View key={x.label} style={styles.therapyStat}>
+                <Text style={styles.therapyValue}>{x.value}</Text>
+                <Text style={styles.therapyLabel}>{x.label}</Text>
+              </View>
+            ))}
+          </View>
+          {(therapy.recent || []).map((run, i, arr) => (
+            <View key={`${run.date}-${i}`} style={[styles.runRow, i < arr.length - 1 && styles.rowDivider]}>
+              <View style={[styles.runDot, run.status === 'completed' ? styles.runDone : styles.runOpen]} />
+              <View style={styles.flex}>
+                <Text style={styles.runTitle} numberOfLines={1}>{run.title || 'Session'}</Text>
+                <Text style={styles.runMeta}>
+                  {fmtDate(run.date)} · {run.sessionType === 'relief' ? 'Quick Relief' : 'Wellness'}
+                </Text>
+              </View>
+              <Text style={[styles.runStatus, run.status === 'completed' ? styles.runStatusDone : null]}>
+                {run.status === 'completed' ? 'Done' : 'In progress'}
+              </Text>
+            </View>
+          ))}
+          {!(therapy.recent || []).length && (
+            <Text style={styles.emptyNote}>No sessions yet. Start one from the Wellness tab.</Text>
+          )}
         </Section>
 
         <Section icon="calendar-check-outline" title="CONSULTATIONS">
@@ -290,6 +348,35 @@ const makeStyles = colors => StyleSheet.create({
   },
   vitalValue: { fontSize: 15, fontWeight: '800', color: colors.textPrimary },
   vitalLabel: { fontSize: 10.5, color: colors.textMuted },
+
+  flex: { flex: 1 },
+  exportRow: { flexDirection: 'row', gap: 10, marginHorizontal: 16, marginTop: 14 },
+  exportBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: colors.primary, paddingVertical: 12, borderRadius: 14,
+  },
+  exportText: { fontSize: 14, fontWeight: '700', color: colors.white },
+  exportGhost: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: colors.primaryLight, paddingVertical: 12, borderRadius: 14,
+  },
+  exportGhostText: { fontSize: 14, fontWeight: '700', color: colors.primary },
+
+  therapyStrip: {
+    flexDirection: 'row', paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border,
+  },
+  therapyStat: { flex: 1, alignItems: 'center', gap: 2 },
+  therapyValue: { fontSize: 20, fontWeight: '800', color: colors.textPrimary, fontVariant: ['tabular-nums'] },
+  therapyLabel: { fontSize: 11, color: colors.textMuted },
+  runRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
+  runDot: { width: 8, height: 8, borderRadius: 4 },
+  runDone: { backgroundColor: colors.primary },
+  runOpen: { backgroundColor: colors.warning },
+  runTitle: { fontSize: 13, fontWeight: '600', color: colors.textPrimary },
+  runMeta: { fontSize: 11.5, color: colors.textMuted, marginTop: 1 },
+  runStatus: { fontSize: 11.5, fontWeight: '700', color: colors.warning },
+  runStatusDone: { color: colors.primary },
 
   hint: {
     marginHorizontal: 16, marginTop: 10,

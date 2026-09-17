@@ -1,6 +1,7 @@
 # Features Tracker
 
-**Last updated:** 2026-07-03 (post PR #22 — therapy feedback, user addresses, home/clinic booking fixes; tracker expanded to cover all three apps + backend platform)
+**Last updated:** 2026-09-16. Completion estimates, per-platform status and the phased
+plan are in **[STATUS.md](STATUS.md)**; distribution in **[DISTRIBUTION.md](DISTRIBUTION.md)**.
 
 Single source of truth for what is built, what is stubbed, and what is missing —
 across the three mobile apps and the shared FastAPI backend.
@@ -21,9 +22,9 @@ across the three mobile apps and the shared FastAPI backend.
 
 | App | Folder | Package | Role gate | State |
 |-----|--------|---------|-----------|-------|
-| Patient | `mobile-users` | `com.purnazen` | `user` | Full feature set (35 screens) |
-| Doctor | `mobile-doctors` | `com.purnazen.doctor` | `doctor` | Functional (15 screens): dashboard, appointments, schedule, patients, clinical records |
-| Admin | `mobile-admin` | `com.purnazen.admin` | `admin` | Functional (18 screens): doctors, users, appointments, slots/leaves, metadata, videos, roles |
+| Patient | `mobile-users` | `com.purnazen` | `patient` | Full feature set (39 screens). Android release-ready in code; iOS runs in the Simulator |
+| Doctor | `mobile-doctors` | `com.purnazen.doctor` | `doctor` | Functional (29 screens): dashboard, appointments, schedule, leave, patients, clinical records, scan reports. iOS not yet built |
+| Admin | `mobile-admin` | `com.purnazen.admin` | `admin` | Functional (29 screens): doctors, users, appointments, slots/leaves, metadata, videos, content, FAQs, notifications, GST, roles. iOS not yet built |
 
 All three share the same stack (RN 0.85 / Expo SDK 56) and client patterns:
 dark mode (`useTheme` + persisted `themeStore`), biometric login, themed alerts,
@@ -47,7 +48,8 @@ JWT keychain storage with silent 401 refresh, and a store-update banner.
 | Change password | Settings modal | `POST /auth/change-password` | Done | Revokes all old tokens (`token_version`) |
 | Delete account | Settings | `DELETE /auth/me` | Done | Hard delete + cascade; tokens die immediately |
 | Address book | `AddressManagementScreen` (Profile) | `GET/POST/PUT/DELETE /user-addresses` | Done | CRUD + soft delete; used by home-visit booking |
-| Social auth (Google/Apple) | — | — | Planned | Deferred — needs OAuth client IDs (TASKS T40/T41) |
+| Social auth: Google | `socialAuthService` | `POST /auth/social` | Done | Firebase Auth; backend verifies the Firebase ID token and issues its own JWTs |
+| Social auth: Apple | — | (same endpoint) | Planned | Required for App Review guideline 4.8 once Google sign-in ships on iOS — STATUS.md Phase 1 |
 | OTP auth | — | — | Planned | Listed in SRS; password + JWT only today |
 
 ## Home & chat assistant
@@ -77,7 +79,9 @@ JWT keychain storage with silent 401 refresh, and a store-update banner.
 |---------|----------|---------|--------|-------|
 | Session player (yoga/meditation/breathing) | `YogaSessionScreen` | `GET /sessions` | Done | API content wins; local fallback for offline |
 | Relief session player (acupressure) | `ReliefSessionScreen` | `GET /relief-sessions/:key` | Done | |
-| Video group player | `VideoPlayerScreen` | `GET /videos/groups/:id/catalog` | Done | Modern player (scrubber, fullscreen); plays admin-uploaded video groups |
+| Video group player | `VideoPlayerScreen` | `GET /videos/groups/:id/catalog` | Done | Scrubber with buffered range, double-tap ±10s, fullscreen with title, up-next |
+| Player quality & speed | `VideoPlayer` gear menu | catalog `renditions` | Done | Speed 0.75–2×. Quality: HLS ladder on Android (`onVideoTracks`), bitrate caps on iOS; MP4 masters get siblings named `<stem>.<height>p.mp4` (e.g. `yoga/warmup.720p.mp4`) listed as renditions — Auto steps down after repeated stalls |
+| Health report PDF | `HealthReportScreen` → Export PDF | `POST /users/me/health-report/export` → `GET /users/me/health-report.pdf?t=` | Done | reportlab render on request; 10-min link token so the system browser can open/save it. Report now carries recent runs + day streak |
 | Save completed session | on completion | `POST /therapy-history/save` | Done | |
 | Therapy history + stats | `TherapyHistoryScreen` | `GET /therapy-history`, `/completed-count/:groupId` | Done | Sessions/minutes/avgRelief; per-group completion count |
 | Therapy feedback (pain before/after) | `ChatAssistantScreen`, `VideoPlayerScreen` | `POST /therapy-feedback`, `PUT .../pain-after` | Done | 1-10 pain scale before (chat) and after (player) + free-text feedback; doctor/admin feedback fields exist server-side |
@@ -103,13 +107,13 @@ graceful-degradation ladder. Details: [FACE_ANALYSIS_AI.md](FACE_ANALYSIS_AI.md)
 | Feature | Frontend | Backend | Status | Notes |
 |---------|----------|---------|--------|-------|
 | Dark mode | all 33+ screens via `useTheme` | — | Done | light/dark/system, persisted |
-| Notification preferences | `NotificationsScreen`, Settings | `GET/PUT /users/me/preferences` | Done | Push *delivery* (FCM) still open |
+| Notification preferences | `NotificationsScreen`, Settings | `GET/PUT /users/me/preferences` | Done | |
 | Help & Support | `HelpSupportScreen` | `GET /support/help` | Done | DB-backed contacts + FAQs (2026-06-26); some rows still "coming soon" |
-| Subscriptions | `SubscriptionsScreen` | — | UI only | Hardcoded plans; no billing, no plan gating (TASKS T14) |
+| Subscriptions | `SubscriptionsScreen` | `GET /subscriptions/plans`, `POST /subscriptions/subscribe` | Partial | Plans are served at ₹0; priced plans are refused (402) until Play Billing / StoreKit verification exists — STATUS.md Phase 4 |
 | Update banner | `updateService`, `UpdateBanner` | `GET /app-releases/latest` | Done | Version check only; tapping deep-links to the store listing. The app never downloads or installs a build itself — Play's Device and Network Abuse policy forbids it. |
 | Error reporting | `ErrorBoundary` + service | `POST /errors/report` | Done | |
 | Download my data | Settings row | — | UI only | Alert stub; no export pipeline |
-| Push notifications (FCM) | — | — | Planned | Preferences persist but nothing is delivered |
+| Push notifications (FCM) | `pushService` + `NotificationCenterScreen` | `/notifications/device-tokens`, `fcm_service` | Done | Android. iOS needs an APNs key uploaded to Firebase |
 
 ---
 
@@ -123,6 +127,9 @@ graceful-degradation ladder. Details: [FACE_ANALYSIS_AI.md](FACE_ANALYSIS_AI.md)
 | Schedule / availability | `ScheduleScreen`, `AddAvailabilityScreen` | `GET/POST/PUT/DELETE /doctor-availability` | Done | Weekly availability CRUD |
 | Patients roster + profile | `PatientsScreen`, `PatientDetail(s)Screen` | derived from appointment feed + `GET /users/:id` | Done | No separate patients table; visit history shown |
 | Clinical records (notes/diagnosis/prescription) | `ConsultationNotesScreen` + 3 editors | `GET/POST/PUT/DELETE /appointments/:id/records` | Done | Owner-checked, soft-deleted; persisted since 2026-06-26 |
+| Leave requests | `ApplyLeaveScreen`, `LeaveHistoryScreen`, `LeaveDetailScreen` | `/doctor-leaves` | Done | |
+| Patient scan reports | `FaceScanHistory/Report`, `TongueScanHistory/Report` | `/patients/...` | Done | Doctor sees the patient's face and tongue scan results |
+| Push notifications | `pushService`, `NotificationCenterScreen` | `/notifications` | Done | |
 | Therapy feedback review | — | `PUT /therapy-feedback/:id/doctor-feedback` | UI only | Endpoint exists; no doctor-app screen wired yet |
 | Profile & Settings | `ProfileScreen`, `SettingsScreen` | shared endpoints | Done | Parity with patient app: dark mode, biometric, editable profile/phone/password, trackers (today/upcoming/completed) |
 
@@ -142,8 +149,10 @@ graceful-degradation ladder. Details: [FACE_ANALYSIS_AI.md](FACE_ANALYSIS_AI.md)
 | Metadata management | `MetadataManagementScreen` | specialties / expertises / languages CRUD | Done | Three lookup tables, full CRUD |
 | Role management | `ManageRolesScreen` | `GET/POST/PUT/DELETE /roles` | Done | Admin-gated |
 | Video management | `VideoManagementScreen`, `UploadVideoScreen`, `VideoGroupDetailScreen` | `/videos` + `/videos/groups` + blob storage endpoints | Done | Upload to Azure Blob, video CRUD, group CRUD + sync videos in group |
-| Content management (quick relief / sessions) | — | `POST/PUT/DELETE /quick-relief`, `/sessions` | UI only | Endpoints exist; no admin screens wired yet |
-| Support CMS (contacts/FAQs) | — | `POST/PUT/DELETE /support/contacts`, `/support/faqs` | UI only | Endpoints exist; no admin screens wired yet |
+| Content management | `ContentManagementScreen`, `ContentEditorScreen` | `/sessions`, `/content-pages` | Partial | Session content and legal pages (terms/privacy) done; quick-relief cards have no admin UI |
+| Support CMS | `FaqManagementScreen` | `/support/faqs`, `/support/contacts` | Partial | FAQs done; support contacts have no admin UI |
+| Broadcast notifications | `NotificationAdminScreen` | `/notifications` | Done | |
+| GST settings | `TaxSettingsScreen` | `GET/PUT /tax/config` | Done | Rate snapshotted on each booking |
 | Therapy feedback review | — | `PUT /therapy-feedback/:id/admin-feedback` | UI only | Endpoint exists; no screen |
 | Profile & Settings | `ProfileScreen`, `SettingsScreen` | shared | Done | Parity with patient app; live profile trackers |
 
@@ -152,8 +161,9 @@ graceful-degradation ladder. Details: [FACE_ANALYSIS_AI.md](FACE_ANALYSIS_AI.md)
 # Backend platform
 
 FastAPI (Python 3.13), SQLAlchemy 2 + Alembic, PostgreSQL (SQLite for local dev),
-Redis-backed caching/rate limiting when configured. Approximately **131 routes
-across 27 endpoint modules** (counted from `app/api/v1/endpoints/`, 2026-07-03).
+Redis-backed caching/rate limiting when configured. **195 routes across 33
+endpoint modules** (counted from `app/api/v1/endpoints/`, 2026-09-16). Test suite:
+227 passed, 7 skipped (Azure-only).
 
 | Module | Routes | Consumers | Notes |
 |--------|--------|-----------|-------|
@@ -184,20 +194,20 @@ across 27 endpoint modules** (counted from `app/api/v1/endpoints/`, 2026-07-03).
 
 Infrastructure: Azure Container Apps deploy via OIDC GitHub Actions
 (`.github/workflows/deploy-backend.yml`, `scripts/provision-azure-prod.sh`); signed
-Apps distributed through Google Play and the App Store;
-local Docker APK builds (`scripts/build-apks.sh`).
+Android builds from `release-mobile.yml`; local Docker APK builds
+(`scripts/build-apks.sh`). Store and private distribution plan:
+[DISTRIBUTION.md](DISTRIBUTION.md).
 
 ---
 
 # Known gaps (summary)
 
-Full backlog with owners/priorities: **[TASKS.md](TASKS.md)**.
+Phased plan with estimates: **[STATUS.md](STATUS.md)**. Backlog: **[TASKS.md](TASKS.md)**.
 
-1. **Payments** — sandbox only; Razorpay native checkout with real keys open.
-2. **Subscriptions** — static UI; no billing, no plan gating (incl. SRS free 2-min limit).
-3. **Push delivery** — preferences persist, but no FCM; scan notifications deferred with it.
-4. **Social auth + OTP** — deferred (needs OAuth credentials / OTP provider).
-5. **FaceGlow routine player** — routines listed but "play" is a stub.
-6. **Admin screens for existing endpoints** — quick-relief/session content CRUD, support CMS, therapy-feedback review have APIs but no UI.
-7. **Face-analysis sprints 6-8** — security hardening (signed URLs, GDPR bulk delete), analyzer test matrix, Celery queue, monitoring, analytics events, premium gating.
-8. **SRS leftovers** — 4 missing MVP symptoms in seed, in-app medical disclaimer, load testing.
+1. **iOS** — Patient app runs in the Simulator; Doctor and Admin apps have never been built; no TestFlight builds, no Sign in with Apple, no APNs key.
+2. **Store accounts & listings** — Play Console / Apple Developer organisation accounts, listing assets, lawyer-reviewed legal copy.
+3. **Monetisation** — no Play Billing / StoreKit; plans are ₹0. Razorpay is sandbox-only for consultations.
+4. **Hardening** — Firebase App Check, admin 2FA, Redis in production, Sentry/monitoring, load test, analyzer test matrix.
+5. **Data rights** — "Download my data" export is a stub.
+6. **Face Glow v2** — muscle-tone display, skin-type label, routine player, milestones, challenges/streaks, check-ins, AI coach, transformation video.
+7. **Staff-app gaps** — therapy-feedback review screens; quick-relief and support-contact admin UI.

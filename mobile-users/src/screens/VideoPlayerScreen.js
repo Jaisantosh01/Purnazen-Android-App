@@ -363,6 +363,8 @@ const VideoPlayerScreen = ({ route, navigation }) => {
       <VideoPlayer
         source={currentVideo.videoUrl ? { uri: currentVideo.videoUrl } : null}
         sourceId={currentVideo.id}
+        renditions={currentVideo.renditions}
+        title={currentVideo.title}
         poster={
           <MCIcon name={currentVideo.icon || 'play-circle-outline'} size={80} color={colors.primary} />
         }

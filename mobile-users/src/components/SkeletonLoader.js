@@ -45,6 +45,20 @@ export const CardSkeleton = () => {
   );
 };
 
+// 2-up tinted card (Relief grid, Wellness programs).
+export const GridCardSkeleton = () => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
+  <View style={styles.gridCard}>
+    <SkeletonBox width={32} height={32} borderRadius={RADIUS.sm} style={{ marginBottom: SPACING.sm }} />
+    <SkeletonBox width="70%" height={14} />
+    <SkeletonBox width="85%" height={11} style={{ marginTop: SPACING.xs }} />
+    <SkeletonBox width="50%" height={11} style={{ marginTop: SPACING.xl }} />
+  </View>
+  );
+};
+
 export const ListSkeleton = ({ count = 4 }) => (
   <View style={{ paddingHorizontal: SPACING.lg, paddingTop: SPACING.md }}>
     {Array.from({ length: count }).map((_, i) => (
@@ -174,6 +188,15 @@ const makeStyles = colors => StyleSheet.create({
     padding: SPACING.lg,
     marginBottom: SPACING.md,
     elevation: 1,
+  },
+  gridCard: {
+    width: '48%',
+    borderRadius: 18,
+    padding: SPACING.lg,
+    marginBottom: 14,
+    minHeight: 168,
+    backgroundColor: colors.surfaceMuted,
+    justifyContent: 'space-between',
   },
   cardRow: {
     flexDirection: 'row',

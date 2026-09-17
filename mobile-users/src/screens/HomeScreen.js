@@ -55,7 +55,7 @@ const HomeScreen = ({ navigation }) => {
             id: s.id,
             title: s.title,
             duration: s.duration,
-            icon: 'heart-pulse',
+            icon: s.icon || 'star-four-points-outline',
             videoGroupId: s.videoGroupId,
           })),
         );

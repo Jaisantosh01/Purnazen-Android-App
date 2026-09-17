@@ -11,7 +11,7 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
-import SkeletonBox from '../components/SkeletonLoader';
+import { GridCardSkeleton } from '../components/SkeletonLoader';
 import TabHeader from '../components/TabHeader';
 import { SPACING, RADIUS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
@@ -42,15 +42,6 @@ const ReliefScreen = ({ navigation }) => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const CardSkeleton = () => (
-    <View style={styles.skeletonCard}>
-      <SkeletonBox width={32} height={32} borderRadius={RADIUS.sm} style={{ marginBottom: SPACING.sm }} />
-      <SkeletonBox width="70%" height={14} />
-      <SkeletonBox width="85%" height={11} style={{ marginTop: SPACING.xs }} />
-      <SkeletonBox width="50%" height={11} style={{ marginTop: SPACING.xl }} />
-    </View>
-  );
-
   return (
     <View style={styles.root}>
       <ScrollView
@@ -74,7 +65,7 @@ const ReliefScreen = ({ navigation }) => {
         {/* Grid */}
         {isLoading ? (
           <View style={styles.grid}>
-            {[1, 2, 3, 4].map(i => <CardSkeleton key={i} />)}
+            {[1, 2, 3, 4].map(i => <GridCardSkeleton key={i} />)}
           </View>
         ) : error ? (
           <View style={styles.errorBox}>
@@ -165,15 +156,6 @@ const makeStyles = colors => StyleSheet.create({
     padding: SPACING.lg,
     marginBottom: 14,
     minHeight: 168,
-    justifyContent: 'space-between',
-  },
-  skeletonCard: {
-    width: '48%',
-    borderRadius: 18,
-    padding: SPACING.lg,
-    marginBottom: 14,
-    minHeight: 168,
-    backgroundColor: colors.surfaceMuted,
     justifyContent: 'space-between',
   },
   cardIcon:     { marginBottom: SPACING.sm },

@@ -68,7 +68,9 @@ const ConsultScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery]   = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState(''); // Fix 2: debounce
   const [doctors, setDoctors]           = useState([]);
-  const [filterTabs, setFilterTabs]     = useState([]);
+  // The backend has no /filter-tabs route (every launch 404'd and fell back
+  // to this list), so the list is the source of truth.
+  const filterTabs = FILTER_TABS_FALLBACK;
   const [isLoading, setIsLoading]       = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError]               = useState(null);
@@ -89,11 +91,6 @@ const ConsultScreen = ({ navigation }) => {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  useEffect(() => {
-    consultService.getFilterTabs()
-      .then(tabs => setFilterTabs(tabs))
-      .catch(() => setFilterTabs(FILTER_TABS_FALLBACK));
-  }, []);
 
   // Fix 2 + Fix 8: use debouncedQuery in deps, ignore stale responses
   const fetchDoctors = useCallback(async (pageNum = 1, isRefresh = false) => {

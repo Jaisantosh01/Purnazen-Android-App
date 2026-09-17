@@ -1,4 +1,5 @@
 import os
+import re
 import uuid
 
 from sqlalchemy.orm import Session
@@ -6,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.models.user import User
 from app.repositories.video_repository import VideoGroupMappingRepository, VideoGroupRepository, VideoRepository
 from app.schemas.video import VideoCreate, VideoGroupCreate, VideoGroupUpdate, VideoUpdate
-from app.utils.azure_storage import generate_video_sas_url
+from app.utils.azure_storage import generate_video_sas_url, list_blob_names
 
 
 class VideoService:
@@ -131,7 +132,37 @@ class VideoService:
         videos = VideoRepository.get_by_group(db, group_id, active_only)
         data = group.to_dict()
         data["videos"] = [VideoService._process_video_data(v.to_dict()) for v in videos]
+        VideoService._attach_renditions(videos, data["videos"])
         return data
+
+    # Lower-quality copies live next to the master under a naming convention,
+    # ``<stem>.<height>p.mp4`` (``yoga/warmup.720p.mp4`` beside
+    # ``yoga/warmup.mp4``). Nothing in the catalog records them; the player
+    # gets whatever is on disk. HLS masters (``.m3u8``) carry their own ladder
+    # and are left alone.
+    _RENDITION_RE = re.compile(r"\.(\d{3,4})p\.mp4$")
+
+    @staticmethod
+    def _attach_renditions(videos, dicts):
+        # ponytail: one blob listing per folder per catalog fetch; cache it if
+        # catalog latency ever shows up.
+        folders = {os.path.dirname(v.video_url) for v in videos if v.video_url and v.video_url.endswith(".mp4")}
+        names = set()
+        for folder in folders:
+            names.update(list_blob_names(folder + "/" if folder else ""))
+        for v, d in zip(videos, dicts):
+            if not v.video_url or not v.video_url.endswith(".mp4"):
+                continue
+            stem = v.video_url[:-4] + "."
+            ladder = sorted(
+                (int(m.group(1)), n)
+                for n in names
+                if n.startswith(stem) and (m := VideoService._RENDITION_RE.match(n[len(stem) - 1:]))
+            )
+            if ladder:
+                d["renditions"] = [
+                    {"height": h, "videoUrl": generate_video_sas_url(n)} for h, n in reversed(ladder)
+                ]
 
     @staticmethod
     def upsert_video(db: Session, user: User, data: VideoCreate | VideoUpdate, video_id: uuid.UUID = None):

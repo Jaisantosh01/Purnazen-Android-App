@@ -4,7 +4,7 @@ Purely a read-model: it aggregates rows the app already writes (profile vitals,
 the latest completed face/tongue scan, therapy totals, appointment counts) into
 one payload for the "My Health Report" screen. Nothing new is stored.
 """
-from datetime import date
+from datetime import date, timedelta
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -13,7 +13,9 @@ from app.models.appointment import Appointment
 from app.models.face_scan import FaceScan
 from app.models.scan_result import ScanResult
 from app.models.therapy_session import TherapySession
+from app.models.therapy_session_group import TherapySessionGroup
 from app.models.user import User
+from app.models.video_groups import VideoGroups
 
 # Below/above these the app shows the band label next to the BMI figure.
 _BMI_BANDS = (
@@ -32,7 +34,40 @@ def _bmi_band(bmi: float | None) -> str | None:
     return "Obese"
 
 
+def _day_streak(days: set[date], today: date) -> int:
+    """Consecutive active days ending today or yesterday."""
+    cursor = today if today in days else today - timedelta(days=1)
+    n = 0
+    while cursor in days:
+        n += 1
+        cursor -= timedelta(days=1)
+    return n
+
+
 class HealthReportService:
+    @staticmethod
+    def _runs(db: Session, user_id, limit: int = 5) -> tuple[list[dict], int]:
+        """The user's most recent therapy runs (with the programme title) and
+        their current day streak, which is read off the same rows."""
+        rows = (
+            db.query(TherapySessionGroup, VideoGroups.title)
+            .outerjoin(VideoGroups, VideoGroups.id == TherapySessionGroup.group_id)
+            .filter(TherapySessionGroup.user_id == user_id)
+            .order_by(TherapySessionGroup.created_at.desc())
+            .limit(60)  # ponytail: streak counts within the last 60 runs
+            .all()
+        )
+        recent = [
+            {
+                "title": title,
+                "sessionType": sg.session_type,
+                "status": sg.status,
+                "date": sg.created_at.date().isoformat() if sg.created_at else None,
+            }
+            for sg, title in rows[:limit]
+        ]
+        days = {sg.created_at.date() for sg, _ in rows if sg.created_at}
+        return recent, _day_streak(days, date.today())
 
     @staticmethod
     def _latest_scan(db: Session, user_id, scan_type: str) -> dict | None:
@@ -108,6 +143,8 @@ class HealthReportService:
             .scalar()
         )
 
+        recent_runs, streak = HealthReportService._runs(db, user.id)
+
         bmi = user.bmi
         return {
             "generatedAt": date.today().isoformat(),
@@ -131,6 +168,8 @@ class HealthReportService:
             "therapy": {
                 "completedSessions": sessions or 0,
                 "totalMinutes": int(minutes or 0),
+                "streakDays": streak,
+                "recent": recent_runs,
             },
             "appointments": {
                 "total": sum(by_status.values()),

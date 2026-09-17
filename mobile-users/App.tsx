@@ -3,9 +3,6 @@ import { View, ActivityIndicator, StatusBar } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-// @ts-ignore
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 // @ts-ignore
 import authService from './src/services/authService';
 // @ts-ignore
@@ -35,6 +32,8 @@ import AppAlertHost from './src/components/AppAlertHost';
 import ErrorBoundary from './src/components/ErrorBoundary';
 // @ts-ignore
 import UpdateBanner from './src/components/UpdateBanner';
+// @ts-ignore
+import TabBar from './src/components/TabBar';
 // @ts-ignore
 import useToastStore from './src/utils/toast';
 
@@ -190,38 +189,10 @@ function ProfileStackNavigator() {
 }
 
 function MainTabs() {
-  // Respect the device's bottom safe area (gesture bar / home indicator) so the
-  // tab bar isn't flush against the screen edge. Floor of 10 keeps a comfortable
-  // gap on devices that report no inset.
-  const insets = useSafeAreaInsets();
-  const bottomPad = Math.max(insets.bottom, 10);
-  const { colors } = useTheme();
-
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarIcon: ({ focused, color }) => {
-          const icons = TAB_ICONS[route.name];
-          return <Icon name={focused ? icons.active : icons.inactive} size={22} color={color} />;
-        },
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textMuted,
-        tabBarStyle: {
-          backgroundColor: colors.card,
-          borderTopWidth: 1,
-          borderTopColor: colors.border,
-          height: 60 + bottomPad,
-          paddingBottom: bottomPad,
-          paddingTop: 6,
-          elevation: 10,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.06,
-          shadowRadius: 6,
-        },
-        tabBarLabelStyle: { fontSize: 10, fontWeight: '600', paddingBottom: 2 },
-      })}
+      screenOptions={{ headerShown: false }}
+      tabBar={props => <TabBar {...props} icons={TAB_ICONS} />}
     >
       <Tab.Screen
         name="Home"

@@ -2,18 +2,20 @@ import uuid
 from datetime import date
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Query, Request, UploadFile
+from fastapi.responses import Response
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_db, require_role
-from app.core.security import hash_password
+from app.api.deps import get_current_user, get_db, get_download_user, require_role
+from app.core.security import DOWNLOAD_TOKEN_MINUTES, create_download_token, hash_password
 from app.models.doctor import Doctor
 from app.models.role import Role
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth import AdminCreateUserRequest
 from app.schemas.preferences import UpdatePreferencesRequest
+from app.services.health_report_pdf import render_pdf
 from app.services.health_report_service import HealthReportService
 from app.services.preference_service import PreferenceService
 from app.utils.azure_storage import upload_avatar_file
@@ -167,6 +169,48 @@ def get_health_report(
 ):
     return success_response(
         "Health report generated successfully", HealthReportService.build(db, user)
+    )
+
+
+@router.post(
+    "/me/health-report/export",
+    summary="Link to the health report as a PDF",
+    description="Mints a short-lived link the app hands to the system browser "
+    "(which can't send a bearer header). Nothing is stored; the PDF is "
+    "rendered on request.",
+)
+def export_health_report(
+    request: Request,
+    user: User = Depends(get_current_user),
+):
+    url = request.url_for("download_health_report_pdf").include_query_params(
+        t=create_download_token(str(user.id), user.token_version or 0)
+    )
+    # Behind App Service's TLS front end the app sees plain http; hand the
+    # browser the scheme the client actually used.
+    url = url.replace(scheme=request.headers.get("x-forwarded-proto", url.scheme))
+    return success_response(
+        "Export link created",
+        {"url": str(url), "expiresInMinutes": DOWNLOAD_TOKEN_MINUTES},
+    )
+
+
+@router.get(
+    "/me/health-report.pdf",
+    name="download_health_report_pdf",
+    summary="Health report as a PDF",
+    description="Rendered on request from the same aggregate as the JSON report. "
+    "Authenticated by the `t` link token from the export endpoint.",
+)
+def download_health_report_pdf(
+    user: User = Depends(get_download_user),
+    db: Session = Depends(get_db),
+):
+    pdf = render_pdf(HealthReportService.build(db, user))
+    return Response(
+        pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'inline; filename="purnazen-health-report.pdf"'},
     )
 
 

@@ -14,6 +14,16 @@ class HealthReportService {
       throw new Error(err?.message ?? 'Failed to load your health report');
     }
   }
+
+  /** Short-lived link to the report as a PDF, for the system browser to open. */
+  async exportPdfUrl() {
+    try {
+      const json = await apiClient.post(ENDPOINTS.HEALTH_REPORT_EXPORT);
+      return json?.data?.url;
+    } catch (err) {
+      throw new Error(err?.message ?? 'Could not prepare the PDF');
+    }
+  }
 }
 
 export default new HealthReportService();

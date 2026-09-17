@@ -26,6 +26,14 @@ import { APP_VERSION } from '../config';
 // correctly over both light and dark cards (matches Settings/Notifications).
 const soft = hex => `${hex}22`;
 
+// Grouped the way the user thinks about them: their health, their account,
+// the app. Each group renders as one card with hairline dividers.
+const MENU_GROUPS = [
+  ['MY HEALTH', ['AppointmentHistory', 'TherapyHistory', 'HealthReport']],
+  ['ACCOUNT', ['AddressManagement', 'Subscriptions', 'Notifications']],
+  ['APP', ['Settings', 'checkUpdate', 'HelpSupport']],
+];
+
 const MENU_ITEMS = [
   { icon: 'calendar-clock',      iconColor: '#0891B2',           title: 'Appointments',    subtitle: 'View appointment history',  screen: 'AppointmentHistory' },
   { icon: 'history',             iconColor: COLORS.primary,      title: 'Therapy History', subtitle: 'View past sessions',        screen: 'TherapyHistory' },
@@ -186,28 +194,36 @@ const ProfileScreen = ({ navigation }) => {
         </View>
 
         {/* ── Menu ── */}
-        <View style={styles.menuSection}>
-          {MENU_ITEMS.map((item) => (
-            <TouchableOpacity
-              key={item.screen || item.title}
-              style={styles.menuCard}
-              activeOpacity={0.7}
-              onPress={() => {
-                if (item.onPressKey === 'checkUpdate') return handleCheckForUpdate();
-                if (item.screen) navigation.navigate(item.screen);
-              }}
-            >
-              <View style={[styles.menuIconCircle, { backgroundColor: soft(item.iconColor) }]}>
-                <MCIcon name={item.icon} size={20} color={item.iconColor} />
-              </View>
-              <View style={styles.menuInfo}>
-                <Text style={styles.menuTitle}>{item.title}</Text>
-                <Text style={styles.menuSubtitle}>{item.subtitle || (item.onPressKey === 'checkUpdate' ? (updateChecking ? 'Checking\u2026' : `Current v${APP_VERSION}`) : '')}</Text>
-              </View>
-              <MCIcon name="chevron-right" size={20} color={colors.borderStrong} />
-            </TouchableOpacity>
-          ))}
-        </View>
+        {MENU_GROUPS.map(([label, keys]) => (
+          <View key={label} style={styles.menuSection}>
+            <Text style={styles.menuGroupLabel}>{label}</Text>
+            <View style={styles.menuCard}>
+              {keys.map((key, i) => {
+                const item = MENU_ITEMS.find(m => (m.screen || m.onPressKey) === key);
+                return (
+                  <TouchableOpacity
+                    key={key}
+                    style={[styles.menuRow, i < keys.length - 1 && styles.menuRowDivider]}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      if (item.onPressKey === 'checkUpdate') return handleCheckForUpdate();
+                      if (item.screen) navigation.navigate(item.screen);
+                    }}
+                  >
+                    <View style={[styles.menuIconCircle, { backgroundColor: soft(item.iconColor) }]}>
+                      <MCIcon name={item.icon} size={20} color={item.iconColor} />
+                    </View>
+                    <View style={styles.menuInfo}>
+                      <Text style={styles.menuTitle}>{item.title}</Text>
+                      <Text style={styles.menuSubtitle}>{item.subtitle || (item.onPressKey === 'checkUpdate' ? (updateChecking ? 'Checking\u2026' : `Current v${APP_VERSION}`) : '')}</Text>
+                    </View>
+                    <MCIcon name="chevron-right" size={20} color={colors.borderStrong} />
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        ))}
 
         {/* ── Logout ── */}
         <TouchableOpacity
@@ -312,15 +328,28 @@ const makeStyles = colors => StyleSheet.create({
   menuSection: {
     marginHorizontal: 16,
     marginTop: 20,
-    gap: 10,
+    gap: 8,
   },
-  menuCard: {
+  menuGroupLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    color: colors.textMuted,
+    marginLeft: 4,
+  },
+  menuRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  menuRowDivider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  menuCard: {
     backgroundColor: colors.card,
     borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     shadowColor: colors.black,
