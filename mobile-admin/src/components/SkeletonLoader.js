@@ -95,7 +95,7 @@ export const LeaveStatsSkeleton = () => {
     {[1, 2, 3].map(i => (
       <View key={i} style={styles.leaveStatCard}>
         <SkeletonBox width={28} height={20} />
-        <SkeletonBox width={48} height={11} style={{ marginTop: 4 }} />
+        <SkeletonBox width={48} height={11} style={inline.mt4} />
       </View>
     ))}
   </View>
@@ -109,28 +109,28 @@ export const LeaveCardSkeleton = () => {
   return (
   <View style={styles.leaveCard}>
     <View style={styles.leaveCardHeader}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+      <View style={inline.fdrow_aicenter_gap6}>
         <SkeletonBox width={20} height={20} borderRadius={10} />
         <SkeletonBox width={100} height={15} />
       </View>
       <SkeletonBox width={72} height={22} borderRadius={12} />
     </View>
-    <View style={{ gap: 6, marginTop: 6 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+    <View style={inline.gap6_mt6}>
+      <View style={inline.fdrow_aicenter_gap6}>
         <SkeletonBox width={16} height={16} borderRadius={8} />
         <SkeletonBox width={40} height={11} />
         <SkeletonBox width={100} height={13} />
       </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+      <View style={inline.fdrow_aicenter_gap6}>
         <SkeletonBox width={16} height={16} borderRadius={8} />
         <SkeletonBox width={28} height={11} />
         <SkeletonBox width={60} height={13} />
       </View>
     </View>
-    <SkeletonBox width="100%" height={1} style={{ marginTop: 10 }} />
-    <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
-      <SkeletonBox style={{ flex: 1 }} height={36} borderRadius={8} />
-      <SkeletonBox style={{ flex: 1 }} height={36} borderRadius={8} />
+    <SkeletonBox width="100%" height={1} style={inline.mt10} />
+    <View style={inline.fdrow_gap10_mt10}>
+      <SkeletonBox style={inline.flex1} height={36} borderRadius={8} />
+      <SkeletonBox style={inline.flex1} height={36} borderRadius={8} />
     </View>
   </View>
   );
@@ -155,9 +155,9 @@ export const WellnessRowSkeleton = () => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
-  <View style={[styles.card, { flexDirection: 'row', alignItems: 'center', gap: SPACING.md }]}>
+  <View style={[styles.card, [inline.fdrow_aicenter, { gap: SPACING.md }]]}>
     <SkeletonBox width={44} height={44} borderRadius={RADIUS.sm} />
-    <View style={{ flex: 1, gap: SPACING.xs }}>
+    <View style={[inline.flex1, { gap: SPACING.xs }]}>
       <SkeletonBox width="55%" height={14} />
       <SkeletonBox width="35%" height={11} />
     </View>
@@ -185,9 +185,9 @@ export const RoutineCardSkeleton = () => {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
   <View style={[styles.card, { marginBottom: SPACING.md }]}>
-    <View style={[styles.cardRow, { alignItems: 'flex-start' }]}>
+    <View style={[styles.cardRow, inline.aiflexnstart]}>
       <SkeletonBox width={44} height={44} borderRadius={RADIUS.sm} style={{ marginRight: SPACING.md }} />
-      <View style={{ flex: 1, gap: SPACING.xs }}>
+      <View style={[inline.flex1, { gap: SPACING.xs }]}>
         <SkeletonBox width="65%" height={14} />
         <SkeletonBox width="85%" height={11} />
         <SkeletonBox width="70%" height={11} />
@@ -208,18 +208,18 @@ export const DoctorDetailSkeleton = () => {
   <View>
     <View style={styles.detailProfileHeader}>
       <SkeletonBox width={80} height={80} borderRadius={40} />
-      <SkeletonBox width="50%" height={18} style={{ marginTop: 12 }} />
-      <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
+      <SkeletonBox width="50%" height={18} style={inline.mt12} />
+      <View style={inline.fdrow_gap6_mt8}>
         <SkeletonBox width={70} height={24} borderRadius={12} />
         <SkeletonBox width={80} height={24} borderRadius={12} />
       </View>
     </View>
-    <View style={[styles.card, { marginHorizontal: 16 }]}>
+    <View style={[styles.card, inline.mx16]}>
       {[1, 2, 3, 4, 5, 6].map(i => (
         <View key={i}>
-          <View style={{ flexDirection: 'row', gap: 12, paddingVertical: 12 }}>
+          <View style={inline.fdrow_gap12_py12}>
             <SkeletonBox width={22} height={22} borderRadius={11} />
-            <View style={{ flex: 1, gap: 4 }}>
+            <View style={inline.flex1_gap4}>
               <SkeletonBox width={80} height={11} />
               <SkeletonBox width="70%" height={14} />
             </View>
@@ -238,7 +238,7 @@ export const SymptomRowSkeleton = () => {
   return (
   <View style={[styles.cardRow, { paddingVertical: SPACING.md, paddingHorizontal: SPACING.lg, gap: SPACING.md }]}>
     <SkeletonBox width={48} height={48} borderRadius={RADIUS.sm} />
-    <View style={{ flex: 1, gap: SPACING.xs }}>
+    <View style={[inline.flex1, { gap: SPACING.xs }]}>
       <SkeletonBox width="50%" height={14} />
       <SkeletonBox width="70%" height={11} />
     </View>
@@ -251,35 +251,35 @@ export const SymptomRowSkeleton = () => {
 export const EditFormSkeleton = () => {
   const { colors } = useTheme();
   return (
-  <View style={{ padding: 20 }}>
+  <View style={inline.p20}>
     {[1, 2, 3, 4, 5, 6].map(i => (
-      <View key={i} style={{ marginBottom: 14 }}>
-        <SkeletonBox width={100} height={12} style={{ marginBottom: 8 }} />
+      <View key={i} style={inline.mb14}>
+        <SkeletonBox width={100} height={12} style={inline.mb8} />
         <SkeletonBox width="100%" height={44} borderRadius={8} />
       </View>
     ))}
-    <View style={{ flexDirection: 'row', gap: 6, marginBottom: 16 }}>
+    <View style={inline.fdrow_gap6_mb16}>
       <SkeletonBox width={80} height={28} borderRadius={14} />
       <SkeletonBox width={100} height={28} borderRadius={14} />
       <SkeletonBox width={60} height={28} borderRadius={14} />
     </View>
-    <SkeletonBox width="40%" height={16} style={{ marginBottom: 12, marginTop: 8 }} />
+    <SkeletonBox width="40%" height={16} style={inline.mb12_mt8} />
     {[1, 2, 3, 4, 5].map(i => (
-      <View key={`slot${i}`} style={{ marginBottom: 10 }}>
-        <SkeletonBox width={60} height={14} style={{ marginBottom: 6 }} />
-        <View style={{ flexDirection: 'row', gap: 6 }}>
+      <View key={`slot${i}`} style={inline.mb10}>
+        <SkeletonBox width={60} height={14} style={inline.mb6} />
+        <View style={inline.fdrow_gap6}>
           <SkeletonBox width={80} height={28} borderRadius={14} />
           <SkeletonBox width={80} height={28} borderRadius={14} />
           <SkeletonBox width={80} height={28} borderRadius={14} />
         </View>
       </View>
     ))}
-    <SkeletonBox width="30%" height={16} style={{ marginBottom: 12, marginTop: 8 }} />
-    <View style={{ backgroundColor: colors.surfaceMuted, padding: 12, borderRadius: 8, marginBottom: 12 }}>
-      <SkeletonBox width={80} height={12} style={{ marginBottom: 8 }} />
+    <SkeletonBox width="30%" height={16} style={inline.mb12_mt8} />
+    <View style={[inline.p12_r8_mb12, { backgroundColor: colors.surfaceMuted }]}>
+      <SkeletonBox width={80} height={12} style={inline.mb8} />
       <SkeletonBox width="100%" height={44} borderRadius={8} />
-      <View style={{ flexDirection: 'row', marginTop: 8, gap: 8 }}>
-        <SkeletonBox style={{ flex: 1 }} height={44} borderRadius={8} />
+      <View style={inline.fdrow_mt8_gap8}>
+        <SkeletonBox style={inline.flex1} height={44} borderRadius={8} />
         <SkeletonBox width={60} height={44} borderRadius={8} />
       </View>
     </View>
@@ -291,14 +291,11 @@ export const EditFormSkeleton = () => {
 export const DirGridSkeleton = () => {
   const { colors } = useTheme();
   return (
-  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingTop: 8, justifyContent: 'center' }}>
+  <View style={inline.fdrow_wrapwrap_gap10_pt8_jccenter}>
     {[1, 2, 3, 4, 5, 6].map(i => (
-      <View key={i} style={{
-        width: '30%', aspectRatio: 1, borderRadius: 12, borderWidth: 1, borderColor: colors.border,
-        backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', padding: 8,
-      }}>
+      <View key={i} style={[inline.w30p_aspectRatio1_r12_bw1_aicenter_jccenter_p8, { borderColor: colors.border, backgroundColor: colors.card }]}>
         <SkeletonBox width={28} height={28} borderRadius={4} />
-        <SkeletonBox width="70%" height={11} style={{ marginTop: 8 }} />
+        <SkeletonBox width="70%" height={11} style={inline.mt8} />
       </View>
     ))}
   </View>
@@ -358,4 +355,34 @@ const makeStyles = colors => StyleSheet.create({
   leaveCardHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4,
   },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  mt8: { marginTop: 8 },
+  w30p_aspectRatio1_r12_bw1_aicenter_jccenter_p8: { width: '30%', aspectRatio: 1, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center', padding: 8 },
+  fdrow_wrapwrap_gap10_pt8_jccenter: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingTop: 8, justifyContent: 'center' },
+  flex1: { flex: 1 },
+  fdrow_mt8_gap8: { flexDirection: 'row', marginTop: 8, gap: 8 },
+  mb8: { marginBottom: 8 },
+  p12_r8_mb12: { padding: 12, borderRadius: 8, marginBottom: 12 },
+  mb12_mt8: { marginBottom: 12, marginTop: 8 },
+  fdrow_gap6: { flexDirection: 'row', gap: 6 },
+  mb6: { marginBottom: 6 },
+  mb10: { marginBottom: 10 },
+  fdrow_gap6_mb16: { flexDirection: 'row', gap: 6, marginBottom: 16 },
+  mb14: { marginBottom: 14 },
+  p20: { padding: 20 },
+  flex1_gap4: { flex: 1, gap: 4 },
+  fdrow_gap12_py12: { flexDirection: 'row', gap: 12, paddingVertical: 12 },
+  mx16: { marginHorizontal: 16 },
+  fdrow_gap6_mt8: { flexDirection: 'row', gap: 6, marginTop: 8 },
+  mt12: { marginTop: 12 },
+  aiflexnstart: { alignItems: 'flex-start' },
+  fdrow_aicenter: { flexDirection: 'row', alignItems: 'center' },
+  fdrow_gap10_mt10: { flexDirection: 'row', gap: 10, marginTop: 10 },
+  mt10: { marginTop: 10 },
+  fdrow_aicenter_gap6: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  gap6_mt6: { gap: 6, marginTop: 6 },
+  mt4: { marginTop: 4 },
 });

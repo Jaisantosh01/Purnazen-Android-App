@@ -276,7 +276,7 @@ const ClinicAddressPickerScreen = ({ navigation }) => {
 
       <ScrollView
         style={styles.container}
-        contentContainerStyle={{ paddingBottom: 40 }}
+        contentContainerStyle={inline.pb40}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -323,7 +323,7 @@ const ClinicAddressPickerScreen = ({ navigation }) => {
                     onPress={() => selectSuggestion(item)}
                     activeOpacity={0.7}
                   >
-                    <MCIcon name="map-marker" size={16} color={colors.textMuted} style={{ marginRight: 8 }} />
+                    <MCIcon name="map-marker" size={16} color={colors.textMuted} style={inline.mr8} />
                     <Text style={styles.suggestionText} numberOfLines={2}>{item.display_name}</Text>
                   </TouchableOpacity>
                 ))}
@@ -335,7 +335,7 @@ const ClinicAddressPickerScreen = ({ navigation }) => {
         {/* Map */}
         {mapHtml && (
           <View style={styles.mapContainer}>
-            <View style={{ flex: 1 }}>
+            <View style={inline.flex1}>
               <WebView
                 ref={webViewRef}
                 source={{ html: mapHtml }}
@@ -384,7 +384,7 @@ const ClinicAddressPickerScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.fieldRow}>
-            <View style={[styles.fieldGroup, { flex: 1 }]}>
+            <View style={[styles.fieldGroup, inline.flex1]}>
               <Text style={styles.fieldLabel}>City <Text style={styles.requiredStar}>*</Text></Text>
               <TextInput
                 style={[styles.fieldInput, styles.fieldAutoFilled]}
@@ -394,8 +394,8 @@ const ClinicAddressPickerScreen = ({ navigation }) => {
                 onChangeText={setCity}
               />
             </View>
-            <View style={{ width: 12 }} />
-            <View style={[styles.fieldGroup, { flex: 1 }]}>
+            <View style={inline.w12} />
+            <View style={[styles.fieldGroup, inline.flex1]}>
               <Text style={styles.fieldLabel}>Pincode <Text style={styles.requiredStar}>*</Text></Text>
               <TextInput
                 style={[styles.fieldInput, styles.fieldAutoFilled]}
@@ -531,3 +531,11 @@ const makeStyles = colors => StyleSheet.create({
 });
 
 export default ClinicAddressPickerScreen;
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  flex1: { flex: 1 },
+  w12: { width: 12 },
+  mr8: { marginRight: 8 },
+  pb40: { paddingBottom: 40 },
+});

@@ -62,10 +62,10 @@ const HomeScreen = ({ navigation }) => {
   const KpiSkeleton = () => (
     <View style={styles.kpiCard}>
       <View style={[styles.kpiIconCircle, { backgroundColor: colors.surfaceMuted }]}>
-        <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: colors.surfaceMuted }} />
+        <View style={[inline.w22_h22_r11, { backgroundColor: colors.surfaceMuted }]} />
       </View>
-      <View style={{ width: 40, height: 24, borderRadius: 6, backgroundColor: colors.surfaceMuted, marginTop: 8 }} />
-      <View style={{ width: 70, height: 12, borderRadius: 6, backgroundColor: colors.surfaceMuted, marginTop: 6 }} />
+      <View style={[inline.w40_h24_r6_mt8, { backgroundColor: colors.surfaceMuted }]} />
+      <View style={[inline.w70_h12_r6_mt6, { backgroundColor: colors.surfaceMuted }]} />
     </View>
   );
 
@@ -76,7 +76,7 @@ const HomeScreen = ({ navigation }) => {
       <ScrollView
         style={styles.container}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 32 }}
+        contentContainerStyle={inline.pb32}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.white} colors={[colors.primary]} />
         }
@@ -280,4 +280,12 @@ const makeStyles = colors => StyleSheet.create({
   mgmtTextCol: { flex: 1 },
   mgmtTitle: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
   mgmtSub: { fontSize: 12, color: colors.textMuted, marginTop: 2, fontWeight: '500' },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  pb32: { paddingBottom: 32 },
+  w70_h12_r6_mt6: { width: 70, height: 12, borderRadius: 6, marginTop: 6 },
+  w40_h24_r6_mt8: { width: 40, height: 24, borderRadius: 6, marginTop: 8 },
+  w22_h22_r11: { width: 22, height: 22, borderRadius: 11 },
 });

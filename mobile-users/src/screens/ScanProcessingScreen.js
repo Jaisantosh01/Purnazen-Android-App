@@ -322,7 +322,7 @@ const ScanProcessingScreen = ({ navigation, route }) => {
       >
         {box.w > 0 && (
           <View
-            style={{ position: 'absolute', width: stageW, height: stageH, left: stageLeft, top: stageTop }}
+            style={[inline.posabsolute, { width: stageW, height: stageH, left: stageLeft, top: stageTop }]}
           >
             {imageUri ? (
               <Image source={{ uri: imageUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
@@ -452,4 +452,9 @@ const makeStyles = colors => StyleSheet.create({
   captionInfo: { color: colors.textSecondary, fontWeight: '500' },
 
   hint: { fontSize: 12, color: colors.textMuted, marginTop: 6 },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  posabsolute: { position: 'absolute' },
 });

@@ -34,3 +34,25 @@ def test_pdf_export_link_round_trip(client):
     assert client.get("/api/v1/users/me/health-report.pdf?t=nope").status_code == 401
     access = headers["Authorization"].split()[1]
     assert client.get(f"/api/v1/users/me/health-report.pdf?t={access}").status_code == 401
+
+
+def test_data_export_round_trip(client, db_session):
+    headers = auth_headers(client)
+    me = client.get("/api/v1/auth/me", headers=headers).json()["data"]["user"]
+    group, _ = seed_group_with_videos(db_session)
+    db_session.add(TherapySessionGroup(user_id=me["id"], group_id=group.id, session_type="wellness", status="completed"))
+    db_session.commit()
+
+    url = client.post("/api/v1/users/me/data-export", headers=headers).json()["data"]["url"]
+    r = client.get(url)
+    assert r.status_code == 200, r.text
+    assert r.headers["content-disposition"].startswith("attachment")
+    body = r.json()
+    assert body["profile"]["email"] == "patient@example.com"
+    assert body["therapyRuns"][0]["status"] == "completed"
+    assert {"addresses", "consents", "appointments", "scans", "payments"} <= set(body)
+
+    # Another user's link token must not open this export.
+    other = auth_headers(client, "someone-else@example.com")
+    other_url = client.post("/api/v1/users/me/data-export", headers=other).json()["data"]["url"]
+    assert client.get(other_url).json()["profile"]["email"] == "someone-else@example.com"

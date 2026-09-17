@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+    # Staff (any role in STAFF_ROLES) sign in again after this long; a patient's
+    # 30-day session on a doctor's phone is a wider window than the data warrants.
+    STAFF_REFRESH_TOKEN_EXPIRE_DAYS: int = 1
+    STAFF_ROLES: str = "admin,doctor"
 
     API_V1_PREFIX: str = "/api/v1"
     PROJECT_NAME: str = "Wellness Backend API"
@@ -152,6 +156,10 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.ENVIRONMENT.strip().lower() not in _DEV_ENVIRONMENTS
+
+    @property
+    def staff_roles(self) -> set[str]:
+        return {r.strip().lower() for r in self.STAFF_ROLES.split(",") if r.strip()}
 
     @property
     def mfa_required_roles(self) -> set[str]:

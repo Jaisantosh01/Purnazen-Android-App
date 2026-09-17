@@ -147,7 +147,7 @@ const TongueScanScreen = ({ navigation }) => {
       consentPrompted.current = true;
       requestScanConsent();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [hasPermission, scanConsent]);
 
   // Periodic live quality check using silent snapshot
@@ -322,7 +322,7 @@ const TongueScanScreen = ({ navigation }) => {
             <MCIcon name="arrow-left" size={22} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Tongue Scan</Text>
-          <View style={{ width: 38 }} />
+          <View style={inline.w38} />
         </View>
         <View style={styles.permissionBody}>
           <MCIcon name="camera-off" size={64} color={`${ACCENT}66`} />
@@ -336,9 +336,9 @@ const TongueScanScreen = ({ navigation }) => {
           <TouchableOpacity style={styles.permBtnOutline} onPress={() => Linking.openSettings()}>
             <Text style={styles.permBtnOutlineText}>Open Settings</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.permBtnOutline, { marginTop: 4 }]} onPress={handleGallery}>
+          <TouchableOpacity style={[styles.permBtnOutline, inline.mt4]} onPress={handleGallery}>
             <MCIcon name="image-multiple" size={16} color={ACCENT} />
-            <Text style={[styles.permBtnOutlineText, { marginLeft: 6 }]}>Use Gallery Instead</Text>
+            <Text style={[styles.permBtnOutlineText, inline.ml6]}>Use Gallery Instead</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -355,14 +355,14 @@ const TongueScanScreen = ({ navigation }) => {
             <MCIcon name="arrow-left" size={22} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Tongue Scan</Text>
-          <View style={{ width: 38 }} />
+          <View style={inline.w38} />
         </View>
         <View style={styles.permissionBody}>
           <MCIcon name="camera-outline" size={64} color={`${ACCENT}66`} />
           <Text style={styles.permTitle}>No Front Camera Found</Text>
           <TouchableOpacity style={styles.permBtn} onPress={handleGallery}>
             <MCIcon name="image-plus" size={18} color="#fff" />
-            <Text style={[styles.permBtnText, { marginLeft: 8 }]}>Select from Gallery</Text>
+            <Text style={[styles.permBtnText, inline.ml8]}>Select from Gallery</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -405,7 +405,7 @@ const TongueScanScreen = ({ navigation }) => {
           <MCIcon name="emoticon-tongue-outline" size={18} color="#fff" />
           <Text style={styles.headerTitle}> Tongue Scan</Text>
         </View>
-        <View style={{ width: 38 }} />
+        <View style={inline.w38} />
       </View>
 
       {/* Cycling tip */}
@@ -596,4 +596,12 @@ const makeStyles = (colors, insets) => StyleSheet.create({
     backgroundColor: ACCENT + '14',
   },
   permBtnOutlineText: { color: ACCENT, fontSize: 14, fontWeight: '600' },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  w38: { width: 38 },
+  ml8: { marginLeft: 8 },
+  ml6: { marginLeft: 6 },
+  mt4: { marginTop: 4 },
 });

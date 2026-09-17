@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, StatusBar, TextInput, ActivityIndicator,
+  TouchableOpacity, TextInput, ActivityIndicator,
 } from 'react-native';
 import { showAlert } from '../utils/alert';
 // @ts-ignore
@@ -91,7 +91,7 @@ const PaymentScreen = ({ navigation, route }) => {
     <View style={styles.root}>
       <ScreenHeader title="Payment" subtitle="Complete your booking" variant="light" />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={inline.pb120}>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Payment Summary</Text>
@@ -152,7 +152,7 @@ const PaymentScreen = ({ navigation, route }) => {
                 onChangeText={setCardNumber}
               />
               <View style={styles.row}>
-                <View style={{ flex: 1, marginRight: 10 }}>
+                <View style={inline.flex1_mr10}>
                   <Text style={styles.fieldLabel}>Expiry Date</Text>
                   <TextInput
                     style={styles.input}
@@ -163,7 +163,7 @@ const PaymentScreen = ({ navigation, route }) => {
                     onChangeText={setExpiry}
                   />
                 </View>
-                <View style={{ flex: 1 }}>
+                <View style={inline.flex1}>
                   <Text style={styles.fieldLabel}>CVV</Text>
                   <TextInput
                     style={styles.input}
@@ -324,4 +324,11 @@ const makeStyles = colors => StyleSheet.create({
   },
   payBtn: { backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
   payBtnText: { fontSize: 16, fontWeight: '700', color: colors.white },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  flex1: { flex: 1 },
+  flex1_mr10: { flex: 1, marginRight: 10 },
+  pb120: { paddingBottom: 120 },
 });

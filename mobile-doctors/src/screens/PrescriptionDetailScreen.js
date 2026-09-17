@@ -96,7 +96,7 @@ const PrescriptionDetailScreen = ({ route, navigation }) => {
         {/* Patient & Summary Panel */}
         <View style={styles.summaryCard}>
           <View style={styles.summaryRow}>
-            <View style={{ flex: 1 }}>
+            <View style={inline.flex1}>
               <Text style={styles.summaryLabel}>Patient Name</Text>
               <Text style={styles.summaryValue}>{patientName || 'N/A'}</Text>
             </View>
@@ -414,4 +414,9 @@ const makeStyles = colors =>
     color: colors.textSecondary,
     fontWeight: '500',
   },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  flex1: { flex: 1 },
 });

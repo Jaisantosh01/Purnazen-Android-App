@@ -242,6 +242,15 @@ class AuthService {
    * (the clinical history has to be retained until the clinic signs it off), so
    * this only files the request — the session stays live.
    */
+  /** Short-lived link to a JSON export of everything held about the account. */
+  async dataExportUrl() {
+    const response = await apiClient.post(ENDPOINTS.DATA_EXPORT);
+    if (!response?.success || !response.data?.url) {
+      throw new Error(response?.message || 'Could not prepare your export');
+    }
+    return response.data.url;
+  }
+
   async requestAccountDeletion() {
     const response = await apiClient.post(ENDPOINTS.ACCOUNT_DELETION_REQUEST);
 

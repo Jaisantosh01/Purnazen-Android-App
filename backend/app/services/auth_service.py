@@ -277,7 +277,7 @@ class AuthService:
             "success": True,
             "message": "Password changed successfully",
             "access_token": create_access_token(str(user.id), user.token_version),
-            "refresh_token": create_refresh_token(str(user.id), user.token_version),
+            "refresh_token": create_refresh_token(str(user.id), user.token_version, staff=user.is_staff),
         }, 200
 
     @staticmethod

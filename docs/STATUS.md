@@ -110,7 +110,7 @@ CI runs pytest, and runs jest, tsc and eslint for all three apps.
 | 8 | Recommendations (hydration, skin care, lifestyle) | Done | Rule-based engine, stored per scan |
 | 9 | Beauty dashboard | Done | `ScanDashboardScreen` |
 | 10 | Google, Apple and email login | Done | Email, Google and Sign in with Apple (`AppleSignInButton`, iOS only; needs the Apple capability once the bundle IDs are registered) |
-| 11 | Privacy: encryption, GDPR | Partial | Consent and deletion are done. "Download my data" export is still a stub |
+| 11 | Privacy: encryption, GDPR | Done | Consent, deletion request and "Download my data" (JSON export behind a 10-minute link, 18 Sep) |
 | 12 | Keeping photos for research | Done | `ai_training` consent scope; photos are uploaded only with consent |
 | 13 | Freemium subscription (₹499 per month) | Not started | Plans exist at ₹0 and purchases are refused (402) until store billing exists |
 | 14 | Face yoga routines | Partial | The routine catalog exists; the play button is a stub |
@@ -204,20 +204,27 @@ Durations assume the current team size. Phases 1 and 2 can run in parallel.
       `MFA_REQUIRED_ROLES` (17 Sep): backend `/auth/mfa/*`, encrypted secrets,
       recovery codes; Doctor and Admin apps have the code screen at sign-in and
       enrolment in Settings.
-- [ ] Shorter token lifetimes for staff roles; keep staff accounts invite-only.
+- [x] Shorter token lifetimes for staff roles (18 Sep): refresh tokens for
+      `STAFF_ROLES` (admin, doctor) last `STAFF_REFRESH_TOKEN_EXPIRE_DAYS`
+      (1 day) instead of 30. Staff accounts stay invite-only.
 - [ ] Provision Azure Cache for Redis so rate limits and the token blocklist
       hold across replicas. Add the 5-per-minute limit on scan uploads.
 - [ ] Add Sentry (or Azure Monitor), structured timing logs and
       `/health/detailed`.
-- [ ] Build the "Download my data" export (JSON and images, emailed link) so
-      DPDP and GDPR access requests can be met.
+- [x] "Download my data" export (18 Sep): `POST /users/me/data-export` mints a
+      10-minute link to `GET /users/me/data-export.json` — profile, addresses,
+      consents, preferences, subscriptions, payments, appointments, therapy
+      history and scans (images by storage path). Settings → Download My Data
+      opens it in the browser. Images themselves are not bundled.
 - [ ] Run the analyzer test matrix (lighting, skin tones, angles) and load-test
       100 concurrent scan uploads.
 - [ ] Get the privacy policy and terms reviewed by a lawyer. Prepare store
       listing assets and the data-safety and privacy-label answers.
 - [x] Doctor and admin therapy-feedback review screens; admin quick-relief and
       support-contact screens.
-- [ ] Clear the ESLint warnings.
+- [x] ESLint warnings cleared (18 Sep): 315 inline-style / unused-code warnings
+      across the three apps down to 18 `react/no-unstable-nested-components`
+      (components defined inside render; harmless, left for a later pass).
 
 ### Phase 3: Distribution roll-out (≈ 1–2 weeks, after Phases 1 and 2)
 

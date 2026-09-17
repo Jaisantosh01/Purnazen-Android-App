@@ -119,9 +119,9 @@ export const WellnessRowSkeleton = () => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
-  <View style={[styles.card, { flexDirection: 'row', alignItems: 'center', gap: SPACING.md }]}>
+  <View style={[styles.card, [inline.fdrow_aicenter, { gap: SPACING.md }]]}>
     <SkeletonBox width={44} height={44} borderRadius={RADIUS.sm} />
-    <View style={{ flex: 1, gap: SPACING.xs }}>
+    <View style={[inline.flex1, { gap: SPACING.xs }]}>
       <SkeletonBox width="55%" height={14} />
       <SkeletonBox width="35%" height={11} />
     </View>
@@ -149,9 +149,9 @@ export const RoutineCardSkeleton = () => {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
   <View style={[styles.card, { marginBottom: SPACING.md }]}>
-    <View style={[styles.cardRow, { alignItems: 'flex-start' }]}>
+    <View style={[styles.cardRow, inline.aiflexnstart]}>
       <SkeletonBox width={44} height={44} borderRadius={RADIUS.sm} style={{ marginRight: SPACING.md }} />
-      <View style={{ flex: 1, gap: SPACING.xs }}>
+      <View style={[inline.flex1, { gap: SPACING.xs }]}>
         <SkeletonBox width="65%" height={14} />
         <SkeletonBox width="85%" height={11} />
         <SkeletonBox width="70%" height={11} />
@@ -170,7 +170,7 @@ export const SymptomRowSkeleton = () => {
   return (
   <View style={[styles.cardRow, { paddingVertical: SPACING.md, paddingHorizontal: SPACING.lg, gap: SPACING.md }]}>
     <SkeletonBox width={48} height={48} borderRadius={RADIUS.sm} />
-    <View style={{ flex: 1, gap: SPACING.xs }}>
+    <View style={[inline.flex1, { gap: SPACING.xs }]}>
       <SkeletonBox width="50%" height={14} />
       <SkeletonBox width="70%" height={11} />
     </View>
@@ -224,4 +224,11 @@ const makeStyles = colors => StyleSheet.create({
     padding: SPACING.lg,
     marginBottom: SPACING.md,
   },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  flex1: { flex: 1 },
+  aiflexnstart: { alignItems: 'flex-start' },
+  fdrow_aicenter: { flexDirection: 'row', alignItems: 'center' },
 });

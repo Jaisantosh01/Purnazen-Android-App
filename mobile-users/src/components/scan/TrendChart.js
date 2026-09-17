@@ -70,7 +70,6 @@ const TrendChart = ({
   const last = values[values.length - 1];
   const delta = last - first;
   const improved = higherIsBetter ? delta > 0 : delta < 0;
-  const worse = higherIsBetter ? delta < 0 : delta > 0;
   const trendColor = delta === 0 ? colors.textMuted : improved ? '#22c55e' : '#ef4444';
   const verdict = delta === 0 ? 'Steady' : improved ? 'Improving' : 'Declining';
   const arrow = delta === 0 ? '→' : delta > 0 ? '▲' : '▼';

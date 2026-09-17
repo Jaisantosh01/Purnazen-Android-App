@@ -3,7 +3,8 @@ from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Query, Request, UploadFile
-from fastapi.responses import Response
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse, Response
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -15,6 +16,7 @@ from app.models.user import User
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth import AdminCreateUserRequest
 from app.schemas.preferences import UpdatePreferencesRequest
+from app.services.data_export_service import DataExportService
 from app.services.health_report_pdf import render_pdf
 from app.services.health_report_service import HealthReportService
 from app.services.preference_service import PreferenceService
@@ -211,6 +213,44 @@ def download_health_report_pdf(
         pdf,
         media_type="application/pdf",
         headers={"Content-Disposition": 'inline; filename="purnazen-health-report.pdf"'},
+    )
+
+
+@router.post(
+    "/me/data-export",
+    summary="Link to everything we hold about me (DPDP / GDPR access request)",
+    description="Mints a short-lived link to a JSON export of the account's data. "
+    "Nothing is stored; the export is built on request.",
+)
+def export_my_data(
+    request: Request,
+    user: User = Depends(get_current_user),
+):
+    url = request.url_for("download_my_data").include_query_params(
+        t=create_download_token(str(user.id), user.token_version or 0)
+    )
+    url = url.replace(scheme=request.headers.get("x-forwarded-proto", url.scheme))
+    return success_response(
+        "Export link created",
+        {"url": str(url), "expiresInMinutes": DOWNLOAD_TOKEN_MINUTES},
+    )
+
+
+@router.get(
+    "/me/data-export.json",
+    name="download_my_data",
+    summary="My data as JSON",
+    description="Profile, addresses, consents, preferences, subscriptions, payments, "
+    "appointments, therapy history and scans (images by storage path). "
+    "Authenticated by the `t` link token from the export endpoint.",
+)
+def download_my_data(
+    user: User = Depends(get_download_user),
+    db: Session = Depends(get_db),
+):
+    return JSONResponse(
+        jsonable_encoder(DataExportService.build(db, user)),
+        headers={"Content-Disposition": 'attachment; filename="purnazen-my-data.json"'},
     )
 
 

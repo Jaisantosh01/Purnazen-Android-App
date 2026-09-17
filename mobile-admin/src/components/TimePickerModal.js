@@ -18,7 +18,7 @@ const TimePickerModal = ({ visible, onClose, onSelect, initialTime }) => {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const parsed = initialTime
     ? {
-        h: parseInt(initialTime.split(':')[0]) || 9,
+        h: parseInt(initialTime.split(':')[0], 10) || 9,
         m: initialTime.split(':')[1]?.slice(0, 2) || '00',
         ampm: initialTime.includes('PM') ? 'PM' : 'AM',
       }
@@ -31,7 +31,7 @@ const TimePickerModal = ({ visible, onClose, onSelect, initialTime }) => {
   useEffect(() => {
     const p = initialTime
       ? {
-          h: parseInt(initialTime.split(':')[0]) || 9,
+          h: parseInt(initialTime.split(':')[0], 10) || 9,
           m: initialTime.split(':')[1]?.slice(0, 2) || '00',
           ampm: initialTime.includes('PM') ? 'PM' : 'AM',
         }

@@ -135,7 +135,7 @@ const TherapyHistoryScreen = ({ navigation }) => {
       ) : (
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 30 }}
+        contentContainerStyle={inline.pb30}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => fetchSessions(true)} tintColor={colors.primary} colors={[colors.primary]} />
         }
@@ -399,4 +399,9 @@ const makeStyles = colors => StyleSheet.create({
   completeText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
 
   feedbackInput: { borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 12, fontSize: 14, color: colors.textPrimary, backgroundColor: colors.surfaceMuted, minHeight: 80, textAlignVertical: 'top' },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  pb30: { paddingBottom: 30 },
 });

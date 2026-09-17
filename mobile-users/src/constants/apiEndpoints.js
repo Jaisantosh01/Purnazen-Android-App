@@ -17,6 +17,7 @@ export const ENDPOINTS = {
   REFRESH: `${API_VERSION}/auth/refresh`,
   ME: `${API_VERSION}/auth/me`,
   ACCOUNT_DELETION_REQUEST: `${API_VERSION}/auth/me/deletion-request`,
+  DATA_EXPORT: `${API_VERSION}/users/me/data-export`,
   CHANGE_PASSWORD: `${API_VERSION}/auth/change-password`,
 
   // App releases (OTA) — backend-brokered update check + short-lived SAS download

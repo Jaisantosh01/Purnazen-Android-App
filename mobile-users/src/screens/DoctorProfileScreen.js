@@ -154,7 +154,7 @@ const DoctorProfileScreen = ({ navigation, route }) => {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={inline.pb100}
       >
         {/* ── Basic doctor info — shown immediately from route.params ── */}
         <DoctorBasicCard doctor={doctor} visitTypes={visitTypes} styles={styles} colors={colors} />
@@ -232,7 +232,7 @@ const DoctorProfileScreen = ({ navigation, route }) => {
                       ]}
                     >
                       <MCIcon name="trophy-outline" size={18} color={colors.warning} style={styles.awardIcon} />
-                      <View style={{flex: 1}}>
+                      <View style={inline.flex1}>
                         <Text style={styles.awardText}>{award.title}</Text>
                         <Text style={styles.awardIssuer}>{award.issuer} • {award.year}</Text>
                       </View>
@@ -555,4 +555,10 @@ const makeStyles = colors => StyleSheet.create({
     justifyContent: 'center',
   },
   bookBtnText: { fontSize: 15, fontWeight: '700', color: colors.white },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  flex1: { flex: 1 },
+  pb100: { paddingBottom: 100 },
 });

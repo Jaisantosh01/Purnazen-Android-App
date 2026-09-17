@@ -16,7 +16,7 @@ import { showAlert, showConfirm } from '../utils/alert';
 const SLOT_CARD_HEIGHT = 58;
 
 const TimePickerColumn = ({ data, value, onChange }) => {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const flatListRef = React.useRef(null);
   const index = data.findIndex(item => item === value);
@@ -42,19 +42,19 @@ const TimePickerColumn = ({ data, value, onChange }) => {
         data={data}
         keyExtractor={(item) => item}
         renderItem={({ item }) => <View style={styles.pickerItem}><Text style={styles.pickerItemText}>{item}</Text></View>}
-        getItemLayout={(_, index) => ({ length: ITEM_HEIGHT, offset: 30 + ITEM_HEIGHT * index, index })}
+        getItemLayout={(_, i) => ({ length: ITEM_HEIGHT, offset: 30 + ITEM_HEIGHT * i, index: i })}
         onMomentumScrollEnd={onMomentumScrollEnd}
         showsVerticalScrollIndicator={false}
         snapToInterval={ITEM_HEIGHT}
         decelerationRate="fast"
-        contentContainerStyle={{ paddingTop: 30, paddingBottom: 30 }}
+        contentContainerStyle={inline.pt30_pb30}
       />
     </View>
   );
 };
 
 const TimeSelector = ({ value, onChange }) => {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [h, m] = value.split(':');
   const hours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
@@ -189,13 +189,13 @@ const SlotManagementScreen = ({ navigation }) => {
         <View style={styles.content}>
           <View style={styles.sidebar}>
             {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
-              <View key={d} style={[styles.dayBtn, { borderWidth: 0, height: 40, marginBottom: 4 }]}>
-                <View style={{ width: 24, height: 14, borderRadius: 4, backgroundColor: colors.surfaceMuted }} />
+              <View key={d} style={[styles.dayBtn, inline.bw0_h40_mb4]}>
+                <View style={[inline.w24_h14_r4, { backgroundColor: colors.surfaceMuted }]} />
               </View>
             ))}
           </View>
           <View style={styles.mainContent}>
-            <View style={{ height: 24, width: 120, borderRadius: 6, backgroundColor: colors.surfaceMuted, marginBottom: 16 }} />
+            <View style={[inline.h24_w120_r6_mb16, { backgroundColor: colors.surfaceMuted }]} />
             <ListSkeleton count={5} />
           </View>
         </View>
@@ -249,7 +249,7 @@ const SlotManagementScreen = ({ navigation }) => {
 
                 <Text style={styles.label}>Start Time (24h)</Text>
                 <TimeSelector value={start} onChange={setStart} />
-                <Text style={[styles.label, {marginTop: 8}]}>End Time (24h)</Text>
+                <Text style={[styles.label, inline.mt8]}>End Time (24h)</Text>
                 <TimeSelector value={end} onChange={setEnd} />
                 
                 <View style={styles.modalActions}>
@@ -365,3 +365,12 @@ timeText: {
 });
 
 export default SlotManagementScreen;
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  mt8: { marginTop: 8 },
+  h24_w120_r6_mb16: { height: 24, width: 120, borderRadius: 6, marginBottom: 16 },
+  w24_h14_r4: { width: 24, height: 14, borderRadius: 4 },
+  bw0_h40_mb4: { borderWidth: 0, height: 40, marginBottom: 4 },
+  pt30_pb30: { paddingTop: 30, paddingBottom: 30 },
+});

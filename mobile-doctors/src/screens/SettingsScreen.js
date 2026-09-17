@@ -358,7 +358,7 @@ const SettingsScreen = ({ navigation, route }) => {
     <View style={styles.root}>
       <ScreenHeader title="Settings" subtitle="Manage your preferences" backBehavior="popToRoot" right={<ThemeToggle />} />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={inline.pb40}>
 
         {/* Account */}
         <View style={styles.section}>
@@ -739,4 +739,9 @@ const makeStyles = colors => StyleSheet.create({
   modalBtnSave: { backgroundColor: colors.primary, minWidth: 80, alignItems: 'center' },
   modalBtnCancelText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
   modalBtnSaveText: { fontSize: 14, fontWeight: '600', color: colors.white },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  pb40: { paddingBottom: 40 },
 });

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -335,7 +335,7 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
         <View style={styles.footerLeft}>
           <MCIcon name="calendar" size={14} color={colors.textMuted} />
           <Text style={styles.footerText}>{item.date}</Text>
-          <MCIcon name="clock-outline" size={14} color={colors.textMuted} style={{ marginLeft: 8 }} />
+          <MCIcon name="clock-outline" size={14} color={colors.textMuted} style={inline.ml8} />
           <Text style={styles.footerText}>{item.time}</Text>
         </View>
         {item.fee != null && <Text style={styles.feeText}>₹{item.fee}</Text>}
@@ -481,7 +481,7 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
                       <View style={[styles.checkCircle, selected && styles.checkCircleSelected]}>
                         {selected && <MCIcon name="check" size={14} color={colors.white} />}
                       </View>
-                      <MCIcon name="doctor" size={18} color={selected ? colors.white : colors.primary} style={{ marginHorizontal: 8 }} />
+                      <MCIcon name="doctor" size={18} color={selected ? colors.white : colors.primary} style={inline.mx8} />
                       <Text style={[styles.doctorItemText, selected && styles.doctorItemTextSelected]}>{name}</Text>
                     </TouchableOpacity>
                   );
@@ -495,7 +495,7 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
               </View>
 
               {/* Date Range */}
-              <Text style={[styles.filterSectionLabel, { marginTop: 20 }]}>Date Range</Text>
+              <Text style={[styles.filterSectionLabel, inline.mt20]}>Date Range</Text>
               <View style={styles.rangeRow}>
                 <View style={styles.rangeInputGroup}>
                   <Text style={styles.rangeLabel}>From</Text>
@@ -533,7 +533,7 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
               </View>
 
               {/* Time Range */}
-              <Text style={[styles.filterSectionLabel, { marginTop: 20 }]}>Time Slot</Text>
+              <Text style={[styles.filterSectionLabel, inline.mt20]}>Time Slot</Text>
               <View style={styles.rangeRow}>
                 <View style={styles.rangeInputGroup}>
                   <Text style={styles.rangeLabel}>From</Text>
@@ -559,7 +559,7 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
               </View>
 
               {/* Status */}
-              <Text style={[styles.filterSectionLabel, { marginTop: 20 }]}>Appointment Status</Text>
+              <Text style={[styles.filterSectionLabel, inline.mt20]}>Appointment Status</Text>
               <View style={styles.statusGrid}>
                 {STATUS_OPTIONS.map(s => {
                   const selected = draftStatus.includes(s);
@@ -716,7 +716,7 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
                       </View>
                       <View style={styles.detailGridItem}>
                         <Text style={styles.detailLabel}>Payment</Text>
-                        <Text style={[styles.detailValue, { color: selectedAppointment.paymentStatus === 'paid' ? '#10B981' : '#F59E0B' }]}>
+                        <Text style={[styles.detailValue, selectedAppointment.paymentStatus === 'paid' ? inline.paid : inline.unpaid]}>
                           {(selectedAppointment.paymentStatus || '—').toUpperCase()}
                         </Text>
                       </View>
@@ -740,7 +740,7 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
                             activeOpacity={0.7}
                           >
                             <MCIcon name={place.icon} size={18} color={colors.primary} style={styles.detailIcon} />
-                            <View style={{ flex: 1 }}>
+                            <View style={inline.flex1}>
                               <Text style={styles.detailValue}>{place.name}</Text>
                               <Text style={styles.addressText}>{place.address}</Text>
                               {place.landmark ? (
@@ -904,3 +904,13 @@ const makeStyles = colors => StyleSheet.create({
 });
 
 export default AppointmentManagementScreen;
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  paid: { color: '#10B981' },
+  unpaid: { color: '#F59E0B' },
+  flex1: { flex: 1 },
+  mt20: { marginTop: 20 },
+  mx8: { marginHorizontal: 8 },
+  ml8: { marginLeft: 8 },
+});

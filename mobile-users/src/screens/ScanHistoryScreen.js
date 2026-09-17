@@ -196,7 +196,7 @@ const ScanHistoryScreen = ({ navigation, route }) => {
           <MCIcon name="arrow-left" size={22} color={colors.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Scan History</Text>
-        <View style={{ width: 38 }} />
+        <View style={inline.w38} />
       </View>
 
       {TabBar}
@@ -225,7 +225,7 @@ const ScanHistoryScreen = ({ navigation, route }) => {
         </View>
       ) : (
         <ScrollView
-          contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+          contentContainerStyle={inline.p16_pb40}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#C850C0']} />}
         >
           <GlowTrend
@@ -252,7 +252,7 @@ const ScanHistoryScreen = ({ navigation, route }) => {
                     {score != null ? Math.round(score) : '--'}
                   </Text>
                 </View>
-                <View style={{ flex: 1 }}>
+                <View style={inline.flex1}>
                   <Text style={styles.rowDate}>{formatDate(item.createdAt)}</Text>
                   <Text style={styles.rowMeta}>
                     {item.status === 'completed'
@@ -378,4 +378,11 @@ const makeStyles = colors => StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.35)',
     alignItems: 'center', justifyContent: 'center',
   },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  flex1: { flex: 1 },
+  p16_pb40: { padding: 16, paddingBottom: 40 },
+  w38: { width: 38 },
 });

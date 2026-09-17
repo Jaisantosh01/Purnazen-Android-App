@@ -91,7 +91,7 @@ const FaceScanReportScreen = ({ route, navigation }) => {
       <View style={styles.root}>
         <ScreenHeader title="Face Scan Report" onBack={() => navigation.goBack()} />
         <View style={styles.center}>
-          <MCIcon name="alert-circle-outline" size={48} color={colors.danger} style={{ marginBottom: 12 }} />
+          <MCIcon name="alert-circle-outline" size={48} color={colors.danger} style={inline.mb12} />
           <Text style={styles.errorText}>{error || 'Report not found.'}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={fetchReport}>
             <Text style={styles.retryText}>Retry</Text>
@@ -406,4 +406,9 @@ const makeStyles = colors =>
     fontSize: 14,
     fontWeight: '700',
   },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  mb12: { marginBottom: 12 },
 });

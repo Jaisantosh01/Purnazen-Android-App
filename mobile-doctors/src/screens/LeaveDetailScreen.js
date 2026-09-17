@@ -408,7 +408,7 @@ const LeaveDetailScreen = ({ navigation, route }) => {
                 icon="calendar-check"
                 label="Approved Date"
                 value={formatDateTime(approvedAt)}
-                valueStyle={{ color: '#065F46' }}
+                valueStyle={inline.c065F46}
               />
             </>
           ) : null}
@@ -422,7 +422,7 @@ const LeaveDetailScreen = ({ navigation, route }) => {
                     icon="calendar-remove"
                     label="Rejected Date"
                     value={formatDateTime(approvedAt)}
-                    valueStyle={{ color: '#991B1B' }}
+                    valueStyle={inline.c991B1B}
                   />
                 </>
               ) : null}
@@ -431,7 +431,7 @@ const LeaveDetailScreen = ({ navigation, route }) => {
                 icon="message-alert-outline"
                 label="Rejection Reason"
                 value={adminReason || 'No reason provided.'}
-                valueStyle={{ color: '#991B1B' }}
+                valueStyle={inline.c991B1B}
               />
             </>
           ) : null}
@@ -443,7 +443,7 @@ const LeaveDetailScreen = ({ navigation, route }) => {
                 icon="calendar-remove"
                 label="Cancelled Date"
                 value={formatDateTime(updatedAt)}
-                valueStyle={{ color: '#4B5563' }}
+                valueStyle={inline.c4B5563}
               />
             </>
           ) : null}
@@ -704,4 +704,11 @@ const makeStyles = colors =>
     fontWeight: '800',
     fontSize: 14,
   },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  c4B5563: { color: '#4B5563' },
+  c991B1B: { color: '#991B1B' },
+  c065F46: { color: '#065F46' },
 });

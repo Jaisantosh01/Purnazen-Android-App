@@ -15,16 +15,6 @@ import { useAuthStore } from '../store/authStore';
 import { showSuccess, showError } from '../utils/toast';
 import useTheme from '../hooks/useTheme';
 
-const DAYS = [
-  { label: 'Monday', number: 1 },
-  { label: 'Tuesday', number: 2 },
-  { label: 'Wednesday', number: 3 },
-  { label: 'Thursday', number: 4 },
-  { label: 'Friday', number: 5 },
-  { label: 'Saturday', number: 6 },
-  { label: 'Sunday', number: 0 },
-];
-
 const formatTime = (timeStr) => {
   if (!timeStr) return '';
   const [h, m] = timeStr.split(':');
@@ -50,7 +40,7 @@ const AddAvailabilityScreen = ({ route, navigation }) => {
 
   const currentUser = useAuthStore(s => s.doctor);
   const [doctorId, setDoctorId] = useState(null);
-  const [selectedDay, setSelectedDay] = useState(editDay || 'Monday');
+  const [selectedDay] = useState(editDay || 'Monday');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [allSlotsByDay, setAllSlotsByDay] = useState([]);

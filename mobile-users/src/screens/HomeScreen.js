@@ -69,7 +69,7 @@ const HomeScreen = ({ navigation }) => {
       <ScrollView
         style={styles.container}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 24 }}
+        contentContainerStyle={inline.pb24}
       >
         {/* ── Header ── */}
         <TabHeader
@@ -141,7 +141,7 @@ const HomeScreen = ({ navigation }) => {
                 activeOpacity={0.85}
                 onPress={() => navigation.navigate('Relief')}
               >
-                <MCIcon name="hand-heart-outline" size={24} color={colors.primary} style={{ marginRight: 10 }} />
+                <MCIcon name="hand-heart-outline" size={24} color={colors.primary} style={inline.mr10} />
                 <Text style={styles.emptyBannerText}>Browse relief sessions →</Text>
               </TouchableOpacity>
             )}
@@ -448,4 +448,10 @@ const makeStyles = colors => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  mr10: { marginRight: 10 },
+  pb24: { paddingBottom: 24 },
 });

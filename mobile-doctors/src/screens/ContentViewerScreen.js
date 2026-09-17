@@ -21,7 +21,6 @@ const CONTENT_TYPES = {
 };
 
 const parseInlineTags = (text, colors) => {
-  const parts = [];
   let remaining = text;
 
   const boldParts = [];
@@ -31,24 +30,24 @@ const parseInlineTags = (text, colors) => {
     if (s[0]) boldParts.push(<Text key={`b0_${boldParts.length}`} style={{}}>{s[0]}</Text>);
     const rest = s.slice(1).join('<b>');
     const e = rest.indexOf('</b>');
-    if (e === -1) { boldParts.push(<Text key={`b1_${boldParts.length}`} style={{ fontWeight: '700' }}>{rest}</Text>); boldRest = ''; break; }
-    boldParts.push(<Text key={`b1_${boldParts.length}`} style={{ fontWeight: '700' }}>{rest.substring(0, e)}</Text>);
+    if (e === -1) { boldParts.push(<Text key={`b1_${boldParts.length}`} style={inline.fw700}>{rest}</Text>); boldRest = ''; break; }
+    boldParts.push(<Text key={`b1_${boldParts.length}`} style={inline.fw700}>{rest.substring(0, e)}</Text>);
     boldRest = rest.substring(e + 4);
   }
   if (boldRest) boldParts.push(<Text key={`b_end`} style={{}}>{boldRest}</Text>);
 
   const finalParts = [];
   boldParts.forEach((part, i) => {
-    const text = part.props.children || '';
-    if (typeof text !== 'string') { finalParts.push(part); return; }
-    if (text.includes('<i>')) {
-      const s = text.split('<i>');
+    const inner = part.props.children || '';
+    if (typeof inner !== 'string') { finalParts.push(part); return; }
+    if (inner.includes('<i>')) {
+      const s = inner.split('<i>');
       if (s[0]) finalParts.push(<Text key={`i0_${i}`} style={{}}>{s[0]}</Text>);
       const rest = s.slice(1).join('<i>');
       const e = rest.indexOf('</i>');
-      if (e === -1) { finalParts.push(<Text key={`i1_${i}`} style={{ fontStyle: 'italic' }}>{rest}</Text>); }
+      if (e === -1) { finalParts.push(<Text key={`i1_${i}`} style={inline.fontStyleitalic}>{rest}</Text>); }
       else {
-        finalParts.push(<Text key={`i1_${i}`} style={{ fontStyle: 'italic' }}>{rest.substring(0, e)}</Text>);
+        finalParts.push(<Text key={`i1_${i}`} style={inline.fontStyleitalic}>{rest.substring(0, e)}</Text>);
         const after = rest.substring(e + 4);
         if (after) finalParts.push(<Text key={`i2_${i}`} style={{}}>{after}</Text>);
       }
@@ -68,11 +67,11 @@ const renderStyledContent = (html, colors) => {
   const flushList = (key) => {
     if (listBuffer.length > 0) {
       elements.push(
-        <View key={key} style={{ marginLeft: 8, marginBottom: 4 }}>
+        <View key={key} style={inline.ml8_mb4}>
           {listBuffer.map((item, i) => (
-            <View key={i} style={{ flexDirection: 'row', marginBottom: 2 }}>
-              <Text style={{ color: colors.textPrimary, lineHeight: 22, marginRight: 6 }}>{'\u2022'}</Text>
-              <Text style={{ color: colors.textPrimary, lineHeight: 22, flex: 1 }}>{item}</Text>
+            <View key={i} style={inline.fdrow_mb2}>
+              <Text style={[inline.lh22_mr6, { color: colors.textPrimary }]}>{'\u2022'}</Text>
+              <Text style={[inline.lh22_flex1, { color: colors.textPrimary }]}>{item}</Text>
             </View>
           ))}
         </View>
@@ -97,9 +96,9 @@ const renderStyledContent = (html, colors) => {
     const formatted = parseInlineTags(displayText, colors);
     elements.push(
       <Text key={idx} style={[
-        { color: colors.textPrimary, lineHeight: isH3 ? 28 : 22, marginBottom: 4 },
-        isH3 && { fontSize: 18, fontWeight: '700', marginTop: 8 },
-        isSmall && { fontSize: 11 },
+        [inline.mb4, { color: colors.textPrimary, lineHeight: isH3 ? 28 : 22 }],
+        isH3 && inline.fs18_fw700_mt8,
+        isSmall && inline.fs11,
       ]}>
         {formatted}
       </Text>
@@ -254,3 +253,16 @@ const makeStyles = colors => StyleSheet.create({
 });
 
 export default ContentViewerScreen;
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  fs11: { fontSize: 11 },
+  fs18_fw700_mt8: { fontSize: 18, fontWeight: '700', marginTop: 8 },
+  mb4: { marginBottom: 4 },
+  lh22_flex1: { lineHeight: 22, flex: 1 },
+  lh22_mr6: { lineHeight: 22, marginRight: 6 },
+  fdrow_mb2: { flexDirection: 'row', marginBottom: 2 },
+  ml8_mb4: { marginLeft: 8, marginBottom: 4 },
+  fontStyleitalic: { fontStyle: 'italic' },
+  fw700: { fontWeight: '700' },
+});

@@ -120,7 +120,7 @@ const LoginScreen = () => {
       {/* ── Hero (collapses under the keyboard) ─────────────────────────── */}
       <View style={styles.heroWrap}>
         <Animated.View style={[styles.hero, heroAnimStyle]}>
-          <View style={[styles.logoBadge, { width: badge, height: badge, borderRadius: badge * 0.31, marginBottom: compact ? 12 : 18 }]}>
+          <View style={[styles.logoBadge, compact ? inline.mb12 : inline.mb18, { width: badge, height: badge, borderRadius: badge * 0.31 }]}>
             <MCIcon name="stethoscope" size={compact ? 30 : 38} color={colors.white} />
           </View>
           <Text style={[styles.appName, compact && styles.appNameCompact]}>Purnazen for Doctors</Text>
@@ -393,4 +393,10 @@ const makeStyles = colors => StyleSheet.create({
   },
   poweredByText: { fontSize: 12, color: colors.textMuted, letterSpacing: 0.2 },
   poweredByBrand: { fontSize: 12, fontWeight: '800', color: colors.primary, letterSpacing: 0.2 },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  mb12: { marginBottom: 12 },
+  mb18: { marginBottom: 18 },
 });

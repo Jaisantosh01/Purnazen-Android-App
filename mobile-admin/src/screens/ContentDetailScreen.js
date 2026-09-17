@@ -22,14 +22,14 @@ const ContentDetailScreen = ({ route, navigation }) => {
         subtitle={`v${item.version || '1.0'} • ${item.roleType === 'all' ? 'All Roles' : item.roleType}`}
         onBack={() => navigation.goBack()}
       />
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+      <ScrollView contentContainerStyle={inline.p16_pb40}>
         <View style={styles.metaRow}>
           <View style={[styles.badge, { backgroundColor: item.type === 'terms' ? colors.primaryLight : colors.primaryFaint }]}>
             <MCIcon name={item.type === 'terms' ? 'file-document-outline' : 'shield-lock-outline'} size={14} color={colors.textSecondary} />
             <Text style={styles.badgeText}>{item.type === 'terms' ? 'Terms & Conditions' : 'Privacy Policy'}</Text>
           </View>
           <View style={styles.statusDot}>
-            <View style={[styles.dot, { backgroundColor: item.isActive ? '#22C55E' : colors.textMuted }]} />
+            <View style={[styles.dot, item.isActive ? inline.dotOn : { backgroundColor: colors.textMuted }]} />
             <Text style={styles.statusText}>{item.isActive ? 'Active' : 'Inactive'}</Text>
           </View>
         </View>
@@ -68,3 +68,9 @@ const makeStyles = colors => StyleSheet.create({
 });
 
 export default ContentDetailScreen;
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  dotOn: { backgroundColor: '#22C55E' },
+  p16_pb40: { padding: 16, paddingBottom: 40 },
+});

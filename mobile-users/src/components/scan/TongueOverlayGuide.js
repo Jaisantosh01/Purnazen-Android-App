@@ -42,8 +42,8 @@ const TongueOverlayGuide = ({
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       {/* Dim overlay above/below the oval to focus attention */}
-      <View style={[styles.dim, { top: 0, height: ovalTop }]} />
-      <View style={[styles.dim, { top: ovalTop + OVAL_H, bottom: 0 }]} />
+      <View style={[styles.dim, [inline.top0, { height: ovalTop }]]} />
+      <View style={[styles.dim, [inline.bottom0, { top: ovalTop + OVAL_H }]]} />
 
       {/* Tongue oval guide */}
       <View
@@ -60,8 +60,8 @@ const TongueOverlayGuide = ({
               height: OVAL_H,
               borderRadius: OVAL_W / 2,
               borderColor: colors.oval,
-              borderWidth: status === 'ready' ? 3.5 : 2.5,
             },
+            status === 'ready' ? inline.bwReady : inline.bwIdle,
           ]}
         />
         {/* Corner brackets */}
@@ -150,4 +150,12 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     letterSpacing: 0.3,
   },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  bwReady: { borderWidth: 3.5 },
+  bwIdle: { borderWidth: 2.5 },
+  bottom0: { bottom: 0 },
+  top0: { top: 0 },
 });

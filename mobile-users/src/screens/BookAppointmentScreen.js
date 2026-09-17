@@ -456,7 +456,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
               <Text style={styles.noSlotsText}>Choose a date above to see the slots this doctor has open.</Text>
             </TouchableOpacity>
           ) : slotsLoading ? (
-            <ActivityIndicator size="small" color={colors.primary} style={{ paddingVertical: 20 }} />
+            <ActivityIndicator size="small" color={colors.primary} style={inline.py20} />
           ) : timeSlots.length === 0 ? (
             <View style={styles.noSlotsCard}>
               <MCIcon name="clock-off-outline" size={28} color={colors.textMuted} />
@@ -829,4 +829,9 @@ const makeStyles = colors => StyleSheet.create({
   confirmBtn:    { backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 24 },
   confirmBtnDisabled: { backgroundColor: colors.borderStrong },
   confirmBtnText:     { fontSize: 15, fontWeight: '700', color: colors.white },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  py20: { paddingVertical: 20 },
 });

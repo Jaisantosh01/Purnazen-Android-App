@@ -98,8 +98,8 @@ const MetadataManagementScreen = ({ route, navigation }) => {
 
   const renderItem = ({ item }) => (
     <View style={styles.itemCard}>
-      <View style={{flexDirection: 'row', alignItems: 'center', flex: 1}}>
-        {isRole && item.icon && <MCIcon name={item.icon} size={20} color={colors.primary} style={{marginRight: 10}} />}
+      <View style={inline.fdrow_aicenter_flex1}>
+        {isRole && item.icon && <MCIcon name={item.icon} size={20} color={colors.primary} style={inline.mr10} />}
         <Text style={styles.itemName}>{item.name}</Text>
       </View>
       <MCIcon name="drag-horizontal" size={20} color={colors.textMuted} />
@@ -213,3 +213,9 @@ const makeStyles = colors => StyleSheet.create({
 });
 
 export default MetadataManagementScreen;
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  mr10: { marginRight: 10 },
+  fdrow_aicenter_flex1: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+});

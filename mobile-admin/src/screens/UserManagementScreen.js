@@ -169,7 +169,7 @@ const UserManagementScreen = ({ navigation }) => {
                       name={role.icon} 
                       size={18} 
                       color={isSelected ? colors.white : roleColor} 
-                      style={{marginRight: 6}} 
+                      style={inline.mr6} 
                     />
                     <Text style={[styles.tabText, isSelected && { color: colors.white }]}>{role.name}</Text>
                   </TouchableOpacity>
@@ -338,3 +338,8 @@ const makeStyles = colors => StyleSheet.create({
 });
 
 export default UserManagementScreen;
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  mr6: { marginRight: 6 },
+});

@@ -201,43 +201,43 @@ const ContentEditorScreen = ({ route, navigation }) => {
 
   return (
     <View style={styles.root}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={inline.flex1} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScreenHeader
           title={editingItem ? 'Edit Content' : 'Create Content'}
           onBack={() => navigation.goBack()}
         />
 
         <ScrollView style={styles.modalContent} keyboardShouldPersistTaps="handled">
-          <Text style={styles.label}>Content Type <Text style={{ color: '#EF4444' }}>*</Text></Text>
+          <Text style={styles.label}>Content Type <Text style={inline.cEF4444}>*</Text></Text>
           <TouchableOpacity style={styles.picker} onPress={() => setContentTypePicker(true)}>
             <MCIcon name={activeTab?.icon || 'file-document-outline'} size={18} color={colors.textPrimary} />
             <Text style={styles.pickerText}>{activeTab?.label || contentType}</Text>
             <MCIcon name="chevron-down" size={18} color={colors.textMuted} />
           </TouchableOpacity>
 
-          <Text style={styles.label}>Target Roles <Text style={{ color: '#EF4444' }}>*</Text></Text>
+          <Text style={styles.label}>Target Roles <Text style={inline.cEF4444}>*</Text></Text>
           <TouchableOpacity style={styles.picker} onPress={() => setRolePicker(true)}>
             <MCIcon name={isAllSelected ? 'account-group' : 'account-multiple'} size={18} color={colors.textPrimary} />
             <Text style={styles.pickerText} numberOfLines={1}>{isAllSelected ? 'All Roles' : (selectedRoleIds.length ? selectedRoleIds.map(getRoleName).join(', ') : 'Select roles...')}</Text>
             <MCIcon name="chevron-down" size={18} color={colors.textMuted} />
           </TouchableOpacity>
 
-          <Text style={styles.label}>Title <Text style={{ color: '#EF4444' }}>*</Text></Text>
+          <Text style={styles.label}>Title <Text style={inline.cEF4444}>*</Text></Text>
           <TextInput style={styles.input} placeholder={hints.title} placeholderTextColor={colors.textMuted} value={title} onChangeText={setTitle} />
 
           <View style={styles.versionRow}>
             <View>
               <Text style={styles.label}>Version</Text>
-              <TextInput style={[styles.input, { width: 100 }]} placeholder="1.0" placeholderTextColor={colors.textMuted} value={version} onChangeText={setVersion} />
+              <TextInput style={[styles.input, inline.w100]} placeholder="1.0" placeholderTextColor={colors.textMuted} value={version} onChangeText={setVersion} />
             </View>
-            <View style={{ flex: 1 }} />
+            <View style={inline.flex1} />
             <View style={styles.switchRow}>
               <Text style={styles.switchLabel}>Active</Text>
               <AppToggle value={isActive} onValueChange={setIsActive} />
             </View>
           </View>
 
-          <Text style={styles.label}>Content <Text style={{ color: '#EF4444' }}>*</Text></Text>
+          <Text style={styles.label}>Content <Text style={inline.cEF4444}>*</Text></Text>
 
           <View style={styles.editorTabBar}>
             {['write', 'preview'].map(tab => (
@@ -295,7 +295,7 @@ const ContentEditorScreen = ({ route, navigation }) => {
             <View style={styles.previewBox}>
               {content.trim()
                 ? preview
-                : <Text style={{ color: colors.textMuted, fontSize: 14 }}>Nothing to preview yet.</Text>}
+                : <Text style={[inline.fs14, { color: colors.textMuted }]}>Nothing to preview yet.</Text>}
             </View>
           )}
 
@@ -304,7 +304,7 @@ const ContentEditorScreen = ({ route, navigation }) => {
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.btn, styles.saveBtn, (!canSave || saving) && { opacity: 0.5 }]}
+              style={[styles.btn, styles.saveBtn, (!canSave || saving) && inline.op0_5]}
               disabled={!canSave || saving}
               onPress={handleSave}
             >
@@ -320,7 +320,7 @@ const ContentEditorScreen = ({ route, navigation }) => {
                 <TouchableOpacity key={tab.key} style={[styles.pickerOption, contentType === tab.key && styles.pickerOptionActive]}
                   onPress={() => { setContentType(tab.key); setContentTypePicker(false); }}>
                   <MCIcon name={tab.icon} size={20} color={contentType === tab.key ? colors.primary : colors.textPrimary} />
-                  <Text style={[styles.pickerOptionText, contentType === tab.key && { color: colors.primary, fontWeight: '700' }]}>{tab.label}</Text>
+                  <Text style={[styles.pickerOptionText, contentType === tab.key && [inline.fw700, { color: colors.primary }]]}>{tab.label}</Text>
                   {contentType === tab.key && <MCIcon name="check" size={20} color={colors.primary} />}
                 </TouchableOpacity>
               ))}
@@ -337,7 +337,7 @@ const ContentEditorScreen = ({ route, navigation }) => {
                   <TouchableOpacity style={[styles.pickerOption, isAllSelected && styles.pickerOptionActive]} onPress={() => toggleRole('all')}>
                     <View style={[styles.checkbox, isAllSelected && styles.checkboxActive]}>{isAllSelected && <MCIcon name="check" size={14} color="#fff" />}</View>
                     <MCIcon name="account-group" size={20} color={isAllSelected ? colors.primary : colors.textPrimary} />
-                    <Text style={[styles.pickerOptionText, isAllSelected && { color: colors.primary, fontWeight: '700' }]}>All Roles</Text>
+                    <Text style={[styles.pickerOptionText, isAllSelected && [inline.fw700, { color: colors.primary }]]}>All Roles</Text>
                   </TouchableOpacity>
                   <View style={styles.pickerDivider} />
                 </>
@@ -351,11 +351,11 @@ const ContentEditorScreen = ({ route, navigation }) => {
                     onPress={() => !disabled && toggleRole(role.id)} activeOpacity={disabled ? 1 : 0.7}>
                     <View style={[styles.checkbox, isRoleSelected && styles.checkboxActive]}>{isRoleSelected && <MCIcon name="check" size={14} color="#fff" />}</View>
                     <MCIcon name="account" size={20} color={disabled ? colors.textMuted : (isRoleSelected ? colors.primary : colors.textPrimary)} />
-                    <Text style={[styles.pickerOptionText, isRoleSelected && { color: colors.primary, fontWeight: '700' }, disabled && { color: colors.textMuted }]}>{role.name}</Text>
+                    <Text style={[styles.pickerOptionText, isRoleSelected && [inline.fw700, { color: colors.primary }], disabled && { color: colors.textMuted }]}>{role.name}</Text>
                   </TouchableOpacity>
                 );
               })}
-              <TouchableOpacity style={[styles.doneBtn, { opacity: isAllSelected || selectedRoleIds.length > 0 ? 1 : 0.5 }]}
+              <TouchableOpacity style={[styles.doneBtn, (isAllSelected || selectedRoleIds.length > 0) ? null : inline.dim]}
                 disabled={!isAllSelected && selectedRoleIds.length === 0} onPress={() => setRolePicker(false)}>
                 <Text style={styles.doneBtnText}>Done</Text>
               </TouchableOpacity>
@@ -425,3 +425,14 @@ const makeStyles = colors => StyleSheet.create({
 });
 
 export default ContentEditorScreen;
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  dim: { opacity: 0.5 },
+  fw700: { fontWeight: '700' },
+  op0_5: { opacity: 0.5 },
+  fs14: { fontSize: 14 },
+  cEF4444: { color: '#EF4444' },
+  flex1: { flex: 1 },
+  w100: { width: 100 },
+});

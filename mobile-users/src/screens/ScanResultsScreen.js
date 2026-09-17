@@ -132,7 +132,7 @@ const ScanResultsScreen = ({ navigation, route }) => {
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor="#C850C0" />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={inline.pb40}>
 
         {/* Header */}
         <View style={[styles.header, { paddingTop: headerTop }]}>
@@ -296,7 +296,7 @@ const ScanResultsScreen = ({ navigation, route }) => {
           </TouchableOpacity>
           {scan?.scan_id != null && (
             <TouchableOpacity
-              style={[styles.shareBtn, { marginTop: 10 }]}
+              style={[styles.shareBtn, inline.mt10]}
               onPress={() => navigation.navigate('ScanComparison', { scanId: scan.scan_id })}
               activeOpacity={0.85}
             >
@@ -572,4 +572,10 @@ const makeStyles = colors => StyleSheet.create({
     paddingVertical: 12,
   },
   historyLinkText: { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  mt10: { marginTop: 10 },
+  pb40: { paddingBottom: 40 },
 });

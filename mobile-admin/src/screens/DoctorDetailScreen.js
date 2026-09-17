@@ -85,7 +85,7 @@ const DoctorDetailScreen = ({ route, navigation }) => {
       <DoctorDetailSkeleton />
     </View>
   );
-  if (!doctor) return <View style={styles.root}><Text style={{ textAlign: 'center', marginTop: 100, color: colors.textMuted }}>Doctor not found</Text></View>;
+  if (!doctor) return <View style={styles.root}><Text style={[inline.tacenter_mt100, { color: colors.textMuted }]}>Doctor not found</Text></View>;
 
   return (
     <View style={styles.root}>
@@ -279,3 +279,8 @@ const makeStyles = colors => StyleSheet.create({
 });
 
 export default DoctorDetailScreen;
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  tacenter_mt100: { textAlign: 'center', marginTop: 100 },
+});

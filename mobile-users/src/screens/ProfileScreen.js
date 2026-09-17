@@ -139,7 +139,7 @@ const ProfileScreen = ({ navigation }) => {
       <ScrollView
         style={styles.container}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 24 }}
+        contentContainerStyle={inline.pb24}
       >
         {/* ── Header ── */}
         <View style={[styles.header, { paddingTop: headerTop }]}>
@@ -166,7 +166,7 @@ const ProfileScreen = ({ navigation }) => {
               <Text style={styles.profileName} numberOfLines={1}>{displayName}</Text>
               <Text style={styles.profileEmail} numberOfLines={1}>{displayEmail}</Text>
               <View style={styles.planBadge}>
-                <MCIcon name="shield-check" size={12} color={colors.white} style={{ marginRight: 4 }} />
+                <MCIcon name="shield-check" size={12} color={colors.white} style={inline.mr4} />
                 <Text style={styles.planText}>{plan} Member</Text>
               </View>
             </View>
@@ -231,7 +231,7 @@ const ProfileScreen = ({ navigation }) => {
           activeOpacity={0.8}
           onPress={handleLogout}
         >
-          <MCIcon name="logout" size={18} color={colors.danger} style={{ marginRight: 8 }} />
+          <MCIcon name="logout" size={18} color={colors.danger} style={inline.mr8} />
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
 
@@ -395,4 +395,11 @@ const makeStyles = colors => StyleSheet.create({
     fontWeight: '600',
     color: colors.danger,
   },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  mr8: { marginRight: 8 },
+  mr4: { marginRight: 4 },
+  pb24: { paddingBottom: 24 },
 });

@@ -179,7 +179,7 @@ const StorageFolderActionsModal = ({ folder, onClose, onChanged }) => {
                   ) : (
                     <MCIcon name="folder-remove-outline" size={22} color="#EF4444" />
                   )}
-                  <Text style={[styles.menuBtnText, { color: '#EF4444' }]}>Delete</Text>
+                  <Text style={[styles.menuBtnText, inline.cEF4444]}>Delete</Text>
                 </TouchableOpacity>
               </View>
             </>
@@ -262,3 +262,8 @@ const makeStyles = (colors) =>
   });
 
 export default StorageFolderActionsModal;
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  cEF4444: { color: '#EF4444' },
+});

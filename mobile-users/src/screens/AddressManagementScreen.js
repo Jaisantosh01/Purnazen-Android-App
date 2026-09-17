@@ -350,7 +350,7 @@ const AddressManagementScreen = ({ navigation }) => {
           onBack={() => { setMode('list'); resetForm(); }}
         />
 
-        <View style={{ flex: 1 }}>
+        <View style={inline.flex1}>
           {/* ── Search bar (fixed above scroll view) ── */}
           <View style={styles.searchSection}>
             <View style={styles.searchRow}>
@@ -394,7 +394,7 @@ const AddressManagementScreen = ({ navigation }) => {
                       onPress={() => selectSuggestion(item)}
                       activeOpacity={0.7}
                     >
-                      <MCIcon name="map-marker" size={16} color={colors.textMuted} style={{ marginRight: 8 }} />
+                      <MCIcon name="map-marker" size={16} color={colors.textMuted} style={inline.mr8} />
                       <Text style={styles.suggestionText} numberOfLines={2}>{item.display_name}</Text>
                     </TouchableOpacity>
                   ))}
@@ -405,7 +405,7 @@ const AddressManagementScreen = ({ navigation }) => {
 
           <ScrollView
             style={styles.container}
-            contentContainerStyle={{ paddingBottom: 40 }}
+            contentContainerStyle={inline.pb40}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
@@ -413,7 +413,7 @@ const AddressManagementScreen = ({ navigation }) => {
           {/* ── Map ── */}
           {showMap && (
             <View style={styles.mapContainer}>
-              <View style={{ flex: 1 }}>
+              <View style={inline.flex1}>
                 <WebView
                   ref={webViewRef}
                   source={{ html: leafletHtml(selectedLat, selectedLng, 15) }}
@@ -473,7 +473,7 @@ const AddressManagementScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.fieldRow}>
-              <View style={[styles.fieldGroup, { flex: 1 }]}>
+              <View style={[styles.fieldGroup, inline.flex1]}>
                 <Text style={styles.fieldLabel}>Pincode</Text>
                 <TextInput
                   style={[styles.fieldInput, styles.fieldAutoFilled]}
@@ -484,8 +484,8 @@ const AddressManagementScreen = ({ navigation }) => {
                   keyboardType="number-pad"
                 />
               </View>
-              <View style={{ width: 12 }} />
-              <View style={[styles.fieldGroup, { flex: 1 }]}>
+              <View style={inline.w12} />
+              <View style={[styles.fieldGroup, inline.flex1]}>
                 <Text style={styles.fieldLabel}>Town / City</Text>
                 <TextInput
                   style={[styles.fieldInput, styles.fieldAutoFilled]}
@@ -522,7 +522,7 @@ const AddressManagementScreen = ({ navigation }) => {
                       name={t.value === 'home' ? 'home-outline' : 'office-building-outline'}
                       size={16}
                       color={typeOfAddress === t.value ? colors.primary : colors.textMuted}
-                      style={{ marginRight: 6 }}
+                      style={inline.mr6}
                     />
                     <Text style={[styles.typeChipText, typeOfAddress === t.value && styles.typeChipTextActive]}>
                       {t.label}
@@ -575,7 +575,7 @@ const AddressManagementScreen = ({ navigation }) => {
       <FlatList
         data={addresses}
         keyExtractor={item => item.id}
-        contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+        contentContainerStyle={inline.p16_pb100}
         refreshing={loading}
         onRefresh={loadAddresses}
         ListHeaderComponent={
@@ -793,4 +793,14 @@ const makeStyles = colors => StyleSheet.create({
   emptyState: { alignItems: 'center', paddingTop: 60, gap: 8 },
   emptyTitle: { fontSize: 16, fontWeight: '600', color: colors.textMuted },
   emptySubtitle: { fontSize: 13, color: colors.textMuted, textAlign: 'center', paddingHorizontal: 40, lineHeight: 18 },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  p16_pb100: { padding: 16, paddingBottom: 100 },
+  mr6: { marginRight: 6 },
+  flex1: { flex: 1 },
+  w12: { width: 12 },
+  pb40: { paddingBottom: 40 },
+  mr8: { marginRight: 8 },
 });

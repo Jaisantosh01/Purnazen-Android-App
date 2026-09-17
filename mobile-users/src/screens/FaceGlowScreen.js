@@ -53,7 +53,7 @@ const FaceGlowScreen = ({ navigation }) => {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 36 }}
+        contentContainerStyle={inline.pb36}
       >
         {/* ── Header ── */}
         <View style={[styles.header, { paddingTop: headerTop }]}>
@@ -91,7 +91,7 @@ const FaceGlowScreen = ({ navigation }) => {
               <View style={styles.cameraCircle}>
                 <MCIcon name="face-recognition" size={22} color={colors.white} />
               </View>
-              <View style={{ flex: 1 }}>
+              <View style={inline.flex1}>
                 <Text style={styles.scanTitle}>AI Face Analysis</Text>
                 <Text style={styles.scanSubtitle}>Hydration · oil · fine lines · glow score</Text>
               </View>
@@ -111,7 +111,7 @@ const FaceGlowScreen = ({ navigation }) => {
               <View style={[styles.cameraCircle, styles.tongueCameraCircle]}>
                 <MCIcon name="emoticon-tongue-outline" size={22} color={colors.white} />
               </View>
-              <View style={{ flex: 1 }}>
+              <View style={inline.flex1}>
                 <Text style={styles.scanTitle}>TCM Tongue Analysis</Text>
                 <Text style={styles.scanSubtitle}>Qi · organ health · wellness score</Text>
               </View>
@@ -130,7 +130,7 @@ const FaceGlowScreen = ({ navigation }) => {
         <View style={styles.section}>
           <View style={styles.personalizeBanner}>
             <MCIcon name="lightbulb-on-outline" size={20} color={GLOW} />
-            <View style={{ flex: 1 }}>
+            <View style={inline.flex1}>
               <Text style={styles.personalizeTitle}>These are general routines</Text>
               <Text style={styles.personalizeText}>
                 Scan your face and our AI tailors the routines and wellness tips to your
@@ -464,4 +464,10 @@ const makeStyles = colors => StyleSheet.create({
     fontWeight: '500',
     color: colors.textPrimary,
   },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  flex1: { flex: 1 },
+  pb36: { paddingBottom: 36 },
 });

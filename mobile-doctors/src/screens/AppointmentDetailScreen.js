@@ -243,7 +243,7 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
     const isBooked = apptStatus === 'booked';
 
     return (
-      <View style={{ flex: 1 }}>
+      <View style={inline.flex1}>
         <ScrollView
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
@@ -331,7 +331,7 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
                 style={[styles.actionBtn, styles.cancelBtn, styles.actionBtnHalf]}
                 activeOpacity={0.8}
                 onPress={handleCancel}>
-                <MCIcon name="close-circle-outline" size={18} color={colors.danger} style={{ marginRight: 6 }} />
+                <MCIcon name="close-circle-outline" size={18} color={colors.danger} style={inline.mr6} />
                 <Text style={styles.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
 
@@ -341,7 +341,7 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
                   style={[styles.actionBtn, styles.acceptBtn, styles.actionBtnHalf]}
                   activeOpacity={0.8}
                   onPress={handleAccept}>
-                  <MCIcon name="check" size={18} color={colors.white} style={{ marginRight: 6 }} />
+                  <MCIcon name="check" size={18} color={colors.white} style={inline.mr6} />
                   <Text style={styles.acceptBtnText}>Accept</Text>
                 </TouchableOpacity>
               ) : (() => {
@@ -361,9 +361,9 @@ const AppointmentDetailScreen = ({ route, navigation }) => {
                       name="check-decagram"
                       size={18}
                       color={apptOver ? colors.white : '#9CA3AF'}
-                      style={{ marginRight: 6 }}
+                      style={inline.mr6}
                     />
-                    <Text style={[styles.completeBtnText, !apptOver && { color: '#9CA3AF' }]}>
+                    <Text style={[styles.completeBtnText, !apptOver && inline.c9CA3AF]}>
                       Complete
                     </Text>
                   </TouchableOpacity>
@@ -563,4 +563,11 @@ const makeStyles = colors =>
   emptySubtitle: { fontSize: 13.5, color: colors.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: SPACING.sm },
   backBtn: { paddingHorizontal: SPACING.xl, paddingVertical: 12, backgroundColor: colors.primary, borderRadius: RADIUS.pill },
   backBtnText: { color: colors.white, fontWeight: '700', fontSize: 14 },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  c9CA3AF: { color: '#9CA3AF' },
+  mr6: { marginRight: 6 },
+  flex1: { flex: 1 },
 });

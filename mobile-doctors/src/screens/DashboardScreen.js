@@ -188,7 +188,7 @@ const DashboardScreen = ({ navigation }) => {
                     <Text style={styles.apptTime}>{item.time || '—'}</Text>
                   </View>
                   <View style={styles.apptDivider} />
-                  <View style={{ flex: 1 }}>
+                  <View style={inline.flex1}>
                     <Text style={styles.apptName} numberOfLines={1}>{item.userName || 'Unknown Patient'}</Text>
                     <Text style={styles.apptMeta} numberOfLines={1}>
                       {item.consultationType || item.visit_type || 'Consultation'}
@@ -320,4 +320,9 @@ const makeStyles = colors => StyleSheet.create({
 
   badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: RADIUS.pill },
   badgeText: { fontSize: 11, fontWeight: '700' },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  flex1: { flex: 1 },
 });

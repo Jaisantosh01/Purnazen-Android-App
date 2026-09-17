@@ -62,7 +62,7 @@ const SelectSymptomScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.searchContainer}>
-          <MCIcon name="magnify" size={18} color={colors.textMuted} style={{ marginRight: 8 }} />
+          <MCIcon name="magnify" size={18} color={colors.textMuted} style={inline.mr8} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search symptoms..."
@@ -248,4 +248,9 @@ const makeStyles = colors => StyleSheet.create({
     fontSize: 13,
     color: colors.textMuted,
   },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  mr8: { marginRight: 8 },
 });

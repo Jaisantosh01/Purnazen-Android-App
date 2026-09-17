@@ -213,7 +213,7 @@ export const uploadOne = async (item, selectedDir) => {
   // A fresh FormData per attempt: an already-consumed multipart body can't be
   // replayed on React Native, so reusing one is itself a source of the
   // mysterious second-attempt failures.
-  // eslint-disable-next-line no-constant-condition
+   
   while (true) {
     try {
       const res = await apiClient.post(ENDPOINTS.VIDEO_UPLOAD, buildUploadForm(item, selectedDir), {
@@ -248,7 +248,7 @@ export const handleUploadAll = async ({
   fetchDirectories,
   showAlert,
   selectedDir,
-  uploadOne,
+  uploadOne: upload,
   onUploaded,
 }) => {
   const pendingItems = items.filter(it => it.status === 'pending');
@@ -274,7 +274,7 @@ export const handleUploadAll = async ({
       setUploadProgress({ current: i + 1, total: pendingItems.length });
       updateItem(item.id, { status: 'uploading', error: null });
       try {
-        const video = await uploadOne(item, selectedDir);
+        const video = await upload(item, selectedDir);
         // The file did land server-side, so mark it done even if we're stopping.
         updateItem(item.id, { status: 'done' });
         if (video) uploaded.push(video);

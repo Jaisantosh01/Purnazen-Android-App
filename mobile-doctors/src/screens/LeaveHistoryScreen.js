@@ -302,8 +302,8 @@ const LeaveHistoryScreen = ({ route, navigation }) => {
                   <Text style={[styles.statusChipLabel, { color: isSelected ? colors.white : colors.textPrimary }]}>
                     {meta.label}
                   </Text>
-                  <View style={[styles.statusChipCount, { backgroundColor: isSelected ? 'rgba(255,255,255,0.25)' : soft(meta.hue) }]}>
-                    <Text style={[styles.statusChipCountText, { color: isSelected ? colors.white : meta.hue }]}>{count}</Text>
+                  <View style={[styles.statusChipCount, isSelected ? inline.countOnSelected : { backgroundColor: soft(meta.hue) }]}>
+                    <Text style={[styles.statusChipCountText, isSelected ? { color: colors.white } : { color: meta.hue }]}>{count}</Text>
                   </View>
                 </TouchableOpacity>
               );
@@ -532,4 +532,9 @@ const makeStyles = colors =>
     textAlign: 'center',
     paddingHorizontal: SPACING.xl,
   },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  countOnSelected: { backgroundColor: 'rgba(255,255,255,0.25)' },
 });

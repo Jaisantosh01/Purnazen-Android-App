@@ -304,7 +304,7 @@ const VideoPlayerScreen = ({ route, navigation }) => {
     return (
       <View style={styles.root}>
         <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-        <View style={{ height: insets.top, backgroundColor: '#000' }} />
+        <View style={[inline.bg000, { height: insets.top }]} />
         <View style={[styles.playerSkeleton, { height: (screenW * 9) / 16 }]}>
           <ActivityIndicator size="large" color="#fff" />
         </View>
@@ -316,15 +316,15 @@ const VideoPlayerScreen = ({ route, navigation }) => {
           <MCIcon name="arrow-left" size={22} color="#fff" />
         </TouchableOpacity>
         <View style={styles.skeletonBody}>
-          <View style={[styles.skelLine, { width: '38%', height: 10 }]} />
-          <View style={[styles.skelLine, { width: '72%', height: 18, marginTop: 12 }]} />
-          <View style={[styles.skelLine, { width: '54%', height: 12, marginTop: 10, marginBottom: 22 }]} />
+          <View style={[styles.skelLine, inline.w38p_h10]} />
+          <View style={[styles.skelLine, inline.w72p_h18_mt12]} />
+          <View style={[styles.skelLine, inline.w54p_h12_mt10_mb22]} />
           {[1, 2, 3].map(i => (
             <View key={i} style={styles.skelRow}>
               <View style={styles.skelCircle} />
-              <View style={{ flex: 1 }}>
-                <View style={[styles.skelLine, { width: '64%', height: 12 }]} />
-                <View style={[styles.skelLine, { width: '28%', height: 10, marginTop: 8 }]} />
+              <View style={inline.flex1}>
+                <View style={[styles.skelLine, inline.w64p_h12]} />
+                <View style={[styles.skelLine, inline.w28p_h10_mt8]} />
               </View>
             </View>
           ))}
@@ -357,7 +357,7 @@ const VideoPlayerScreen = ({ route, navigation }) => {
       {/* Black filler behind the status bar. Kept as a sibling (not a wrapper)
           so the player stays a direct child of root and its JS fullscreen can
           expand to cover the whole screen. */}
-      <View style={{ height: insets.top, backgroundColor: '#000' }} />
+      <View style={[inline.bg000, { height: insets.top }]} />
 
       {/* Player */}
       <VideoPlayer
@@ -388,7 +388,7 @@ const VideoPlayerScreen = ({ route, navigation }) => {
         <MCIcon name="arrow-left" size={22} color="#fff" />
       </TouchableOpacity>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={inline.pb40}>
         {/* Current video info */}
         <View style={styles.currentInfoCard}>
           <Text style={styles.groupLabel}>{catalog.title}</Text>
@@ -703,4 +703,16 @@ const makeStyles = colors => StyleSheet.create({
     flex: 1, paddingVertical: 12, borderRadius: 14, alignItems: 'center',
   },
   sessionDialogBtnText: { fontSize: 15, fontWeight: '700' },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  pb40: { paddingBottom: 40 },
+  bg000: { backgroundColor: '#000' },
+  w28p_h10_mt8: { width: '28%', height: 10, marginTop: 8 },
+  w64p_h12: { width: '64%', height: 12 },
+  flex1: { flex: 1 },
+  w54p_h12_mt10_mb22: { width: '54%', height: 12, marginTop: 10, marginBottom: 22 },
+  w72p_h18_mt12: { width: '72%', height: 18, marginTop: 12 },
+  w38p_h10: { width: '38%', height: 10 },
 });

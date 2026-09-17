@@ -11,7 +11,6 @@ import {
   FlatList,
 } from 'react-native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
-import * as DocumentPicker from 'expo-document-picker';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { ICONS_PER_PAGE, WELLNESS_ICONS } from '../constants/icons';
@@ -23,8 +22,6 @@ import StorageFileActionsModal from '../components/StorageFileActionsModal';
 import useDurationProbe from '../hooks/useDurationProbe';
 import { showAlert } from '../utils/alert';
 import { handlePickFiles as sharedHandlePickFiles, uploadOne as sharedUploadOne, handleUploadAll as sharedHandleUploadAll } from '../utils/UploadHelper';
-
-const VIDEO_MIME_TYPES = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'video/webm', 'video/ogg'];
 
 const formatBytes = (bytes) => {
   if (!bytes || bytes <= 0) return '';
@@ -95,7 +92,7 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
   const [items, setItems] = useState([]);
   const [expandedId, setExpandedId] = useState(null);
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
+  const [, setUploadProgress] = useState({ current: 0, total: 0 });
 
   // Target picker for upload items
   const [targetPickerFor, setTargetPickerFor] = useState(null);
@@ -313,10 +310,6 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
       showAlert,
       items
     );
-  };
-
-  const uploadOne = async (item) => {
-    await sharedUploadOne(item, currentPath);
   };
 
   const updateItem = (id, patch) => {
@@ -757,7 +750,7 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
           <MCIcon name="movie-off-outline" size={22} color={colors.textMuted} />
         )}
         {linkable ? (
-          <TouchableOpacity onPress={() => setPreviewVideo(video || item)} style={{ padding: 2 }}>
+          <TouchableOpacity onPress={() => setPreviewVideo(video || item)} style={inline.p2}>
             <MCIcon name="play-circle-outline" size={22} color={colors.primary} />
           </TouchableOpacity>
         ) : null}
@@ -772,7 +765,7 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
           <TouchableOpacity
             onPress={() => handleFileEdit(item)}
             disabled={linking}
-            style={{ padding: 4 }}
+            style={inline.p4}
             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           >
             <MCIcon name="pencil-outline" size={18} color={colors.primary} />
@@ -802,7 +795,7 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
           {item.status === 'uploading'
             ? <ActivityIndicator size="small" color={meta.color} />
             : <MCIcon name={meta.icon} size={20} color={meta.color} />}
-          <View style={{ flex: 1, marginHorizontal: 8 }}>
+          <View style={inline.flex1_mx8}>
             <Text style={styles.queueTitle} numberOfLines={1}>{item.title || item.file.name}</Text>
             <Text style={styles.queueMeta} numberOfLines={1}>
               {item.file.name}{item.file.size ? ` • ${formatBytes(item.file.size)}` : ''}
@@ -812,7 +805,7 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
             )}
           </View>
           {item.status !== 'uploading' && item.status !== 'done' && (
-            <TouchableOpacity onPress={() => removeItem(item.id)} style={{ padding: 4 }}>
+            <TouchableOpacity onPress={() => removeItem(item.id)} style={inline.p4}>
               <MCIcon name="close-circle" size={20} color={colors.danger} />
             </TouchableOpacity>
           )}
@@ -910,7 +903,7 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
     return (
       <View style={styles.root}>
         <ScreenHeader title="Edit Group Videos" onBack={handleBackPress} />
-        <ActivityIndicator size="large" style={{ marginTop: 100 }} />
+        <ActivityIndicator size="large" style={inline.mt100} />
       </View>
     );
   }
@@ -938,7 +931,7 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
         ) : null}
       />
 
-      <ScrollView style={styles.body} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: items.length > 0 ? 70 : 120 }}>
+      <ScrollView style={styles.body} showsVerticalScrollIndicator={false} contentContainerStyle={items.length > 0 ? inline.pb70 : inline.pb120}>
         {/* File Picker */}
         <Text style={styles.label}>Upload New Videos</Text>
         <TouchableOpacity style={styles.filePicker} onPress={handlePickFiles} disabled={uploading}>
@@ -975,7 +968,7 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
         {/* Storage Browser */}
         <View style={styles.sectionHeader}>
           <Text style={styles.label}>Cloud Storage</Text>
-          <View style={{ flexDirection: 'row', gap: 6 }}>
+          <View style={inline.fdrow_gap6}>
             {videosInCurrentPath.length > 0 && (
               <>
                 <TouchableOpacity
@@ -991,7 +984,7 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
                     {allSelectedInFolder ? 'Deselect all' : 'Select all'}
                   </Text>
                 </TouchableOpacity>
-                <View style={{ width: 1, backgroundColor: colors.border }} />
+                <View style={[inline.w1, { backgroundColor: colors.border }]} />
               </>
             )}
             <TouchableOpacity
@@ -1022,7 +1015,7 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
               </TouchableOpacity>
             </React.Fragment>
           ))}
-          <View style={{ flex: 1 }} />
+          <View style={inline.flex1} />
           <TouchableOpacity style={styles.createDirBtn} onPress={fetchDirectories}>
             <MCIcon name="refresh" size={18} color={colors.primary} />
           </TouchableOpacity>
@@ -1099,7 +1092,7 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
                     size={22}
                     color={isSelected ? colors.primary : colors.textMuted}
                   />
-                  <MCIcon name="play-circle" size={20} color={colors.primary} style={{ marginLeft: 4 }} />
+                  <MCIcon name="play-circle" size={20} color={colors.primary} style={inline.ml4} />
                   <Text style={styles.dirListText} numberOfLines={1}>{v.title}</Text>
                 </TouchableOpacity>
               );
@@ -1113,12 +1106,12 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
       {/* Expanded selection dropdown — opens ABOVE the bar */}
       {selectedExpanded && selectedVideoIds.size > 0 && (
         <View style={styles.selectedDropdown}>
-          <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled>
+          <ScrollView style={inline.maxh200} nestedScrollEnabled>
             {allVideos.filter(v => selectedVideoIds.has(v.id)).map(v => (
               <View key={v.id} style={styles.selectedDropdownRow}>
                 <MCIcon name="play-circle-outline" size={18} color={colors.primary} />
                 <Text style={styles.selectedDropdownText} numberOfLines={1}>{v.title}</Text>
-                <TouchableOpacity onPress={() => toggleVideo(v.id)} style={{ padding: 4 }}>
+                <TouchableOpacity onPress={() => toggleVideo(v.id)} style={inline.p4}>
                   <MCIcon name="close-circle" size={18} color={colors.danger} />
                 </TouchableOpacity>
               </View>
@@ -1175,7 +1168,7 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
-            style={[styles.uploadFooterBtn, !canUpload && { opacity: 0.5 }]}
+            style={[styles.uploadFooterBtn, !canUpload && inline.op0_5]}
             onPress={handleUploadAll}
             disabled={!canUpload}
           >
@@ -1312,7 +1305,7 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
             <Text style={styles.modalTitle}>
               {targetPickerFor === '__all__' ? 'Set group for all new uploads' : 'Select group'}
             </Text>
-            <ScrollView style={{ maxHeight: 420 }}>
+            <ScrollView style={inline.maxh420}>
               <Text style={styles.targetSection}>Video Groups</Text>
               {groups.length === 0 && <Text style={styles.targetEmpty}>No groups available</Text>}
               {groups.map(g => (
@@ -1326,19 +1319,19 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
                 </TouchableOpacity>
               ))}
 
-              <Text style={[styles.targetSection, { marginTop: 12 }]}>Sessions</Text>
+              <Text style={[styles.targetSection, inline.mt12]}>Sessions</Text>
               {sessions.length === 0 && <Text style={styles.targetEmpty}>No sessions available</Text>}
               {sessions.map(s => {
                 const linked = !!s.videoGroupId;
                 return (
                   <TouchableOpacity
                     key={s.id}
-                    style={[styles.targetOption, !linked && { opacity: 0.45 }]}
+                    style={[styles.targetOption, !linked && inline.op0_45]}
                     disabled={!linked}
                     onPress={() => applyTarget({ groupId: s.videoGroupId, sessionId: s.id })}
                   >
                     <MCIcon name={s.icon || 'meditation'} size={20} color={colors.primary} />
-                    <View style={{ flex: 1 }}>
+                    <View style={inline.flex1}>
                       <Text style={styles.targetOptionText}>{s.title}</Text>
                       {!linked && <Text style={styles.targetEmpty}>No video group linked</Text>}
                     </View>
@@ -1371,7 +1364,7 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
             {totalIconPages > 1 && (
               <View style={styles.iconPagination}>
                 <TouchableOpacity
-                  style={[styles.iconPageBtn, iconPage === 0 && { opacity: 0.3 }]}
+                  style={[styles.iconPageBtn, iconPage === 0 && inline.op0_3]}
                   disabled={iconPage === 0}
                   onPress={() => setIconPage(p => p - 1)}
                 >
@@ -1380,7 +1373,7 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
                 </TouchableOpacity>
                 <Text style={styles.iconPageIndicator}>{iconPage + 1} / {totalIconPages}</Text>
                 <TouchableOpacity
-                  style={[styles.iconPageBtn, iconPage >= totalIconPages - 1 && { opacity: 0.3 }]}
+                  style={[styles.iconPageBtn, iconPage >= totalIconPages - 1 && inline.op0_3]}
                   disabled={iconPage >= totalIconPages - 1}
                   onPress={() => setIconPage(p => p + 1)}
                 >
@@ -1557,3 +1550,23 @@ const makeStyles = colors => StyleSheet.create({
 });
 
 export default VideoGroupEditorScreen;
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  pb70: { paddingBottom: 70 },
+  pb120: { paddingBottom: 120 },
+  op0_3: { opacity: 0.3 },
+  flex1: { flex: 1 },
+  op0_45: { opacity: 0.45 },
+  mt12: { marginTop: 12 },
+  maxh420: { maxHeight: 420 },
+  op0_5: { opacity: 0.5 },
+  p4: { padding: 4 },
+  maxh200: { maxHeight: 200 },
+  ml4: { marginLeft: 4 },
+  w1: { width: 1 },
+  fdrow_gap6: { flexDirection: 'row', gap: 6 },
+  mt100: { marginTop: 100 },
+  flex1_mx8: { flex: 1, marginHorizontal: 8 },
+  p2: { padding: 2 },
+});

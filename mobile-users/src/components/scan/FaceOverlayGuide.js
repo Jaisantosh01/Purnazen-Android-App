@@ -125,15 +125,14 @@ const FaceOverlayGuide = ({
       {/* Breathing glow halo (ready state only) */}
       {status === 'ready' && (
         <Animated.View
-          style={{
-            position: 'absolute',
+          style={[inline.posabsolute, {
             left: cx - haloW / 2,
             top: cy - haloH / 2,
             width: haloW,
             height: haloH,
             opacity: haloOpacity,
             transform: [{ scale: haloScale }],
-          }}
+          }]}
         >
           <Svg width={haloW} height={haloH}>
             <Ellipse
@@ -151,7 +150,7 @@ const FaceOverlayGuide = ({
 
       {/* Auto-capture countdown */}
       {countdown != null && (
-        <View style={[styles.countdownWrap, { left: 0, right: 0, top: cy - 54 }]}>
+        <View style={[styles.countdownWrap, [inline.left0_right0, { top: cy - 54 }]]}>
           <Animated.Text style={[styles.countdownText, { transform: [{ scale: tickScale }] }]}>
             {countdown}
           </Animated.Text>
@@ -173,7 +172,7 @@ const FaceOverlayGuide = ({
 
       {/* Live check chips */}
       {checks && (
-        <View style={[styles.chipsRow, { top: cy + ry + 64, left: 0, right: 0 }]}>
+        <View style={[styles.chipsRow, [inline.left0_right0, { top: cy + ry + 64 }]]}>
           <CheckChip icon="white-balance-sunny" label="Lighting" state={checks.lighting} />
           <CheckChip icon="face-recognition" label="Position" state={checks.position} />
           <CheckChip icon="blur" label="Clarity" state={checks.clarity} />
@@ -182,7 +181,7 @@ const FaceOverlayGuide = ({
 
       {/* On-device privacy badge */}
       {onDevice && (
-        <View style={[styles.privacyBadge, { top: headerHeight + 10, left: 0, right: 0 }]}>
+        <View style={[styles.privacyBadge, [inline.left0_right0, { top: headerHeight + 10 }]]}>
           <View style={styles.privacyPill}>
             <MCIcon name="shield-check" size={12} color="#4ade80" />
             <Text style={styles.privacyText}>Live checks run on your device</Text>
@@ -279,4 +278,10 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '500',
   },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  posabsolute: { position: 'absolute' },
+  left0_right0: { left: 0, right: 0 },
 });

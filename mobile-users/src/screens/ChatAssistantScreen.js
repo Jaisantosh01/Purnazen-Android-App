@@ -41,7 +41,7 @@ const ChatAssistantScreen = ({ route, navigation }) => {
 
   const [flow, setFlow] = useState(null);
   const [history, setHistory] = useState([]);
-  const [currentQuestionId, setCurrentQuestionId] = useState(startQuestionId);
+  const [, setCurrentQuestionId] = useState(startQuestionId);
   const [loading, setLoading] = useState(true);
 
   const scrollViewRef = useRef();
@@ -175,7 +175,7 @@ const ChatAssistantScreen = ({ route, navigation }) => {
       <ScrollView
         ref={scrollViewRef}
         style={styles.chatContainer}
-        contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+        contentContainerStyle={inline.p16_pb40}
       >
         {history.map(renderBubble)}
       </ScrollView>
@@ -310,4 +310,9 @@ const makeStyles = colors => StyleSheet.create({
     borderTopColor: colors.border,
     backgroundColor: colors.card,
   },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  p16_pb40: { padding: 16, paddingBottom: 40 },
 });

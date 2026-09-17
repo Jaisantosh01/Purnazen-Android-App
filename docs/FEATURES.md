@@ -112,7 +112,7 @@ graceful-degradation ladder. Details: [FACE_ANALYSIS_AI.md](FACE_ANALYSIS_AI.md)
 | Subscriptions | `SubscriptionsScreen` | `GET /subscriptions/plans`, `POST /subscriptions/subscribe` | Partial | Plans are served at ₹0; priced plans are refused (402) until Play Billing / StoreKit verification exists — STATUS.md Phase 4 |
 | Update banner | `updateService`, `UpdateBanner` | `GET /app-releases/latest` | Done | Version check only; tapping deep-links to the store listing. The app never downloads or installs a build itself — Play's Device and Network Abuse policy forbids it. |
 | Error reporting | `ErrorBoundary` + service | `POST /errors/report` | Done | |
-| Download my data | Settings row | — | UI only | Alert stub; no export pipeline |
+| Download my data | Settings row | `POST /users/me/data-export` → `GET /users/me/data-export.json?t=` | Done | JSON of everything held about the account, 10-min link token, opened in the system browser. Images referenced by storage path |
 | Push notifications (FCM) | `pushService` + `NotificationCenterScreen` | `/notifications/device-tokens`, `fcm_service` | Done | Android. iOS needs an APNs key uploaded to Firebase |
 
 ---
@@ -208,6 +208,6 @@ Phased plan with estimates: **[STATUS.md](STATUS.md)**. Backlog: **[TASKS.md](TA
 2. **Store accounts & listings** — Play Console / Apple Developer organisation accounts, listing assets, lawyer-reviewed legal copy.
 3. **Monetisation** — no Play Billing / StoreKit; plans are ₹0. Razorpay is sandbox-only for consultations.
 4. **Hardening** — Firebase App Check, admin 2FA, Redis in production, Sentry/monitoring, load test, analyzer test matrix.
-5. **Data rights** — "Download my data" export is a stub.
+5. **Data rights** — export done; images are referenced, not bundled.
 6. **Face Glow v2** — muscle-tone display, skin-type label, routine player, milestones, challenges/streaks, check-ins, AI coach, transformation video.
 7. **Staff-app gaps** — therapy-feedback review screens; quick-relief and support-contact admin UI.

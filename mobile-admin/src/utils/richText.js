@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, View } from 'react-native';
+import { Text, View , StyleSheet } from 'react-native';
 
 // Renderer for the lightweight HTML subset used by content pages
 // (<b>/<strong>, <i>/<em>, <u>, <small>, <h1>-<h3>, <li>, <br>, <p>, <ul>/<ol>).
@@ -118,11 +118,11 @@ export const renderRichText = (html, colors) => {
     const rows = listBuffer;
     listBuffer = [];
     elements.push(
-      <View key={`list_${key++}`} style={{ marginLeft: 8, marginBottom: 6 }}>
+      <View key={`list_${key++}`} style={inline.ml8_mb6}>
         {rows.map((row, i) => (
-          <View key={i} style={{ flexDirection: 'row', marginBottom: 2 }}>
-            <Text style={[baseStyle, { marginRight: 6 }]}>{'•'}</Text>
-            <Text style={[baseStyle, { flex: 1 }]}>{row}</Text>
+          <View key={i} style={inline.fdrow_mb2}>
+            <Text style={[baseStyle, inline.mr6]}>{'•'}</Text>
+            <Text style={[baseStyle, inline.flex1]}>{row}</Text>
           </View>
         ))}
       </View>
@@ -134,7 +134,7 @@ export const renderRichText = (html, colors) => {
     if (!trimmed) {
       flushList();
       // Preserve intentional blank lines as paragraph spacing
-      if (idx > 0) elements.push(<View key={`sp_${key++}`} style={{ height: 6 }} />);
+      if (idx > 0) elements.push(<View key={`sp_${key++}`} style={inline.h6} />);
       return;
     }
 
@@ -172,7 +172,7 @@ export const renderRichText = (html, colors) => {
     const inner = isSmallLine ? trimmed.replace(/^<small(\s[^>]*)?>/i, '').replace(/<\/small>$/i, '') : trimmed;
 
     elements.push(
-      <Text key={`p_${key++}`} style={[lineStyle, { marginBottom: 2 }]}>
+      <Text key={`p_${key++}`} style={[lineStyle, inline.mb2]}>
         {renderInline(inner, lineStyle, `p_${idx}`)}
       </Text>
     );
@@ -181,3 +181,13 @@ export const renderRichText = (html, colors) => {
   flushList();
   return elements;
 };
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  mb2: { marginBottom: 2 },
+  h6: { height: 6 },
+  flex1: { flex: 1 },
+  mr6: { marginRight: 6 },
+  fdrow_mb2: { flexDirection: 'row', marginBottom: 2 },
+  ml8_mb6: { marginLeft: 8, marginBottom: 6 },
+});

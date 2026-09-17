@@ -192,7 +192,7 @@ const HealthReportScreen = () => {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 32 }}
+        contentContainerStyle={inline.pb32}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={colors.primary} colors={[colors.primary]} />
         }
@@ -406,4 +406,9 @@ const makeStyles = colors => StyleSheet.create({
     marginHorizontal: 16, marginTop: 22,
     fontSize: 11.5, lineHeight: 17, color: colors.textMuted, textAlign: 'center',
   },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  pb32: { paddingBottom: 32 },
 });

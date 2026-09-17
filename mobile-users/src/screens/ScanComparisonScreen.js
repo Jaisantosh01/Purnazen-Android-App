@@ -91,7 +91,6 @@ const ScanComparisonScreen = ({ navigation, route }) => {
   const renderTongueBody = () => {
     const delta = data?.wellnessDelta;
     const improved = delta != null && delta > 0;
-    const worse = delta != null && delta < 0;
     const color = delta == null || delta === 0 ? colors.textMuted : improved ? '#22c55e' : '#ef4444';
     const cur = data?.current?.results?.overallWellnessScore;
 
@@ -125,7 +124,7 @@ const ScanComparisonScreen = ({ navigation, route }) => {
               <View style={styles.markerValues}>
                 <Text style={styles.baseVal}>{pretty(m.baseline)}</Text>
                 <MCIcon name="arrow-right-thin" size={16} color={colors.textMuted} />
-                <Text style={[styles.curVal, m.changed && { color: '#C850C0' }]}>{pretty(m.current)}</Text>
+                <Text style={[styles.curVal, m.changed && inline.cC850C0]}>{pretty(m.current)}</Text>
               </View>
               <MCIcon
                 name={m.changed ? 'swap-horizontal' : 'equal'}
@@ -149,7 +148,7 @@ const ScanComparisonScreen = ({ navigation, route }) => {
           <MCIcon name="arrow-left" size={22} color={colors.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Progress</Text>
-        <View style={{ width: 38 }} />
+        <View style={inline.w38} />
       </View>
 
       {loading ? (
@@ -165,7 +164,7 @@ const ScanComparisonScreen = ({ navigation, route }) => {
           </Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+        <ScrollView contentContainerStyle={inline.p16_pb40}>
           <Text style={styles.caption}>
             {fmtDate(data?.baseline?.createdAt)} → {fmtDate(data?.current?.createdAt)}
           </Text>
@@ -240,4 +239,11 @@ const makeStyles = colors => StyleSheet.create({
   markerDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   markerValues: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, justifyContent: 'center' },
   markerFlag: { width: 24, textAlign: 'right' },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  p16_pb40: { padding: 16, paddingBottom: 40 },
+  w38: { width: 38 },
+  cC850C0: { color: '#C850C0' },
 });

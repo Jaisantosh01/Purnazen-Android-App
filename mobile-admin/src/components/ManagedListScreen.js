@@ -208,7 +208,7 @@ export default function ManagedListScreen({ config }) {
     return (
       <View style={styles.inputRow}>
         {isColor ? (
-          <View style={[styles.swatch, { backgroundColor: HEX.test(String(value || '')) ? value : 'transparent' }]} />
+          <View style={[styles.swatch, HEX.test(String(value || '')) ? { backgroundColor: value } : inline.swatchEmpty]} />
         ) : null}
         <TextInput
           style={[styles.input, f.type === 'multiline' && styles.inputMulti, isColor && styles.inputFlex]}
@@ -355,3 +355,8 @@ const makeStyles = colors =>
     saveText: { color: colors.white, fontWeight: '800' },
     disabled: { opacity: 0.6 },
   });
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  swatchEmpty: { backgroundColor: 'transparent' },
+});

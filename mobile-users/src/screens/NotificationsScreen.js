@@ -4,8 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
-  StatusBar,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -86,12 +84,12 @@ const NotificationsScreen = ({ navigation }) => {
     <View style={styles.root}>
       <ScreenHeader title="Notifications" subtitle="Manage your alerts" backBehavior="popToRoot" />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={inline.pb40}>
 
         <View style={styles.masterRow}>
           <View style={styles.masterLeft}>
             <MCIcon name="bell-outline" size={22} color={colors.primary} />
-            <View style={{ marginLeft: 12 }}>
+            <View style={inline.ml12}>
               <Text style={styles.masterTitle}>All Notifications</Text>
               <Text style={styles.masterSub}>Enable or disable everything at once</Text>
             </View>
@@ -207,4 +205,10 @@ const makeStyles = colors => StyleSheet.create({
   },
   emptyRecentTitle: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
   emptyRecentSub:   { fontSize: 12, color: colors.textMuted, textAlign: 'center', paddingHorizontal: 24 },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  ml12: { marginLeft: 12 },
+  pb40: { paddingBottom: 40 },
 });

@@ -96,6 +96,12 @@ class User(Base):
         return today.year - born.year - ((today.month, today.day) < (born.month, born.day))
 
     @property
+    def is_staff(self) -> bool:
+        from app.core.config import settings
+
+        return bool(self.role and self.role.name.lower() in settings.staff_roles)
+
+    @property
     def mfa_required(self) -> bool:
         """Whether this account's role must use two-step verification."""
         from app.core.config import settings

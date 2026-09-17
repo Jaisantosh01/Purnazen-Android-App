@@ -49,7 +49,7 @@ const ReliefPlayer = ({ session, navigation, reliefId }) => {
       setIsPlaying(false);
       clearInterval(timerRef.current);
       // Sync completed on end
-      const totalSec = parseInt(session.duration) * 60 || 300;
+      const totalSec = parseInt(session.duration, 10) * 60 || 300;
       syncVideoProgress(reliefId, session.id || reliefId, 'Completed', totalSec / 60, 'relief');
     }
   }, [currentStep, totalSteps, steps, currentCycle, session, progressAnim, reliefId]);
@@ -80,7 +80,7 @@ const ReliefPlayer = ({ session, navigation, reliefId }) => {
   
   const onVideoProgress = (data) => {
     const watchedTime = data.currentTime;
-    const totalSec = parseInt(session.duration) * 60 || 300;
+    const totalSec = parseInt(session.duration, 10) * 60 || 300;
 
     // Send completed if > 90%
     if (watchedTime / totalSec > 0.9 && videoProgressRef.current.watchedTime / totalSec <= 0.9) {
@@ -111,7 +111,7 @@ const ReliefPlayer = ({ session, navigation, reliefId }) => {
         <Text style={styles.cycleText}>Cycle {currentCycle}/{session.totalCycles}</Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={inline.pb100}>
         <View style={styles.animationArea}>
           {session.videoUrl ? (
             <Video source={{ uri: session.videoUrl }} style={styles.video}
@@ -377,4 +377,9 @@ const makeStyles = colors => StyleSheet.create({
     paddingHorizontal: SPACING.xxl, paddingVertical: SPACING.md, borderRadius: RADIUS.md,
   },
   retryText: { fontSize: 14, fontWeight: '700', color: colors.white },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  pb100: { paddingBottom: 100 },
 });

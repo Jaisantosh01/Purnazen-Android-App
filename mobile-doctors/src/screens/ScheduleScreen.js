@@ -13,20 +13,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
 import { SPACING, RADIUS } from '../constants/theme';
-import availabilityService from '../services/availabilityService';
-import { useAuthStore } from '../store/authStore';
-import { showSuccess, showError } from '../utils/toast';
 import { useLeaveStore } from '../store/useLeaveStore';
 import useTheme from '../hooks/useTheme';
-import { showAlert } from '../utils/alert';
-
-const LEAVE_STATUS_CHIPS = {
-  'Pending': { bg: '#FEF3C7', text: '#92400E' },
-  'Approved': { bg: '#ECFDF5', text: '#065F46' },
-  'Rejected': { bg: '#FEF2F2', text: '#991B1B' },
-  'Cancelled': { bg: '#F3F4F6', text: '#4B5563' },
-  'Completed': { bg: '#EFF6FF', text: '#1D4ED8' },
-};
 
 const STATUS_COLORS = {
   pending: { primary: '#2563EB', bgLight: '#FEF3C7', textDark: '#92400E' },
@@ -80,11 +68,6 @@ const getLeaveDurationText = (item) => {
   return dateRange || 'Full Day';
 };
 
-const getStatusLabel = (status) => {
-  if (!status) return 'Pending';
-  return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
-};
-
 const parseDateSafe = (dStr) => {
   if (!dStr) return new Date(0);
   if (typeof dStr !== 'string') return new Date(dStr);
@@ -105,35 +88,6 @@ const formatDateStr = (dStr) => {
   return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
 };
 
-const getFormattedDates = (item) => {
-  if (item.dates) return item.dates;
-  const start = formatDateStr(item.start_date || item.startDate || item.leaveDate);
-  const end = formatDateStr(item.end_date || item.endDate || item.leaveDate);
-  const type = item.leaveType || item.leave_type || item.type;
-  const startT = item.startTime || item.start_time;
-  const endT = item.endTime || item.end_time;
-
-  if (type === 'single') {
-    const timeRange = startT && endT ? ` (${startT} - ${endT})` : '';
-    return `${start}${timeRange}`;
-  } else if (type === 'multiple') {
-    return `${start} - ${end} (Full Day)`;
-  } else if (type === 'custom') {
-    return `${start} - ${end}`;
-  }
-  return `${start} - ${end}`;
-};
-
-const DAY_ORDER = [
-  'monday',
-  'tuesday',
-  'wednesday',
-  'thursday',
-  'friday',
-  'saturday',
-  'sunday',
-];
-
 const WEEKDAYS = [
   'Monday',
   'Tuesday',
@@ -144,56 +98,19 @@ const WEEKDAYS = [
   'Sunday',
 ];
 
-const formatTime = (timeStr) => {
-  if (!timeStr) return '';
-  const [h, m] = timeStr.split(':');
-  const hour = parseInt(h, 10);
-  const ampm = hour >= 12 ? 'PM' : 'AM';
-  const displayHour = hour % 12 || 12;
-  return `${String(displayHour).padStart(2, '0')}:${m} ${ampm}`;
-};
-
-const cleanName = (name) => {
-  if (!name) return '';
-  return name
-    .toLowerCase()
-    .replace(/^(dr\b\.?|dr\b)\s*/gi, '')
-    .replace(/^(dr\b\.?|dr\b)\s*/gi, '')
-    .trim();
-};
-
 const ScheduleScreen = ({ navigation }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const currentUser = useAuthStore(s => s.doctor);
   const rawLeaves = useLeaveStore((s) => s.leaves);
   // Memoised: a fresh [] on every render made every useMemo below depend on a
   // new array identity each time, so all of them recomputed on every render.
   const leaves = useMemo(() => (Array.isArray(rawLeaves) ? rawLeaves : []), [rawLeaves]);
   const fetchLeaves = useLeaveStore((s) => s.fetchLeaves);
-  const [selectedStatus, setSelectedStatus] = useState('pending');
+  const [selectedStatus] = useState('pending');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('Availability');
   const fadeAnim = useRef(new Animated.Value(1)).current;
-
-  const statusCounts = useMemo(() => {
-    const counts = { pending: 0, approved: 0, rejected: 0, cancelled: 0 };
-    leaves.forEach(l => {
-      const s = (l.status || '').toLowerCase();
-      if (s in counts) {
-        counts[s]++;
-      }
-    });
-    return counts;
-  }, [leaves]);
-
-  const filteredLeaves = useMemo(() => {
-    return leaves.filter(l => {
-      if (selectedStatus === 'all') return true;
-      return (l.status || '').toLowerCase() === selectedStatus;
-    });
-  }, [leaves, selectedStatus]);
 
   const upcomingLeavesFiltered = useMemo(() => {
     const now = new Date();
@@ -249,24 +166,6 @@ const ScheduleScreen = ({ navigation }) => {
       useNativeDriver: true,
     }).start();
   };
-
-  const upcomingLeave = useMemo(() => {
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-
-    const upcoming = (leaves || []).filter(l => {
-      const dateStr = l.endDate || l.end_date || l.leaveDate;
-      if (!dateStr) return false;
-      const end = parseDateSafe(dateStr);
-      const statusNormalized = l.status ? l.status.toLowerCase() : '';
-      return end >= now && (statusNormalized === 'pending' || statusNormalized === 'approved');
-    });
-
-    if (upcoming.length === 0) return null;
-
-    upcoming.sort((a, b) => parseDateSafe(a.startDate || a.start_date || a.leaveDate) - parseDateSafe(b.startDate || b.start_date || b.leaveDate));
-    return upcoming[0];
-  }, [leaves]);
 
   const fetchData = useCallback(async (showLoader = true) => {
     if (showLoader) setLoading(true);
@@ -329,34 +228,6 @@ const ScheduleScreen = ({ navigation }) => {
     </View>
   );
 
-  const handleDelete = (availabilityId, timeLabel, dayLabel) => {
-    showAlert(
-      'Delete Availability',
-      `Are you sure you want to remove the slot ${timeLabel} on ${dayLabel}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const success = await availabilityService.remove(availabilityId);
-              if (success) {
-                showSuccess('Availability removed successfully.');
-                fetchData(false);
-              } else {
-                showError('Could not delete availability.');
-              }
-            } catch (err) {
-              console.warn('[ScheduleScreen] delete error:', err);
-              showError('Error deleting availability.');
-            }
-          },
-        },
-      ]
-    );
-  };
-
   const renderAvailabilityContent = () => {
     return (
       <Animated.View
@@ -400,35 +271,6 @@ const ScheduleScreen = ({ navigation }) => {
     );
   };
 
-  const renderStatusIcon = (statusKey, isSelected) => {
-    let iconName = 'clock-outline';
-    let iconColor = STATUS_COLORS[statusKey].primary;
-    let bgCircleColor = STATUS_COLORS[statusKey].bgLight;
-
-    if (statusKey === 'pending') {
-      iconName = 'clock-outline';
-    } else if (statusKey === 'approved') {
-      iconName = 'check-circle-outline';
-    } else if (statusKey === 'rejected') {
-      iconName = 'close-circle-outline';
-    } else if (statusKey === 'cancelled') {
-      iconName = 'minus-circle-outline';
-    } else if (statusKey === 'all') {
-      iconName = 'cards-outline';
-    }
-
-    if (isSelected) {
-      iconColor = colors.white;
-      bgCircleColor = 'rgba(255, 255, 255, 0.2)';
-    }
-
-    return (
-      <View style={[styles.statusIconContainer, { backgroundColor: bgCircleColor }]}>
-        <MCIcon name={iconName} size={18} color={iconColor} />
-      </View>
-    );
-  };
-
   const renderLeaveContent = () => {
     return (
       <Animated.View
@@ -466,7 +308,7 @@ const ScheduleScreen = ({ navigation }) => {
               activeOpacity={0.7}
               onPress={() => navigation.navigate('LeaveHistory', { filter: 'all' })}
             >
-              <View style={[styles.applyLeaveIconContainer, { backgroundColor: '#F3E8FF' }]}>
+              <View style={[styles.applyLeaveIconContainer, inline.bgF3E8FF]}>
                 <MCIcon name="history" size={22} color="#7C3AED" />
               </View>
             </TouchableOpacity>
@@ -500,8 +342,8 @@ const ScheduleScreen = ({ navigation }) => {
                   </View>
                   
                   <View style={styles.historyCardRight}>
-                    <View style={[styles.statusBadge, { backgroundColor: STATUS_COLORS[item.status.toLowerCase()]?.bgLight || '#F3F4F6', borderRadius: RADIUS.pill, paddingHorizontal: 10, paddingVertical: 5 }]}>
-                      <Text style={[styles.statusBadgeText, { color: STATUS_COLORS[item.status.toLowerCase()]?.textDark || '#4B5563', fontSize: 10, fontWeight: '800' }]}>
+                    <View style={[styles.statusBadge, inline.statusPill, { backgroundColor: STATUS_COLORS[item.status.toLowerCase()]?.bgLight || '#F3F4F6', borderRadius: RADIUS.pill }]}>
+                      <Text style={[styles.statusBadgeText, inline.statusPillText, { color: STATUS_COLORS[item.status.toLowerCase()]?.textDark || '#4B5563' }]}>
                         {getStatusLabelText(item.status)}
                       </Text>
                     </View>
@@ -1085,4 +927,11 @@ const makeStyles = colors => StyleSheet.create({
     paddingHorizontal: SPACING.md,
   },
   fabText: { color: colors.white, fontSize: 14.5, fontWeight: '800' },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  statusPill: { paddingHorizontal: 10, paddingVertical: 5 },
+  statusPillText: { fontSize: 10, fontWeight: '800' },
+  bgF3E8FF: { backgroundColor: '#F3E8FF' },
 });

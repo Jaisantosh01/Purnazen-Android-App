@@ -3,7 +3,6 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import UserManagementScreen from './UserManagementScreen';
 import DoctorManagementScreen from './DoctorManagementScreen';
-import { ENDPOINTS } from '../constants/apiEndpoints';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 

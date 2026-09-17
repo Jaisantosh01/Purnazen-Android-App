@@ -4,8 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
-  StatusBar,
   ActivityIndicator,
 } from 'react-native';
 // @ts-ignore
@@ -94,7 +92,7 @@ const ConsentScreen = ({ navigation }) => {
       {loading ? (
         <View style={styles.center}><ActivityIndicator color={colors.primary} size="large" /></View>
       ) : (
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+        <ScrollView contentContainerStyle={inline.p16_pb40}>
           <Text style={styles.intro}>
             You're in control of your data. Manage what Purnazen can store and use below — changes
             take effect immediately.
@@ -106,7 +104,7 @@ const ConsentScreen = ({ navigation }) => {
                 <View style={styles.iconWrap}>
                   <MCIcon name={c.icon} size={22} color={colors.primary} />
                 </View>
-                <View style={{ flex: 1 }}>
+                <View style={inline.flex1}>
                   <Text style={styles.cardTitle}>{c.title}</Text>
                 </View>
                 {saving === c.key ? (
@@ -165,4 +163,10 @@ const makeStyles = colors => StyleSheet.create({
   cardDesc: { fontSize: 13, color: colors.textSecondary, lineHeight: 19, marginTop: 10 },
   note: { flexDirection: 'row', gap: 8, marginTop: 8, paddingHorizontal: 4 },
   noteText: { flex: 1, fontSize: 12, color: colors.textMuted, lineHeight: 17 },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  flex1: { flex: 1 },
+  p16_pb40: { padding: 16, paddingBottom: 40 },
 });

@@ -12,7 +12,6 @@ import {
   BackHandler,
 } from 'react-native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
-import * as DocumentPicker from 'expo-document-picker';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { WELLNESS_ICONS } from '../constants/icons';
@@ -26,20 +25,12 @@ import { showAlert } from '../utils/alert';
 import { handlePickFiles as sharedHandlePickFiles, uploadOne as sharedUploadOne, handleUploadAll as sharedHandleUploadAll } from '../utils/UploadHelper';
 import { ICONS_PER_PAGE } from '../constants/icons';
 
-const VIDEO_MIME_TYPES = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'video/webm', 'video/ogg'];
-
 const formatBytes = (bytes) => {
   if (!bytes || bytes <= 0) return '';
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 };
-
-const titleFromFilename = (name) =>
-  (name || '')
-    .replace(/\.[^.]+$/, '')
-    .replace(/[_-]+/g, ' ')
-    .trim();
 
 const STATUS_META = {
   pending: { icon: 'clock-outline', color: '#9CA3AF' },
@@ -274,10 +265,6 @@ const UploadVideoScreen = ({ route, navigation }) => {
     return null;
   };
 
-  const uploadOne = async (item) => {
-    await sharedUploadOne(item, selectedDir);
-  };
-
   const handleUploadAll = async () => {
     const hint = validationHint();
     if (hint) { showAlert('Cannot upload', hint); return; }
@@ -390,9 +377,9 @@ const UploadVideoScreen = ({ route, navigation }) => {
           {item.status === 'uploading'
             ? <ActivityIndicator size="small" color={meta.color} />
             : <MCIcon name={meta.icon} size={20} color={meta.color} />}
-          <View style={{ flex: 1, marginHorizontal: 8 }}>
+          <View style={inline.flex1_mx8}>
             <Text style={styles.queueTitle} numberOfLines={1}>{item.title || item.file.name}</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+            <View style={inline.fdrow_aicenter_mt2}>
               <Text style={styles.queueMeta} numberOfLines={1}>
                 {item.file.name}{item.file.size ? ` • ${formatBytes(item.file.size)}` : ''}
               </Text>
@@ -402,7 +389,7 @@ const UploadVideoScreen = ({ route, navigation }) => {
             )}
           </View>
           {item.status !== 'uploading' && item.status !== 'done' && (
-            <TouchableOpacity onPress={(e) => { e.stopPropagation(); removeItem(item.id); }} style={{ padding: 4 }}>
+            <TouchableOpacity onPress={(e) => { e.stopPropagation(); removeItem(item.id); }} style={inline.p4}>
               <MCIcon name="close-circle" size={20} color={colors.danger} />
             </TouchableOpacity>
           )}
@@ -488,8 +475,8 @@ const UploadVideoScreen = ({ route, navigation }) => {
               </Text>
             </TouchableOpacity>
 
-            <View style={{ flexDirection: 'row', gap: 10 }}>
-              <View style={{ flex: 1 }}>
+            <View style={inline.fdrow_gap10}>
+              <View style={inline.flex1}>
                 <Text style={styles.smallLabel}>Group / Session</Text>
                 <TouchableOpacity
                   style={styles.pickerInput}
@@ -531,7 +518,7 @@ const UploadVideoScreen = ({ route, navigation }) => {
         onBack={handleHeaderBack}
       />
 
-      <ScrollView style={styles.body} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView style={styles.body} showsVerticalScrollIndicator={false} contentContainerStyle={inline.pb40}>
         {/* File Picker */}
         <Text style={styles.label}>Video Files</Text>
         <TouchableOpacity style={styles.filePicker} onPress={handlePickFiles} disabled={uploading}>
@@ -562,9 +549,9 @@ const UploadVideoScreen = ({ route, navigation }) => {
         )}
 
         {/* Directory Selection */}
-        <View style={[styles.sectionHeader, { marginTop: 20 }]}>
+        <View style={[styles.sectionHeader, inline.mt20]}>
           <Text style={styles.label}>Storage Folder</Text>
-          <View style={{ flexDirection: 'row', gap: 6 }}>
+          <View style={inline.fdrow_gap6}>
             <TouchableOpacity
               style={[styles.viewToggleBtn, viewMode === 'grid' && styles.viewToggleActive]}
               onPress={() => setViewMode('grid')}
@@ -593,7 +580,7 @@ const UploadVideoScreen = ({ route, navigation }) => {
               </TouchableOpacity>
             </React.Fragment>
           ))}
-          <View style={{ flex: 1 }} />
+          <View style={inline.flex1} />
           {!!currentPath && (
             <TouchableOpacity style={styles.createDirBtn} onPress={goUpFolder}>
               <MCIcon name="arrow-up-left" size={18} color={colors.primary} />
@@ -712,7 +699,7 @@ const UploadVideoScreen = ({ route, navigation }) => {
           )}
           {items.some(it => it.status === 'pending') && (
             <TouchableOpacity
-              style={[styles.uploadBtn, !canUpload && { opacity: 0.6 }]}
+              style={[styles.uploadBtn, !canUpload && inline.op0_6]}
               onPress={handleUploadAll}
               disabled={!canUpload}
             >
@@ -762,7 +749,7 @@ const UploadVideoScreen = ({ route, navigation }) => {
             <Text style={styles.modalTitle}>
               {targetPickerFor === '__all__' ? 'Set target for all videos' : 'Select target'}
             </Text>
-            <ScrollView style={{ maxHeight: 420 }}>
+            <ScrollView style={inline.maxh420}>
               <Text style={styles.targetSection}>Video Groups</Text>
               {groups.length === 0 && <Text style={styles.targetEmpty}>No groups available</Text>}
               {groups.map(g => (
@@ -776,19 +763,19 @@ const UploadVideoScreen = ({ route, navigation }) => {
                 </TouchableOpacity>
               ))}
 
-              <Text style={[styles.targetSection, { marginTop: 12 }]}>Sessions</Text>
+              <Text style={[styles.targetSection, inline.mt12]}>Sessions</Text>
               {sessions.length === 0 && <Text style={styles.targetEmpty}>No sessions available</Text>}
               {sessions.map(s => {
                 const linked = !!s.videoGroupId;
                 return (
                   <TouchableOpacity
                     key={s.id}
-                    style={[styles.targetOption, !linked && { opacity: 0.45 }]}
+                    style={[styles.targetOption, !linked && inline.op0_45]}
                     disabled={!linked}
                     onPress={() => applyTarget({ groupId: s.videoGroupId, sessionId: s.id })}
                   >
                     <MCIcon name={s.icon || 'meditation'} size={20} color={colors.primary} />
-                    <View style={{ flex: 1 }}>
+                    <View style={inline.flex1}>
                       <Text style={styles.targetOptionText}>{s.title}</Text>
                       {!linked && <Text style={styles.targetEmpty}>No video group linked</Text>}
                     </View>
@@ -821,7 +808,7 @@ const UploadVideoScreen = ({ route, navigation }) => {
             {totalIconPages > 1 && (
               <View style={styles.iconPagination}>
                 <TouchableOpacity
-                  style={[styles.iconPageBtn, iconPage === 0 && { opacity: 0.3 }]}
+                  style={[styles.iconPageBtn, iconPage === 0 && inline.op0_3]}
                   disabled={iconPage === 0}
                   onPress={() => setIconPage(p => p - 1)}
                 >
@@ -830,7 +817,7 @@ const UploadVideoScreen = ({ route, navigation }) => {
                 </TouchableOpacity>
                 <Text style={styles.iconPageIndicator}>{iconPage + 1} / {totalIconPages}</Text>
                 <TouchableOpacity
-                  style={[styles.iconPageBtn, iconPage >= totalIconPages - 1 && { opacity: 0.3 }]}
+                  style={[styles.iconPageBtn, iconPage >= totalIconPages - 1 && inline.op0_3]}
                   disabled={iconPage >= totalIconPages - 1}
                   onPress={() => setIconPage(p => p + 1)}
                 >
@@ -998,3 +985,20 @@ const makeStyles = colors => StyleSheet.create({
 });
 
 export default UploadVideoScreen;
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  op0_3: { opacity: 0.3 },
+  flex1: { flex: 1 },
+  op0_45: { opacity: 0.45 },
+  mt12: { marginTop: 12 },
+  maxh420: { maxHeight: 420 },
+  op0_6: { opacity: 0.6 },
+  fdrow_gap6: { flexDirection: 'row', gap: 6 },
+  mt20: { marginTop: 20 },
+  pb40: { paddingBottom: 40 },
+  fdrow_gap10: { flexDirection: 'row', gap: 10 },
+  p4: { padding: 4 },
+  fdrow_aicenter_mt2: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
+  flex1_mx8: { flex: 1, marginHorizontal: 8 },
+});

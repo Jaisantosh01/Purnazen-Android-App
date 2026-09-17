@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, ActivityIndicator, StatusBar } from 'react-native';
+import { View, ActivityIndicator, StatusBar , StyleSheet } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -235,7 +235,7 @@ function MainTabs() {
 // ── Minimal splash shown while bootstrap is in-flight ─────────────────────────
 function SplashScreen() {
   return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary }}>
+    <View style={[inline.flex1_aicenter_jccenter, { backgroundColor: COLORS.primary }]}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
       <ActivityIndicator size="large" color="#fff" />
     </View>
@@ -342,3 +342,8 @@ export default function App() {
     </ErrorBoundary>
   );
 }
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  flex1_aicenter_jccenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+});

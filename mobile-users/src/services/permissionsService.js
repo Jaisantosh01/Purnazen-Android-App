@@ -92,7 +92,7 @@ const permissionsService = {
   async requestAll() {
     const result = {};
     for (const name of [...MANDATORY, ...OPTIONAL]) {
-      // eslint-disable-next-line no-await-in-loop
+       
       result[name] = (await request(name)) === 'granted';
     }
     await AsyncStorage.setItem(PROMPTED_KEY, '1');

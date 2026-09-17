@@ -205,7 +205,7 @@ const EditUserScreen = ({ route, navigation }) => {
                     {f.value}
                   </Text>
                   {(isPhone || isEmail) && (
-                    <MCIcon name="open-in-new" size={16} color={colors.primary} style={{ marginLeft: 6 }} />
+                    <MCIcon name="open-in-new" size={16} color={colors.primary} style={inline.ml6} />
                   )}
                 </TouchableOpacity>
               );
@@ -372,3 +372,8 @@ const makeStyles = colors => StyleSheet.create({
 });
 
 export default EditUserScreen;
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  ml6: { marginLeft: 6 },
+});

@@ -61,7 +61,7 @@ class MfaService:
             "success": True,
             "message": message,
             "access_token": create_access_token(str(user.id), user.token_version or 0),
-            "refresh_token": create_refresh_token(str(user.id), user.token_version or 0),
+            "refresh_token": create_refresh_token(str(user.id), user.token_version or 0, staff=user.is_staff),
             "user": user.to_dict(),
         }
 

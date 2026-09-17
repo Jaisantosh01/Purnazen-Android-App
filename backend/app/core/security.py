@@ -43,13 +43,9 @@ def create_access_token(subject: str, version: int = 0) -> str:
     )
 
 
-def create_refresh_token(subject: str, version: int = 0) -> str:
-    return _create_token(
-        subject,
-        "refresh",
-        timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
-        version,
-    )
+def create_refresh_token(subject: str, version: int = 0, staff: bool = False) -> str:
+    days = settings.STAFF_REFRESH_TOKEN_EXPIRE_DAYS if staff else settings.REFRESH_TOKEN_EXPIRE_DAYS
+    return _create_token(subject, "refresh", timedelta(days=days), version)
 
 def decode_token(token: str) -> dict:
     return jwt.decode(

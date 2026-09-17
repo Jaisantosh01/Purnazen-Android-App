@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
@@ -93,16 +93,16 @@ const ContentManagementScreen = ({ navigation }) => {
     return (
       <TouchableOpacity style={[styles.card, isInactive && styles.cardInactive]} onPress={() => handleCardPress(item)} activeOpacity={0.95}>
         <View style={styles.cardHeader}>
-          <MCIcon name={item.type === 'terms' ? 'file-document-outline' : 'shield-lock-outline'} size={18} color={colorStyle} style={{ marginRight: 8 }} />
-          <View style={{ flex: 1 }}>
+          <MCIcon name={item.type === 'terms' ? 'file-document-outline' : 'shield-lock-outline'} size={18} color={colorStyle} style={inline.mr8} />
+          <View style={inline.flex1}>
             <Text style={[styles.cardTitle, { color: colorStyle }]} numberOfLines={1}>{item.title || item.type}</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+            <View style={inline.fdrow_aicenter_gap6_mt2}>
               <Text style={styles.cardMeta}>v{item.version || '1.0'}</Text>
               <View style={[styles.roleChip, { backgroundColor: colors.primaryFaint }]}>
                 <MCIcon name="account" size={10} color={colors.textSecondary} />
                 <Text style={styles.roleChipText}>{item.roleName || 'Unknown'}</Text>
               </View>
-              {!item.isActive && <Text style={{ fontSize: 10, color: colors.danger || '#EF4444', fontWeight: '600' }}>Inactive</Text>}
+              {!item.isActive && <Text style={[inline.fs10_fw600, { color: colors.danger || '#EF4444' }]}>Inactive</Text>}
             </View>
           </View>
           <MCIcon name="chevron-right" size={18} color={colors.textMuted} />
@@ -132,7 +132,7 @@ const ContentManagementScreen = ({ navigation }) => {
         onBack={() => navigation.goBack()}
         underColor={colors.card}
         right={
-          <TouchableOpacity onPress={openAddModal} style={{ padding: 4 }}>
+          <TouchableOpacity onPress={openAddModal} style={inline.p4}>
             <MCIcon name="plus" size={24} color={colors.headerText} />
           </TouchableOpacity>
         }
@@ -167,7 +167,7 @@ const ContentManagementScreen = ({ navigation }) => {
       </View>
 
       {activeItems.length === 0 && !loading ? (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <View style={inline.flex1_jccenter_aicenter}>
           <Text style={styles.emptyText}>No content yet. Tap + to add.</Text>
         </View>
       ) : (
@@ -180,7 +180,7 @@ const ContentManagementScreen = ({ navigation }) => {
           rightOpenValue={-75}
           stopLeftSwipe={130}
           stopRightSwipe={-130}
-          contentContainerStyle={{ padding: 12, paddingBottom: 32 }}
+          contentContainerStyle={inline.p12_pb32}
           refreshing={loading}
           onRefresh={fetchPages}
           closeOnRowOpen
@@ -195,14 +195,14 @@ const ContentManagementScreen = ({ navigation }) => {
             <TouchableOpacity style={[styles.pickerOption, !filterRoleId && styles.pickerOptionActive]}
               onPress={() => { setFilterRoleId(null); setFilterRolePicker(false); }}>
               <View style={[styles.checkbox, !filterRoleId && styles.checkboxActive]}>{!filterRoleId && <MCIcon name="check" size={14} color="#fff" />}</View>
-              <Text style={[styles.pickerOptionText, !filterRoleId && { color: colors.primary, fontWeight: '700' }]}>All Roles</Text>
+              <Text style={[styles.pickerOptionText, !filterRoleId && [inline.fw700, { color: colors.primary }]]}>All Roles</Text>
             </TouchableOpacity>
             <View style={styles.pickerDivider} />
             {(roles || []).filter(r => r.is_active !== false).map(role => (
               <TouchableOpacity key={role.id} style={[styles.pickerOption, filterRoleId === role.id && styles.pickerOptionActive]}
                 onPress={() => { setFilterRoleId(role.id); setFilterRolePicker(false); }}>
                 <View style={[styles.checkbox, filterRoleId === role.id && styles.checkboxActive]}>{filterRoleId === role.id && <MCIcon name="check" size={14} color="#fff" />}</View>
-                <Text style={[styles.pickerOptionText, filterRoleId === role.id && { color: colors.primary, fontWeight: '700' }]}>{role.name}</Text>
+                <Text style={[styles.pickerOptionText, filterRoleId === role.id && [inline.fw700, { color: colors.primary }]]}>{role.name}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -258,3 +258,15 @@ const makeStyles = colors => StyleSheet.create({
 });
 
 export default ContentManagementScreen;
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  fw700: { fontWeight: '700' },
+  p12_pb32: { padding: 12, paddingBottom: 32 },
+  flex1_jccenter_aicenter: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  p4: { padding: 4 },
+  fs10_fw600: { fontSize: 10, fontWeight: '600' },
+  fdrow_aicenter_gap6_mt2: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+  flex1: { flex: 1 },
+  mr8: { marginRight: 8 },
+});

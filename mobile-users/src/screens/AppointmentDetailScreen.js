@@ -10,7 +10,6 @@ import {
   Share,
 } from 'react-native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { showAlert } from '../utils/alert';
 import { APPOINTMENT_DETAIL_STATUS_COLORS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
 import { APPOINTMENT_HISTORY_STATUS_LABELS, APPOINTMENT_PAYMENT_LABELS } from '../constants/strings';
@@ -192,9 +191,7 @@ const AppointmentDetailScreen = ({ navigation, route }) => {
             </View>
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Payment</Text>
-              <View style={[styles.statusBadge, {
-                backgroundColor: appointment.paymentStatus === 'paid' ? '#10B981' : '#F59E0B',
-              }]}>
+              <View style={[styles.statusBadge, appointment.paymentStatus === 'paid' ? inline.paid : inline.unpaid]}>
                 <Text style={styles.statusText}>{PAYMENT_LABELS[appointment.paymentStatus] || appointment.paymentStatus}</Text>
               </View>
             </View>
@@ -313,4 +310,9 @@ const makeStyles = colors => StyleSheet.create({
     shadowOpacity: 0.05, shadowRadius: 3, elevation: 1,
   },
   descriptionText: { fontSize: 13, color: colors.textSecondary, lineHeight: 20 },
+});
+
+const inline = StyleSheet.create({
+  paid: { backgroundColor: '#10B981' },
+  unpaid: { backgroundColor: '#F59E0B' },
 });

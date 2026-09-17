@@ -119,18 +119,18 @@ const PatientProfileScreen = ({ route, navigation }) => {
         </View>
       ) : error ? (
         <View style={styles.center}>
-          <MCIcon name="alert-circle-outline" size={48} color={colors.danger} style={{ marginBottom: 12 }} />
+          <MCIcon name="alert-circle-outline" size={48} color={colors.danger} style={inline.mb12} />
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={fetchPatient}>
             <Text style={styles.retryText}>Retry</Text>
           </TouchableOpacity>
         </View>
       ) : patient ? (
-        <View style={{ flex: 1 }}>
+        <View style={inline.flex1}>
           <ScrollView
             contentContainerStyle={[
               styles.scrollContent,
-              isAppointmentActive && { paddingBottom: 100 },
+              isAppointmentActive && inline.pb100,
             ]}
             showsVerticalScrollIndicator={false}>
             {/* Top Profile Card */}
@@ -439,4 +439,11 @@ const makeStyles = colors =>
     fontSize: 15,
     fontWeight: '700',
   },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  pb100: { paddingBottom: 100 },
+  flex1: { flex: 1 },
+  mb12: { marginBottom: 12 },
 });

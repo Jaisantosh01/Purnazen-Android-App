@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Modal, TextInput, ScrollView, Pressable } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Modal, TextInput, ScrollView, Pressable } from 'react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -39,8 +39,7 @@ const VideoManagementScreen = ({ navigation }) => {
   const [groupDescription, setGroupDescription] = useState('');
   const [groupIcon, setGroupIcon] = useState(ROLE_ICONS[0]);
   const [iconModalVisible, setIconModalVisible] = useState(false);
-  const [iconTarget, setIconTarget] = useState('group');
-  const [groupIconPage, setGroupIconPage] = useState(0);
+  const [, setIconTarget] = useState('group');
   const [groupIsActive, setGroupIsActive] = useState(true);
 
   const [sessionModalVisible, setSessionModalVisible] = useState(false);
@@ -315,7 +314,7 @@ const VideoManagementScreen = ({ navigation }) => {
       {activeTab === 'sessions' && (
         sessionsLoading ? <ListSkeleton count={5} /> :
         sessionSortMode ? (
-          <View style={{ flex: 1 }}>
+          <View style={inline.flex1}>
             <View style={styles.sortBanner}>
               <MCIcon name="drag-variant" size={18} color={colors.warning} />
               <Text style={styles.sortBannerText}>Drag the handle to reorder sessions</Text>
@@ -348,11 +347,11 @@ const VideoManagementScreen = ({ navigation }) => {
                 </ScaleDecorator>
               );
             }}
-              containerStyle={{ flex: 1 }}
-              style={{ flex: 1 }}
-              contentContainerStyle={[styles.list, { paddingBottom: 56 }]}
+              containerStyle={inline.flex1}
+              style={inline.flex1}
+              contentContainerStyle={[styles.list, inline.pb56]}
             />
-            <View style={[styles.sortFooter, { position: 'absolute', bottom: 0, left: 0, right: 0 }]}>
+            <View style={[styles.sortFooter, inline.posabsolute_bottom0_left0_right0]}>
               <Text style={styles.sortFooterText}>{sortedSessions.length} session{sortedSessions.length !== 1 ? 's' : ''}</Text>
               <View style={styles.sortFooterActions}>
                 <TouchableOpacity style={styles.sortCancelBtn} onPress={toggleSessionSortMode}>
@@ -413,7 +412,7 @@ const VideoManagementScreen = ({ navigation }) => {
           closeOnRowPress={true}
           closeOnRowOpen={true}
           closeOnRowBeginSwipe={true}
-          style={{ flex: 1 }}
+          style={inline.flex1}
           contentContainerStyle={styles.list}
         />
       ))}
@@ -454,7 +453,7 @@ const VideoManagementScreen = ({ navigation }) => {
           closeOnRowPress={true}
           closeOnRowOpen={true}
           closeOnRowBeginSwipe={true}
-          style={{ flex: 1 }}
+          style={inline.flex1}
           contentContainerStyle={styles.list}
         />
       )}
@@ -464,15 +463,15 @@ const VideoManagementScreen = ({ navigation }) => {
         <View style={styles.modalOverlay}>
             <View style={styles.modalCard}>
                 <Text style={styles.modalTitle}>{isEditingGroup ? 'Edit Group' : 'Add New Group'}</Text>
-                <Text style={styles.label}>Title <Text style={{color: '#EF4444'}}>*</Text></Text>
+                <Text style={styles.label}>Title <Text style={inline.cEF4444}>*</Text></Text>
                 <TextInput style={styles.input} placeholder="Title" placeholderTextColor={colors.textMuted} value={groupTitle} onChangeText={setGroupTitle} />
-                <Text style={styles.label}>Description <Text style={{color: '#EF4444'}}>*</Text></Text>
+                <Text style={styles.label}>Description <Text style={inline.cEF4444}>*</Text></Text>
                 <TextInput style={styles.input} placeholder="Description" placeholderTextColor={colors.textMuted} value={groupDescription} onChangeText={setGroupDescription} multiline />
                 
                 <Text style={styles.label}>Select Icon</Text>
                 <TouchableOpacity style={styles.iconInput} onPress={() => { setIconTarget('group'); setIconModalVisible(true); }}>
                     <MCIcon name={groupIcon} size={24} color={colors.primary} />
-                    <Text style={{marginLeft: 10, color: colors.textPrimary}}>{groupIcon}</Text>
+                    <Text style={[inline.ml10, { color: colors.textPrimary }]}>{groupIcon}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.checkRow} onPress={() => setGroupIsActive(!groupIsActive)}>
@@ -483,7 +482,7 @@ const VideoManagementScreen = ({ navigation }) => {
                 <View style={styles.modalActions}>
                     <TouchableOpacity style={styles.modalBtn} onPress={() => setGroupModalVisible(false)}><Text style={{color: colors.textPrimary}}>Cancel</Text></TouchableOpacity>
                     <TouchableOpacity
-                      style={[styles.modalBtn, styles.saveBtn, (!groupTitle.trim() || !groupDescription.trim()) && { opacity: 0.5 }]}
+                      style={[styles.modalBtn, styles.saveBtn, (!groupTitle.trim() || !groupDescription.trim()) && inline.op0_5]}
                       disabled={!groupTitle.trim() || !groupDescription.trim()}
                       onPress={handleSaveGroup}
                     >
@@ -501,7 +500,7 @@ const VideoManagementScreen = ({ navigation }) => {
             <ScrollView style={styles.sessionModalBody} contentContainerStyle={styles.sessionModalBodyContent} keyboardShouldPersistTaps="handled">
               <Text style={styles.modalTitle}>{isEditingSession ? 'Edit Session' : 'Add New Session'}</Text>
 
-              <Text style={styles.label}>Title <Text style={{color: '#EF4444'}}>*</Text></Text>
+              <Text style={styles.label}>Title <Text style={inline.cEF4444}>*</Text></Text>
               <TextInput style={styles.input} placeholder="Session title" placeholderTextColor={colors.textMuted} value={sessionTitle} onChangeText={setSessionTitle} />
 
               {!!sessionCalculatedDuration && (
@@ -511,10 +510,10 @@ const VideoManagementScreen = ({ navigation }) => {
                 </>
               )}
 
-              <Text style={styles.label}>Icon <Text style={{color: '#EF4444'}}>*</Text></Text>
+              <Text style={styles.label}>Icon <Text style={inline.cEF4444}>*</Text></Text>
               <TouchableOpacity style={styles.iconInput} onPress={() => { setIconTarget('session'); setSessionIconModalVisible(true); }}>
-                <MCIcon name={sessionIcon} size={24} color={colors.primary} style={{marginRight: 10}} />
-                <Text style={{flex: 1, color: colors.textPrimary}}>{sessionIcon}</Text>
+                <MCIcon name={sessionIcon} size={24} color={colors.primary} style={inline.mr10} />
+                <Text style={[inline.flex1, { color: colors.textPrimary }]}>{sessionIcon}</Text>
                 <MCIcon name="chevron-down" size={20} color={colors.textMuted} />
               </TouchableOpacity>
 
@@ -523,7 +522,7 @@ const VideoManagementScreen = ({ navigation }) => {
                 <Text style={[styles.checkLabel, !sessionIsActive && { color: colors.textMuted }]}>Active</Text>
               </TouchableOpacity>
 
-              <Text style={styles.label}>Video Group <Text style={{color: '#EF4444'}}>*</Text></Text>
+              <Text style={styles.label}>Video Group <Text style={inline.cEF4444}>*</Text></Text>
 
               <View style={styles.groupPickerContainer}>
                 <ScrollView style={styles.groupPickerScroll} nestedScrollEnabled>
@@ -566,7 +565,7 @@ const VideoManagementScreen = ({ navigation }) => {
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.modalBtn} onPress={() => setSessionModalVisible(false)}><Text style={{color: colors.textPrimary}}>Cancel</Text></TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalBtn, styles.saveBtn, (!sessionTitle.trim() || !sessionVideoGroupId) && { opacity: 0.5 }]}
+                style={[styles.modalBtn, styles.saveBtn, (!sessionTitle.trim() || !sessionVideoGroupId) && inline.op0_5]}
                 disabled={!sessionTitle.trim() || !sessionVideoGroupId}
                 onPress={handleSaveSession}
               >
@@ -614,7 +613,7 @@ const VideoManagementScreen = ({ navigation }) => {
             {totalIconPages > 1 && (
               <View style={styles.iconPagination}>
                 <TouchableOpacity
-                  style={[styles.iconPageBtn, sessionIconPage === 0 && { opacity: 0.3 }]}
+                  style={[styles.iconPageBtn, sessionIconPage === 0 && inline.op0_3]}
                   disabled={sessionIconPage === 0}
                   onPress={() => setSessionIconPage(p => p - 1)}
                 >
@@ -623,7 +622,7 @@ const VideoManagementScreen = ({ navigation }) => {
                 </TouchableOpacity>
                 <Text style={styles.iconPageIndicator}>{sessionIconPage + 1} / {totalIconPages}</Text>
                 <TouchableOpacity
-                  style={[styles.iconPageBtn, sessionIconPage >= totalIconPages - 1 && { opacity: 0.3 }]}
+                  style={[styles.iconPageBtn, sessionIconPage >= totalIconPages - 1 && inline.op0_3]}
                   disabled={sessionIconPage >= totalIconPages - 1}
                   onPress={() => setSessionIconPage(p => p + 1)}
                 >
@@ -773,3 +772,15 @@ const makeStyles = colors => StyleSheet.create({
 });
 
 export default VideoManagementScreen;
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  op0_3: { opacity: 0.3 },
+  op0_5: { opacity: 0.5 },
+  cEF4444: { color: '#EF4444' },
+  flex1: { flex: 1 },
+  mr10: { marginRight: 10 },
+  ml10: { marginLeft: 10 },
+  posabsolute_bottom0_left0_right0: { position: 'absolute', bottom: 0, left: 0, right: 0 },
+  pb56: { paddingBottom: 56 },
+});

@@ -160,18 +160,18 @@ const LeaveCard = ({ leave, onPress, onStatusUpdate }) => {
       {leave.status === 'pending' && (
         <View style={styles.cardActions}>
           <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: '#10B98115' }]}
+            style={[styles.actionBtn, inline.bg10B98115]}
             onPress={() => onStatusUpdate(leave, 'approved')}
           >
             <MCIcon name="check" size={16} color="#10B981" />
-            <Text style={[styles.actionText, { color: '#10B981' }]}>Approve</Text>
+            <Text style={[styles.actionText, inline.c10B981]}>Approve</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: '#EF444415' }]}
+            style={[styles.actionBtn, inline.bgEF444415]}
             onPress={() => onStatusUpdate(leave, 'rejected')}
           >
             <MCIcon name="close" size={16} color="#EF4444" />
-            <Text style={[styles.actionText, { color: '#EF4444' }]}>Reject</Text>
+            <Text style={[styles.actionText, inline.cEF4444]}>Reject</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -377,15 +377,15 @@ const [loadingMore, setLoadingMore] = useState(false);
   const renderHeader = () => (
     <View>
       <View style={styles.statsRow}>
-        <View style={[styles.statCard, { borderColor: '#F59E0B' }]}>
+        <View style={[styles.statCard, inline.bcF59E0B]}>
           <Text style={styles.statVal}>{kpiStats.pending}</Text>
           <Text style={styles.statLabel}>Pending</Text>
         </View>
-        <View style={[styles.statCard, { borderColor: '#10B981' }]}>
+        <View style={[styles.statCard, inline.bc10B981]}>
           <Text style={styles.statVal}>{kpiStats.approved}</Text>
           <Text style={styles.statLabel}>Approved</Text>
         </View>
-        <View style={[styles.statCard, { borderColor: '#EF4444' }]}>
+        <View style={[styles.statCard, inline.bcEF4444]}>
           <Text style={styles.statVal}>{kpiStats.rejected}</Text>
           <Text style={styles.statLabel}>Rejected</Text>
         </View>
@@ -680,7 +680,7 @@ const [loadingMore, setLoadingMore] = useState(false);
                   <Text style={styles.modalCancelText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.modalBtn, { backgroundColor: newStatus === 'approved' ? '#10B981' : '#EF4444' }]}
+                  style={[styles.modalBtn, newStatus === 'approved' ? inline.approve : inline.reject]}
                   onPress={confirmStatusUpdate}
                 >
                   <Text style={styles.modalConfirmText}>Confirm</Text>
@@ -985,3 +985,16 @@ const makeStyles = colors => StyleSheet.create({
 });
 
 export default DoctorLeaveManagementScreen;
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  approve: { backgroundColor: '#10B981' },
+  reject: { backgroundColor: '#EF4444' },
+  bcEF4444: { borderColor: '#EF4444' },
+  bc10B981: { borderColor: '#10B981' },
+  bcF59E0B: { borderColor: '#F59E0B' },
+  cEF4444: { color: '#EF4444' },
+  bgEF444415: { backgroundColor: '#EF444415' },
+  c10B981: { color: '#10B981' },
+  bg10B98115: { backgroundColor: '#10B98115' },
+});

@@ -1,4 +1,5 @@
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import Svg, { Circle, Ellipse, Line } from 'react-native-svg';
 
 /**
@@ -32,7 +33,7 @@ const FaceMeshOverlay = ({ landmarks, activeZone = 'all', width, height, scanY }
   if (landmarks?.type === 'bbox' && Array.isArray(landmarks.rect)) {
     const [rx, ry, rw, rh] = landmarks.rect;
     return (
-      <Svg width={width} height={height} style={{ position: 'absolute', top: 0, left: 0 }}>
+      <Svg width={width} height={height} style={inline.posabsolute_top0_left0}>
         <Ellipse
           cx={(rx + rw / 2) * width}
           cy={(ry + rh / 2) * height}
@@ -54,7 +55,7 @@ const FaceMeshOverlay = ({ landmarks, activeZone = 'all', width, height, scanY }
   if (!points) {
     // Detecting — show just the animated scan line if provided.
     return scanY != null ? (
-      <Svg width={width} height={height} style={{ position: 'absolute', top: 0, left: 0 }}>
+      <Svg width={width} height={height} style={inline.posabsolute_top0_left0}>
         <Line x1={0} y1={scanY * height} x2={width} y2={scanY * height} stroke={ACCENT} strokeWidth={2} opacity={0.7} />
       </Svg>
     ) : null;
@@ -66,7 +67,7 @@ const FaceMeshOverlay = ({ landmarks, activeZone = 'all', width, height, scanY }
       : null;
 
   return (
-    <Svg width={width} height={height} style={{ position: 'absolute', top: 0, left: 0 }}>
+    <Svg width={width} height={height} style={inline.posabsolute_top0_left0}>
       {/* Faint full mesh */}
       {points.map((p, i) => {
         const isActive = activeSet?.has(i);
@@ -92,3 +93,8 @@ const FaceMeshOverlay = ({ landmarks, activeZone = 'all', width, height, scanY }
 };
 
 export default FaceMeshOverlay;
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  posabsolute_top0_left0: { position: 'absolute', top: 0, left: 0 },
+});

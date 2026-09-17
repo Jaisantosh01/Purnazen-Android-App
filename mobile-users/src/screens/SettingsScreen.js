@@ -17,7 +17,6 @@ import { showAlert } from '../utils/alert';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import authService from '../services/authService';
 import socialAuthService from '../services/socialAuthService';
-import preferencesService from '../services/preferencesService';
 import biometricService from '../services/biometricService';
 import permissionsService from '../services/permissionsService';
 import { getAutoUpdateEnabled, setAutoUpdateEnabled } from '../services/updateService';
@@ -169,11 +168,6 @@ const SettingsScreen = ({ navigation, route }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
-  // Features that are designed but not yet functional get an honest placeholder
-  // instead of a dead tap or a faked success message.
-  const comingSoon = label =>
-    showAlert('Coming soon', `${label} will be available in an upcoming update.`);
-
   // Inline rows so they pick up the active (themed) styles + palette.
   const SectionHeader = ({ title }) => (
     <Text style={styles.sectionHeader}>{title}</Text>
@@ -239,11 +233,6 @@ const SettingsScreen = ({ navigation, route }) => {
   }, []);
 
   useFocusEffect(syncLocation);
-
-  const savePreference = payload => {
-    preferencesService.updatePreferences(payload)
-      .catch(err => console.log('Preference save failed:', err.message));
-  };
 
   // Location — one switch over both the OS permission and the stored preference.
   const toggleLocation = async value => {
@@ -562,6 +551,20 @@ const SettingsScreen = ({ navigation, route }) => {
 
   // The account isn't removed from here — the request goes to the admins, who
   // action it from the console once the clinical record can be released.
+  // The export is a JSON file the backend builds on request; the browser gets
+  // a 10-minute link and handles saving/sharing it.
+  const [exportingData, setExportingData] = useState(false);
+  const handleDownloadData = async () => {
+    setExportingData(true);
+    try {
+      await Linking.openURL(await authService.dataExportUrl());
+    } catch (err) {
+      showAlert('Export failed', err.message || 'Could not prepare your export. Please try again.');
+    } finally {
+      setExportingData(false);
+    }
+  };
+
   const handleRequestAccountDeletion = () => {
     showAlert(
       'Request Account Deletion',
@@ -591,7 +594,7 @@ const SettingsScreen = ({ navigation, route }) => {
     <View style={styles.root}>
       <ScreenHeader title="Settings" subtitle="Manage your preferences" backBehavior="popToRoot" right={<ThemeToggle />} />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={inline.pb40}>
 
         {/* Account */}
         <View style={styles.section}>
@@ -710,8 +713,8 @@ const SettingsScreen = ({ navigation, route }) => {
               icon="download-outline"
               hue={HUES.blue}
               title="Download My Data"
-              subtitle="Export your health records"
-              onPress={() => comingSoon('Exporting your data')}
+              subtitle={exportingData ? 'Preparing your export…' : 'Everything we hold about you, as a file'}
+              onPress={exportingData ? undefined : handleDownloadData}
             />
           </View>
         </View>
@@ -1015,3 +1018,8 @@ const SettingsScreen = ({ navigation, route }) => {
 };
 
 export default SettingsScreen;
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  pb40: { paddingBottom: 40 },
+});

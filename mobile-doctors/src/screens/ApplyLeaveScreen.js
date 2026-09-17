@@ -11,7 +11,6 @@ import {
   Platform,
   Modal,
   ActivityIndicator,
-  FlatList,
   Animated,
 } from 'react-native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -23,12 +22,6 @@ import { showSuccess, showError } from '../utils/toast';
 import availabilityService from '../services/availabilityService';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const LEAVE_MODES = [
-  { id: 'single', label: 'Single Day' },
-  { id: 'multiple', label: 'Multiple Days' },
-  { id: 'custom', label: 'Partial Day' },
-];
 
 const REASONS = ['Vacation', 'Medical', 'Conference', 'Personal', 'Emergency', 'Other'];
 
@@ -57,20 +50,7 @@ const formatTime12h = (timeStr) => {
   return `${String(displayHour).padStart(2, '0')}:${m} ${ampm}`;
 };
 
-const parseTime = (timeStr) => {
-  const [time, ampm] = timeStr.split(' ');
-  let [hours, minutes] = time.split(':').map(Number);
-  if (ampm === 'PM' && hours !== 12) hours += 12;
-  if (ampm === 'AM' && hours === 12) hours = 0;
-  return hours * 60 + minutes;
-};
-
 // Compare two date strings YYYY-MM-DD; returns true if a <= b
-const dateNotAfter = (a, b) => {
-  if (!a || !b) return true;
-  return new Date(a) <= new Date(b);
-};
-
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 const ApplyLeaveScreen = ({ navigation }) => {
@@ -171,27 +151,7 @@ const ApplyLeaveScreen = ({ navigation }) => {
     return dayGroup ? dayGroup.slots : [];
   };
 
-  const partialDayDates = getDateRange(startDate, endDate);
 
-  // Get days of week in range [startDate, endDate] inclusive (kept for any remaining references)
-  const getDaysOfWeekInRange = (startStr, endStr) => {
-    if (!startStr || !endStr) return [];
-    const start = new Date(startStr);
-    const end = new Date(endStr);
-    const days = new Set();
-    const current = new Date(start);
-    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    let limit = 0;
-    while (current <= end && limit < 100) {
-      days.add(dayNames[current.getDay()]);
-      current.setDate(current.getDate() + 1);
-      limit++;
-    }
-    return Array.from(days);
-  };
-
-  const activeDays = getDaysOfWeekInRange(startDate, endDate);
-  const matchingDaysSlots = allDbSlots.filter((d) => activeDays.includes(d.day));
 
   // ─── Live form validation ────────────────────────────────────────────────────
 
@@ -471,7 +431,7 @@ const ApplyLeaveScreen = ({ navigation }) => {
     <>
       <Text style={styles.label}>Notes</Text>
       <View style={[styles.inputContainer, styles.textAreaContainer]}>
-        <MCIcon name="pencil-outline" size={20} color={colors.textMuted} style={[styles.inputIcon, { marginTop: 10 }]} />
+        <MCIcon name="pencil-outline" size={20} color={colors.textMuted} style={[styles.inputIcon, inline.mt10]} />
         <TextInput
           style={[styles.input, styles.textArea]}
           placeholder="Enter additional leave notes..."
@@ -633,10 +593,10 @@ const ApplyLeaveScreen = ({ navigation }) => {
                   </Text>
                   <View style={[
                     styles.dayCardBadge,
-                    { backgroundColor: isActive ? 'rgba(255,255,255,0.22)' : `${badgeHue}22` },
+                    isActive ? inline.badgeOnActive : { backgroundColor: `${badgeHue}22` },
                   ]}>
                     <Text
-                      style={[styles.dayCardBadgeText, { color: isActive ? colors.white : badgeHue }]}
+                      style={[styles.dayCardBadgeText, isActive ? { color: colors.white } : { color: badgeHue }]}
                       numberOfLines={1}
                     >
                       {badgeText}
@@ -1398,4 +1358,10 @@ const makeStyles = colors =>
     marginTop: 4,
     paddingLeft: 32,
   },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  badgeOnActive: { backgroundColor: 'rgba(255,255,255,0.22)' },
+  mt10: { marginTop: 10 },
 });

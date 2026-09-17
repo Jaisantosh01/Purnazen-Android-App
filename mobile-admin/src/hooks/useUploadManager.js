@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef } from 'react';
 import * as DocumentPicker from 'expo-document-picker';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
@@ -75,14 +75,14 @@ export const useUploadManager = (defaultGroupId, currentPath, selectedDir, fetch
     }
   };
 
-  const uploadOne = async (item, selectedDir) => {
+  const uploadOne = async (item, dir) => {
     const formData = new FormData();
     formData.append('file', {
       uri: item.file.uri,
       type: item.file.mimeType || 'video/mp4',
       name: item.saveAs || item.file.name || 'video.mp4',
     });
-    formData.append('directory', selectedDir === '/' ? '' : selectedDir);
+    formData.append('directory', dir === '/' ? '' : dir);
     formData.append('title', item.title.trim());
     formData.append('description', item.description.trim());
     formData.append('duration', String(parseInt(item.duration, 10) || 0));
@@ -96,7 +96,7 @@ export const useUploadManager = (defaultGroupId, currentPath, selectedDir, fetch
     });
   };
 
-  const handleUploadAll = async (showAlert, selectedDir, currentPath, validationHint) => {
+  const handleUploadAll = async (showAlert, dir, path, validationHint) => {
     const hint = validationHint();
     if (hint) { showAlert('Cannot upload', hint); return; }
 
@@ -113,7 +113,7 @@ export const useUploadManager = (defaultGroupId, currentPath, selectedDir, fetch
       setUploadProgress({ current: i + 1, total: pendingItems.length });
       updateItem(item.id, { status: 'uploading', error: null });
       try {
-        await uploadOne(item, selectedDir);
+        await uploadOne(item, dir);
         if (cancelledRef.current) return;
         updateItem(item.id, { status: 'done' });
       } catch (err) {

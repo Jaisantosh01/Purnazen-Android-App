@@ -395,7 +395,7 @@ export default function VideoPlayer({
           key={`${retryKey}:${srcKey}`}
           ref={videoRef}
           source={source}
-          style={{ width: '100%', height: overlayH }}
+          style={[inline.w100p, { height: overlayH }]}
           paused={paused}
           muted={muted}
           resizeMode="contain"
@@ -782,4 +782,9 @@ const makeStyles = colors => StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.16)',
   },
   upNextGhostText: { color: colors.white, fontSize: 13, fontWeight: '700' },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  w100p: { width: '100%' },
 });

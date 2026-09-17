@@ -110,7 +110,7 @@ const SessionPlayer = ({ session, navigation }) => {
         <Text style={styles.cycleText}>Cycle {currentCycle}/{session.totalCycles}</Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={inline.pb100}>
         <View style={styles.animationArea}>
           {session.videoUrl ? (
             <Video source={{ uri: session.videoUrl }} style={styles.video}
@@ -396,4 +396,9 @@ const makeStyles = colors => StyleSheet.create({
     paddingHorizontal: SPACING.xxl, paddingVertical: SPACING.md, borderRadius: RADIUS.md,
   },
   retryText:     { fontSize: 14, fontWeight: '700', color: colors.white },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  pb100: { paddingBottom: 100 },
 });

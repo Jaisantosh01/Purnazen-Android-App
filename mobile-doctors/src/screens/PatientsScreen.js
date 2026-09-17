@@ -148,7 +148,7 @@ const PatientsScreen = ({ navigation }) => {
         </View>
       ) : error ? (
         <View style={styles.center}>
-          <MCIcon name="alert-circle-outline" size={48} color={colors.danger} style={{ marginBottom: 12 }} />
+          <MCIcon name="alert-circle-outline" size={48} color={colors.danger} style={inline.mb12} />
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={() => fetchPatients()}>
             <Text style={styles.retryText}>Retry</Text>
@@ -293,4 +293,9 @@ const makeStyles = colors =>
     fontWeight: '700',
     fontSize: 13.5,
   },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  mb12: { marginBottom: 12 },
 });

@@ -206,7 +206,7 @@ const FaqManagementScreen = ({ navigation }) => {
         subtitle="Help & support questions shown to users"
         onBack={() => navigation.goBack()}
         right={
-          <TouchableOpacity onPress={openAddModal} style={{ padding: 4 }}>
+          <TouchableOpacity onPress={openAddModal} style={inline.p4}>
             <MCIcon name="plus" size={24} color={colors.headerText} />
           </TouchableOpacity>
         }
@@ -271,7 +271,7 @@ const FaqManagementScreen = ({ navigation }) => {
               multiline
             />
             <TextInput
-              style={[styles.modalInput, { height: 80 }]}
+              style={[styles.modalInput, inline.h80]}
               placeholder="Answer"
               placeholderTextColor={colors.textMuted}
               value={answer}
@@ -355,3 +355,9 @@ const makeStyles = colors => StyleSheet.create({
 });
 
 export default FaqManagementScreen;
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  h80: { height: 80 },
+  p4: { padding: 4 },
+});

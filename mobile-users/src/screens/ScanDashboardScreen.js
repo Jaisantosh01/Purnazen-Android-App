@@ -151,7 +151,7 @@ const ScanDashboardScreen = ({ navigation }) => {
         <View style={styles.center}><ActivityIndicator color={GLOW} size="large" /></View>
       ) : (
         <ScrollView
-          contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+          contentContainerStyle={inline.p16_pb40}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[GLOW]} />}
         >
           {Toggle}
@@ -266,7 +266,7 @@ const ScanDashboardScreen = ({ navigation }) => {
                         <MCIcon name={m.icon} size={18} color={colors.textSecondary} />
                         <Text style={styles.markerLabel}>{m.label}</Text>
                       </View>
-                      <View style={[styles.markerPill, { backgroundColor: ideal ? '#22c55e1a' : `${colors.textMuted}1a` }]}>
+                      <View style={[styles.markerPill, ideal ? inline.pillIdeal : { backgroundColor: `${colors.textMuted}1a` }]}>
                         {val != null && (
                           <MCIcon
                             name={ideal ? 'check-circle' : 'alert-circle-outline'}
@@ -274,7 +274,7 @@ const ScanDashboardScreen = ({ navigation }) => {
                             color={ideal ? '#22c55e' : colors.textMuted}
                           />
                         )}
-                        <Text style={[styles.markerVal, { color: ideal ? '#16a34a' : colors.textPrimary }]}>
+                        <Text style={[styles.markerVal, ideal ? inline.valIdeal : { color: colors.textPrimary }]}>
                           {pretty(val)}
                         </Text>
                       </View>
@@ -387,4 +387,11 @@ const makeStyles = colors => StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(200,80,192,0.18)',
   },
   actionText: { color: GLOW, fontWeight: '700', fontSize: 13.5 },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  pillIdeal: { backgroundColor: '#22c55e1a' },
+  valIdeal: { color: '#16a34a' },
+  p16_pb40: { padding: 16, paddingBottom: 40 },
 });

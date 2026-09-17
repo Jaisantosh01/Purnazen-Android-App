@@ -41,7 +41,7 @@ const ScreenHeader = ({ styles, colors, searchQuery = '', onChangeText, onClear,
       </TouchableOpacity>
     </View>
     <View style={styles.searchContainer}>
-      <MCIcon name="magnify" size={20} color={colors.textMuted} style={{ marginRight: 8 }} />
+      <MCIcon name="magnify" size={20} color={colors.textMuted} style={inline.mr8} />
       <TextInput
         style={styles.searchInput}
         placeholder="Search doctors, specialties..."
@@ -608,4 +608,9 @@ const makeStyles = colors => StyleSheet.create({
     color: colors.textMuted,
     textAlign: 'center',
   },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  mr8: { marginRight: 8 },
 });

@@ -46,7 +46,7 @@ const ReliefScreen = ({ navigation }) => {
     <View style={styles.root}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 30 }}
+        contentContainerStyle={inline.pb30}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -179,4 +179,9 @@ const makeStyles = colors => StyleSheet.create({
     borderRadius: RADIUS.md,
   },
   retryText: { fontSize: 14, fontWeight: '700', color: colors.white },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  pb30: { paddingBottom: 30 },
 });

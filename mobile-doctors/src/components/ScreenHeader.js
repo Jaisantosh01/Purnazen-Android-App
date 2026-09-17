@@ -111,12 +111,10 @@ export default function ScreenHeader({
       <View
         style={[
           styles.header,
+          brand ? styles.headerBrand : styles.headerFlat,
           {
             backgroundColor: bg,
             paddingTop: Math.max(topInset, 12) + 10,
-            borderBottomLeftRadius: brand ? 24 : 0,
-            borderBottomRightRadius: brand ? 24 : 0,
-            borderBottomWidth: brand ? 0 : StyleSheet.hairlineWidth,
             borderBottomColor: colors.border,
           },
         ]}
@@ -147,7 +145,7 @@ export default function ScreenHeader({
                   {subtitle}
                 </Text>
               ) : null}
-              <View style={{ flex: 1 }} />
+              <View style={inline.flex1} />
               {subtitleRight ? (
                 <Text style={[styles.subtitleRight, { color: subFg }]} numberOfLines={1}>
                   {subtitleRight}
@@ -165,6 +163,8 @@ export default function ScreenHeader({
 }
 
 const styles = StyleSheet.create({
+  headerBrand: { borderBottomLeftRadius: 24, borderBottomRightRadius: 24, borderBottomWidth: 0 },
+  headerFlat: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, borderBottomWidth: StyleSheet.hairlineWidth },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -188,4 +188,9 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 13, marginTop: 2 },
   subtitleRight: { fontSize: 11, marginLeft: 8 },
   rightWrap: { minWidth: 4, alignItems: 'flex-end', justifyContent: 'center' },
+});
+
+// Literal-only styles that used to sit inline in the JSX.
+const inline = StyleSheet.create({
+  flex1: { flex: 1 },
 });
