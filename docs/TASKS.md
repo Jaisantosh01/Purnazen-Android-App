@@ -1,7 +1,10 @@
 # Task Backlog
 
-**Last updated:** 2026-07-03. Build/stub/gap status per feature:
+**Last updated:** 2026-09-17. Build/stub/gap status per feature:
 [FEATURES.md](FEATURES.md). Completed-work detail: [CHANGELOG.md](CHANGELOG.md).
+**Phased delivery plan (iOS parity, hardening, distribution, monetisation, Face
+Glow v2): [STATUS.md](STATUS.md) §5** — new work is planned there; this file keeps
+the granular backlog.
 
 Conventions for backend tasks: model → import in `db/base.py` →
 `alembic revision --autogenerate` → schema → repository → service → endpoint →
@@ -17,7 +20,9 @@ Conventions for backend tasks: model → import in `db/base.py` →
   backend order → HMAC verify flow works in local sandbox mode
   (`sandboxPaymentId`/`sandboxSignature`); wire `react-native-razorpay` checkout
   once real test keys exist. Card/UPI inputs on `PaymentScreen` are placeholders.
-- **A2. Subscriptions backend + billing (T14)** — plans model + endpoints;
+- **A2. Subscriptions backend + billing (T14)** — *2026-09-16: plans model +
+  endpoints exist (prices 0, priced plans 402); store billing is STATUS Phase 4.*
+  Plans model + endpoints;
   replace the hardcoded `PLANS` in `SubscriptionsScreen`; billing provider
   decision pending.
 - **A3. Plan gating (T48 + SRS 4.7)** — gate comparison/extended trends and the
@@ -25,7 +30,8 @@ Conventions for backend tasks: model → import in `db/base.py` →
 
 ### B. Notifications
 
-- **B1. Push delivery (FCM)** — preferences already persist
+- **B1. Push delivery (FCM)** — **DONE** (device tokens + `fcm_service`, users and
+  doctor apps; iOS needs an APNs key). Originally: preferences already persist
   (`/users/me/preferences`); nothing is delivered. Blocks B2.
 - **B2. Scan notifications (T37, deferred)** — `scan_notifications` table +
   records; revisit with B1.
@@ -35,11 +41,14 @@ Conventions for backend tasks: model → import in `db/base.py` →
 - **C1. Social auth backend (T40)** — DONE via Firebase Auth: the backend
   verifies Firebase ID tokens (`social_auth.py`, `POST /auth/social`), so any
   provider enabled in the Firebase console (Google, GitHub, ...) works with the
-  single `FIREBASE_SERVICE_ACCOUNT_JSON` credential. Apple deferred (no iOS).
+  single `FIREBASE_SERVICE_ACCOUNT_JSON` credential. Apple: done 2026-09-17
+  (`AppleSignInButton`, iOS only).
 - **C2. Social auth mobile (T41 remainder)** — DONE via Firebase Auth's
   built-in browser flow (`socialAuthService.js` in all three apps); no
   per-provider SDKs or client IDs needed, only `google-services.json`.
 - **C3. OTP authentication** — SRS lists OTP/password; not implemented.
+- **C4. Two-step verification (TOTP)** — **DONE 2026-09-17**: `/auth/mfa/*`,
+  `MFA_REQUIRED_ROLES`, code screen + Settings enrolment in Doctor and Admin apps.
 
 ### D. Face analysis — remaining sprint work (spec: [FACE_ANALYSIS_SPEC.md](FACE_ANALYSIS_SPEC.md))
 
@@ -71,23 +80,28 @@ Conventions for backend tasks: model → import in `db/base.py` →
   rows still alert-stub.
 - **E4. Responsiveness sweep** — audit fixed dp widths, `numberOfLines`, and
   `Dimensions.get` snapshots across small (≤360dp) → tablet widths.
-- **E5. Location permission wiring** — `locationAccess` toggle is local-only;
+- **E5. Location permission wiring** — **DONE 2026-07-26** (see CHANGELOG).
+  Originally: `locationAccess` toggle is local-only;
   wire OS runtime permission + persist/enforce.
 
 ### F. Staff apps — wire existing endpoints
 
-- **F1. Admin content CRUD screens** — quick-relief cards and wellness/relief
+- **F1. Admin content CRUD screens** — **DONE 2026-09-17** (`QuickReliefManagementScreen`).
+  *Earlier: session content + legal pages done; quick-relief cards had no UI.* Originally: quick-relief cards and wellness/relief
   session content have full CRUD endpoints but no admin UI.
-- **F2. Admin support CMS screens** — `/support/contacts` + `/support/faqs`
+- **F2. Admin support CMS screens** — **DONE 2026-09-17** (`SupportContactsScreen`).
+  *Earlier: FAQs done; contacts had no UI.* Originally: `/support/contacts` + `/support/faqs`
   CRUD endpoints have no admin UI.
-- **F3. Therapy-feedback review** — doctor (`/doctor-feedback`) and admin
-  (`/admin-feedback`) endpoints exist; no screens in either staff app.
+- **F3. Therapy-feedback review** — **DONE 2026-09-17** (`FeedbackReviewScreen` in
+  both staff apps). Originally: endpoints existed; no screens.
 
 ### G. SRS compliance leftovers (see [SRS_AUDIT.md](SRS_AUDIT.md))
 
-- **G1. Seed the 4 missing MVP symptoms** — Knee Pain, Ankle Pain, Migraine,
+- **G1. Seed the 4 missing MVP symptoms** — **DONE** (Knee Pain, Ankle, Migraine,
+  Sciatica are in `seed_data.py`). Originally: Knee Pain, Ankle Pain, Migraine,
   Sciatica in `seed_data.py`; confirm repetition/precautions fields populated.
-- **G2. In-app medical disclaimer** — surface "not medical advice" in
+- **G2. In-app medical disclaimer** — **DONE 2026-09-12** (`<MedicalDisclaimer />`
+  on every health surface). Originally: surface "not medical advice" in
   Settings/onboarding.
 - **G3. Web super-admin console** — SRS assumed web consoles; the native admin
   app covers most scope, a web console remains unbuilt (decision needed on

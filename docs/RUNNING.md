@@ -4,6 +4,11 @@ A step-by-step guide to run the FastAPI backend and the **three** React Native
 apps on an Android emulator **or a physical device**. Verified on Windows 11
 (PowerShell). macOS/Linux notes are called out where they differ.
 
+> **Running the patient app on the iOS Simulator?** See
+> [RUNNING_IOS_MACOS.md](RUNNING_IOS_MACOS.md) instead — the macOS path differs
+> enough (CocoaPods, the port-5000 AirPlay clash, MediaPipe) to warrant its own
+> guide.
+
 ## The three front-end apps
 
 All three are bare RN apps (Expo SDK 56 / RN 0.85) that share the one backend.
