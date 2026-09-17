@@ -12,6 +12,8 @@ import authService from './src/services/authService';
 import biometricService from './src/services/biometricService';
 // @ts-ignore
 import { useAuthStore } from './src/store/authStore';
+import { useMfaStore } from './src/store/mfaStore';
+import { showAlert } from './src/utils/alert';
 import pushService from './src/services/pushService';
 // @ts-ignore
 import { navigationRef } from './src/navigation/navigationRef';
@@ -35,6 +37,8 @@ import UpdateBanner from './src/components/UpdateBanner';
 import useToastStore from './src/utils/toast';
 
 import LoginScreen from './src/screens/LoginScreen';
+import TwoStepScreen from './src/screens/TwoStepScreen';
+import FeedbackReviewScreen from './src/screens/FeedbackReviewScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 // @ts-ignore
 import NotificationCenterScreen from './src/screens/NotificationCenterScreen';
@@ -115,6 +119,7 @@ function AppointmentsStackNavigator() {
       <AppointmentsStack.Screen name="PrescriptionDetail" component={PrescriptionDetailScreen} />
       <AppointmentsStack.Screen name="FaceScanReport" component={FaceScanReportScreen} />
       <AppointmentsStack.Screen name="TongueScanReport" component={TongueScanReportScreen} />
+      <AppointmentsStack.Screen name="FeedbackReview" component={FeedbackReviewScreen} />
     </AppointmentsStack.Navigator>
   );
 }
@@ -132,6 +137,7 @@ function PatientsStackNavigator() {
       <PatientsStack.Screen name="PrescriptionDetail" component={PrescriptionDetailScreen} />
       <PatientsStack.Screen name="FaceScanReport" component={FaceScanReportScreen} />
       <PatientsStack.Screen name="TongueScanReport" component={TongueScanReportScreen} />
+      <PatientsStack.Screen name="FeedbackReview" component={FeedbackReviewScreen} />
     </PatientsStack.Navigator>
   );
 }
@@ -141,6 +147,7 @@ function DashboardStackNavigator() {
     <DashboardStack.Navigator screenOptions={{ headerShown: false }}>
       <DashboardStack.Screen name="DashboardMain" component={DashboardScreen} />
       <DashboardStack.Screen name="NotificationCenter" component={NotificationCenterScreen} />
+      <DashboardStack.Screen name="FeedbackReview" component={FeedbackReviewScreen} />
     </DashboardStack.Navigator>
   );
 }
@@ -238,6 +245,22 @@ function SplashScreen() {
 export default function App() {
   const [bootstrapped, setBootstrapped] = useState(false);
   const isLoggedIn = useAuthStore((s: any) => s.isLoggedIn);
+  // Password step passed, one-time code still owed (see authService._sessionOrChallenge).
+  const mfaPending = useMfaStore((s: any) => !!s.challengeToken);
+  // Roles listed in the backend's MFA_REQUIRED_ROLES get 403 on every
+  // protected route until they enrol — point them at Settings, once per session.
+  const mustEnrol = useAuthStore((s: any) => { const u = s.user ?? s.doctor; return !!(s.isLoggedIn && u?.mfa_required && !u?.mfa_enabled); });
+  useEffect(() => {
+    if (!mustEnrol) return;
+    showAlert('Two-step verification required', 'Your role needs an authenticator app. Set it up now to continue.', [
+      { text: 'Later', style: 'cancel' },
+      {
+        text: 'Open Settings',
+        onPress: () => navigationRef.isReady() &&
+          (navigationRef as any).navigate('Main', { screen: 'Profile', params: { screen: 'Settings' } }),
+      },
+    ]);
+  }, [mustEnrol]);
 
   // Register / release this device for push when auth state flips.
   useEffect(() => {
@@ -299,10 +322,15 @@ export default function App() {
 
   return (
     <ErrorBoundary screen="App">
-    <NavigationContainer ref={navigationRef} theme={navTheme}>
+    {/* Re-tapping a tab fires POP_TO_TOP at the same time the tab listener
+        resets that stack; the leftover action is harmless but logs in dev.
+        Same as the admin app. */}
+    <NavigationContainer ref={navigationRef} theme={navTheme} onUnhandledAction={() => {}}>
       <RootStack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
         {isLoggedIn ? (
           <RootStack.Screen name="Main" component={MainTabs} />
+        ) : mfaPending ? (
+          <RootStack.Screen name="TwoStep" component={TwoStepScreen} />
         ) : (
           <RootStack.Screen name="Login" component={LoginScreen} />
         )}

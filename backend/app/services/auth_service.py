@@ -15,6 +15,7 @@ from app.models.therapy_session import TherapySession
 from app.models.user import User
 from app.models.user_preference import UserPreference
 from app.repositories.user_repository import UserRepository
+from app.services.mfa_service import MfaService
 from app.services.social_auth import SocialAuthError, verify_firebase
 from app.utils.email_validation import validate_account_email
 
@@ -77,14 +78,9 @@ class AuthService:
                 "message": "This account is not permitted to use this app",
             }, 403
 
-        return {
-            "success": True,
-            "message": "Login successful",
-            "access_token": create_access_token(str(user.id), user.token_version or 0),
-            "refresh_token": create_refresh_token(str(user.id), user.token_version or 0),
-            # Full profile (includes auth_provider/social_linked for Settings)
-            "user": user.to_dict(),
-        }, 200
+        # Full profile (includes auth_provider/social_linked for Settings), or a
+        # two-step challenge when the account has an authenticator enrolled.
+        return MfaService.session_or_challenge(user), 200
 
     @staticmethod
     def social_login(db: Session, data: dict):
@@ -125,10 +121,11 @@ class AuthService:
                 }, 403
             # Random throwaway password: the account is provider-backed and can
             # never be entered via the password form.
+            client_name = (data.get("full_name") or "").strip()
             user = UserRepository.create_user(
                 db,
                 {
-                    "full_name": profile["full_name"],
+                    "full_name": profile.get("display_name") or client_name or profile["full_name"],
                     "email": profile["email"],
                     "password": hash_password(secrets.token_urlsafe(32)),
                 },
@@ -157,13 +154,7 @@ class AuthService:
             user.auth_provider = user.auth_provider or profile["provider"] or None
             db.commit()
 
-        return {
-            "success": True,
-            "message": "Login successful",
-            "access_token": create_access_token(str(user.id), user.token_version or 0),
-            "refresh_token": create_refresh_token(str(user.id), user.token_version or 0),
-            "user": user.to_dict(),
-        }, 200
+        return MfaService.session_or_challenge(user), 200
 
     @staticmethod
     def link_social(db: Session, user: User, data: dict):

@@ -38,6 +38,20 @@ class SocialLoginRequest(BaseModel):
     # Firebase project.
     id_token: str = Field(min_length=1)
     expected_role: str | None = None
+    # Apple shares the user's name with the app once, on first authorisation,
+    # and never puts it in the Firebase token — so the app forwards it. Only
+    # used when an account is created; ignored when the token carries a name.
+    full_name: str | None = Field(default=None, max_length=120)
+
+
+class MfaVerifyRequest(BaseModel):
+    mfa_token: str = Field(min_length=1)
+    # 6-digit authenticator code, or a recovery code (xxxx-xxxx-xxxx)
+    code: str = Field(min_length=6, max_length=20)
+
+
+class MfaCodeRequest(BaseModel):
+    code: str = Field(min_length=6, max_length=20)
 
 
 class SocialLinkRequest(BaseModel):

@@ -22,6 +22,7 @@ import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 import ThemeToggle from '../components/ThemeToggle';
 import AppToggle from '../components/AppToggle';
+import TwoStepVerification from '../components/TwoStepVerification';
 import GenderSelect from '../components/GenderSelect';
 import DobInput, { isoToParts, validateDobParts } from '../components/DobInput';
 
@@ -447,6 +448,14 @@ const SettingsScreen = ({ navigation }) => {
               value={biometric}
               onToggle={toggleBiometric}
               disabled={biometricBusy}
+            />
+            <View style={styles.rowDivider} />
+            <TwoStepVerification
+              rowStyle={styles.settingRow}
+              iconBoxStyle={styles.settingIconBox}
+              titleStyle={styles.settingTitle}
+              subtitleStyle={styles.settingSubtitle}
+              dividerStyle={styles.rowDivider}
             />
             <View style={styles.rowDivider} />
             <ToggleRow

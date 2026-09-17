@@ -14,6 +14,8 @@ import authService from './src/services/authService';
 import biometricService from './src/services/biometricService';
 // @ts-ignore
 import { useAuthStore } from './src/store/authStore';
+import { useMfaStore } from './src/store/mfaStore';
+import { showAlert } from './src/utils/alert';
 // @ts-ignore
 import { navigationRef } from './src/navigation/navigationRef';
 // @ts-ignore
@@ -34,6 +36,7 @@ import UpdateBanner from './src/components/UpdateBanner';
 import useToastStore from './src/utils/toast';
 
 import LoginScreen from './src/screens/LoginScreen';
+import TwoStepScreen from './src/screens/TwoStepScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import UnifiedUserDoctorScreen from './src/screens/UnifiedUserDoctorScreen';
@@ -59,6 +62,9 @@ import ContentManagementScreen from './src/screens/ContentManagementScreen';
 import ContentDetailScreen from './src/screens/ContentDetailScreen';
 import ContentEditorScreen from './src/screens/ContentEditorScreen';
 import TaxSettingsScreen from './src/screens/TaxSettingsScreen';
+import FeedbackReviewScreen from './src/screens/FeedbackReviewScreen';
+import QuickReliefManagementScreen from './src/screens/QuickReliefManagementScreen';
+import SupportContactsScreen from './src/screens/SupportContactsScreen';
 import ManageScreen from './src/screens/ManageScreen';
 
 const RootStack = createNativeStackNavigator();
@@ -140,6 +146,9 @@ function ManageStackNavigator() {
       <ManageStack.Screen name="VideoGroupEditor" component={VideoGroupEditorScreen} />
       <ManageStack.Screen name="UploadVideo" component={UploadVideoScreen} />
       <ManageStack.Screen name="FaqManagement" component={FaqManagementScreen} />
+      <ManageStack.Screen name="SupportContacts" component={SupportContactsScreen} />
+      <ManageStack.Screen name="QuickReliefManagement" component={QuickReliefManagementScreen} />
+      <ManageStack.Screen name="FeedbackReview" component={FeedbackReviewScreen} />
       <ManageStack.Screen name="NotificationAdmin" component={NotificationAdminScreen} />
       <ManageStack.Screen name="ContentManagement" component={ContentManagementScreen} />
       <ManageStack.Screen name="ContentEditor" component={ContentEditorScreen} />
@@ -220,6 +229,22 @@ export default function App() {
   const [bootstrapped, setBootstrapped] = useState(false);
   // Subscribe to auth state — changes here drive the navigator re-render
   const isLoggedIn = useAuthStore((s: any) => s.isLoggedIn);
+  // Password step passed, one-time code still owed (see authService._sessionOrChallenge).
+  const mfaPending = useMfaStore((s: any) => !!s.challengeToken);
+  // Roles listed in the backend's MFA_REQUIRED_ROLES get 403 on every
+  // protected route until they enrol — point them at Settings, once per session.
+  const mustEnrol = useAuthStore((s: any) => { const u = s.user ?? s.doctor; return !!(s.isLoggedIn && u?.mfa_required && !u?.mfa_enabled); });
+  useEffect(() => {
+    if (!mustEnrol) return;
+    showAlert('Two-step verification required', 'Your role needs an authenticator app. Set it up now to continue.', [
+      { text: 'Later', style: 'cancel' },
+      {
+        text: 'Open Settings',
+        onPress: () => navigationRef.isReady() &&
+          (navigationRef as any).navigate('Main', { screen: 'Profile', params: { screen: 'Settings' } }),
+      },
+    ]);
+  }, [mustEnrol]);
   const { message, type, visible, hide } = useToastStore();
   const { colors, isDark } = useTheme();
 
@@ -281,6 +306,8 @@ export default function App() {
         <RootStack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
           {isLoggedIn ? (
             <RootStack.Screen name="Main" component={MainTabs} />
+          ) : mfaPending ? (
+            <RootStack.Screen name="TwoStep" component={TwoStepScreen} />
           ) : (
             <>
               <RootStack.Screen name="Login"    component={LoginScreen}    />

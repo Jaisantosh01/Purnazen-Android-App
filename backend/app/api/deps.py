@@ -1,5 +1,5 @@
 import jwt as pyjwt
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Query
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
@@ -64,6 +64,14 @@ def get_refresh_payload(
     return _get_token_payload(credentials, db, "refresh")
 
 
+def get_download_user(
+    t: str = Query(..., description="Link token from the export endpoint"),
+    db: Session = Depends(get_db),
+) -> User:
+    payload = _get_token_payload(HTTPAuthorizationCredentials(scheme="Bearer", credentials=t), db, "download")
+    return db.get(User, payload["sub"])
+
+
 def get_current_user(
     payload: dict = Depends(get_access_payload),
     db: Session = Depends(get_db),
@@ -80,6 +88,11 @@ def require_role(required_role: str):
         db.refresh(user)
         if not user.role or user.role.name != required_role:
             raise HTTPException(status_code=403, detail="Access denied")
+        # Roles that must use two-step verification get nothing until they
+        # enrol. The enrolment endpoints only need get_current_user, so the
+        # way out of this 403 stays open.
+        if user.mfa_required and not user.mfa_enabled:
+            raise HTTPException(status_code=403, detail="two_step_required")
         return user
 
     return checker

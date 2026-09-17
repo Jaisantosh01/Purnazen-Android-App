@@ -13,6 +13,8 @@ from app.core.security import create_access_token
 from app.models.user import User
 from app.repositories.token_repository import TokenRepository
 from app.schemas.auth import (
+    MfaCodeRequest,
+    MfaVerifyRequest,
     ChangeEmailRequest,
     ChangePasswordRequest,
     EmailCheckRequest,
@@ -23,10 +25,26 @@ from app.schemas.auth import (
     UpdateProfileRequest,
 )
 from app.services.auth_service import AuthService
+from app.services.mfa_service import MfaError, MfaService
 from app.utils.email_validation import validate_account_email
 from app.utils.responses import error_response, success_response
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+_SESSION_KEYS = ("access_token", "refresh_token", "user", "mfa_required", "mfa_token",
+                 "recovery_codes_left")
+
+
+def _session_response(response: dict, status_code: int):
+    """Tokens + profile, or `{mfa_required: true, mfa_token}` when a one-time
+    code is still owed (then POST /auth/mfa/verify)."""
+    if not response["success"]:
+        return error_response(response["message"], status_code)
+    return success_response(
+        response["message"],
+        {k: response[k] for k in _SESSION_KEYS if k in response},
+        status_code,
+    )
 
 
 @router.post(
@@ -68,19 +86,7 @@ def validate_email(request: Request, body: EmailCheckRequest):
 @limiter.limit(settings.RATE_LIMIT_LOGIN)
 def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)):
     response, status_code = AuthService.login(db, body.model_dump())
-
-    if not response["success"]:
-        return error_response(response["message"], status_code)
-
-    return success_response(
-        response["message"],
-        {
-            "access_token": response["access_token"],
-            "refresh_token": response["refresh_token"],
-            "user": response["user"],
-        },
-        status_code,
-    )
+    return _session_response(response, status_code)
 
 
 @router.post(
@@ -95,19 +101,65 @@ def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)):
 @limiter.limit(settings.RATE_LIMIT_LOGIN)
 def social_login(request: Request, body: SocialLoginRequest, db: Session = Depends(get_db)):
     response, status_code = AuthService.social_login(db, body.model_dump())
+    return _session_response(response, status_code)
 
-    if not response["success"]:
-        return error_response(response["message"], status_code)
 
-    return success_response(
-        response["message"],
-        {
-            "access_token": response["access_token"],
-            "refresh_token": response["refresh_token"],
-            "user": response["user"],
-        },
-        status_code,
-    )
+# ── Two-step verification ───────────────────────────────────────────────────
+@router.post(
+    "/mfa/verify",
+    summary="Finish signing in with a one-time code",
+    description="Swaps the `mfa_token` from /auth/login or /auth/social, plus a "
+    "6-digit authenticator code or a recovery code, for a session. Rate-limited.",
+)
+@limiter.limit(settings.RATE_LIMIT_MFA)
+def mfa_verify(request: Request, body: MfaVerifyRequest, db: Session = Depends(get_db)):
+    try:
+        response = MfaService.verify_login(db, body.mfa_token, body.code)
+    except MfaError as exc:
+        return error_response(exc.message, exc.status_code)
+    return _session_response(response, 200)
+
+
+@router.post("/mfa/setup", summary="Start two-step verification enrolment")
+def mfa_setup(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        data = MfaService.setup(db, user)
+    except MfaError as exc:
+        return error_response(exc.message, exc.status_code)
+    return success_response("Scan the code with your authenticator app", data)
+
+
+@router.post("/mfa/enable", summary="Confirm the first code and turn two-step verification on")
+@limiter.limit(settings.RATE_LIMIT_MFA)
+def mfa_enable(request: Request, body: MfaCodeRequest, user: User = Depends(get_current_user),
+               db: Session = Depends(get_db)):
+    try:
+        data = MfaService.enable(db, user, body.code)
+    except MfaError as exc:
+        return error_response(exc.message, exc.status_code)
+    return success_response("Two-step verification is on", data)
+
+
+@router.post("/mfa/disable", summary="Turn two-step verification off")
+@limiter.limit(settings.RATE_LIMIT_MFA)
+def mfa_disable(request: Request, body: MfaCodeRequest, user: User = Depends(get_current_user),
+                db: Session = Depends(get_db)):
+    try:
+        data = MfaService.disable(db, user, body.code)
+    except MfaError as exc:
+        return error_response(exc.message, exc.status_code)
+    return success_response("Two-step verification is off", data)
+
+
+@router.post("/mfa/recovery-codes", summary="Replace the recovery codes")
+@limiter.limit(settings.RATE_LIMIT_MFA)
+def mfa_recovery_codes(request: Request, body: MfaCodeRequest, user: User = Depends(get_current_user),
+                       db: Session = Depends(get_db)):
+    try:
+        data = MfaService.regenerate_recovery_codes(db, user, body.code)
+    except MfaError as exc:
+        return error_response(exc.message, exc.status_code)
+    return success_response("New recovery codes created", data)
 
 
 @router.post(

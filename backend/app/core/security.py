@@ -57,3 +57,22 @@ def decode_token(token: str) -> dict:
         settings.JWT_SECRET_KEY,
         algorithms=[settings.JWT_ALGORITHM],
     )
+
+
+# Short-lived proof that the password (or social sign-in) step succeeded, and
+# that a one-time code is still owed. Only /auth/mfa/verify accepts it.
+MFA_TOKEN_MINUTES = 5
+
+
+def create_mfa_token(subject: str, version: int = 0) -> str:
+    return _create_token(subject, "mfa", timedelta(minutes=MFA_TOKEN_MINUTES), version)
+
+
+# One-shot link token for opening a generated file (the health-report PDF) in
+# the system browser, which can't send a bearer header. Only that route accepts
+# it, and it dies with the account's token_version like every other token.
+DOWNLOAD_TOKEN_MINUTES = 10
+
+
+def create_download_token(subject: str, version: int = 0) -> str:
+    return _create_token(subject, "download", timedelta(minutes=DOWNLOAD_TOKEN_MINUTES), version)

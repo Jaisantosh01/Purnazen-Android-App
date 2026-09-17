@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, func
+from sqlalchemy import JSON, Boolean, Column, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, func
 from sqlalchemy.orm import relationship
 from app.db.types import GUID
 import uuid
@@ -41,6 +41,14 @@ class User(Base):
     role_id = Column(GUID(), ForeignKey("roles.id"))
 
     token_version = Column(Integer, nullable=False, default=0, server_default="0")
+
+    # Two-step verification (TOTP). The secret is Fernet-encrypted
+    # (app/core/crypto.py); recovery codes are stored as SHA-256 hashes and
+    # removed as they are used. mfa_last_step blocks code replay.
+    mfa_enabled = Column(Boolean, nullable=False, default=False, server_default="false")
+    mfa_secret = Column(Text, nullable=True)
+    mfa_last_step = Column(Integer, nullable=True)
+    mfa_recovery_codes = Column(JSON, nullable=True)
 
     created_at = Column(DateTime, server_default=func.now())
     created_by = Column(GUID(), ForeignKey("users.id"), nullable=True)
@@ -87,6 +95,13 @@ class User(Base):
         born = self.date_of_birth
         return today.year - born.year - ((today.month, today.day) < (born.month, born.day))
 
+    @property
+    def mfa_required(self) -> bool:
+        """Whether this account's role must use two-step verification."""
+        from app.core.config import settings
+
+        return bool(self.role and self.role.name.lower() in settings.mfa_required_roles)
+
     def to_dict(self):
         return {
             "id": self.id,
@@ -106,6 +121,8 @@ class User(Base):
             "medications": self.medications,
             "auth_provider": self.auth_provider,
             "social_linked": bool(self.firebase_uid),
+            "mfa_enabled": bool(self.mfa_enabled),
+            "mfa_required": self.mfa_required,
             "role_id": self.role_id,
             "role": self.role.name if self.role else None,
             "is_active": self.is_active,

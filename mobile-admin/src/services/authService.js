@@ -3,6 +3,8 @@ import apiClient from '../api/client';
 import secureStorage from '../utils/secureStorage';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { useAuthStore } from '../store/authStore';
+import { useMfaStore } from '../store/mfaStore';
+import mfaService from './mfaService';
 import { APP_ROLE } from '../config';
 
 // RBAC: shown when a valid credential belongs to a different app's role.
@@ -22,7 +24,7 @@ class AuthService {
       throw new Error(response.message || 'Login failed');
     }
 
-    return this._persistSession(response.data);
+    return this._sessionOrChallenge(response.data);
   }
 
   /**
@@ -40,7 +42,48 @@ class AuthService {
       throw new Error(response.message || 'Sign-in failed');
     }
 
-    return this._persistSession(response.data);
+    return this._sessionOrChallenge(response.data);
+  }
+
+  /**
+   * Accounts with two-step verification get `{mfa_required, mfa_token}` instead
+   * of a session. Park the token; App.tsx then shows the code screen, and
+   * completeTwoStep() finishes the sign-in. Resolves to the user, or to
+   * `{ mfaRequired: true }` while a code is still owed.
+   */
+  _sessionOrChallenge(data) {
+    if (data?.mfa_required && data?.mfa_token) {
+      useMfaStore.getState().setChallenge(data.mfa_token);
+      return { mfaRequired: true };
+    }
+    return this._persistSession(data);
+  }
+
+  /** Second step of sign-in: the 6-digit code (or a recovery code). */
+  async completeTwoStep(code) {
+    const token = useMfaStore.getState().challengeToken;
+    if (!token) throw new Error('Your sign-in expired. Please sign in again.');
+    try {
+      const data = await mfaService.verify(token, code);
+      const user = await this._persistSession(data);
+      useMfaStore.getState().clear();
+      return { user, recoveryCodesLeft: data.recovery_codes_left };
+    } catch (err) {
+      // An expired or revoked sign-in cannot be retried with another code.
+      if (err?.status === 401 && /sign in again/i.test(err.message || '')) {
+        useMfaStore.getState().clear();
+      }
+      throw err;
+    }
+  }
+
+  cancelTwoStep() {
+    useMfaStore.getState().clear();
+  }
+
+  /** Cache the profile returned by an enrolment change (enable / disable). */
+  async applyProfile(user) {
+    return user ? this._cacheUser(user) : null;
   }
 
   /** Shared post-login step: RBAC check, then persist tokens + profile. */

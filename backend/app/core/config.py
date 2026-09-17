@@ -110,6 +110,14 @@ class Settings(BaseSettings):
     RELEASE_REGISTER_TOKEN: str = ""
     # How many recent versions to keep active per app (older ones are deactivated).
     RELEASE_KEEP_VERSIONS: int = 4
+    # Where each app's "Update" button sends people, per platform, as JSON:
+    #   {"mobile-users":   {"android": "https://play.google.com/store/apps/details?id=com.purnazen",
+    #                       "ios": "https://apps.apple.com/app/id1234567890"},
+    #    "mobile-doctors": {"ios": "https://testflight.apple.com/join/AbCdEf12"}}
+    # Lets a private channel (unlisted App Store link, TestFlight public link,
+    # Firebase App Distribution) change without shipping a new build. Anything
+    # not listed falls back to the store listing built into the app.
+    STORE_LINKS_JSON: str = ""
 
     # Google Calendar / Meet integration — base64-encoded service account JSON key.
     # When empty, video-consultation bookings skip Meet link creation.
@@ -121,6 +129,16 @@ class Settings(BaseSettings):
     FIREBASE_SERVICE_ACCOUNT_JSON: str = ""
     # Optional override; normally derived from the service account JSON above.
     FIREBASE_PROJECT_ID: str = ""
+
+    # Two-step verification (TOTP). Roles listed here must enrol before any
+    # role-gated endpoint answers them, and cannot switch it off. Comma list,
+    # e.g. "admin" or "admin,doctor". Empty = optional for everyone.
+    MFA_REQUIRED_ROLES: str = ""
+    MFA_ISSUER: str = "Purnazen"
+    RATE_LIMIT_MFA: str = "10/minute"
+    # Key for encrypting TOTP secrets at rest. Defaults to a key derived from
+    # SECRET_KEY; set it separately to rotate one without the other.
+    MFA_ENCRYPTION_KEY: str = ""
 
     # Scan upload limits
     SCAN_MAX_FILE_SIZE_MB: int = 15
@@ -134,6 +152,10 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.ENVIRONMENT.strip().lower() not in _DEV_ENVIRONMENTS
+
+    @property
+    def mfa_required_roles(self) -> set[str]:
+        return {r.strip().lower() for r in self.MFA_REQUIRED_ROLES.split(",") if r.strip()}
 
     @property
     def cors_origins_list(self) -> list[str]:
