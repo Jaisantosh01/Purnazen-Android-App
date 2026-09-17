@@ -23,6 +23,8 @@
     "@react-navigation/native-stack": "^7.14.10",
     "axios": "^1.17.0",
     "expo": "~56.0.0",
+    "expo-apple-authentication": "~56.0.4",
+    "expo-crypto": "~56.0.4",
     "react": "19.2.3",
     "react-native": "^0.85.3",
     "react-native-image-picker": "^8.2.1",

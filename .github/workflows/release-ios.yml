@@ -1,0 +1,151 @@
+name: Release iOS Apps (TestFlight)
+
+# Manual only. Archives one or all apps on a macOS runner, signs with the App
+# Store Connect API key (Xcode automatic signing — no certificates or profiles
+# stored in the repo or in secrets), and uploads to TestFlight. From TestFlight
+# a build is promoted to the App Store, or to Unlisted distribution for the
+# Doctor and Admin apps (docs/DISTRIBUTION.md).
+#
+# Needs, before the first run (Settings > Secrets and variables > Actions):
+#   secrets  APPLE_TEAM_ID          10-character team id (developer.apple.com > Membership)
+#            ASC_KEY_ID             App Store Connect API key id
+#            ASC_ISSUER_ID          App Store Connect issuer id
+#            ASC_KEY_P8_BASE64      the .p8 key file, base64-encoded
+#   vars     API_BASE_URL           same variable the Android release uses
+# and each bundle id registered with an app record in App Store Connect.
+#
+# macOS minutes bill at 10x Linux; run it deliberately.
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: "Which app to release"
+        required: true
+        default: mobile-users
+        type: choice
+        options: [all, mobile-users, mobile-doctors, mobile-admin]
+      version:
+        description: "Marketing version, e.g. 1.0.7"
+        required: true
+        type: string
+      build_number:
+        description: "Override the build number (optional; needed to re-upload the same version, e.g. 1000007.1)"
+        required: false
+        type: string
+      api_base_url:
+        description: "Override backend base URL (optional; defaults to the API_BASE_URL repo variable)"
+        required: false
+        type: string
+      internal_only:
+        description: "Restrict this build to internal TestFlight testers"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-ios-${{ inputs.app }}-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set.outputs.matrix }}
+    steps:
+      - id: set
+        run: |
+          if [ "${{ inputs.app }}" = "all" ]; then
+            echo 'matrix={"app":["mobile-users","mobile-doctors","mobile-admin"]}' >> "$GITHUB_OUTPUT"
+          else
+            echo 'matrix={"app":["${{ inputs.app }}"]}' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check signing secrets
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+        run: |
+          MISSING=""
+          for v in APPLE_TEAM_ID ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8_BASE64; do
+            [ -n "${!v}" ] || MISSING="$MISSING $v"
+          done
+          if [ -n "$MISSING" ]; then
+            echo "::error::Missing repository secret(s):$MISSING — see the header of .github/workflows/release-ios.yml and docs/DISTRIBUTION.md."
+            exit 1
+          fi
+
+  testflight:
+    needs: prepare
+    runs-on: macos-15
+    environment: production          # same approval gate as the Android release
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ${{ matrix.app }}/package-lock.json
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          working-directory: ${{ matrix.app }}
+          bundler-cache: true
+
+      - name: Install JS dependencies
+        working-directory: ${{ matrix.app }}
+        run: npm ci --no-audit --no-fund
+
+      - name: Inject build-time config (.env — not committed)
+        env:
+          API_BASE_URL: ${{ inputs.api_base_url != '' && inputs.api_base_url || vars.API_BASE_URL }}
+        run: |
+          if [ -z "$API_BASE_URL" ]; then
+            echo "::error::No backend URL — set the API_BASE_URL repo variable or pass api_base_url"; exit 1
+          fi
+          {
+            echo "EXPO_PUBLIC_API_URL=$API_BASE_URL"
+            echo "EXPO_PUBLIC_APP_VERSION=${{ inputs.version }}"
+          } > "${{ matrix.app }}/.env"
+
+      - name: Write App Store Connect key
+        env:
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+        run: |
+          echo "$ASC_KEY_P8_BASE64" | base64 --decode > "$RUNNER_TEMP/AuthKey.p8"
+          chmod 600 "$RUNNER_TEMP/AuthKey.p8"
+
+      - name: Archive and upload to TestFlight
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_PATH: ${{ runner.temp }}/AuthKey.p8
+          BUILD_NUMBER: ${{ inputs.build_number }}
+          TESTFLIGHT_INTERNAL_ONLY: ${{ inputs.internal_only && 'true' || 'false' }}
+          UPLOAD: '1'
+        run: scripts/archive-ios.sh "${{ matrix.app }}" "${{ inputs.version }}"
+
+      - name: Keep dSYMs and the log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-${{ matrix.app }}-${{ inputs.version }}
+          path: |
+            build/ios/${{ matrix.app }}/*-dSYMs.zip
+            build-logs/ios-archive-${{ matrix.app }}.log
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Remove the key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/AuthKey.p8"

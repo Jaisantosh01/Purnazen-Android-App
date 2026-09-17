@@ -30,10 +30,15 @@ class AuthService {
    * The backend verifies it against the Firebase project and creates a
    * patient account on first login.
    */
-  async socialLogin(firebaseIdToken) {
+  /**
+   * `fullName` is only needed for providers that do not put a name in the
+   * Firebase token (Apple, which shares it once, on first authorisation).
+   */
+  async socialLogin(firebaseIdToken, fullName = null) {
     const response = await apiClient.post(ENDPOINTS.SOCIAL_LOGIN, {
       id_token: firebaseIdToken,
       expected_role: APP_ROLE,
+      ...(fullName ? { full_name: fullName } : {}),
     });
 
     if (!response.success) {

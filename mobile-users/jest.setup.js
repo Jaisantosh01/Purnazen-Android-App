@@ -86,3 +86,28 @@ jest.mock('react-native-safe-area-context', () => {
     initialWindowMetrics: { frame, insets: inset },
   };
 });
+
+// Sign in with Apple (iOS only). Native Expo modules have no jest runtime;
+// report the capability as unavailable so screens render without the button.
+// socialAuthService.test.js overrides these with its own mocks.
+jest.mock(
+  'expo-apple-authentication',
+  () => ({
+    isAvailableAsync: jest.fn(() => Promise.resolve(false)),
+    signInAsync: jest.fn(),
+    AppleAuthenticationButton: () => null,
+    AppleAuthenticationButtonType: { SIGN_IN: 0, CONTINUE: 1, SIGN_UP: 2 },
+    AppleAuthenticationButtonStyle: { WHITE: 0, WHITE_OUTLINE: 1, BLACK: 2 },
+    AppleAuthenticationScope: { FULL_NAME: 0, EMAIL: 1 },
+  }),
+  { virtual: true },
+);
+jest.mock(
+  'expo-crypto',
+  () => ({
+    getRandomBytesAsync: jest.fn(async n => new Uint8Array(n)),
+    digestStringAsync: jest.fn(async () => ''),
+    CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
+  }),
+  { virtual: true },
+);

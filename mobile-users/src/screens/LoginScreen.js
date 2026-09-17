@@ -17,19 +17,20 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import authService from '../services/authService';
 import socialAuthService from '../services/socialAuthService';
+import AppleSignInButton from '../components/AppleSignInButton';
 import useTheme from '../hooks/useTheme';
 import { STRINGS } from '../constants/strings';
 import { isValidEmail } from '../utils/validators';
 
 const LoginScreen = ({ navigation }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [socialLoading, setSocialLoading] = useState(null); // 'google' | 'github'
+  const [socialLoading, setSocialLoading] = useState(null); // 'google' | 'github' | 'apple'
   const [focused, setFocused] = useState(null); // 'email' | 'password'
   const emailRef = useRef(null);
   const passwordRef = useRef(null);
@@ -85,9 +86,7 @@ const LoginScreen = ({ navigation }) => {
     try {
       // Resolves to null when the user cancels the provider dialog — no error.
       // On success, navigation is handled by the App.tsx auth-state listener.
-      await (provider === 'google'
-        ? socialAuthService.signInWithGoogle()
-        : socialAuthService.signInWithGitHub());
+      await socialAuthService.signIn(provider);
     } catch (err) {
       setError(err.message || 'Sign-in failed. Please try again.');
     } finally {
@@ -226,6 +225,13 @@ const LoginScreen = ({ navigation }) => {
               )}
             </TouchableOpacity>
           </View>
+          <AppleSignInButton
+            label="continue"
+            isDark={isDark}
+            loading={socialLoading === 'apple'}
+            disabled={isLoading || !!socialLoading}
+            onPress={() => handleSocialLogin('apple')}
+          />
 
           <View style={styles.switchRow}>
             <Text style={styles.switchHint}>Don't have an account? </Text>

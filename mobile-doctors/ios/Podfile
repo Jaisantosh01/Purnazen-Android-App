@@ -6,14 +6,68 @@ require Pod::Executable.execute_command('node', ['-p',
     {paths: [process.argv[1]]},
   )', __dir__]).strip
 
-platform :ios, '16.4'
+MIN_IOS = '16.4'
+platform :ios, MIN_IOS
 prepare_react_native_project!
 
-linkage = ENV['USE_FRAMEWORKS']
-if linkage != nil
-  Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
-  use_frameworks! :linkage => linkage.to_sym
-end
+# Required by the `use_frameworks! :linkage => :static` below: it tells
+# react-native-firebase to build its own pods as static frameworks to match.
+$RNFirebaseAsStaticFramework = true
+
+# Static FRAMEWORKS, not static libraries — and this is not a preference.
+#
+# FirebaseAuth is a Swift pod. Firebase's umbrella header does this:
+#
+#     #if __has_include("FirebaseAuth-umbrella.h")
+#       ...
+#       #import <FirebaseAuth/FirebaseAuth-Swift.h>
+#     #endif
+#
+# Built as a static LIBRARY, CocoaPods symlinks the umbrella header into
+# Pods/Headers/Public/FirebaseAuth/ — so the guard passes — but the generated
+# Swift interop header is published to a sibling "Swift Compatibility Header"
+# directory and exposed only through a separate `FirebaseAuth.Swift` module. So
+# `<FirebaseAuth/FirebaseAuth-Swift.h>` does not resolve, and every target that
+# imports <Firebase/Firebase.h> without depending on Auth fails to compile.
+# RNFBMessaging is exactly that target:
+#
+#     Pods/Headers/Private/Firebase/Firebase.h:40:15:
+#       error: 'FirebaseAuth/FirebaseAuth-Swift.h' file not found
+#
+# Built as a FRAMEWORK, the generated header lands inside
+# FirebaseAuth.framework/Headers/ and the import resolves. This is the
+# configuration Firebase's umbrella header assumes, and the one Firebase and
+# react-native-firebase document for Swift products.
+#
+# Overridable for debugging: USE_FRAMEWORKS=dynamic pod install.
+linkage = (ENV['USE_FRAMEWORKS'] || 'static').to_sym
+
+# React Native's podspecs gate their entire use_frameworks! support on this
+# variable being present in the environment — see resolve_use_frameworks in
+# react-native/scripts/cocoapods/utils.rb, which returns early unless it is set.
+# Calling use_frameworks! without it leaves React-Core's headers non-modular, so
+# <React/*.h> resolves to plain headers that no clang module owns.
+ENV['USE_FRAMEWORKS'] = linkage.to_s
+
+# React Native 0.85 ships a prebuilt React.xcframework by default. Its headers
+# are reached through a VFS overlay and a generated `module React` map that Expo
+# injects as -fmodule-map-file. Explicitly-built Clang modules do not inherit
+# that flag, so while building a pod that is itself a framework module — e.g.
+# RNFBApp, whose public headers import <React/RCTBridgeModule.h> — Clang finds
+# the header but cannot attribute it to any module:
+#
+#   While building module 'RNFBApp':
+#   RNFBSharedUtils.h:22:9: error: include of non-modular header inside framework
+#     module 'RNFBApp.RNFBSharedUtils': '.../React_Core/React/RCTBridgeModule.h'
+#     [-Werror,-Wnon-modular-include-in-framework-module]
+#
+# Building React Native from source makes React-Core an ordinary pod, so
+# use_frameworks! gives it a real `framework module React` that Clang discovers
+# through the framework search paths in every context, module builds included.
+ENV['RCT_USE_PREBUILT_RNCORE'] = '0'
+
+Pod::UI.puts "Configuring Pods with #{linkage}ally linked frameworks"
+use_frameworks! :linkage => linkage
 
 target 'purnazendoctor' do
   use_expo_modules!
@@ -48,5 +102,34 @@ target 'purnazendoctor' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    # Xcode 27 refuses any target whose deployment target is below iOS 15 —
+    # an error now, a warning in Xcode 26. Several pods still declare 9.0–13.0,
+    # mostly for their privacy-manifest resource bundles (PromisesObjC,
+    # GoogleUtilities, nanopb, AsyncStorage, react-native-image-picker). The app
+    # itself targets 16.4, so nothing is lost by raising them to match.
+    installer.pods_project.targets.each do |t|
+      t.build_configurations.each do |c|
+        current = c.build_settings['IPHONEOS_DEPLOYMENT_TARGET']
+        if current.nil? || Gem::Version.new(current) < Gem::Version.new(MIN_IOS)
+          c.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = MIN_IOS
+        end
+      end
+    end
+
+    # Metro port. The three apps run side by side, each on its own dev server
+    # (users 8081, doctors 8082, admin 8083 — see the root README), and Android
+    # already bakes the port in through reactNativeDevServerPort. On iOS the
+    # port is the RCT_METRO_PORT macro, compiled into React-Core; React Native
+    # builds from source here (RCT_USE_PREBUILT_RNCORE=0 above), so defining it
+    # for the pod targets is enough for a Debug build to find its own Metro.
+    installer.pods_project.targets.each do |t|
+      t.build_configurations.each do |c|
+        defs = c.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] || ['$(inherited)']
+        defs = [defs] if defs.is_a?(String)
+        defs << 'RCT_METRO_PORT=8082' unless defs.include?('RCT_METRO_PORT=8082')
+        c.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = defs
+      end
+    end
   end
 end

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate a Purnazen app icon set (Android).
+Generate a Purnazen app icon set (Android and iOS).
 
 Brand mark: a white lotus on a brand-colored field — "purna" (wholeness) + "zen".
 Each app uses its brand primary: patient green #1FA77A (default), doctor blue
@@ -8,6 +8,7 @@ Each app uses its brand primary: patient green #1FA77A (default), doctor blue
 
 Usage:
   generate_icon.py <res_dir> [primary_hex] [top_hex]
+  generate_icon.py --ios <Images.xcassets dir> [primary_hex] [top_hex]
 
   primary_hex — field color (default #1FA77A)
   top_hex     — lighter top of the gradient (default: primary lightened)
@@ -19,7 +20,16 @@ Outputs (relative to the target res/ dir):
 
 Adaptive XML + background color are written separately by the caller — keep
 values/ic_launcher_background.xml in sync with primary_hex.
+
+iOS outputs (relative to the Images.xcassets dir):
+  AppIcon.appiconset/AppIcon-1024.png     single-size 1024px app icon. Opaque,
+                                          square: iOS applies its own mask and
+                                          rejects icons with an alpha channel.
+  LaunchLogo.imageset/LaunchLogo@{1,2,3}x.png
+                                          white lotus on transparent, 120pt, for
+                                          LaunchScreen.storyboard
 """
+import json
 import math
 import os
 import sys
@@ -92,19 +102,23 @@ def vesica_petal(size, length, width, fill, outline, ow):
         # Stroke = mask minus an eroded mask, painted in the outline colour, so
         # adjacent white petals stay visually separated over the green field.
         from PIL import ImageFilter
-        eroded = mask.filter(ImageFilter.MinFilter(ow * 2 + 1))
+        # Repeated 3x3 erosion equals one (2*ow+1) square erosion, and is far
+        # cheaper on the large canvases the iOS 1024px icon needs.
+        eroded = mask
+        for _ in range(ow):
+            eroded = eroded.filter(ImageFilter.MinFilter(3))
         ring = ImageChops.subtract(mask, eroded)
         petal.paste(outline, (0, 0), ring)
     return petal
 
 
-def draw_lotus(canvas_px, scale=0.62):
+def draw_lotus(canvas_px, scale=0.62, ss=None):
     """White lotus centred on a transparent square of `canvas_px`.
 
     All petal bases meet at the canvas centre and fan upward/outward; petal
     length stays < half the canvas so nothing clips when rotated.
     """
-    big = canvas_px * SS
+    big = canvas_px * (ss or SS)
     img = Image.new('RGBA', (big, big), (0, 0, 0, 0))
     L = big * 0.44 * (scale / 0.62)   # bounded so L < big/2 (no clip on rotate)
     W = L * 0.52                       # petal belly width
@@ -168,15 +182,59 @@ def build(res_dir):
         print(f'  wrote {dpi} ({px}px)')
 
 
+def build_ios(xcassets):
+    """Single-size app icon (Xcode 14+) and the launch-screen logo."""
+    icon_dir = os.path.join(xcassets, 'AppIcon.appiconset')
+    os.makedirs(icon_dir, exist_ok=True)
+    px = 1024
+    big = px * 2
+    grad = Image.new('RGBA', (1, big))
+    for y in range(big):
+        t = y / big
+        grad.putpixel((0, y), tuple(int(PRIMARY_TOP[i] * (1 - t) + PRIMARY[i] * t) for i in range(4)))
+    icon = grad.resize((big, big)).resize((px, px), Image.LANCZOS)
+    lp = draw_lotus(int(px * 0.80), scale=0.60, ss=2)
+    off = (px - lp.width) // 2
+    icon.alpha_composite(lp, (off, off))
+    icon.convert('RGB').save(os.path.join(icon_dir, 'AppIcon-1024.png'))
+    with open(os.path.join(icon_dir, 'Contents.json'), 'w') as f:
+        json.dump({
+            'images': [{'filename': 'AppIcon-1024.png', 'idiom': 'universal',
+                        'platform': 'ios', 'size': '1024x1024'}],
+            'info': {'author': 'xcode', 'version': 1},
+        }, f, indent=2)
+        f.write('\n')
+    print('  wrote AppIcon.appiconset (1024px)')
+
+    logo_dir = os.path.join(xcassets, 'LaunchLogo.imageset')
+    os.makedirs(logo_dir, exist_ok=True)
+    images = []
+    for scale in (1, 2, 3):
+        name = f'LaunchLogo@{scale}x.png' if scale > 1 else 'LaunchLogo.png'
+        side = 120 * scale
+        canvas = Image.new('RGBA', (side, side), (0, 0, 0, 0))
+        lp = draw_lotus(side, scale=0.62)
+        canvas.alpha_composite(lp, (0, 0))
+        canvas.save(os.path.join(logo_dir, name))
+        images.append({'filename': name, 'idiom': 'universal', 'scale': f'{scale}x'})
+    with open(os.path.join(logo_dir, 'Contents.json'), 'w') as f:
+        json.dump({'images': images, 'info': {'author': 'xcode', 'version': 1}}, f, indent=2)
+        f.write('\n')
+    print('  wrote LaunchLogo.imageset (120pt @1x/2x/3x)')
+
+
 PRIMARY = GREEN
 PRIMARY_TOP = GREEN_TOP
 
 if __name__ == '__main__':
+    ios = sys.argv[1] == '--ios'
+    if ios:
+        sys.argv.pop(1)
     target = sys.argv[1]
     if len(sys.argv) > 2:
         PRIMARY = hex_to_rgba(sys.argv[2])
         PRIMARY_TOP = hex_to_rgba(sys.argv[3]) if len(sys.argv) > 3 else lighten(PRIMARY)
     print(f'Generating icons into {target} (primary '
           f'#{PRIMARY[0]:02X}{PRIMARY[1]:02X}{PRIMARY[2]:02X})')
-    build(target)
+    build_ios(target) if ios else build(target)
     print('done')

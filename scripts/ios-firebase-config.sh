@@ -114,7 +114,7 @@ for APP in $APPS; do
   case "$APP" in
     mobile-users)   BUNDLE=com.purnazen;        TARGET=wellness;        DISPLAY="PurnaZen (iOS)" ;;
     mobile-doctors) BUNDLE=com.purnazen.doctor; TARGET=purnazendoctor;  DISPLAY="PurnaZen Doctor (iOS)" ;;
-    mobile-admin)   BUNDLE=com.purnazen.admin;  TARGET=wellness;        DISPLAY="PurnaZen Admin (iOS)" ;;
+    mobile-admin)   BUNDLE=com.purnazen.admin;  TARGET=PurnazenAdmin;   DISPLAY="PurnaZen Admin (iOS)" ;;
   esac
   DEST_DIR="$ROOT/$APP/ios/$TARGET"
   DEST="$DEST_DIR/GoogleService-Info.plist"
@@ -163,6 +163,27 @@ for APP in $APPS; do
   [ "$GOT" = "$BUNDLE" ] || die "plist BUNDLE_ID is '$GOT', expected '$BUNDLE'"
 
   say "   wrote:  ${DEST#$ROOT/}"
+
+  # Firebase's iOS OAuth flow (Google sign-in through signInWithPopup) returns
+  # to the app through a URL scheme: the encoded app id, and for Google the
+  # reversed client id. Without them the browser sheet opens and never comes
+  # back. Derived from the plist just written, so they can never drift.
+  INFO="$DEST_DIR/Info.plist"
+  ENCODED="app-$(plutil -extract GOOGLE_APP_ID raw -o - "$DEST" | tr ':' '-')"
+  REVERSED="$(plutil -extract REVERSED_CLIENT_ID raw -o - "$DEST" 2>/dev/null || true)"
+  /usr/libexec/PlistBuddy -c "Delete :CFBundleURLTypes" "$INFO" >/dev/null 2>&1 || true
+  /usr/libexec/PlistBuddy \
+    -c "Add :CFBundleURLTypes array" \
+    -c "Add :CFBundleURLTypes:0 dict" \
+    -c "Add :CFBundleURLTypes:0:CFBundleTypeRole string Editor" \
+    -c "Add :CFBundleURLTypes:0:CFBundleURLName string firebase-auth" \
+    -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes array" \
+    -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string $ENCODED" \
+    "$INFO" >> "$LOG" 2>&1 || die "could not write URL schemes into $INFO"
+  if [ -n "$REVERSED" ]; then
+    /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:1 string $REVERSED" "$INFO" >> "$LOG" 2>&1
+  fi
+  say "   url schemes: $ENCODED${REVERSED:+, $REVERSED}"
 done
 
 say ""

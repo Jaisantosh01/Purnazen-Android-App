@@ -50,8 +50,9 @@ keystore.b64
 scripts/.azure*.env
 scripts/.provision*.log
 
-# Local Docker APK build output + caches
+# Local Docker APK build output + caches, iOS archives (scripts/archive-ios.sh)
 /release/
+/build/
 .docker-cache/
 
 # iOS

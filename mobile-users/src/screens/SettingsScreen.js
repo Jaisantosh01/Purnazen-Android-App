@@ -430,7 +430,7 @@ const SettingsScreen = ({ navigation, route }) => {
     }
   };
 
-  // Linked social account: link via Google/GitHub, or unlink the current one.
+  // Linked social account: link via Google (or Apple on iOS), or unlink the current one.
   const linkWith = async provider => {
     setLinkBusy(true);
     try {
@@ -445,7 +445,7 @@ const SettingsScreen = ({ navigation, route }) => {
     }
   };
 
-  const handleLinkedAccount = () => {
+  const handleLinkedAccount = async () => {
     if (linkBusy) return;
     if (user?.social_linked) {
       showAlert(
@@ -468,9 +468,11 @@ const SettingsScreen = ({ navigation, route }) => {
         ],
       );
     } else {
+      const appleReady = await socialAuthService.isAppleSignInAvailable();
       showAlert('Link a Social Account', 'Sign in with the account you want to link.', [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Google', onPress: () => linkWith('google') },
+        ...(appleReady ? [{ text: 'Apple', onPress: () => linkWith('apple') }] : []),
       ]);
     }
   };

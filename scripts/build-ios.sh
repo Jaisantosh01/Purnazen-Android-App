@@ -6,6 +6,8 @@
 #   scripts/build-ios.sh mobile-users run         # same, explicit
 #   scripts/build-ios.sh mobile-users build       # compile only, no simulator
 #   scripts/build-ios.sh mobile-users device      # generic iOS device, Release, unsigned
+#   scripts/build-ios.sh mobile-doctors           # same modes for the doctor and admin apps
+#   scripts/build-ios.sh all build                # compile all three, one after another
 #   CLEAN=1 scripts/build-ios.sh                  # wipe Pods + DerivedData first
 #
 # Everything — every command and all of its output — goes to
@@ -24,6 +26,17 @@ ROOT="$(pwd)"
 
 APP="${1:-mobile-users}"
 MODE="${2:-run}"
+
+# `all` re-runs this script per app and keeps each app's log.
+if [ "$APP" = "all" ]; then
+  [ "$MODE" = "run" ] && { echo "'all' builds only: use 'build' or 'device'"; exit 2; }
+  STATUS=0
+  for A in mobile-users mobile-doctors mobile-admin; do
+    "$ROOT/scripts/build-ios.sh" "$A" "$MODE" || STATUS=1
+    cp "$ROOT/build-logs/ios-build.log" "$ROOT/build-logs/ios-build-$A.log" 2>/dev/null || true
+  done
+  exit $STATUS
+fi
 LOG_DIR="$ROOT/build-logs"
 LOG="$LOG_DIR/ios-build.log"
 
@@ -44,9 +57,9 @@ die()  {
 }
 
 case "$APP" in
-  mobile-users)   SCHEME=wellness;       WORKSPACE=wellness;       TARGET=wellness;       BUNDLE=com.purnazen ;;
-  mobile-admin)   SCHEME=wellness;       WORKSPACE=wellness;       TARGET=wellness;       BUNDLE=com.purnazen.admin ;;
-  mobile-doctors) SCHEME=purnazendoctor; WORKSPACE=purnazendoctor; TARGET=purnazendoctor; BUNDLE=com.purnazen.doctor ;;
+  mobile-users)   SCHEME=wellness;       WORKSPACE=wellness;       TARGET=wellness;       BUNDLE=com.purnazen;        METRO_PORT=8081 ;;
+  mobile-doctors) SCHEME=purnazendoctor; WORKSPACE=purnazendoctor; TARGET=purnazendoctor; BUNDLE=com.purnazen.doctor; METRO_PORT=8082 ;;
+  mobile-admin)   SCHEME=PurnazenAdmin;  WORKSPACE=PurnazenAdmin;  TARGET=PurnazenAdmin;  BUNDLE=com.purnazen.admin;  METRO_PORT=8083 ;;
   *) echo "Unknown app '$APP' (mobile-users | mobile-doctors | mobile-admin)"; exit 2 ;;
 esac
 
@@ -137,11 +150,17 @@ elif [ -f ios/Podfile.lock ] && [ -d ios/build ]; then
 fi
 
 # ── JS dependencies ─────────────────────────────────────────────────────────
+# npm keeps a copy of the lock it installed from in node_modules/.package-lock.json.
+# When package-lock.json has moved on (a dependency was added or bumped), the
+# installed tree is stale and native pods would be generated from old sources.
 if [ ! -d node_modules ]; then
   say "-- npm ci (node_modules missing)"
   run npm ci --no-audit --no-fund || die "npm ci"
+elif [ package-lock.json -nt node_modules/.package-lock.json ]; then
+  say "-- npm ci (package-lock.json changed since the last install)"
+  run npm ci --no-audit --no-fund || die "npm ci"
 else
-  say "-- node_modules present"
+  say "-- node_modules up to date"
 fi
 
 # ── Build-time config ───────────────────────────────────────────────────────
@@ -248,25 +267,30 @@ read -r UDID SIM_NAME <<<"$(node -e "
 say "-- simulator: $SIM_NAME ($UDID)"
 
 run xcrun simctl boot "$UDID"   # already-booted returns non-zero; harmless
-run open -a Simulator --args -CurrentDeviceUDID "$UDID"
+# Xcode 27 replaced Simulator.app with DeviceHub.app; the device runs headless
+# either way, so a missing app here is not fatal.
+SIM_APP="$(xcode-select -p)/../Applications/Simulator.app"
+[ -d "$SIM_APP" ] || SIM_APP="$(xcode-select -p)/../Applications/DeviceHub.app"
+run open -a "$SIM_APP" --args -CurrentDeviceUDID "$UDID" || note "!! could not open $SIM_APP"
 
 # ── Metro ───────────────────────────────────────────────────────────────────
 # A Debug build loads its JS from Metro rather than from a bundle inside the
-# .app, so it has to be running before the app launches — otherwise the app
+# .app, so it has to be running before the app launches. Each app has its own
+# port (baked into React-Core by the Podfile), so all three can run at once — otherwise the app
 # opens to a red "No script URL provided" screen that looks like a build
 # failure and is not one.
-METRO_LOG="$LOG_DIR/metro.log"
-if curl -sf --max-time 2 "http://localhost:8081/status" >/dev/null 2>&1; then
-  say "-- metro already running on :8081"
+METRO_LOG="$LOG_DIR/metro-$APP.log"
+if curl -sf --max-time 2 "http://localhost:$METRO_PORT/status" >/dev/null 2>&1; then
+  say "-- metro already running on :$METRO_PORT"
 else
   say "-- starting metro (log: ${METRO_LOG#$ROOT/})"
-  ( cd "$ROOT/$APP" && nohup npx react-native start --port 8081 > "$METRO_LOG" 2>&1 & )
+  ( cd "$ROOT/$APP" && nohup npx react-native start --port $METRO_PORT > "$METRO_LOG" 2>&1 & )
   for _ in $(seq 1 30); do
-    curl -sf --max-time 2 "http://localhost:8081/status" >/dev/null 2>&1 && break
+    curl -sf --max-time 2 "http://localhost:$METRO_PORT/status" >/dev/null 2>&1 && break
     sleep 1
   done
-  curl -sf --max-time 2 "http://localhost:8081/status" >/dev/null 2>&1 \
-    || say "!! metro did not come up on :8081 — see ${METRO_LOG#$ROOT/}"
+  curl -sf --max-time 2 "http://localhost:$METRO_PORT/status" >/dev/null 2>&1 \
+    || say "!! metro did not come up on :$METRO_PORT — see ${METRO_LOG#$ROOT/}"
 fi
 
 # ── Build for the simulator ─────────────────────────────────────────────────
@@ -300,7 +324,9 @@ run xcrun simctl launch "$UDID" "$BUNDLE" || die "simctl launch"
 say "-- watching for 25s"
 sleep 25
 
-if xcrun simctl spawn "$UDID" launchctl list 2>/dev/null | grep -q "UIKitApplication:$BUNDLE"; then
+# launchctl inside the simulator no longer lists app jobs by bundle id on
+# current Xcode, so look for the process from the host instead.
+if pgrep -f "/$TARGET.app/$TARGET\$" >/dev/null 2>&1; then
   ALIVE=yes
 else
   ALIVE=no

@@ -1,0 +1,33 @@
+# Line endings: store text as LF in the repo, whatever the contributor's OS.
+# The team builds on Windows and macOS; without this, editors on Windows have
+# committed CRLF and bare-CR line endings into Swift sources, which git then
+# treats as binary (no diffs, no merges).
+* text=auto eol=lf
+
+# Windows batch scripts must keep CRLF or cmd.exe mis-parses labels.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary assets: never normalise, never diff as text.
+*.png      binary
+*.jpg      binary
+*.jpeg     binary
+*.gif      binary
+*.webp     binary
+*.ico      binary
+*.ttf      binary
+*.otf      binary
+*.mp4      binary
+*.jar      binary
+*.keystore binary
+*.jks      binary
+*.onnx     binary
+*.pt       binary
+*.task     binary
+*.pdf      binary
+*.docx     binary
+
+# Generated lockfiles: collapsed by default in GitHub pull-request diffs.
+package-lock.json  linguist-generated
+Podfile.lock       linguist-generated
+Gemfile.lock       linguist-generated

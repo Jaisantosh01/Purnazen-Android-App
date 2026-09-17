@@ -18,6 +18,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import authService from '../services/authService';
 import socialAuthService from '../services/socialAuthService';
+import AppleSignInButton from '../components/AppleSignInButton';
 import biometricService from '../services/biometricService';
 import useTheme from '../hooks/useTheme';
 import { useProfileStore } from '../store/profileStore';
@@ -25,7 +26,7 @@ import { STRINGS } from '../constants/strings';
 import { quickEmailIssue } from '../utils/validators';
 
 const RegisterScreen = ({ navigation }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [fullName, setFullName]         = useState('');
@@ -36,7 +37,7 @@ const RegisterScreen = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError]               = useState('');
   const [isLoading, setIsLoading]       = useState(false);
-  const [socialLoading, setSocialLoading] = useState(null); // 'google' | 'github'
+  const [socialLoading, setSocialLoading] = useState(null); // 'google' | 'github' | 'apple'
   const [focused, setFocused]           = useState(null); // 'name' | 'email' | 'password' | 'confirm'
 
   const nameRef     = useRef(null);
@@ -104,9 +105,7 @@ const RegisterScreen = ({ navigation }) => {
     setError('');
     setSocialLoading(provider);
     try {
-      const user = await (provider === 'google'
-        ? socialAuthService.signInWithGoogle()
-        : socialAuthService.signInWithGitHub());
+      const user = await socialAuthService.signIn(provider);
       // null = user cancelled; otherwise navigation is handled by App.tsx.
       // Only prompt profile completion when the profile is actually blank —
       // the same button may have signed into an established account.
@@ -332,6 +331,13 @@ const RegisterScreen = ({ navigation }) => {
               )}
             </TouchableOpacity>
           </View>
+          <AppleSignInButton
+            label="signup"
+            isDark={isDark}
+            loading={socialLoading === 'apple'}
+            disabled={isLoading || !!socialLoading}
+            onPress={() => handleSocialSignup('apple')}
+          />
 
           <View style={styles.switchRow}>
             <Text style={styles.switchHint}>Already have an account? </Text>

@@ -6,7 +6,8 @@ require Pod::Executable.execute_command('node', ['-p',
     {paths: [process.argv[1]]},
   )', __dir__]).strip
 
-platform :ios, '16.4'
+MIN_IOS = '16.4'
+platform :ios, MIN_IOS
 prepare_react_native_project!
 
 # Required by the `use_frameworks! :linkage => :static` below: it tells
@@ -40,6 +41,31 @@ $RNFirebaseAsStaticFramework = true
 #
 # Overridable for debugging: USE_FRAMEWORKS=dynamic pod install.
 linkage = (ENV['USE_FRAMEWORKS'] || 'static').to_sym
+
+# React Native's podspecs gate their entire use_frameworks! support on this
+# variable being present in the environment — see resolve_use_frameworks in
+# react-native/scripts/cocoapods/utils.rb, which returns early unless it is set.
+# Calling use_frameworks! without it leaves React-Core's headers non-modular, so
+# <React/*.h> resolves to plain headers that no clang module owns.
+ENV['USE_FRAMEWORKS'] = linkage.to_s
+
+# React Native 0.85 ships a prebuilt React.xcframework by default. Its headers
+# are reached through a VFS overlay and a generated `module React` map that Expo
+# injects as -fmodule-map-file. Explicitly-built Clang modules do not inherit
+# that flag, so while building a pod that is itself a framework module — e.g.
+# RNFBApp, whose public headers import <React/RCTBridgeModule.h> — Clang finds
+# the header but cannot attribute it to any module:
+#
+#   While building module 'RNFBApp':
+#   RNFBSharedUtils.h:22:9: error: include of non-modular header inside framework
+#     module 'RNFBApp.RNFBSharedUtils': '.../React_Core/React/RCTBridgeModule.h'
+#     [-Werror,-Wnon-modular-include-in-framework-module]
+#
+# Building React Native from source makes React-Core an ordinary pod, so
+# use_frameworks! gives it a real `framework module React` that Clang discovers
+# through the framework search paths in every context, module builds included.
+ENV['RCT_USE_PREBUILT_RNCORE'] = '0'
+
 Pod::UI.puts "Configuring Pods with #{linkage}ally linked frameworks"
 use_frameworks! :linkage => linkage
 
@@ -77,25 +103,17 @@ target 'wellness' do
       # :ccache_enabled => true
     )
 
-    # Consequence of `use_frameworks!` above. A pod built as a framework becomes
-    # a clang module, and a module may not include a header that is not itself
-    # modular — Xcode makes that an error, not a warning:
-    #
-    #   While building module 'RNFBApp':
-    #   RCTConvert+FIRApp.h:19:9: error: include of non-modular header inside
-    #     framework module 'RNFBApp.RCTConvert_FIRApp':
-    #     'Pods/Headers/Public/React-Core/React/RCTConvert.h'
-    #     [-Werror,-Wnon-modular-include-in-framework-module]
-    #
-    # React-Core ships plain headers, not a module, and react-native-firebase's
-    # umbrella imports <React/RCTConvert.h>. Neither side is going to change, so
-    # the diagnostic has to be turned off for the pods. It is benign here: the
-    # headers are ordinary Objective-C declarations, and the app links the same
-    # React-Core either way. Scoped to the Pods project — the app target is not
-    # a framework module and keeps the check.
-    installer.pods_project.targets.each do |target|
-      target.build_configurations.each do |config|
-        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+    # Xcode 27 refuses any target whose deployment target is below iOS 15 —
+    # an error now, a warning in Xcode 26. Several pods still declare 9.0–13.0,
+    # mostly for their privacy-manifest resource bundles (PromisesObjC,
+    # GoogleUtilities, nanopb, AsyncStorage, react-native-image-picker). The app
+    # itself targets 16.4, so nothing is lost by raising them to match.
+    installer.pods_project.targets.each do |t|
+      t.build_configurations.each do |c|
+        current = c.build_settings['IPHONEOS_DEPLOYMENT_TARGET']
+        if current.nil? || Gem::Version.new(current) < Gem::Version.new(MIN_IOS)
+          c.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = MIN_IOS
+        end
       end
     end
   end

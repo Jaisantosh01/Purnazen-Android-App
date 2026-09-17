@@ -23,8 +23,9 @@ from app.core.config import settings
 
 # Providers whose email we accept even when Firebase reports email_verified
 # false. Firebase only marks Google emails verified; GitHub only exposes
-# emails GitHub itself has verified, so trusting it is fine for this app.
-_TRUSTED_UNVERIFIED_PROVIDERS = {"github.com"}
+# emails GitHub itself has verified, and Apple only issues addresses it has
+# verified (including its private-relay addresses), so trusting them is fine.
+_TRUSTED_UNVERIFIED_PROVIDERS = {"github.com", "apple.com"}
 
 _request = google.auth.transport.requests.Request()
 
@@ -79,6 +80,8 @@ def verify_firebase(token: str) -> dict:
         "email": email,
         "email_verified": email_verified,
         "full_name": claims.get("name") or email.split("@")[0],
+        # The provider's own display name, when it gave one (Apple never does).
+        "display_name": claims.get("name"),
         "avatar_url": claims.get("picture"),
         "provider": provider.removesuffix(".com"),
     }
