@@ -3,7 +3,7 @@ import uuid
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_db, require_role
 from app.models.user import User
 from app.schemas.support import (
     SupportContactCreate,
@@ -24,24 +24,38 @@ def get_help(db: Session = Depends(get_db)):
 
 
 # ── Contacts (admin) ─────────────────────────────────────────────────────────
+@router.get("/contacts", summary="All support contacts, hidden ones included (admin)")
+def list_contacts(
+    _user: User = Depends(require_role("admin")),
+    db: Session = Depends(get_db),
+):
+    return success_response("Support contacts fetched successfully", SupportService.list_contacts(db))
+
+
 @router.post("/contacts")
 def create_contact(
     body: SupportContactCreate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
-    contact = SupportService.create_contact(db, body, user)
-    return success_response("Support contact created successfully", contact.to_dict())
+    try:
+        contact = SupportService.create_contact(db, body, user)
+    except ValueError as exc:
+        return error_response(str(exc), 400)
+    return success_response("Support contact created successfully", contact.to_dict(), 201)
 
 
 @router.put("/contacts/{contact_id}")
 def update_contact(
     contact_id: uuid.UUID,
     body: SupportContactUpdate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
-    contact = SupportService.update_contact(db, contact_id, body, user)
+    try:
+        contact = SupportService.update_contact(db, contact_id, body, user)
+    except ValueError as exc:
+        return error_response(str(exc), 400)
     if not contact:
         return error_response("Support contact not found", 404)
     return success_response("Support contact updated successfully", contact.to_dict())
@@ -50,7 +64,7 @@ def update_contact(
 @router.delete("/contacts/{contact_id}")
 def delete_contact(
     contact_id: uuid.UUID,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
     contact = SupportService.delete_contact(db, contact_id, user)
@@ -63,7 +77,7 @@ def delete_contact(
 @router.post("/faqs")
 def create_faq(
     body: SupportFaqCreate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
     faq = SupportService.create_faq(db, body, user)
@@ -74,7 +88,7 @@ def create_faq(
 def update_faq(
     faq_id: uuid.UUID,
     body: SupportFaqUpdate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
     faq = SupportService.update_faq(db, faq_id, body, user)
@@ -86,7 +100,7 @@ def update_faq(
 @router.delete("/faqs/{faq_id}")
 def delete_faq(
     faq_id: uuid.UUID,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
     faq = SupportService.delete_faq(db, faq_id, user)

@@ -19,6 +19,14 @@ class SupportRepository:
         )
 
     @staticmethod
+    def list_all_contacts(db: Session):
+        return (
+            db.query(SupportContact)
+            .order_by(SupportContact.sort_order.asc(), SupportContact.title.asc())
+            .all()
+        )
+
+    @staticmethod
     def get_contact_by_id(db: Session, contact_id: uuid.UUID) -> SupportContact | None:
         return db.query(SupportContact).filter(SupportContact.id == contact_id).first()
 

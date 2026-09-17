@@ -75,4 +75,14 @@ export const ENDPOINTS = {
   ROLES: `${API_VERSION}/roles`,
   CONTENT_PAGES: `${API_VERSION}/content-pages`,
   SUPPORT_FAQS: `${API_VERSION}/support-faqs`,
+
+  // Patient session feedback, staff review (backend: therapy_feedback.py)
+  FEEDBACK_REVIEW: `${API_VERSION}/therapy-feedback/doctor/review`,
+  FEEDBACK_REPLY: id => `${API_VERSION}/therapy-feedback/${id}/doctor-feedback`,
+  // Two-step verification
+  MFA_VERIFY: `${API_VERSION}/auth/mfa/verify`,
+  MFA_SETUP: `${API_VERSION}/auth/mfa/setup`,
+  MFA_ENABLE: `${API_VERSION}/auth/mfa/enable`,
+  MFA_DISABLE: `${API_VERSION}/auth/mfa/disable`,
+  MFA_RECOVERY_CODES: `${API_VERSION}/auth/mfa/recovery-codes`,
 };

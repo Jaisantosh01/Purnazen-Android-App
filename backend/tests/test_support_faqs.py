@@ -1,7 +1,11 @@
-def test_faq_crud(client):
+from tests.test_dashboard import setup_admin
+
+
+def test_faq_crud(client, db_session):
+    admin = setup_admin(db_session, client)
     # 1. Create
     create_payload = {"question": "Test Q?", "answer": "Test A", "sort_order": 1}
-    response = client.post("/api/v1/support-faqs/", json=create_payload)
+    response = client.post("/api/v1/support-faqs/", json=create_payload, headers=admin)
     assert response.status_code == 201
     faq = response.json()
     assert faq["question"] == "Test Q?"
@@ -19,7 +23,7 @@ def test_faq_crud(client):
 
     # 3. Update
     update_payload = {"question": "Updated Q?", "answer": "Updated A"}
-    response = client.put(f"/api/v1/support-faqs/{faq_id}", json=update_payload)
+    response = client.put(f"/api/v1/support-faqs/{faq_id}", json=update_payload, headers=admin)
     assert response.status_code == 200
     updated = response.json()
     assert updated["question"] == "Updated Q?"
@@ -27,7 +31,7 @@ def test_faq_crud(client):
     assert updated["id"] == faq_id
 
     # 3b. Deactivating is what the "active" toggle does — the row stays.
-    response = client.put(f"/api/v1/support-faqs/{faq_id}", json={"is_active": False})
+    response = client.put(f"/api/v1/support-faqs/{faq_id}", json={"is_active": False}, headers=admin)
     assert response.status_code == 200
     assert response.json()["is_active"] is False
     response = client.get("/api/v1/support-faqs/")
@@ -37,7 +41,7 @@ def test_faq_crud(client):
     #    since the edit screen already has an active toggle it was changed to a
     #    hard delete (commit a399fa0) — this test still asserted the old
     #    behaviour and was failing backend CI.
-    response = client.delete(f"/api/v1/support-faqs/{faq_id}")
+    response = client.delete(f"/api/v1/support-faqs/{faq_id}", headers=admin)
     assert response.status_code == 204
 
     # 5. Gone from the list…
@@ -45,7 +49,7 @@ def test_faq_crud(client):
     assert all(item["id"] != faq_id for item in response.json())
 
     # 6. …and no longer addressable.
-    response = client.put(f"/api/v1/support-faqs/{faq_id}", json={"is_active": True})
+    response = client.put(f"/api/v1/support-faqs/{faq_id}", json={"is_active": True}, headers=admin)
     assert response.status_code == 404
-    response = client.delete(f"/api/v1/support-faqs/{faq_id}")
+    response = client.delete(f"/api/v1/support-faqs/{faq_id}", headers=admin)
     assert response.status_code == 404

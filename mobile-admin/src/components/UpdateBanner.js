@@ -27,6 +27,7 @@ import {
   checkForUpdate,
   getAutoUpdateEnabled,
   openStoreListing,
+  resumeInterruptedUpdate,
 } from '../services/updateService';
 import useTheme from '../hooks/useTheme';
 
@@ -39,6 +40,8 @@ export default function UpdateBanner() {
   const [info, setInfo] = useState(null);
 
   const runCheck = useCallback(async () => {
+    // A Play update left half-way must be resumed before anything else.
+    resumeInterruptedUpdate();
     const u = await checkForUpdate();
     if (!u) return;
     if (!u.forced) {

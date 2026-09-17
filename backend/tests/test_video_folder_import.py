@@ -30,8 +30,21 @@ def patch_azure():
         yield mock
 
 
-def register(client):
-    return client.post("/api/v1/auth/register", json=REGISTER_PAYLOAD)
+def register(client, db_session):
+    """Sign up, then promote to admin: public sign-up only ever creates
+    patients, and the video library is admin-only."""
+    resp = client.post("/api/v1/auth/register", json=REGISTER_PAYLOAD)
+    promote_to_admin(db_session, REGISTER_PAYLOAD["email"])
+    return resp
+
+
+def promote_to_admin(db_session, email):
+    from app.models.role import Role
+    from app.models.user import User
+
+    user = db_session.query(User).filter_by(email=email).first()
+    user.role_id = db_session.query(Role).filter_by(name="admin").first().id
+    db_session.commit()
 
 
 def login(client):
@@ -43,8 +56,8 @@ def login(client):
 class TestAddFolder:
     """``POST /api/v1/videos/storage/add-folder``"""
 
-    def test_imports_all_videos_from_folder(self, client: TestClient):
-        register(client)
+    def test_imports_all_videos_from_folder(self, client: TestClient, db_session):
+        register(client, db_session)
         headers = login(client)
 
         resp = client.post("/api/v1/videos/storage/add-folder", json={
@@ -63,8 +76,8 @@ class TestAddFolder:
         assert all("videos/yoga/pose" in u for u in urls)
         assert any("pose1" in u for u in urls)
 
-    def test_import_root_videos_folder(self, client: TestClient):
-        register(client)
+    def test_import_root_videos_folder(self, client: TestClient, db_session):
+        register(client, db_session)
         headers = login(client)
 
         resp = client.post("/api/v1/videos/storage/add-folder", json={
@@ -77,8 +90,8 @@ class TestAddFolder:
         assert body["data"]["count"] == 3  # all 3 mock files under videos/
         assert len(body["data"]["videos"]) == 3
 
-    def test_import_idempotent_returns_all_existing(self, client: TestClient):
-        register(client)
+    def test_import_idempotent_returns_all_existing(self, client: TestClient, db_session):
+        register(client, db_session)
         headers = login(client)
 
         resp1 = client.post("/api/v1/videos/storage/add-folder", json={
@@ -93,8 +106,8 @@ class TestAddFolder:
         assert resp2.json()["data"]["count"] == 2
         assert len(resp2.json()["data"]["videos"]) == 2
 
-    def test_empty_folder_returns_zero(self, client: TestClient):
-        register(client)
+    def test_empty_folder_returns_zero(self, client: TestClient, db_session):
+        register(client, db_session)
         headers = login(client)
 
         resp = client.post("/api/v1/videos/storage/add-folder", json={
@@ -106,8 +119,8 @@ class TestAddFolder:
         assert body["success"] is True
         assert body["data"]["count"] == 0
 
-    def test_import_ensures_trailing_slash(self, client: TestClient):
-        register(client)
+    def test_import_ensures_trailing_slash(self, client: TestClient, db_session):
+        register(client, db_session)
         headers = login(client)
 
         resp = client.post("/api/v1/videos/storage/add-folder", json={
@@ -117,7 +130,7 @@ class TestAddFolder:
         assert resp.status_code == 201
         assert resp.json()["data"]["count"] == 2
 
-    def test_unauthenticated_returns_401(self, client: TestClient):
+    def test_unauthenticated_returns_401(self, client: TestClient, db_session):
         resp = client.post("/api/v1/videos/storage/add-folder", json={
             "prefix": "videos/yoga/",
         })

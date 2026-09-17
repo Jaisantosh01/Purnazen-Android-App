@@ -25,6 +25,7 @@ export const ENDPOINTS = {
   // User preferences
   PREFERENCES: `${API_VERSION}/users/me/preferences`,
   HEALTH_REPORT: `${API_VERSION}/users/me/health-report`,
+  HEALTH_REPORT_EXPORT: `${API_VERSION}/users/me/health-report/export`,
   AVATAR_UPLOAD: `${API_VERSION}/users/me/avatar`,
 
   // Notifications

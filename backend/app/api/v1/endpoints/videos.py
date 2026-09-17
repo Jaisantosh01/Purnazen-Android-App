@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_db, require_role
+from app.api.deps import get_db, require_role
 from app.models.user import User
 from app.models.videos import Videos
 from app.repositories.video_repository import VideoRepository
@@ -84,7 +84,7 @@ def _recursive_list_files(prefix: str) -> list[dict]:
 )
 def add_folder_to_library(
     body: AddFolderRequest,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
     prefix = body.prefix if body.prefix.endswith("/") else body.prefix + "/"
@@ -353,7 +353,7 @@ async def upload_video(
     video_group_id: str = Form(default=""),
     sort_order: int = Form(default=0),
     overwrite: bool = Form(default=False),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
     if not file.filename:
@@ -456,7 +456,7 @@ def get_video_group_catalog(
 )
 def create_video_group(
     body: VideoGroupCreate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
     response, status_code = VideoService.upsert_group(db, user, body)
@@ -473,7 +473,7 @@ def create_video_group(
 def update_video_group(
     group_id: uuid.UUID,
     body: VideoGroupUpdate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
     response, status_code = VideoService.upsert_group(db, user, body, group_id)
@@ -490,7 +490,7 @@ def update_video_group(
 def sync_group_videos(
     group_id: uuid.UUID,
     body: SyncGroupVideosRequest,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
     response, status_code = VideoService.add_videos_to_group(db, group_id, body.video_ids, user)
@@ -511,7 +511,7 @@ def sync_group_videos(
 def delete_video_group(
     group_id: uuid.UUID,
     hard: bool = Query(False, description="Permanently delete instead of deactivating."),
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
     response, status_code = VideoService.delete_group(db, group_id, hard=hard)
@@ -556,7 +556,7 @@ def get_video(video_id: uuid.UUID, db: Session = Depends(get_db)):
 )
 def create_video(
     body: VideoCreate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
     response, status_code = VideoService.upsert_video(db, user, body)
@@ -573,7 +573,7 @@ def create_video(
 def update_video(
     video_id: uuid.UUID,
     body: VideoUpdate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
     response, status_code = VideoService.upsert_video(db, user, body, video_id)
@@ -593,7 +593,7 @@ def update_video(
 def delete_video(
     video_id: uuid.UUID,
     hard: bool = Query(False, description="Permanently delete instead of deactivating."),
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
     response, status_code = VideoService.delete_video(db, video_id, hard=hard)

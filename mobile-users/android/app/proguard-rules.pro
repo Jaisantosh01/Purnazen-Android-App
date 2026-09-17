@@ -61,6 +61,11 @@
 -keep class com.google.mlkit.** { *; }
 -dontwarn com.google.mlkit.**
 
+# ── Google Play In-App Updates ──────────────────────────────────────────────
+# The library ships consumer rules; this only silences warnings for the optional
+# Play Core classes it references but this app does not use.
+-dontwarn com.google.android.play.core.**
+
 # ── OkHttp / Okio (axios goes through the RN networking stack) ──────────────
 -dontwarn okhttp3.**
 -dontwarn okio.**

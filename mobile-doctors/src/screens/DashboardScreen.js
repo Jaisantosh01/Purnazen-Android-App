@@ -50,7 +50,7 @@ const QUICK_LINKS = [
   { key: 'Appointments', label: 'Appointments', icon: 'calendar-check', tab: 'Appointments' },
   { key: 'Schedule', label: 'My schedule', icon: 'calendar-clock', tab: 'Schedule' },
   { key: 'Patients', label: 'Patients', icon: 'account-multiple', tab: 'Patients' },
-  { key: 'Profile', label: 'Profile', icon: 'account-circle', tab: 'Profile' },
+  { key: 'Feedback', label: 'Patient feedback', icon: 'message-reply-text-outline', screen: 'FeedbackReview' },
 ];
 
 const StatusBadge = ({ status }) => {
@@ -208,7 +208,7 @@ const DashboardScreen = ({ navigation }) => {
                 key={l.key}
                 style={styles.linkCard}
                 activeOpacity={0.85}
-                onPress={() => navigation.navigate(l.tab)}>
+                onPress={() => navigation.navigate(l.screen || l.tab)}>
                 <View style={styles.linkIcon}>
                   <MCIcon name={l.icon} size={24} color={colors.primary} />
                 </View>

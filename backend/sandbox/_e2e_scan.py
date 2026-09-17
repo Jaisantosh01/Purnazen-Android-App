@@ -1,4 +1,4 @@
-"""Throwaway end-to-end scan test against the running server (venv312)."""
+"""Manual end-to-end scan check against a local server on :5000 (register, login, upload, poll)."""
 import time, uuid, requests
 
 BASE = "http://localhost:5000/api/v1"

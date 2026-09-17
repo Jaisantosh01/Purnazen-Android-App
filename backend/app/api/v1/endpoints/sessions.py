@@ -3,11 +3,11 @@ import uuid
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_db, require_role
 from app.models.user import User
 from app.schemas.quick_relief import QuickReliefCreate, QuickReliefUpdate
 from app.schemas.wellness_session import WellnessSessionCreate, WellnessSessionUpdate
-from app.services.quick_relief_service import QuickReliefService
+from app.services.quick_relief_service import DuplicateSlugError, QuickReliefService
 from app.services.session_catalog_service import SessionCatalogService
 from app.services.wellness_session_service import WellnessSessionService
 from app.utils.responses import error_response, success_response
@@ -57,6 +57,18 @@ def get_relief_session(session_key: str, db: Session = Depends(get_db)):
     return success_response("Relief session fetched successfully", session)
 
 
+@router.get(
+    "/quick-relief",
+    summary="List all quick relief cards (admin)",
+    description="Every home-screen card, hidden ones included, in display order.",
+)
+def list_quick_relief(
+    _user: User = Depends(require_role("admin")),
+    db: Session = Depends(get_db),
+):
+    return success_response("Quick relief cards fetched successfully", QuickReliefService.list_all(db))
+
+
 @router.post(
     "/quick-relief",
     summary="Create quick relief",
@@ -64,11 +76,14 @@ def get_relief_session(session_key: str, db: Session = Depends(get_db)):
 )
 def create_quick_relief(
     body: QuickReliefCreate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
-    relief = QuickReliefService.create(db, body, user)
-    return success_response("Quick relief created successfully", relief.to_dict())
+    try:
+        relief = QuickReliefService.create(db, body, user)
+    except DuplicateSlugError as exc:
+        return error_response(str(exc), 409)
+    return success_response("Quick relief created successfully", relief.to_dict(), 201)
 
 
 @router.put(
@@ -79,10 +94,13 @@ def create_quick_relief(
 def update_quick_relief(
     relief_id: uuid.UUID,
     body: QuickReliefUpdate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
-    relief = QuickReliefService.update(db, relief_id, body, user)
+    try:
+        relief = QuickReliefService.update(db, relief_id, body, user)
+    except DuplicateSlugError as exc:
+        return error_response(str(exc), 409)
     if not relief:
         return error_response("Quick relief not found", 404)
     return success_response("Quick relief updated successfully", relief.to_dict())
@@ -95,7 +113,7 @@ def update_quick_relief(
 )
 def delete_quick_relief(
     relief_id: uuid.UUID,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
     relief = QuickReliefService.delete(db, relief_id, user)
@@ -111,7 +129,7 @@ def delete_quick_relief(
 )
 def create_wellness_session(
     body: WellnessSessionCreate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
     session = WellnessSessionService.create(db, body, user)
@@ -126,7 +144,7 @@ def create_wellness_session(
 def update_wellness_session(
     session_id: uuid.UUID,
     body: WellnessSessionUpdate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
     session = WellnessSessionService.update(db, session_id, body, user)
@@ -143,7 +161,7 @@ def update_wellness_session(
 def delete_wellness_session(
     session_id: uuid.UUID,
     hard: bool = Query(False, description="Permanently delete instead of deactivating."),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
     session = WellnessSessionService.delete(db, session_id, user, hard=hard)

@@ -114,4 +114,17 @@ export const ENDPOINTS = {
   DOCTOR_LEAVES_STATS: `${API_VERSION}/doctor-leaves/stats`,
   DOCTOR_LEAVES_UPDATE_STATUS: (id) => `${API_VERSION}/doctor-leaves/${id}/status`,
 
+
+  // Patient session feedback, staff review (backend: therapy_feedback.py)
+  FEEDBACK_REVIEW: `${API_VERSION}/therapy-feedback/admin/review`,
+  FEEDBACK_REPLY: id => `${API_VERSION}/therapy-feedback/${id}/admin-feedback`,
+  // Admin content catalogs
+  QUICK_RELIEF_ADMIN: `${API_VERSION}/quick-relief`,
+  SUPPORT_CONTACTS: `${API_VERSION}/support/contacts`,
+  // Two-step verification
+  MFA_VERIFY: `${API_VERSION}/auth/mfa/verify`,
+  MFA_SETUP: `${API_VERSION}/auth/mfa/setup`,
+  MFA_ENABLE: `${API_VERSION}/auth/mfa/enable`,
+  MFA_DISABLE: `${API_VERSION}/auth/mfa/disable`,
+  MFA_RECOVERY_CODES: `${API_VERSION}/auth/mfa/recovery-codes`,
 };

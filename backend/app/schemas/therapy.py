@@ -32,11 +32,11 @@ class UpdatePainAfterFeedbackRequest(BaseModel):
 
 
 class UpdateDoctorFeedbackRequest(BaseModel):
-    doctor_feedback: str = Field(alias="doctorFeedback", max_length=1000)
+    doctor_feedback: str = Field(alias="doctorFeedback", min_length=1, max_length=1000)
 
 
 class UpdateAdminFeedbackRequest(BaseModel):
-    admin_feedback: str = Field(alias="adminFeedback", max_length=1000)
+    admin_feedback: str = Field(alias="adminFeedback", min_length=1, max_length=1000)
 
 
 class StartSessionRequest(BaseModel):

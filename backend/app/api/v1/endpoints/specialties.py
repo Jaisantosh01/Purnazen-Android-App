@@ -3,7 +3,7 @@ import uuid
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_db, require_role
 from app.models.user import User
 from app.schemas.specialty import SpecialtyCreate, SpecialtyUpdate
 from app.services.specialty_service import SpecialtyService
@@ -37,7 +37,7 @@ def get_specialties(
 )
 def create_specialty(
     body: SpecialtyCreate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
     specialty = SpecialtyService.create(
@@ -60,7 +60,7 @@ def create_specialty(
 def update_specialty(
     specialty_id: uuid.UUID,
     body: SpecialtyUpdate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
     specialty = SpecialtyService.update(
@@ -89,7 +89,7 @@ def update_specialty(
 )
 def delete_specialty(
     specialty_id: uuid.UUID,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
     specialty = SpecialtyService.delete(

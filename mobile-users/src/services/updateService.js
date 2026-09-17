@@ -8,9 +8,15 @@
  *
  * `/app-releases/latest?app=<slug>` returns the published version plus a
  * `forced` flag; `forced` makes the banner non-dismissible (used when an old
- * build can no longer talk to the API).
+ * build can no longer talk to the API). It also returns `storeLinks`, the
+ * per-platform place "Update" should open — so a private channel (unlisted App
+ * Store link, TestFlight public link) can change without a new build.
+ *
+ * On Android, builds installed from Google Play update in place through Play's
+ * In-App Updates flow (native InAppUpdate module); everything else opens the
+ * link.
  */
-import { Linking, Platform } from 'react-native';
+import { Linking, NativeModules, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
@@ -66,6 +72,25 @@ export function cleanNotes(notes) {
     .trim();
 }
 
+// Last `storeLinks` the backend sent ({ android?, ios? }).
+let storeLinks = {};
+
+const getInAppUpdate = () => (Platform.OS === 'android' ? NativeModules.InAppUpdate : null);
+
+/**
+ * Resume a Play update the user started but left (Play requires this on every
+ * return to the foreground). Safe to call anywhere; resolves to the status.
+ */
+export async function resumeInterruptedUpdate() {
+  const inAppUpdate = getInAppUpdate();
+  if (!inAppUpdate?.resumeIfInProgress) return 'unsupported';
+  try {
+    return await inAppUpdate.resumeIfInProgress();
+  } catch {
+    return 'error';
+  }
+}
+
 /**
  * @param {{force?: boolean}} [opts] force=true runs the check even in dev (used
  *   by the manual "Check for Updates" button); the automatic launch check leaves
@@ -79,6 +104,9 @@ export async function checkForUpdate({ force = false } = {}) {
     const res = await apiClient.get(ENDPOINTS.APP_RELEASE_LATEST(APP_SLUG));
     const latest = res?.data; // { version, versionCode, forced, notes }
     if (!latest || !latest.version) return null;
+    // Replace, not merge: a link removed on the server stops being used.
+    storeLinks =
+      latest.storeLinks && typeof latest.storeLinks === 'object' ? latest.storeLinks : {};
     if (compareSemver(latest.version, APP_VERSION) <= 0) return null; // up to date
 
     return {
@@ -92,27 +120,41 @@ export async function checkForUpdate({ force = false } = {}) {
   }
 }
 
+/** Where "Update" leads on this platform: [deep link, web fallback]. */
+export function storeTargets(links = storeLinks) {
+  const configured = Platform.OS === 'ios' ? links?.ios : links?.android;
+  if (configured) return [configured, null];
+  return Platform.OS === 'ios'
+    ? [
+        IOS_APP_STORE_ID ? `itms-apps://itunes.apple.com/app/id${IOS_APP_STORE_ID}` : null,
+        IOS_APP_STORE_ID ? `https://apps.apple.com/app/id${IOS_APP_STORE_ID}` : null,
+      ]
+    : [
+        `market://details?id=${ANDROID_PACKAGE_NAME}`,
+        `https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE_NAME}`,
+      ];
+}
+
 /**
- * Open this app's store listing. `market://` hands straight to the Play app;
- * when it isn't installed (or on iOS) fall back to the https listing, which the
- * store app also claims via an intent filter / universal link.
+ * Update the app. On a Play install this runs Play's in-app update; otherwise
+ * it opens the configured link, falling back to the store listing. Resolves to
+ * true when something was opened.
  */
 export async function openStoreListing() {
-  const [deepLink, webLink] =
-    Platform.OS === 'ios'
-      ? [
-          `itms-apps://itunes.apple.com/app/id${IOS_APP_STORE_ID}`,
-          `https://apps.apple.com/app/id${IOS_APP_STORE_ID}`,
-        ]
-      : [
-          `market://details?id=${ANDROID_PACKAGE_NAME}`,
-          `https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE_NAME}`,
-        ];
-  try {
-    await Linking.openURL(deepLink);
-  } catch {
+  const inAppUpdate = getInAppUpdate();
+  if (inAppUpdate?.startImmediate) {
     try {
-      await Linking.openURL(webLink);
+      const status = await inAppUpdate.startImmediate();
+      if (status === 'started' || status === 'cancelled') return true;
     } catch {}
   }
+  const [deepLink, webLink] = storeTargets();
+  for (const url of [deepLink, webLink]) {
+    if (!url) continue;
+    try {
+      await Linking.openURL(url);
+      return true;
+    } catch {}
+  }
+  return false;
 }

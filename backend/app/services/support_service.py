@@ -7,6 +7,7 @@ from app.models.support_faq import SupportFaq
 from app.models.user import User
 from app.repositories.support_repository import SupportRepository
 from app.schemas.support import (
+    validate_contact_value,
     SupportContactCreate,
     SupportContactUpdate,
     SupportFaqCreate,
@@ -26,12 +27,17 @@ class SupportService:
 
     # ── Contacts CRUD (admin) ───────────────────────────────────────────────
     @staticmethod
+    def list_contacts(db: Session) -> list[dict]:
+        return [c.to_dict() for c in SupportRepository.list_all_contacts(db)]
+
+    @staticmethod
     def create_contact(db: Session, body: SupportContactCreate, user: User) -> SupportContact:
+        """Raises ValueError when `value` does not fit `contact_type`."""
         contact = SupportContact(
             contact_type=body.contact_type,
             title=body.title,
             subtitle=body.subtitle,
-            value=body.value,
+            value=validate_contact_value(body.contact_type, body.value),
             icon=body.icon,
             color=body.color,
             sort_order=body.sort_order or 0,
@@ -47,7 +53,15 @@ class SupportService:
         contact = SupportRepository.get_contact_by_id(db, contact_id)
         if not contact:
             return None
-        for field, value in body.model_dump(exclude_unset=True).items():
+        changes = body.model_dump(exclude_unset=True)
+        if "contact_type" in changes or "value" in changes:
+            # Re-check against the merged record: changing only the type can
+            # make the stored value wrong for it.
+            changes["value"] = validate_contact_value(
+                changes.get("contact_type", contact.contact_type),
+                changes.get("value", contact.value),
+            )
+        for field, value in changes.items():
             setattr(contact, field, value)
         contact.updated_by = user.id
         return SupportRepository.save(db, contact)

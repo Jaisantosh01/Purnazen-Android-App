@@ -42,4 +42,5 @@ class SupportContact(Base):
             "icon": self.icon,
             "color": self.color,
             "sortOrder": self.sort_order,
+            "isActive": bool(self.is_active),
         }

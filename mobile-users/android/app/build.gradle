@@ -195,6 +195,10 @@ dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
 
+    // Google Play In-App Updates (InAppUpdateModule): Play's own update flow,
+    // started from the in-app "Update" banner. Inert outside Play installs.
+    implementation("com.google.android.play:app-update:2.1.0")
+
     // On-device scan quality gate (ScanQualityModule): bundled ML Kit face
     // detector — runs fully offline, no image ever leaves the device.
     implementation("com.google.mlkit:face-detection:16.1.7")

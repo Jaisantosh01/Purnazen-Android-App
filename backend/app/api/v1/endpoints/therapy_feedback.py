@@ -1,6 +1,7 @@
 import uuid
+from typing import Literal, Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db, require_role
@@ -85,6 +86,52 @@ def update_pain_after(
     return success_response("Post-session pain recorded successfully", result)
 
 
+@router.get(
+    "/doctor/review",
+    summary="Patient feedback for the signed-in doctor to review",
+    description="Feedback left by the doctor's own patients (anyone with a "
+    "non-cancelled appointment with them), newest first. `status=pending` lists "
+    "records without a doctor reply yet.",
+)
+def list_for_doctor(
+    status: Literal["all", "pending", "reviewed"] = Query("all"),
+    patient_id: Optional[uuid.UUID] = Query(None, alias="patientId"),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    user: User = Depends(require_role("doctor")),
+    db: Session = Depends(get_db),
+):
+    patient_ids = TherapyFeedbackService.doctor_patient_ids(db, user.id)
+    if patient_ids is None:
+        return error_response("Doctor profile not found", 404)
+    data = TherapyFeedbackService.list_for_review(
+        db, reviewer="doctor", status=status, patient_ids=patient_ids,
+        patient_id=patient_id, limit=limit, offset=offset,
+    )
+    return success_response("Therapy feedback for review", data)
+
+
+@router.get(
+    "/admin/review",
+    summary="All patient feedback, for admin review",
+    description="Every feedback record with a patient remark or score, newest "
+    "first. `status=pending` lists records without an admin reply yet.",
+)
+def list_for_admin(
+    status: Literal["all", "pending", "reviewed"] = Query("all"),
+    patient_id: Optional[uuid.UUID] = Query(None, alias="patientId"),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    user: User = Depends(require_role("admin")),
+    db: Session = Depends(get_db),
+):
+    data = TherapyFeedbackService.list_for_review(
+        db, reviewer="admin", status=status, patient_id=patient_id,
+        limit=limit, offset=offset,
+    )
+    return success_response("Therapy feedback for review", data)
+
+
 @router.put(
     "/{feedback_id}/doctor-feedback",
     summary="Submit doctor feedback for a therapy record",
@@ -98,6 +145,12 @@ def update_doctor_feedback(
     user: User = Depends(require_role("doctor")),
     db: Session = Depends(get_db),
 ):
+    # A doctor replies only to their own patients' feedback. Anything else is
+    # reported as not found, so record ids cannot be probed.
+    feedback = TherapyFeedbackService.get_for_review(db, feedback_id)
+    patient_ids = TherapyFeedbackService.doctor_patient_ids(db, user.id) or set()
+    if feedback is None or feedback.user_id not in patient_ids:
+        return error_response("Therapy feedback not found", 404)
     result = TherapyFeedbackService.update_doctor_feedback(db, feedback_id, user.id, body)
     if result is None:
         return error_response("Therapy feedback not found", 404)

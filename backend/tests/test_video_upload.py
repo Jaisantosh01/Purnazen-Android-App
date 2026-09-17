@@ -22,7 +22,21 @@ REGISTER_PAYLOAD = {
 
 
 def register(client, payload=None):
-    return client.post("/api/v1/auth/register", json=payload or REGISTER_PAYLOAD)
+    """Sign up and promote to admin — the video library is admin-only and
+    public sign-up only creates patients."""
+    payload = payload or REGISTER_PAYLOAD
+    resp = client.post("/api/v1/auth/register", json=payload)
+    from app.api.deps import get_db
+    from app.main import app
+    from app.models.role import Role
+    from app.models.user import User
+
+    db = next(app.dependency_overrides[get_db]())
+    user = db.query(User).filter_by(email=payload["email"]).first()
+    if user is not None:
+        user.role_id = db.query(Role).filter_by(name="admin").first().id
+        db.commit()
+    return resp
 
 
 def login(client, email="upload-test@example.com", password="secret123"):
@@ -39,9 +53,13 @@ def _azure_configured():
 
 @pytest.fixture(scope="module")
 def sample_video_path():
-    """Path to a real MP4 file used for upload tests."""
-    candidate = r"C:\Users\soubhagya.p\Downloads\yoga.mp4"
-    if os.path.isfile(candidate):
+    """Path to a real MP4 file used for upload tests.
+
+    Set PURNAZEN_TEST_VIDEO to exercise the upload with a real clip; otherwise a
+    minimal generated MP4 is used.
+    """
+    candidate = os.environ.get("PURNAZEN_TEST_VIDEO", "")
+    if candidate and os.path.isfile(candidate):
         return candidate
     # fallback: create a minimal valid MP4 from known test data
     fallback = os.path.join(os.path.dirname(__file__), "_test_sample.mp4")

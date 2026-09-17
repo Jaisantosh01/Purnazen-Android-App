@@ -21,6 +21,7 @@ const MENU_ITEMS = [
   { id: 'face', title: 'Face Scan History', icon: 'face-recognition' },
   { id: 'tongue', title: 'Tongue Scan History', icon: 'camera-iris' },
   { id: 'prescriptions', title: 'Prescriptions', icon: 'pill' },
+  { id: 'feedback', title: 'Session Feedback', icon: 'message-reply-text-outline' },
 ];
 
 const PatientProfileScreen = ({ route, navigation }) => {
@@ -88,6 +89,10 @@ const PatientProfileScreen = ({ route, navigation }) => {
     }
     if (menuId === 'prescriptions') {
       navigation.navigate('PrescriptionHistory', { patientId: patient.id });
+      return;
+    }
+    if (menuId === 'feedback') {
+      navigation.navigate('FeedbackReview', { patientId: patient.id, patientName: patient.name });
       return;
     }
   };

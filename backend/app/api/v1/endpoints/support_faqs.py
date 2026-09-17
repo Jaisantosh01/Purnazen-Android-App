@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from app.api.deps import get_db
+from app.api.deps import get_db, require_role
 from app.services.support_faq_service import SupportFaqService
 from app.schemas.support_faq import SupportFaqCreate, SupportFaqUpdate, SupportFaqResponse
 from typing import List
@@ -12,18 +12,20 @@ service = SupportFaqService()
 def get_all_faqs(db: Session = Depends(get_db)):
     return service.get_all_faqs(db)
 
-@router.post("", response_model=SupportFaqResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=SupportFaqResponse, status_code=status.HTTP_201_CREATED,
+             dependencies=[Depends(require_role("admin"))])
 def create_faq(faq_in: SupportFaqCreate, db: Session = Depends(get_db)):
     return service.create_faq(db, faq_in)
 
-@router.put("/{faq_id}", response_model=SupportFaqResponse)
+@router.put("/{faq_id}", response_model=SupportFaqResponse, dependencies=[Depends(require_role("admin"))])
 def update_faq(faq_id: str, faq_in: SupportFaqUpdate, db: Session = Depends(get_db)):
     faq = service.update_faq(db, faq_id, faq_in)
     if not faq:
         raise HTTPException(status_code=404, detail="FAQ not found")
     return faq
 
-@router.delete("/{faq_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{faq_id}", status_code=status.HTTP_204_NO_CONTENT,
+               dependencies=[Depends(require_role("admin"))])
 def delete_faq(faq_id: str, db: Session = Depends(get_db)):
     success = service.delete_faq(db, faq_id)
     if not success:

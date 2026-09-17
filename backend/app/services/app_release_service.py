@@ -1,4 +1,7 @@
+import json
+import logging
 from typing import Optional
+from urllib.parse import urlparse
 
 from sqlalchemy.orm import Session
 
@@ -6,6 +9,41 @@ from app.core.config import settings
 from app.models.app_release import AppRelease
 from app.repositories.app_release_repository import AppReleaseRepository
 from app.schemas.app_release import RegisterAppReleaseRequest
+
+
+logger = logging.getLogger(__name__)
+
+# Only link types the apps know how to open: web links (Play, App Store,
+# TestFlight, Firebase App Distribution) and the two store deep-link schemes.
+_ALLOWED_LINK_SCHEMES = {"https", "itms-apps", "itms-beta", "market"}
+_PLATFORMS = ("android", "ios")
+
+
+def store_links(app_slug: str) -> dict:
+    """Per-platform update links for `app_slug` from STORE_LINKS_JSON.
+
+    Malformed configuration is logged and ignored — the update check must keep
+    working, and the apps fall back to their built-in store listing.
+    """
+    raw = (settings.STORE_LINKS_JSON or "").strip()
+    if not raw:
+        return {}
+    try:
+        table = json.loads(raw)
+    except json.JSONDecodeError:
+        logger.warning("STORE_LINKS_JSON is not valid JSON; ignoring it")
+        return {}
+    entry = table.get(app_slug) if isinstance(table, dict) else None
+    if not isinstance(entry, dict):
+        return {}
+    links = {}
+    for platform in _PLATFORMS:
+        url = entry.get(platform)
+        if isinstance(url, str) and urlparse(url).scheme in _ALLOWED_LINK_SCHEMES:
+            links[platform] = url
+        elif url:
+            logger.warning("STORE_LINKS_JSON[%s][%s] has an unsupported link; ignoring it", app_slug, platform)
+    return links
 
 
 def _semver_key(version: str):
@@ -26,7 +64,7 @@ class AppReleaseService:
         if not releases:
             return None
         latest = max(releases, key=lambda r: _semver_key(r.version))
-        return latest.to_dict()
+        return {**latest.to_dict(), "storeLinks": store_links(app_slug)}
 
     @staticmethod
     def register(db: Session, data: RegisterAppReleaseRequest) -> dict:

@@ -3,7 +3,7 @@ import uuid
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_db, require_role
 from app.models.user import User
 from app.schemas.expertise import ExpertiseCreate, ExpertiseUpdate
 from app.services.expertise_service import ExpertiseService
@@ -26,7 +26,7 @@ def get_expertises(
 @router.post("")
 def create_expertise(
     body: ExpertiseCreate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
     expertise = ExpertiseService.create(
@@ -44,7 +44,7 @@ def create_expertise(
 def update_expertise(
     expertise_id: uuid.UUID,
     body: ExpertiseUpdate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
     expertise = ExpertiseService.update(
@@ -68,7 +68,7 @@ def update_expertise(
 @router.delete("/{expertise_id}")
 def delete_expertise(
     expertise_id: uuid.UUID,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
     expertise = ExpertiseService.delete(

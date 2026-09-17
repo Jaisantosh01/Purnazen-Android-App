@@ -3,7 +3,7 @@ import uuid
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_db, require_role
 from app.models.user import User
 from app.schemas.language import LanguageCreate, LanguageUpdate
 from app.services.language_service import LanguageService
@@ -26,7 +26,7 @@ def get_languages(
 @router.post("")
 def create_language(
     body: LanguageCreate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
     language = LanguageService.create(
@@ -44,7 +44,7 @@ def create_language(
 def update_language(
     language_id: uuid.UUID,
     body: LanguageUpdate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
     language = LanguageService.update(
@@ -65,7 +65,7 @@ def update_language(
 @router.delete("/{language_id}")
 def delete_language(
     language_id: uuid.UUID,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
     language = LanguageService.delete(

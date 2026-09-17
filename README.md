@@ -1,6 +1,15 @@
 # PurnaZen
 
-A wellness and mental health app built with React Native (Expo bare workflow) and FastAPI.
+AI-assisted wellness platform: acupressure and therapy sessions, doctor
+consultations, and **Face Glow** face and tongue analysis. It is three React
+Native apps (Patient, Doctor, Admin) for Android and iOS, sharing one FastAPI
+backend.
+
+| | |
+|---|---|
+| **Where things stand** | [docs/STATUS.md](docs/STATUS.md): completion per app and platform, plus the phased plan |
+| **Shipping the apps** | [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md): secure store and private distribution, and updates |
+| **All documentation** | [docs/README.md](docs/README.md) |
 
 ## Project Structure
 
@@ -10,10 +19,14 @@ A wellness and mental health app built with React Native (Expo bare workflow) an
 ├── mobile-doctors/  # React Native doctor app (same stack)
 ├── mobile-admin/    # React Native admin app (same stack)
 ├── backend/         # FastAPI backend (Python 3.12, SQLite → Postgres)
-├── docs/            # Architecture, features, changelog
+├── docs/            # Status, distribution, architecture, features, changelog
+├── scripts/         # Build (Android Docker, iOS), Firebase config, Azure provisioning
 └── .github/
     └── workflows/
-        └── ci.yml   # PR/push checks (pytest + jest/tsc/eslint x3 apps)
+        ├── ci.yml                 # PR/push checks (pytest + jest/tsc/eslint x3 apps)
+        ├── deploy-backend.yml     # Backend → Azure Container Apps (OIDC)
+        ├── release-mobile.yml     # Signed AAB/APK + GitHub Release (manual)
+        └── service-status.yml     # Read-only health report
 ```
 
 > Three front-end apps share one backend: **mobile-users** (patients — full
@@ -204,12 +217,15 @@ python seed.py         # or
 python seed_data.py
 ```
 
-After seeding, a demo user is available:
+After seeding, these accounts exist (all created by `seed.py`):
 
-| Field | Value |
-|-------|-------|
-| Email | `demo@purnazen.com` |
-| Password | `demo1234` |
+| Role | Email | Password |
+|------|-------|----------|
+| Patient | `sneha@test.com`, `arjun@test.com`, `meera@test.com` | `123456` |
+| Doctor | `sarah@example.com`, `rajesh@example.com`, `priya@example.com` | `123456` |
+| Admin | `admin@example.com` | `admin123` |
+
+Use a patient account to sign in to `mobile-users`.
 
 ---
 

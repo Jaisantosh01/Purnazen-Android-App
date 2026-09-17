@@ -75,10 +75,22 @@ const ManageScreen = ({ navigation }) => {
           screen: 'VideoManagement',
         },
         {
+          icon: 'view-grid-plus-outline',
+          title: 'Quick Relief Cards',
+          subtitle: 'Shortcuts on the patient Home screen',
+          screen: 'QuickReliefManagement',
+        },
+        {
           icon: 'help-circle-outline',
           title: 'FAQ Management',
           subtitle: 'Configure FAQ content',
           screen: 'FaqManagement',
+        },
+        {
+          icon: 'lifebuoy',
+          title: 'Support Contacts',
+          subtitle: 'Phone, WhatsApp and email in Help & Support',
+          screen: 'SupportContacts',
         },
         {
           icon: 'bell-cog-outline',
@@ -91,6 +103,17 @@ const ManageScreen = ({ navigation }) => {
           title: 'Content Pages',
           subtitle: 'Edit in-app pages and policies',
           screen: 'ContentManagement',
+        },
+      ],
+    },
+    {
+      title: 'Patients',
+      items: [
+        {
+          icon: 'message-reply-text-outline',
+          title: 'Patient Feedback',
+          subtitle: 'Session remarks and pain scores to review',
+          screen: 'FeedbackReview',
         },
       ],
     },

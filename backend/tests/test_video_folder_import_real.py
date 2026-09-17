@@ -24,9 +24,12 @@ LOGIN_PAYLOAD = {"email": "admin@test.com", "password": "admin123"}
 
 
 class TestAddFolderReal:
-    def test_import_real_folder(self, client: TestClient):
+    def test_import_real_folder(self, client: TestClient, db_session):
         r = client.post("/api/v1/auth/register", json=REGISTER_PAYLOAD)
         assert r.status_code == 201
+        # The video library is admin-only; public sign-up creates a patient.
+        from tests.test_video_folder_import import promote_to_admin
+        promote_to_admin(db_session, REGISTER_PAYLOAD["email"])
 
         r = client.post("/api/v1/auth/login", json=LOGIN_PAYLOAD)
         token = r.json()["data"]["access_token"]
