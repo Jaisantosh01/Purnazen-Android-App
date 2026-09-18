@@ -10,7 +10,6 @@ import {
   Keyboard,
   Platform,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { showAlert } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -38,7 +37,6 @@ const TAG_TO_VISIT_TYPE = {
 
 const BookAppointmentScreen = ({ navigation, route }) => {
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { doctor } = route.params;
 
@@ -547,17 +545,16 @@ const BookAppointmentScreen = ({ navigation, route }) => {
       </ScrollView>
 
       <View
-        style={[
-          styles.bottomBar,
-          { paddingBottom: 16 + insets.bottom },
-          keyboardOpen && styles.bottomBarHidden,
-        ]}
+        style={[styles.bottomBar, keyboardOpen && styles.bottomBarHidden]}
         pointerEvents={keyboardOpen ? 'none' : 'auto'}
         onLayout={e => {
           const h = e.nativeEvent.layout.height;
           if (h > 0) setBarHeight(h);
         }}
       >
+        {/* Only render the strip once there is something to summarise — an
+            empty row still carried its margin and left a blank band. */}
+        {selectedDate || selectedTime ? (
         <View style={styles.summaryRow}>
           {selectedDate && (
             <View style={styles.summaryItem}>
@@ -572,6 +569,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
             </View>
           )}
         </View>
+        ) : null}
         <View style={styles.bottomRow}>
           <View>
             <Text style={styles.totalLabel}>Total Amount</Text>
@@ -794,7 +792,7 @@ const makeStyles = colors => StyleSheet.create({
 
   bottomBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: colors.card, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16,
+    backgroundColor: colors.card, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 14,
     borderTopWidth: 1, borderTopColor: colors.surfaceMuted, elevation: 10,
     shadowColor: colors.black, shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.06, shadowRadius: 6,
   },
