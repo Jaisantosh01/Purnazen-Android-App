@@ -18,6 +18,7 @@ import consultService from '../services/consultService';
 import useTheme from '../hooks/useTheme';
 import useTaxConfig from '../hooks/useTaxConfig';
 import ScreenHeader from '../components/ScreenHeader';
+import EmptyState from '../components/EmptyState';
 import AppDialog from '../components/AppDialog';
 import {DAYS, MONTHS} from '../constants/strings';
 import { feeBreakdown, formatRupees, gstLabel } from '../utils/tax';
@@ -315,7 +316,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Book Appointment" subtitle={doctor.name} variant="light" />
+      <ScreenHeader title="Book Appointment" subtitle={doctor.name} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -446,28 +447,28 @@ const BookAppointmentScreen = ({ navigation, route }) => {
           <Text style={styles.sectionTitle}>Select Time</Text>
           {!selectedDate ? (
             /* Without this the heading sat above a blank gap until a date was picked. */
-            <TouchableOpacity
-              style={styles.noSlotsCard}
-              activeOpacity={0.8}
-              onPress={() => setShowDatePicker(true)}
-            >
-              <MCIcon name="calendar-clock" size={28} color={colors.textMuted} />
-              <Text style={styles.noSlotsTitle}>Pick a date first</Text>
-              <Text style={styles.noSlotsText}>Choose a date above to see the slots this doctor has open.</Text>
-            </TouchableOpacity>
+            <View style={styles.noSlotsCard}>
+              <EmptyState
+                compact
+                icon="calendar-clock"
+                title="Pick a date first"
+                hint="Choose a date above to see the slots this doctor has open."
+                action={{ label: 'Choose a date', onPress: () => setShowDatePicker(true) }}
+              />
+            </View>
           ) : slotsLoading ? (
             <ActivityIndicator size="small" color={colors.primary} style={inline.py20} />
-          ) : timeSlots.length === 0 ? (
+          ) : timeSlots.length === 0 || timeSlots.every(isSlotUnavailable) ? (
             <View style={styles.noSlotsCard}>
-              <MCIcon name="clock-off-outline" size={28} color={colors.textMuted} />
-              <Text style={styles.noSlotsTitle}>No Slots Available</Text>
-              <Text style={styles.noSlotsText}>Please choose another date.</Text>
-            </View>
-          ) : timeSlots.length > 0 && timeSlots.every(isSlotUnavailable) ? (
-            <View style={styles.noSlotsCard}>
-              <MCIcon name="clock-off-outline" size={28} color={colors.textMuted} />
-              <Text style={styles.noSlotsTitle}>No Slots Available</Text>
-              <Text style={styles.noSlotsText}>All slots for this date are booked or have passed. Please choose another day.</Text>
+              <EmptyState
+                compact
+                icon="clock-off-outline"
+                title="No slots available"
+                hint={timeSlots.length === 0
+                  ? 'This doctor has no slots on this date. Please choose another day.'
+                  : 'All slots for this date are booked or have passed. Please choose another day.'}
+                action={{ label: 'Choose another date', onPress: () => setShowDatePicker(true) }}
+              />
             </View>
           ) : (
             <View style={styles.timeGrid}>
@@ -531,17 +532,13 @@ const BookAppointmentScreen = ({ navigation, route }) => {
               </View>
             ) : (
               <View style={styles.noAddressCard}>
-                <MCIcon name="map-marker-off-outline" size={24} color={colors.textMuted} />
-                <Text style={styles.noAddressText}>No address saved yet</Text>
-                <Text style={styles.noAddressSubtext}>Add an address for the doctor to visit.</Text>
-                <TouchableOpacity
-                  style={styles.addAddressBtn}
-                  onPress={() => navigation.navigate('AddressManagement')}
-                  activeOpacity={0.8}
-                >
-                  <MCIcon name="plus" size={16} color={colors.white} />
-                  <Text style={styles.addAddressBtnText}>Add New Address</Text>
-                </TouchableOpacity>
+                <EmptyState
+                  compact
+                  icon="map-marker-off-outline"
+                  title="No address saved yet"
+                  hint="Add an address for the doctor to visit."
+                  action={{ label: 'Add an address', onPress: () => navigation.navigate('AddressManagement') }}
+                />
               </View>
             )}
           </View>
@@ -733,12 +730,7 @@ const makeStyles = colors => StyleSheet.create({
   timeSlotText:       { fontSize: 12, fontWeight: '500', color: colors.textSecondary },
   timeSlotTextActive: { color: colors.white, fontWeight: '700' },
   timeSlotBookedText:{ fontSize: 12, fontWeight: '500', color: colors.textMuted, textDecorationLine: 'line-through' },
-  noSlotsCard: {
-    alignItems: 'center', backgroundColor: colors.card, borderRadius: 14,
-    padding: 24, borderWidth: 1.5, borderColor: colors.border, gap: 8,
-  },
-  noSlotsTitle: { fontSize: 15, fontWeight: '700', color: colors.textMuted },
-  noSlotsText: { fontSize: 12, color: colors.textMuted, textAlign: 'center', lineHeight: 18 },
+  noSlotsCard: { backgroundColor: colors.card, borderRadius: 14, borderWidth: 1.5, borderColor: colors.border },
 
   descriptionInput: {
     backgroundColor: colors.card, borderRadius: 14, padding: 14,
@@ -756,18 +748,7 @@ const makeStyles = colors => StyleSheet.create({
   addressTitle:   { fontSize: 14, fontWeight: '700', color: colors.textPrimary, marginBottom: 4 },
   addressText:    { fontSize: 13, color: colors.textSecondary, lineHeight: 18 },
   changeAddress:  { fontSize: 13, color: colors.primary, fontWeight: '600', marginTop: 6 },
-  noAddressCard: {
-    alignItems: 'center', backgroundColor: colors.card, borderRadius: 14,
-    padding: 24, borderWidth: 1.5, borderColor: colors.border, gap: 6,
-  },
-  noAddressText:    { fontSize: 14, fontWeight: '600', color: colors.textMuted },
-  noAddressSubtext: { fontSize: 12, color: colors.textMuted, textAlign: 'center' },
-  addAddressBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8,
-    backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 10,
-    borderRadius: 10,
-  },
-  addAddressBtnText: { fontSize: 13, fontWeight: '600', color: colors.white },
+  noAddressCard: { backgroundColor: colors.card, borderRadius: 14, borderWidth: 1.5, borderColor: colors.border },
 
   /* Address Picker Dialog */
   pickerAddBtn: {

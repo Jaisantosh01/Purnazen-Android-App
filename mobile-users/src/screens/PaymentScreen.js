@@ -89,7 +89,7 @@ const PaymentScreen = ({ navigation, route }) => {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Payment" subtitle="Complete your booking" variant="light" />
+      <ScreenHeader title="Payment" subtitle="Complete your booking" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={inline.pb120}>
 

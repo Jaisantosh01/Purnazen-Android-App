@@ -17,17 +17,8 @@ import TabHeader from '../components/TabHeader';
 import { COLORS, SPACING, RADIUS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
 import EmptyState from '../components/EmptyState';
-import { reliefCardColors } from '../utils/cardTheme';
+import ProgramCard, { ProgressBar } from '../components/ProgramCard';
 import dayStreak from '../utils/streak';
-
-// Wellness programs carry no colour of their own (relief cards do), so the
-// grid cycles through a calm set; reliefCardColors composites them for dark.
-const HUES = [
-  { bg: '#EEE9FF', fg: '#6D4AFF' },
-  { bg: '#E6F7EF', fg: '#0E9F6E' },
-  { bg: '#FFEFE6', fg: '#E8702A' },
-  { bg: '#E6F2FF', fg: '#2B7BD6' },
-];
 
 // A time-of-day pick for the hero when nothing is in progress: "Morning …"
 // before noon, "Evening …" after five, otherwise the first program.
@@ -37,7 +28,7 @@ const todaysPick = (programs, hour = new Date().getHours()) => {
 };
 
 const WellnessScreen = ({ navigation }) => {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [programs, setPrograms]     = useState([]);
   const [runs, setRuns]             = useState([]);   // the user's session groups, newest first
@@ -167,7 +158,7 @@ const WellnessScreen = ({ navigation }) => {
             </View>
             {resume ? (
               <>
-                <ProgressBar done={resume.run.completedVideos} total={resume.run.totalVideos} styles={styles} light />
+                <ProgressBar done={resume.run.completedVideos} total={resume.run.totalVideos} light />
                 <Text style={styles.resumeMeta}>
                   {resume.run.completedVideos ?? 0} of {resume.run.totalVideos ?? 0} videos done
                 </Text>
@@ -202,44 +193,15 @@ const WellnessScreen = ({ navigation }) => {
             <View style={styles.grid}>
               {programs.map((program, i) => {
                 const { done = 0, open = null } = progress[program.videoGroupId] || {};
-                const card = reliefCardColors({ ...HUES[i % HUES.length], colors, isDark });
-                const ready = !!program.videoGroupId;
                 return (
-                  <TouchableOpacity
+                  <ProgramCard
                     key={program.id}
-                    style={[styles.programCard, { backgroundColor: card.background }, !ready && styles.programCardSoon]}
-                    activeOpacity={0.85}
+                    program={program}
+                    index={i}
+                    done={done}
+                    open={open}
                     onPress={() => play(program, open)}
-                  >
-                    <View style={styles.programTop}>
-                      <MCIcon name={program.icon || 'star-four-points-outline'} size={30} color={card.accent} />
-                      {done > 0 && (
-                        <View style={[styles.doneChip, { backgroundColor: card.accent }]}>
-                          <MCIcon name="check" size={11} color={COLORS.white} />
-                          <Text style={styles.doneChipText}>{done > 1 ? `×${done}` : 'Done'}</Text>
-                        </View>
-                      )}
-                    </View>
-
-                    <Text style={[styles.programTitle, { color: card.title }]} numberOfLines={2}>{program.title}</Text>
-                    <Text style={[styles.programMeta, { color: card.subtitle }]}>
-                      {ready ? program.duration : 'Coming soon'}
-                    </Text>
-
-                    {open ? (
-                      <View style={styles.programProgress}>
-                        <ProgressBar done={open.completedVideos} total={open.totalVideos} styles={styles} accent={card.accent} />
-                        <Text style={[styles.programMeta, { color: card.accent }]}>
-                          {open.completedVideos ?? 0}/{open.totalVideos ?? 0}
-                        </Text>
-                      </View>
-                    ) : (
-                      <View style={styles.programFooter}>
-                        <Text style={[styles.programCta, { color: card.accent }]}>{ready ? 'Start' : 'Soon'}</Text>
-                        <MCIcon name={ready ? 'arrow-right' : 'clock-outline'} size={16} color={card.accent} />
-                      </View>
-                    )}
-                  </TouchableOpacity>
+                  />
                 );
               })}
             </View>
@@ -251,19 +213,6 @@ const WellnessScreen = ({ navigation }) => {
 };
 
 export default WellnessScreen;
-
-const ProgressBar = ({ done = 0, total = 0, styles, light = false, accent }) => (
-  <View style={[styles.track, light && styles.trackLight]}>
-    <View
-      style={[
-        styles.fill,
-        light && styles.fillLight,
-        accent && { backgroundColor: accent },
-        { width: `${total > 0 ? Math.min(100, (done / total) * 100) : 0}%` },
-      ]}
-    />
-  </View>
-);
 
 const makeStyles = colors => StyleSheet.create({
   root:   { flex: 1, backgroundColor: colors.background },
@@ -330,36 +279,6 @@ const makeStyles = colors => StyleSheet.create({
   },
 
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  programCard: {
-    width: '48%',
-    borderRadius: 18,
-    padding: SPACING.lg,
-    marginBottom: 14,
-    minHeight: 160,
-    justifyContent: 'space-between',
-    gap: SPACING.xs,
-  },
-  programCardSoon: { opacity: 0.6 },
-  programTop:      { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: SPACING.sm },
-  doneChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: RADIUS.pill,
-  },
-  doneChipText:    { fontSize: 10, fontWeight: '800', color: COLORS.white },
-  programTitle:    { fontSize: 16, fontWeight: '700', lineHeight: 20 },
-  programMeta:     { fontSize: 12, fontVariant: ['tabular-nums'] },
-  programProgress: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginTop: SPACING.sm },
-  programFooter:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: SPACING.sm },
-  programCta:      { fontSize: 12, fontWeight: '700' },
-
-  track:      { height: 6, borderRadius: 3, backgroundColor: 'rgba(0,0,0,0.08)', overflow: 'hidden', flex: 1 },
-  trackLight: { backgroundColor: 'rgba(255,255,255,0.25)' },
-  fill:       { height: 6, borderRadius: 3, backgroundColor: colors.primary },
-  fillLight:  { backgroundColor: COLORS.white },
 
   emptyBox:   { alignItems: 'center', paddingVertical: 48, gap: SPACING.sm },
   emptyText:  { fontSize: 13, color: colors.textMuted, textAlign: 'center' },

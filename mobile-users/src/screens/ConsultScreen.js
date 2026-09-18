@@ -6,7 +6,6 @@ import {
   ScrollView,
   FlatList,
   TouchableOpacity,
-  StatusBar,
   TextInput,
   ActivityIndicator,
   RefreshControl,
@@ -20,27 +19,29 @@ import useTaxConfig from '../hooks/useTaxConfig';
 import Avatar from '../components/Avatar';
 import {TAG_ICONS} from '../constants/icons';
 import {CONSULT_SCREEN_FILTER_TABS_FALLBACK} from '../constants/miscellaneous';
-import { useHeaderTopPadding } from '../components/ScreenHeader';
+import TabHeader from '../components/TabHeader';
+import { ListSkeleton } from '../components/SkeletonLoader';
 
 
 const FILTER_TABS_FALLBACK = CONSULT_SCREEN_FILTER_TABS_FALLBACK;
 
 
-// Shared header reused in loading/error states
-// Fix 1: always pass searchQuery so TextInput is never uncontrolled
-const ScreenHeader = ({ styles, colors, searchQuery = '', onChangeText, onClear, editable = true, navigation }) => {
-  const headerTop = useHeaderTopPadding();
-  return (
-  <View style={[styles.header, { paddingTop: headerTop }]}>
-    <View style={styles.headerTopRow}>
-      <View style={styles.headerTextCol}>
-        <Text style={styles.headerTitle}>Book Consultation</Text>
-        <Text style={styles.headerSubtitle}>Connect with expert doctors</Text>
-      </View>
-      <TouchableOpacity style={styles.historyBtn} onPress={() => navigation?.navigate('AppointmentHistory')}>
+// Hero + search. The search box lives in the hero's `children` slot so this
+// tab's header is the same TabHeader card as Home / Relief / Wellness.
+const ConsultHeader = ({ styles, colors, searchQuery = '', onChangeText, onClear, navigation }) => (
+  <TabHeader
+    title="Consult"
+    subtitle="Book a session with an expert doctor"
+    right={
+      <TouchableOpacity
+        style={styles.historyBtn}
+        onPress={() => navigation.navigate('AppointmentHistory')}
+        accessibilityLabel="My appointments"
+      >
         <MCIcon name="calendar-clock" size={22} color={colors.white} />
       </TouchableOpacity>
-    </View>
+    }
+  >
     <View style={styles.searchContainer}>
       <MCIcon name="magnify" size={20} color={colors.textMuted} style={inline.mr8} />
       <TextInput
@@ -49,18 +50,16 @@ const ScreenHeader = ({ styles, colors, searchQuery = '', onChangeText, onClear,
         placeholderTextColor={colors.textMuted}
         value={searchQuery}
         onChangeText={onChangeText}
-        editable={editable}
+        returnKeyType="search"
       />
-      {editable && searchQuery.length > 0 && (
-        // Fix 7: added padding so touch target is larger
-        <TouchableOpacity onPress={onClear} style={styles.clearBtn}>
+      {searchQuery.length > 0 && (
+        <TouchableOpacity onPress={onClear} style={styles.clearBtn} accessibilityLabel="Clear search">
           <MCIcon name="close" size={18} color={colors.textMuted} />
         </TouchableOpacity>
       )}
     </View>
-  </View>
-  );
-};
+  </TabHeader>
+);
 
 const ConsultScreen = ({ navigation }) => {
   const { colors } = useTheme();
@@ -207,6 +206,7 @@ const ConsultScreen = ({ navigation }) => {
           styles.availabilityBadge,
           doctor.availableToday ? styles.availableTodayBadge : styles.availableTomorrowBadge,
         ]}>
+          <View style={[styles.availabilityDot, { backgroundColor: doctor.availableToday ? colors.primary : colors.textMuted }]} />
           <Text style={[
             styles.availabilityText,
             doctor.availableToday ? styles.availableTodayText : styles.availableTomorrowText,
@@ -228,58 +228,38 @@ const ConsultScreen = ({ navigation }) => {
     );
   };
 
-  // Empty state
+  // Empty / error state — both share the one EmptyState block.
   const renderEmpty = () => {
     if (isLoading) return null;
+    if (error) {
+      return (
+        <EmptyState
+          icon="alert-circle-outline"
+          title="Couldn't load doctors"
+          hint={error}
+          action={{ label: 'Try again', onPress: retry }}
+        />
+      );
+    }
     return (
       <EmptyState
         icon="doctor"
         title="No doctors found"
-        hint="Try a different search or filter"
+        hint={activeFilter === 'All' && !debouncedQuery
+          ? 'Doctors appear here once they are listed.'
+          : 'Try a different search or filter.'}
+        action={activeFilter !== 'All' || debouncedQuery
+          ? { label: 'Clear filters', onPress: () => { setActiveFilter('All'); setSearchQuery(''); } }
+          : undefined}
       />
     );
   };
 
-  // Full-screen initial loading
-  // Fix 1: pass searchQuery so header TextInput stays controlled
-  if (isLoading && doctors.length === 0) {
-    return (
-      <View style={styles.root}>
-        <StatusBar barStyle="light-content" backgroundColor={colors.headerBg} />
-        <ScreenHeader styles={styles} colors={colors} searchQuery={searchQuery} editable={false} />
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Loading doctors...</Text>
-        </View>
-      </View>
-    );
-  }
+  const initialLoading = isLoading && doctors.length === 0;
 
-  // Full-screen error
-  // Fix 1: pass searchQuery so header TextInput stays controlled
-  if (error && doctors.length === 0) {
-    return (
-      <View style={styles.root}>
-        <StatusBar barStyle="light-content" backgroundColor={colors.headerBg} />
-        <ScreenHeader styles={styles} colors={colors} searchQuery={searchQuery} editable={false} />
-        <View style={styles.centered}>
-          <MCIcon name="alert-circle-outline" size={60} color={colors.danger} />
-          <Text style={styles.errorTitle}>Something went wrong</Text>
-          <Text style={styles.errorSubtitle}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={retry} activeOpacity={0.85}>
-            <Text style={styles.retryText}>Try Again</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
-
-  // Main screen
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.headerBg} />
-
-      <ScreenHeader
+      <ConsultHeader
         styles={styles}
         colors={colors}
         searchQuery={searchQuery}
@@ -295,40 +275,46 @@ const ConsultScreen = ({ navigation }) => {
         style={styles.filterScroll}
         contentContainerStyle={styles.filterContent}
       >
-        {filterTabs.map(tab => (
-          <TouchableOpacity
-            key={tab.id}
-            style={[styles.filterTab, activeFilter === tab.label && styles.filterTabActive]}
-            onPress={() => setActiveFilter(tab.label)}
-          >
-            <Text style={[styles.filterTabText, activeFilter === tab.label && styles.filterTabTextActive]}>
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {filterTabs.map(tab => {
+          const on = activeFilter === tab.label;
+          return (
+            <TouchableOpacity
+              key={tab.id}
+              style={[styles.filterTab, on && styles.filterTabActive]}
+              onPress={() => setActiveFilter(tab.label)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: on }}
+            >
+              <Text style={[styles.filterTabText, on && styles.filterTabTextActive]}>{tab.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
 
-      {/* Doctor List */}
-      <FlatList
-        data={doctors}
-        // Fix 4: convert id to string so keyExtractor never warns
-        keyExtractor={item => String(item.id)}
-        renderItem={renderDoctorCard}
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={false}
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.4}
-        ListFooterComponent={renderFooter}
-        ListEmptyComponent={renderEmpty}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={refresh}
-            colors={[colors.primary]}
-            tintColor={colors.primary}
-          />
-        }
-      />
+      {initialLoading ? (
+        <ListSkeleton count={4} />
+      ) : (
+        <FlatList
+          data={doctors}
+          keyExtractor={item => String(item.id)}
+          renderItem={renderDoctorCard}
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={renderFooter}
+          ListEmptyComponent={renderEmpty}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={refresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
+        />
+      )}
     </View>
   );
 };
@@ -338,34 +324,12 @@ export default ConsultScreen;
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
 
-  // Header
-  header: {
-    backgroundColor: colors.headerBg,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-  },
-  headerTopRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
-  },
-  headerTextCol: { flex: 1 },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.white,
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.85)',
-    marginBottom: 16,
-  },
+  // Header — the hero card comes from <TabHeader/>; only the slot content is here.
   historyBtn: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    width: 42, height: 42, borderRadius: 21,
+    backgroundColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center', justifyContent: 'center',
-    marginLeft: 12, marginTop: 2,
+    marginTop: 2,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -538,60 +502,25 @@ const makeStyles = colors => StyleSheet.create({
     color: colors.textMuted,
   },
   availabilityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
   },
+  availabilityDot: { width: 6, height: 6, borderRadius: 3 },
   availableTodayBadge:    { backgroundColor: colors.primaryLight },
   availableTomorrowBadge: { backgroundColor: colors.surfaceMuted },
   availabilityText:       { fontSize: 12, fontWeight: '600' },
   availableTodayText:     { color: colors.primary },
   availableTomorrowText:  { color: colors.textSecondary },
 
-  // Centered (loading / error full-screen)
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-  },
-  loadingText: {
-    marginTop: 14,
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  errorTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  errorSubtitle: {
-    fontSize: 13,
-    color: colors.textMuted,
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  retryBtn: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: 14,
-  },
-  retryText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.white,
-  },
-
   // Pagination footer loader
   footerLoader: {
     paddingVertical: 20,
     alignItems: 'center',
   },
-
-  // Empty state
 });
 
 // Literal-only styles that used to sit inline in the JSX.

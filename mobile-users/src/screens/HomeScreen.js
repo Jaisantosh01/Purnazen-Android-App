@@ -10,7 +10,8 @@ import {
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import QuickCard from '../components/QuickCards';
-import { WellnessRowSkeleton, QuickCardSkeleton } from '../components/SkeletonLoader';
+import { GridCardSkeleton, QuickCardSkeleton } from '../components/SkeletonLoader';
+import ProgramCard from '../components/ProgramCard';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import wellnessService from '../services/wellnessService';
@@ -18,8 +19,8 @@ import useTheme from '../hooks/useTheme';
 import notificationsService from '../services/notificationsService';
 import TabHeader from '../components/TabHeader';
 
-const HOME_WELLNESS_ROWS = 3; 
-const HOME_QUICK_RELIEF_LIMIT = 3; 
+const HOME_WELLNESS_ROWS = 4; 
+const HOME_QUICK_RELIEF_LIMIT = 4; 
 
 const HomeScreen = ({ navigation }) => {
   const { colors } = useTheme();
@@ -157,37 +158,27 @@ const HomeScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
 
-          {wellnessLoading ? (
-            [1, 2, 3].map(i => <WellnessRowSkeleton key={i} />)
-          ) : wellness.length > 0 ? (
-            wellness.map((item, index) => (
-              <TouchableOpacity
-                key={item.id ?? index}
-                style={styles.wellnessRow}
-                activeOpacity={0.85}
-                onPress={() => {
-                  if (item.videoGroupId) {
-                    navigation.navigate('VideoPlayer', {
-                      groupId: item.videoGroupId,
-                      groupTitle: item.title,
-                      sessionType: 'wellness',
-                    });
-                  }
-                }}
-              >
-                <View style={styles.wellnessIconCircle}>
-                  <MCIcon name={item.icon} size={22} color={colors.primary} />
-                </View>
-                <View style={styles.wellnessInfo}>
-                  <Text style={styles.wellnessTitle}>{item.title}</Text>
-                  <Text style={styles.wellnessDuration}>{item.duration}</Text>
-                </View>
-                <View style={styles.videoBtn}>
-                  <MCIcon name="play-circle-outline" size={20} color={colors.primary} />
-                </View>
-              </TouchableOpacity>
-            ))
-          ) : null}
+          {/* Same tinted 2-up tiles as the Wellness tab (shared <ProgramCard/>). */}
+          <View style={styles.programGrid}>
+            {wellnessLoading
+              ? [1, 2, 3, 4].map(i => <GridCardSkeleton key={i} />)
+              : wellness.map((item, index) => (
+                  <ProgramCard
+                    key={item.id ?? index}
+                    program={item}
+                    index={index}
+                    onPress={() => {
+                      if (item.videoGroupId) {
+                        navigation.navigate('VideoPlayer', {
+                          groupId: item.videoGroupId,
+                          groupTitle: item.title,
+                          sessionType: 'wellness',
+                        });
+                      }
+                    }}
+                  />
+                ))}
+          </View>
 
           {/* Face Glow Card */}
           <TouchableOpacity
@@ -323,47 +314,8 @@ const makeStyles = colors => StyleSheet.create({
     color: colors.primary,
   },
 
-  // Wellness Rows
-  wellnessRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  wellnessIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  wellnessInfo: {
-    flex: 1,
-  },
-  wellnessTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  wellnessDuration: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  videoBtn: {
-    backgroundColor: colors.primaryLight,
-    borderRadius: 10,
-    padding: 8,
-  },
+  // Wellness grid (tiles come from <ProgramCard/>)
+  programGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
 
   // Face Glow Card — translucent pink tint adapts to light/dark surfaces
   faceGlowCard: {

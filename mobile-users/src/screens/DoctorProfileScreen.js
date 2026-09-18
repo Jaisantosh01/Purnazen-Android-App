@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   Linking,
   Platform,
 } from 'react-native';
@@ -17,6 +16,8 @@ import useTaxConfig from '../hooks/useTaxConfig';
 import { useMemo } from 'react';
 import Avatar from '../components/Avatar';
 import ScreenHeader from '../components/ScreenHeader';
+import EmptyState from '../components/EmptyState';
+import { CardSkeleton } from '../components/SkeletonLoader';
 
 // Visit type icon & label map
 const VISIT_TYPE_CONFIG = {
@@ -49,11 +50,12 @@ const DoctorBasicCard = ({ doctor, visitTypes, styles, colors }) => (
   <View style={styles.doctorCard}>
     <Avatar uri={doctor.avatar} name={doctor.name} size={80} style={styles.avatarSpacing} />
     <Text style={styles.doctorName}>{doctor.name}</Text>
-    <Text style={styles.doctorSpecialty}>
-      {Array.isArray(doctor.specialties)
+    {(() => {
+      const specialty = Array.isArray(doctor.specialties)
         ? doctor.specialties.join(', ')
-        : doctor.specialty || doctor.speciality || doctor.specialties || ''}
-    </Text>
+        : doctor.specialty || doctor.speciality || doctor.specialties || '';
+      return specialty ? <Text style={styles.doctorSpecialty}>{specialty}</Text> : null;
+    })()}
 
     {/* Hidden until the doctor actually has reviews — the backend defaults
         average_rating to 0, which rendered as a one-star-looking "0". */}
@@ -132,25 +134,9 @@ const DoctorProfileScreen = ({ navigation, route }) => {
   }, [fetchDoctorDetail]);
 
   // ── Full screen error ─────────────────────────────────────────────────────
-  if (error) {
-    return (
-      <View style={styles.root}>
-        <ScreenHeader title="Doctor Profile" variant="light" />
-        <View style={styles.centered}>
-          <MCIcon name="alert-circle-outline" size={60} color={colors.danger} />
-          <Text style={styles.errorTitle}>Failed to load doctor details</Text>
-          <Text style={styles.errorSubtitle}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={fetchDoctorDetail} activeOpacity={0.85}>
-            <Text style={styles.retryText}>Try Again</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Doctor Profile" variant="light" />
+      <ScreenHeader title="Doctor Profile" subtitle={doctor.name} underColor={colors.card} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -162,9 +148,16 @@ const DoctorProfileScreen = ({ navigation, route }) => {
         {/* ── Detail sections — shown after API responds ── */}
         {isLoading ? (
           <View style={styles.detailLoader}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.loadingText}>Loading details...</Text>
+            <CardSkeleton />
+            <CardSkeleton />
           </View>
+        ) : error ? (
+          <EmptyState
+            icon="alert-circle-outline"
+            title="Couldn't load doctor details"
+            hint={error}
+            action={{ label: 'Try again', onPress: fetchDoctorDetail }}
+          />
         ) : detailData ? (
           <>
             {/* About */}
@@ -321,13 +314,21 @@ const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
 
   // Doctor Card
+  // Sits flush under the brand header (the header paints colors.card behind
+  // its corners), so header + card read as one hero.
   doctorCard: {
     backgroundColor: colors.card,
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.surfaceMuted,
+    paddingTop: 8,
+    paddingBottom: 22,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
   avatarSpacing: { marginBottom: 12 },
   doctorName: {
@@ -372,40 +373,9 @@ const makeStyles = colors => StyleSheet.create({
   tagText: { fontSize: 12, color: colors.primary, fontWeight: '500' },
 
   // Detail loader (below the doctor card)
-  detailLoader: {
-    paddingVertical: 60,
-    alignItems: 'center',
-    gap: 12,
-  },
-  loadingText: { fontSize: 14, color: colors.textMuted },
+  detailLoader: { paddingHorizontal: 16, paddingTop: 20 },
 
   // Full screen error
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-  },
-  errorTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  errorSubtitle: {
-    fontSize: 13,
-    color: colors.textMuted,
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  retryBtn: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: 14,
-  },
-  retryText: { fontSize: 15, fontWeight: '700', color: colors.white },
 
   // Sections
   section: { paddingHorizontal: 16, marginTop: 20 },

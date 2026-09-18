@@ -70,9 +70,9 @@ describe('ConsultScreen', () => {
     expect(tree).toBeTruthy();
   });
 
-  it('shows booking consultation heading', async () => {
+  it('shows the consult heading', async () => {
     await render();
-    expect(collectText(tree.toJSON())).toContain('Book Consultation');
+    expect(collectText(tree.toJSON())).toContain('Book a session with an expert doctor');
   });
 
   it('renders doctor card after data loads', async () => {
