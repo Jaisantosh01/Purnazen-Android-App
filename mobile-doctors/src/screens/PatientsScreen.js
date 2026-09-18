@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
-  ActivityIndicator,
   RefreshControl,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -16,6 +15,8 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
 import { SPACING, RADIUS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
+import EmptyState from '../components/EmptyState';
+import { ListSkeleton } from '../components/SkeletonLoader';
 import patientService from '../services/patientService';
 import { PatientCard, PatientSeparator } from '../components/PatientCard';
 import { FILTER_CHIPS } from '../constants/patients';
@@ -143,9 +144,7 @@ const PatientsScreen = ({ navigation }) => {
 
       {/* List content states */}
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <ListSkeleton count={5} />
       ) : error ? (
         <View style={styles.center}>
           <MCIcon name="alert-circle-outline" size={48} color={colors.danger} style={inline.mb12} />
@@ -168,13 +167,11 @@ const PatientsScreen = ({ navigation }) => {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
           }
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <MCIcon name="account-search-outline" size={60} color={colors.borderStrong} />
-              <Text style={styles.emptyTitle}>No Patients Found</Text>
-              <Text style={styles.emptySubtitle}>
-                Try adjusting your search query or filters.
-              </Text>
-            </View>
+            <EmptyState
+              icon="account-search-outline"
+              title="No Patients Found"
+              hint="Try adjusting your search query or filters."
+            />
           }
         />
       )}
@@ -251,24 +248,6 @@ const makeStyles = colors =>
   list: { padding: SPACING.lg, paddingBottom: 40 },
 
   // Empty State
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: SPACING.xl,
-    gap: SPACING.sm,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: colors.textPrimary,
-    marginTop: SPACING.sm,
-  },
-  emptySubtitle: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
   center: {
     flex: 1,
     alignItems: 'center',

@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  ActivityIndicator,
   RefreshControl,
 } from 'react-native';
 // @ts-ignore
@@ -13,6 +12,8 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
 import { SPACING, RADIUS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
+import EmptyState from '../components/EmptyState';
+import { ListSkeleton } from '../components/SkeletonLoader';
 import patientService from '../services/patientService';
 
 const STATUS_CONFIG = {
@@ -142,9 +143,7 @@ const PrescriptionHistoryScreen = ({ route, navigation }) => {
       />
 
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <ListSkeleton count={4} />
       ) : error ? (
         <View style={styles.center}>
           <MCIcon name="alert-circle-outline" size={48} color={colors.danger} style={inline.mb12} />
@@ -172,17 +171,11 @@ const PrescriptionHistoryScreen = ({ route, navigation }) => {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
           }
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <MCIcon name="file-document-outline" size={60} color={colors.borderStrong} />
-              <Text style={styles.emptyTitle}>No Prescriptions</Text>
-              <Text style={styles.emptySubtitle}>
-                This patient has no recorded prescriptions.
-              </Text>
-              {/* TODO: Add a note indicating database schema status */}
-              <Text style={styles.todoStubText}>
-                (Backend DB is missing prescription tables)
-              </Text>
-            </View>
+            <EmptyState
+              icon="file-document-outline"
+              title="No prescriptions"
+              hint="This patient has no recorded prescriptions."
+            />
           }
         />
       )}
@@ -319,31 +312,6 @@ const makeStyles = colors =>
   },
 
   // Empty state
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 80,
-    paddingHorizontal: SPACING.xl,
-    gap: SPACING.sm,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: colors.textPrimary,
-    marginTop: SPACING.sm,
-  },
-  emptySubtitle: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-  todoStubText: {
-    fontSize: 11.5,
-    color: colors.textMuted,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginTop: 4,
-  },
   center: {
     flex: 1,
     alignItems: 'center',

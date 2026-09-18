@@ -4,16 +4,16 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
-  StatusBar,
-  ActivityIndicator,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import scanService from '../services/scanService';
 import useTheme from '../hooks/useTheme';
-import { useHeaderTopPadding } from '../components/ScreenHeader';
-import { popToStackRoot } from '../navigation/backHelpers';
+import ScreenHeader from '../components/ScreenHeader';
+import EmptyState from '../components/EmptyState';
+import { ListSkeleton } from '../components/SkeletonLoader';
+
+const GLOW = '#C850C0';
 import MedicalDisclaimer from '../components/MedicalDisclaimer';
 
 // metricKey → { label, higherIsBetter }
@@ -42,7 +42,6 @@ function pretty(v) {
 }
 
 const ScanComparisonScreen = ({ navigation, route }) => {
-  const headerTop = useHeaderTopPadding();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { scanId } = route.params;
@@ -142,27 +141,19 @@ const ScanComparisonScreen = ({ navigation, route }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor="#C850C0" />
-      <View style={[styles.header, { paddingTop: headerTop }]}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => popToStackRoot(navigation)}>
-          <MCIcon name="arrow-left" size={22} color={colors.white} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Progress</Text>
-        <View style={inline.w38} />
-      </View>
+      <ScreenHeader title="Progress" subtitle="Latest scan vs your previous one" background={GLOW} backBehavior="popToRoot" />
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator color="#C850C0" size="large" /></View>
+        <ListSkeleton count={3} />
       ) : error ? (
         <View style={styles.center}><Text style={styles.muted}>{error}</Text></View>
       ) : data && data.hasBaseline === false ? (
-        <View style={styles.center}>
-          <MCIcon name="compare" size={46} color={colors.borderStrong} />
-          <Text style={styles.emptyTitle}>Nothing to compare yet</Text>
-          <Text style={styles.muted}>
-            This is your first {isTongue ? 'tongue ' : ''}scan. Scan again later to track progress.
-          </Text>
-        </View>
+        <EmptyState
+          accent={GLOW}
+          icon="compare"
+          title="Nothing to compare yet"
+          hint={`This is your first ${isTongue ? 'tongue ' : ''}scan. Scan again later to track progress.`}
+        />
       ) : (
         <ScrollView contentContainerStyle={inline.p16_pb40}>
           <Text style={styles.caption}>
@@ -187,19 +178,7 @@ export default ScanComparisonScreen;
 
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  header: {
-    backgroundColor: '#C850C0',
-    paddingBottom: 20, paddingHorizontal: 20,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderBottomLeftRadius: 28, borderBottomRightRadius: 28,
-  },
-  iconBtn: {
-    width: 38, height: 38, borderRadius: 19,
-    backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center',
-  },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: colors.white },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 8 },
-  emptyTitle: { fontSize: 17, fontWeight: '700', color: colors.textPrimary },
   muted: { fontSize: 13.5, color: colors.textMuted, textAlign: 'center' },
   caption: { fontSize: 13, color: colors.textSecondary, fontWeight: '600', textAlign: 'center', marginBottom: 12 },
   card: {
@@ -244,6 +223,5 @@ const makeStyles = colors => StyleSheet.create({
 // Literal-only styles that used to sit inline in the JSX.
 const inline = StyleSheet.create({
   p16_pb40: { padding: 16, paddingBottom: 40 },
-  w38: { width: 38 },
   cC850C0: { color: '#C850C0' },
 });

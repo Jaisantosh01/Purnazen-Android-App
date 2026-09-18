@@ -17,6 +17,7 @@ import { ICONS_PER_PAGE, WELLNESS_ICONS } from '../constants/icons';
 import { DirGridSkeleton } from '../components/SkeletonLoader';
 import VideoPlayer from '../components/VideoPlayer';
 import useTheme from '../hooks/useTheme';
+import EmptyState from '../components/EmptyState';
 import ScreenHeader from '../components/ScreenHeader';
 import StorageFileActionsModal from '../components/StorageFileActionsModal';
 import useDurationProbe from '../hooks/useDurationProbe';
@@ -1028,10 +1029,11 @@ const VideoGroupEditorScreen = ({ route, navigation }) => {
         {dirsLoading ? (
           <DirGridSkeleton />
         ) : directories.length === 0 && dirFiles.length === 0 && videosInCurrentPath.length === 0 ? (
-          <View style={styles.emptyDirs}>
-            <MCIcon name="folder-open-outline" size={48} color={colors.textMuted} />
-            <Text style={styles.emptyDirText}>This folder is empty</Text>
-          </View>
+          <EmptyState
+            icon="folder-open-outline"
+            title="This folder is empty"
+            compact
+          />
         ) : viewMode === 'grid' ? (
           <View style={styles.dirsGrid}>
             {directories.map(renderGridDir)}
@@ -1482,8 +1484,6 @@ const makeStyles = colors => StyleSheet.create({
   dirListText: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.textPrimary },
 
   // Empty state
-  emptyDirs: { alignItems: 'center', paddingVertical: 24 },
-  emptyDirText: { fontSize: 14, color: colors.textMuted, marginTop: 12 },
 
   createDirBtn: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primaryLight },
   folderAddBtn: { position: 'absolute', top: 6, right: 6, width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },

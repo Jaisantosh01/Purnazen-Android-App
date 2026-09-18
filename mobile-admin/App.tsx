@@ -5,9 +5,7 @@ import { CommonActions } from '@react-navigation/routers';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // @ts-ignore
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 // @ts-ignore
 import authService from './src/services/authService';
 // @ts-ignore
@@ -22,6 +20,7 @@ import { navigationRef } from './src/navigation/navigationRef';
 import { COLORS } from './src/constants/theme';
 // @ts-ignore
 import useTheme from './src/hooks/useTheme';
+import TabBar from './src/components/TabBar';
 // @ts-ignore
 import { useThemeStore } from './src/store/themeStore';
 // @ts-ignore
@@ -170,43 +169,14 @@ function ProfileStackNavigator() {
   );
 }
 
-function MainTabs() {
-  // Respect the device's bottom safe area (gesture bar / home indicator) so the
-  // tab bar isn't flush against the screen edge — matches the users & doctors apps.
-  const insets = useSafeAreaInsets();
-  const bottomPad = Math.max(insets.bottom, 10);
-  const { colors } = useTheme();
+// Module-level so the tab bar isn't a new component type on every render.
+const renderTabBar = (props: any) => <TabBar {...props} icons={TAB_ICONS} />;
 
+function MainTabs() {
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarIcon: ({ focused, color }) => {
-          const icons = TAB_ICONS[route.name];
-          const iconName = focused ? icons.active : icons.inactive;
-          return <Icon name={iconName} size={22} color={color} />;
-        },
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textMuted,
-        tabBarStyle: {
-          backgroundColor: colors.card,
-          borderTopWidth: 1,
-          borderTopColor: colors.border,
-          height: 60 + bottomPad,
-          paddingBottom: bottomPad,
-          paddingTop: 6,
-          elevation: 10,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.06,
-          shadowRadius: 6,
-        },
-        tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: '600',
-          paddingBottom: 2,
-        },
-      })}
+      screenOptions={{ headerShown: false }}
+      tabBar={renderTabBar}
     >
       <Tab.Screen name="Home"    component={HomeStackNavigator}    listeners={makeTabListener('Home')}    options={{ tabBarLabel: 'Dashboard' }} />
       <Tab.Screen name="Manage"  component={ManageStackNavigator}  listeners={makeTabListener('Manage')}  />

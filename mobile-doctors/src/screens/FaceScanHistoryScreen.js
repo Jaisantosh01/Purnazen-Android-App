@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  ActivityIndicator,
   RefreshControl,
 } from 'react-native';
 // @ts-ignore
@@ -13,6 +12,8 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
 import { SPACING, RADIUS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
+import EmptyState from '../components/EmptyState';
+import { ListSkeleton } from '../components/SkeletonLoader';
 import patientService from '../services/patientService';
 
 const STATUS_CONFIG = {
@@ -115,9 +116,7 @@ const FaceScanHistoryScreen = ({ route, navigation }) => {
       />
 
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <ListSkeleton count={4} />
       ) : error ? (
         <View style={styles.center}>
           <MCIcon name="alert-circle-outline" size={48} color={colors.danger} style={inline.mb12} />
@@ -165,11 +164,11 @@ const FaceScanHistoryScreen = ({ route, navigation }) => {
             ) : null
           }
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <MCIcon name="face-recognition" size={60} color={colors.borderStrong} />
-              <Text style={styles.emptyTitle}>No Face Scans</Text>
-              <Text style={styles.emptySubtitle}>No scans found for this patient.</Text>
-            </View>
+            <EmptyState
+              icon="face-recognition"
+              title="No Face Scans"
+              hint="No scans found for this patient."
+            />
           }
         />
       )}
@@ -354,22 +353,6 @@ const makeStyles = colors =>
   },
 
   // Empty state
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 80,
-    gap: SPACING.sm,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: colors.textPrimary,
-    marginTop: SPACING.sm,
-  },
-  emptySubtitle: {
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
   center: {
     flex: 1,
     alignItems: 'center',

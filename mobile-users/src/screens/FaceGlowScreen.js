@@ -14,6 +14,7 @@ import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { RoutineCardSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
+import EmptyState from '../components/EmptyState';
 import { useHeaderTopPadding } from '../components/ScreenHeader';
 import { popToStackRoot } from '../navigation/backHelpers';
 import MedicalDisclaimer from '../components/MedicalDisclaimer';
@@ -175,11 +176,11 @@ const FaceGlowScreen = ({ navigation }) => {
               </View>
             ))
           ) : (
-            <View style={styles.emptyState}>
-              <MCIcon name="spa-outline" size={40} color={colors.borderStrong} />
-              <Text style={styles.emptyTitle}>No routines available</Text>
-              <Text style={styles.emptySub}>Check back soon for personalised face glow routines</Text>
-            </View>
+            <EmptyState
+              icon="spa-outline"
+              title="No routines available"
+              hint="Check back soon for personalised face glow routines"
+            />
           )}
         </View>
 
@@ -416,22 +417,6 @@ const makeStyles = colors => StyleSheet.create({
   },
 
   // Empty state
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 40,
-    gap: 8,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  emptySub: {
-    fontSize: 13,
-    color: colors.textMuted,
-    textAlign: 'center',
-    paddingHorizontal: 24,
-  },
 
   // Benefits Card
   benefitsCard: {

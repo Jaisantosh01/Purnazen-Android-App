@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  StatusBar,
   Linking,
   Share,
 } from 'react-native';
@@ -13,7 +12,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { APPOINTMENT_DETAIL_STATUS_COLORS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
 import { APPOINTMENT_HISTORY_STATUS_LABELS, APPOINTMENT_PAYMENT_LABELS } from '../constants/strings';
-import { useHeaderTopPadding } from '../components/ScreenHeader';
+import ScreenHeader from '../components/ScreenHeader';
 import Avatar from '../components/Avatar';
 import LocationCard from '../components/LocationCard';
 import { appointmentBreakdown, formatRupees, gstLabel } from '../utils/tax';
@@ -34,8 +33,7 @@ const getInitials = (name) => {
 };
 
 const AppointmentDetailScreen = ({ navigation, route }) => {
-  const headerTop = useHeaderTopPadding();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { appointment } = route.params;
 
@@ -59,15 +57,7 @@ const AppointmentDetailScreen = ({ navigation, route }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
-
-      <View style={[styles.header, { paddingTop: headerTop }]}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <MCIcon name="arrow-left" size={22} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Appointment Details</Text>
-        <View style={styles.backBtn} />
-      </View>
+      <ScreenHeader title="Appointment Details" />
 
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.doctorCard}>
@@ -225,13 +215,6 @@ export default AppointmentDetailScreen;
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
 
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingBottom: 14,
-    backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.surfaceMuted,
-  },
-  backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
 
   content: { padding: 16, gap: 16, paddingBottom: 40 },
 

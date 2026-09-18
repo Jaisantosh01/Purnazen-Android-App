@@ -151,7 +151,7 @@ const ApplyLeaveScreen = ({ navigation }) => {
     return dayGroup ? dayGroup.slots : [];
   };
 
-
+  const partialDayDates = getDateRange(startDate, endDate);
 
   // ─── Live form validation ────────────────────────────────────────────────────
 

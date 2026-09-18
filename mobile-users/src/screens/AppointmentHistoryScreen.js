@@ -5,18 +5,15 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  StatusBar,
-  ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-// @ts-ignore
-import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import consultService from '../services/consultService';
 import { APPOINTMENT_STATUS_COLORS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
 import { APPOINTMENT_HISTORY_STATUS_LABELS } from '../constants/strings';
-import { useHeaderTopPadding } from '../components/ScreenHeader';
-import { popToStackRoot } from '../navigation/backHelpers';
+import ScreenHeader from '../components/ScreenHeader';
+import EmptyState from '../components/EmptyState';
+import { ListSkeleton } from '../components/SkeletonLoader';
 import { appointmentBreakdown, formatRupees } from '../utils/tax';
 
 
@@ -24,8 +21,7 @@ const STATUS_COLORS = APPOINTMENT_STATUS_COLORS;
 const STATUS_LABELS = APPOINTMENT_HISTORY_STATUS_LABELS;
 
 const AppointmentHistoryScreen = ({ navigation }) => {
-  const headerTop = useHeaderTopPadding();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [appointments, setAppointments] = useState([]);
   const [consultTypes, setConsultTypes] = useState([]);
@@ -107,25 +103,9 @@ const AppointmentHistoryScreen = ({ navigation }) => {
     </TouchableOpacity>
   );
 
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
-
   return (
     <View style={styles.root}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
-
-      <View style={[styles.header, { paddingTop: headerTop }]}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => popToStackRoot(navigation)}>
-          <MCIcon name="arrow-left" size={22} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Appointments</Text>
-        <View style={styles.backBtn} />
-      </View>
+      <ScreenHeader title="My Appointments" subtitle="Past and upcoming consultations" backBehavior="popToRoot" underColor={consultTypes.length > 1 ? colors.card : undefined} />
 
       {consultTypes.length > 1 && (
         <View style={styles.filterRow}>
@@ -149,16 +129,8 @@ const AppointmentHistoryScreen = ({ navigation }) => {
         </View>
       )}
 
-      {filtered.length === 0 ? (
-        <View style={styles.center}>
-          <MCIcon name="clipboard-text-outline" size={48} color={colors.textMuted} style={styles.emptyIcon} />
-          <Text style={styles.emptyTitle}>No Appointments</Text>
-          <Text style={styles.emptySubtitle}>
-            {activeFilter === 'All'
-              ? 'You haven\'t booked any appointments yet.'
-              : `No appointments for "${activeFilter}" consultation type.`}
-          </Text>
-        </View>
+      {loading ? (
+        <ListSkeleton count={4} />
       ) : (
         <FlatList
           data={filtered}
@@ -166,7 +138,17 @@ const AppointmentHistoryScreen = ({ navigation }) => {
           renderItem={renderAppointment}
           contentContainerStyle={styles.list}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />
+          }
+          ListEmptyComponent={
+            <EmptyState
+              icon="clipboard-text-outline"
+              title="No appointments"
+              hint={activeFilter === 'All'
+                ? "You haven't booked any appointments yet."
+                : `No appointments for "${activeFilter}" consultation type.`}
+              action={activeFilter === 'All' ? { label: 'Book a consultation', onPress: () => navigation.navigate('ConsultTab') } : undefined}
+            />
           }
         />
       )}
@@ -179,19 +161,7 @@ export default AppointmentHistoryScreen;
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
 
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 },
-  emptyIcon: { fontSize: 48, marginBottom: 12 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginBottom: 6 },
-  emptySubtitle: { fontSize: 14, color: colors.textMuted, textAlign: 'center', lineHeight: 20 },
 
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingBottom: 14,
-    backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.surfaceMuted,
-  },
-  backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  backIcon: { fontSize: 22, color: colors.textPrimary },
-  headerTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
 
   filterRow: {
     backgroundColor: colors.card, paddingVertical: 10, borderBottomWidth: 1,

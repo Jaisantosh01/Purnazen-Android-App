@@ -16,6 +16,7 @@ import { GridCardSkeleton, StatsSkeleton } from '../components/SkeletonLoader';
 import TabHeader from '../components/TabHeader';
 import { COLORS, SPACING, RADIUS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
+import EmptyState from '../components/EmptyState';
 import { reliefCardColors } from '../utils/cardTheme';
 import dayStreak from '../utils/streak';
 
@@ -189,19 +190,14 @@ const WellnessScreen = ({ navigation }) => {
           {isLoading ? (
             <View style={styles.grid}>{[1, 2, 3, 4].map(i => <GridCardSkeleton key={i} />)}</View>
           ) : error ? (
-            <View style={styles.emptyBox}>
-              <MCIcon name="alert-circle-outline" size={40} color={colors.danger} />
-              <Text style={styles.emptyTitle}>Failed to load programs</Text>
-              <Text style={styles.emptyText}>{error}</Text>
-              <TouchableOpacity style={styles.retryBtn} onPress={() => fetchData()} activeOpacity={0.85}>
-                <Text style={styles.retryText}>Try Again</Text>
-              </TouchableOpacity>
-            </View>
+            <EmptyState
+              icon="alert-circle-outline"
+              title="Couldn't load programs"
+              hint={error}
+              action={{ label: 'Try again', onPress: () => fetchData() }}
+            />
           ) : programs.length === 0 ? (
-            <View style={styles.emptyBox}>
-              <MCIcon name="yoga" size={48} color={colors.border} />
-              <Text style={styles.emptyTitle}>No programs yet</Text>
-            </View>
+            <EmptyState icon="yoga" title="No programs yet" hint="Wellness programs appear here once they're published." />
           ) : (
             <View style={styles.grid}>
               {programs.map((program, i) => {
@@ -366,14 +362,5 @@ const makeStyles = colors => StyleSheet.create({
   fillLight:  { backgroundColor: COLORS.white },
 
   emptyBox:   { alignItems: 'center', paddingVertical: 48, gap: SPACING.sm },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
   emptyText:  { fontSize: 13, color: colors.textMuted, textAlign: 'center' },
-  retryBtn: {
-    marginTop: SPACING.sm,
-    backgroundColor: COLORS.accent,
-    paddingHorizontal: SPACING.xxl,
-    paddingVertical: SPACING.md,
-    borderRadius: RADIUS.md,
-  },
-  retryText: { fontSize: 14, fontWeight: '700', color: COLORS.white },
 });

@@ -113,10 +113,18 @@ const ProfileScreen = ({ navigation }) => {
 
   // Leave lives under Schedule → Leave; the duplicate shortcuts that used to sit
   // here were removed so there's one place to apply for / review leave.
-  const MENU_ITEMS = [
-    { icon: 'cog-outline',         iconColor: '#6B7280', title: 'Settings',          subtitle: 'App preferences', onPress: () => navigation.navigate('Settings') },
-    { icon: 'cloud-download-outline', iconColor: '#0D9488', title: 'Check for Updates', subtitle: null,          onPressKey: 'checkUpdate' },
-    { icon: 'help-circle-outline', iconColor: '#0284c7', title: 'Help & Support',    subtitle: 'Get assistance', onPress: () => navigation.navigate('HelpSupport') },
+  // Grouped the way the doctor thinks about them: their practice, the app.
+  // Each group renders as one card with hairline dividers (same as patient/admin).
+  const MENU_GROUPS = [
+    ['MY PRACTICE', [
+      { icon: 'message-star-outline', iconColor: '#D97706', title: 'Patient Feedback', subtitle: 'Ratings on your consultations', onPress: () => navigation.getParent()?.navigate('Dashboard', { screen: 'FeedbackReview' }) },
+      { icon: 'bell-outline',         iconColor: '#ea580c', title: 'Notifications',    subtitle: 'Recent alerts',                 onPress: () => navigation.getParent()?.navigate('Dashboard', { screen: 'NotificationCenter' }) },
+    ]],
+    ['APP', [
+      { icon: 'cog-outline',            iconColor: '#6B7280', title: 'Settings',          subtitle: 'App preferences', onPress: () => navigation.navigate('Settings') },
+      { icon: 'cloud-download-outline', iconColor: '#0D9488', title: 'Check for Updates', subtitle: null,              onPressKey: 'checkUpdate' },
+      { icon: 'help-circle-outline',    iconColor: '#0284c7', title: 'Help & Support',    subtitle: 'Get assistance',  onPress: () => navigation.navigate('HelpSupport') },
+    ]],
   ];
 
   const displayName = doctor?.full_name ?? doctor?.name ?? 'Doctor';
@@ -188,28 +196,33 @@ const ProfileScreen = ({ navigation }) => {
         </View>
 
         {/* ── Menu ── */}
-        <View style={styles.menuSection}>
-          {MENU_ITEMS.map((item) => (
-            <TouchableOpacity
-              key={item.title}
-              style={styles.menuCard}
-              activeOpacity={0.7}
-              onPress={() => {
-                if (item.onPressKey === 'checkUpdate') return handleCheckForUpdate();
-                if (item.onPress) item.onPress();
-              }}
-            >
-              <View style={[styles.menuIconCircle, { backgroundColor: soft(item.iconColor) }]}>
-                <MCIcon name={item.icon} size={20} color={item.iconColor} />
-              </View>
-              <View style={styles.menuInfo}>
-                <Text style={styles.menuTitle}>{item.title}</Text>
-                <Text style={styles.menuSubtitle}>{item.subtitle || (item.onPressKey === 'checkUpdate' ? (updateChecking ? 'Checking\u2026' : `Current v${APP_VERSION}`) : '')}</Text>
-              </View>
-              <MCIcon name="chevron-right" size={20} color={colors.borderStrong} />
-            </TouchableOpacity>
-          ))}
-        </View>
+        {MENU_GROUPS.map(([label, items]) => (
+          <View key={label} style={styles.menuSection}>
+            <Text style={styles.menuGroupLabel}>{label}</Text>
+            <View style={styles.menuCard}>
+              {items.map((item, i) => (
+                <TouchableOpacity
+                  key={item.title}
+                  style={[styles.menuRow, i < items.length - 1 && styles.menuRowDivider]}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    if (item.onPressKey === 'checkUpdate') return handleCheckForUpdate();
+                    if (item.onPress) item.onPress();
+                  }}
+                >
+                  <View style={[styles.menuIconCircle, { backgroundColor: soft(item.iconColor) }]}>
+                    <MCIcon name={item.icon} size={20} color={item.iconColor} />
+                  </View>
+                  <View style={styles.menuInfo}>
+                    <Text style={styles.menuTitle}>{item.title}</Text>
+                    <Text style={styles.menuSubtitle}>{item.subtitle || (item.onPressKey === 'checkUpdate' ? (updateChecking ? 'Checking\u2026' : `Current v${APP_VERSION}`) : '')}</Text>
+                  </View>
+                  <MCIcon name="chevron-right" size={20} color={colors.borderStrong} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        ))}
 
         {/* ── Logout ── */}
         <TouchableOpacity
@@ -321,15 +334,28 @@ const makeStyles = colors => StyleSheet.create({
   menuSection: {
     marginHorizontal: 16,
     marginTop: 20,
-    gap: 10,
+    gap: 8,
   },
-  menuCard: {
+  menuGroupLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    color: colors.textMuted,
+    marginLeft: 4,
+  },
+  menuRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  menuRowDivider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  menuCard: {
     backgroundColor: colors.card,
     borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     shadowColor: colors.black,

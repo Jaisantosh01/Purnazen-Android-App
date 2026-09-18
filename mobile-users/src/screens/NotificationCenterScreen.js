@@ -5,13 +5,13 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import notificationsService from '../services/notificationsService';
 import useTheme from '../hooks/useTheme';
+import { ListSkeleton } from '../components/SkeletonLoader';
 import ScreenHeader from '../components/ScreenHeader';
 import { showAlert, showConfirm } from '../utils/alert';
 
@@ -187,9 +187,7 @@ const NotificationCenterScreen = ({ navigation }) => {
       </View>
 
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <ListSkeleton count={5} />
       ) : (
         <FlatList
           data={visibleItems}

@@ -5,21 +5,40 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  StatusBar,
   RefreshControl,
 } from 'react-native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import useTheme from '../hooks/useTheme';
-import { useHeaderTopPadding } from '../components/ScreenHeader';
+import TabHeader from '../components/TabHeader';
+import { GridCardSkeleton } from '../components/SkeletonLoader';
+import { reliefCardColors, blend } from '../utils/cardTheme';
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const greeting = h => (h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening');
+const todayLabel = () =>
+  new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+
+// Hero strip — the three numbers an admin checks first.
+const HERO = [
+  { key: 'total_active_doctors', label: 'Doctors', icon: 'doctor' },
+  { key: 'total_active_users',   label: 'Users',   icon: 'account-group-outline' },
+  { key: 'today_appointments',   label: 'Today',   icon: 'calendar-today' },
+];
+
+// Tinted 2-up tiles (same treatment as the patient app's grids). Each lands on
+// the filtered list it counts.
+const TILES = (todayStr) => [
+  { key: 'today_appointments',     title: "Today's appointments", sub: 'Across all doctors',    icon: 'calendar-today',      hue: '#2563EB', to: ['AppointmentsMain', { filterDate: todayStr }] },
+  { key: 'scheduled_appointments', title: 'Scheduled',            sub: 'Booked & pending',      icon: 'calendar-clock',      hue: '#0D9488', to: ['AppointmentsMain', { filterStatus: 'booked' }] },
+  { key: 'total_doctor_leaves',    title: 'Leave requests',       sub: 'Approved & pending',    icon: 'calendar-remove',     hue: '#D97706', to: ['DoctorLeaveManagement', { initialStatus: 'pending' }] },
+  { key: 'today_doctor_leaves',    title: 'On leave today',       sub: 'Doctors unavailable',   icon: 'account-off-outline', hue: '#DC2626', to: ['DoctorLeaveManagement', {}] },
+  { key: 'total_active_doctors',   title: 'Active doctors',       sub: 'Accepting bookings',    icon: 'doctor',              hue: '#7C3AED', to: ['UsersAndDoctorsMain', { tab: 'doctors' }] },
+  { key: 'total_inactive_doctors', title: 'Inactive doctors',     sub: 'Hidden from patients',  icon: 'account-cancel-outline', hue: '#6B7280', to: ['UsersAndDoctorsMain', { tab: 'doctors' }] },
+];
 
 const HomeScreen = ({ navigation }) => {
-  const { colors } = useTheme();
-  const headerTop = useHeaderTopPadding(16);
+  const { colors, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -41,170 +60,55 @@ const HomeScreen = ({ navigation }) => {
     fetchStats(true);
   }, [fetchStats]);
 
-  const now = new Date();
-  const hour = now.getHours();
-  const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
-  const dateStr = `${DAYS[now.getDay()]}, ${MONTHS[now.getMonth()]} ${now.getDate()}`;
-  const todayStr = now.toISOString().slice(0, 10);
-
-  // Single-accent KPI tiles: neutral value text with the brand accent reserved
-  // for the icon, instead of a per-tile rainbow.
-  const KpiCard = ({ title, value, icon, onPress }) => (
-    <TouchableOpacity style={styles.kpiCard} onPress={onPress} activeOpacity={0.7}>
-      <View style={[styles.kpiIconCircle, { backgroundColor: colors.primaryLight }]}>
-        <MCIcon name={icon} size={22} color={colors.primary} />
-      </View>
-      <Text style={styles.kpiValue}>{value ?? '-'}</Text>
-      <Text style={styles.kpiTitle}>{title}</Text>
-    </TouchableOpacity>
-  );
-
-  const KpiSkeleton = () => (
-    <View style={styles.kpiCard}>
-      <View style={[styles.kpiIconCircle, { backgroundColor: colors.surfaceMuted }]}>
-        <View style={[inline.w22_h22_r11, { backgroundColor: colors.surfaceMuted }]} />
-      </View>
-      <View style={[inline.w40_h24_r6_mt8, { backgroundColor: colors.surfaceMuted }]} />
-      <View style={[inline.w70_h12_r6_mt6, { backgroundColor: colors.surfaceMuted }]} />
-    </View>
-  );
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const tiles = TILES(todayStr);
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.headerBg} />
-
       <ScrollView
-        style={styles.container}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={inline.pb32}
+        contentContainerStyle={styles.scroll}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.white} colors={[colors.primary]} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />
         }
       >
-        {/* ── Header ── */}
-        <View style={[styles.header, { paddingTop: headerTop }]}>
-          <View style={styles.headerTopRow}>
-            <View style={styles.headerTextCol}>
-              <Text style={styles.greeting}>{greeting}</Text>
-              <Text style={styles.title}>Admin Dashboard</Text>
-            </View>
-            <View style={styles.dateChip}>
-              <MCIcon name="calendar-outline" size={14} color="rgba(255,255,255,0.85)" />
-              <Text style={styles.dateChipText}>{dateStr}</Text>
-            </View>
+        <TabHeader title={`${greeting(new Date().getHours())}`} subtitle={todayLabel()}>
+          <View style={styles.statsRow}>
+            {HERO.map((h, i) => (
+              <View key={h.key} style={[styles.statBox, i < HERO.length - 1 && styles.statBorder]}>
+                <MCIcon name={h.icon} size={20} color={colors.white} />
+                <Text style={styles.statValue}>{loading ? '·' : stats?.[h.key] ?? '—'}</Text>
+                <Text style={styles.statLabel}>{h.label}</Text>
+              </View>
+            ))}
           </View>
-        </View>
+        </TabHeader>
 
-        {/* ── KPIs ── */}
         <View style={styles.section}>
-          <View style={styles.sectionHeaderRow}>
-            <MCIcon name="chart-box-outline" size={20} color={colors.textPrimary} />
-            <Text style={styles.sectionTitle}>Platform Statistics</Text>
-          </View>
-          <View style={styles.statsGrid}>
-            {loading ? (
-              <>
-                <KpiSkeleton /><KpiSkeleton /><KpiSkeleton />
-                <KpiSkeleton /><KpiSkeleton /><KpiSkeleton />
-              </>
-            ) : (
-              <>
-                <KpiCard
-                  title="Active Doctors"
-                  value={stats?.total_active_doctors}
-                  icon="doctor"
-                  onPress={() => navigation.navigate('Manage', { screen: 'UsersAndDoctorsMain', params: { tab: 'doctors' } })}
-                />
-                <KpiCard
-                  title="Active Users"
-                  value={stats?.total_active_users}
-                  icon="account-group"
-                  onPress={() => navigation.navigate('Manage', { screen: 'UsersAndDoctorsMain', params: { tab: 'users' } })}
-                />
-                <KpiCard
-                  title="Today's Appts"
-                  value={stats?.today_appointments}
-                  icon="calendar-today"
-                  onPress={() => navigation.navigate('Manage', { screen: 'AppointmentsMain', params: { filterDate: todayStr } })}
-                />
-                <KpiCard
-                  title="Scheduled Appts"
-                  value={stats?.scheduled_appointments}
-                  icon="calendar-clock"
-                  onPress={() => navigation.navigate('Manage', { screen: 'AppointmentsMain', params: { filterStatus: 'booked' } })}
-                />
-                <KpiCard
-                  title="Pending Leaves"
-                  value={stats?.total_doctor_leaves}
-                  icon="calendar-remove"
-                  onPress={() => {
-                    navigation.navigate('Manage', { screen: 'DoctorLeaveManagement', params: { initialStatus: 'pending' } });
-                  }}
-                />
-              </>
-            )}
+          <Text style={styles.sectionTitle}>Platform at a glance</Text>
+          <View style={styles.grid}>
+            {loading
+              ? tiles.map(t => <GridCardSkeleton key={t.key} />)
+              : tiles.map(t => {
+                  const c = reliefCardColors({ bg: blend(t.hue, colors.card, 0.12), fg: t.hue, colors, isDark });
+                  return (
+                    <TouchableOpacity
+                      key={t.key}
+                      style={[styles.tile, { backgroundColor: c.background }]}
+                      activeOpacity={0.85}
+                      onPress={() => navigation.navigate('Manage', { screen: t.to[0], params: t.to[1] })}
+                    >
+                      <View style={[styles.tileIcon, { backgroundColor: blend(t.hue, c.background, 0.14) }]}>
+                        <MCIcon name={t.icon} size={22} color={c.accent} />
+                      </View>
+                      <Text style={[styles.tileValue, { color: c.title }]}>{stats?.[t.key] ?? '—'}</Text>
+                      <Text style={[styles.tileTitle, { color: c.title }]} numberOfLines={1}>{t.title}</Text>
+                      <Text style={[styles.tileSub, { color: c.subtitle }]} numberOfLines={1}>{t.sub}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
           </View>
         </View>
-
-        {/* ── Management ── */}
-        {/* <View style={styles.section}>
-          <View style={styles.sectionHeaderRow}>
-            <MCIcon name="view-dashboard-outline" size={20} color={colors.textPrimary} />
-            <Text style={styles.sectionTitle}>Quick Actions</Text>
-          </View>
-          <View style={{ gap: 10 }}>
-            <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('Manage', { screen: 'SlotManagement' })} activeOpacity={0.7}>
-              <View style={[styles.mgmtIconCircle, { backgroundColor: colors.primaryLight }]}>
-                <MCIcon name="clock-outline" size={24} color={colors.primary} />
-              </View>
-              <View style={styles.mgmtTextCol}>
-                <Text style={styles.mgmtTitle}>Time Slots</Text>
-                <Text style={styles.mgmtSub}>Configure available time slots</Text>
-              </View>
-              <MCIcon name="chevron-right" size={22} color={colors.textMuted} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('Manage', { screen: 'VideoManagement' })} activeOpacity={0.7}>
-              <View style={[styles.mgmtIconCircle, { backgroundColor: colors.primaryLight }]}>
-                <MCIcon name="video-outline" size={24} color={colors.primary} />
-              </View>
-              <View style={styles.mgmtTextCol}>
-                <Text style={styles.mgmtTitle}>Wellness Videos</Text>
-                <Text style={styles.mgmtSub}>Manage wellness video content</Text>
-              </View>
-              <MCIcon name="chevron-right" size={22} color={colors.textMuted} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('Manage', { screen: 'NotificationAdmin' })} activeOpacity={0.7}>
-              <View style={[styles.mgmtIconCircle, { backgroundColor: colors.primaryLight }]}>
-                <MCIcon name="bell-cog-outline" size={24} color={colors.primary} />
-              </View>
-              <View style={styles.mgmtTextCol}>
-                <Text style={styles.mgmtTitle}>Notifications</Text>
-                <Text style={styles.mgmtSub}>Broadcasts, switches & reminders</Text>
-              </View>
-              <MCIcon name="chevron-right" size={22} color={colors.textMuted} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('Manage', { screen: 'FaqManagement' })} activeOpacity={0.7}>
-              <View style={[styles.mgmtIconCircle, { backgroundColor: colors.primaryLight }]}>
-                <MCIcon name="help-circle-outline" size={24} color={colors.primary} />
-              </View>
-              <View style={styles.mgmtTextCol}>
-                <Text style={styles.mgmtTitle}>FAQ Management</Text>
-                <Text style={styles.mgmtSub}>Configure FAQ content</Text>
-              </View>
-              <MCIcon name="chevron-right" size={22} color={colors.textMuted} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.managementCard} onPress={() => navigation.navigate('Manage', { screen: 'ContentManagement' })} activeOpacity={0.7}>
-              <View style={[styles.mgmtIconCircle, { backgroundColor: colors.primaryLight }]}>
-                <MCIcon name="file-document-edit-outline" size={24} color={colors.primary} />
-              </View>
-              <View style={styles.mgmtTextCol}>
-                <Text style={styles.mgmtTitle}>Content Management</Text>
-                <Text style={styles.mgmtSub}>Terms & conditions, privacy policy</Text>
-              </View>
-              <MCIcon name="chevron-right" size={22} color={colors.textMuted} />
-            </TouchableOpacity>
-          </View>
-        </View> */}
       </ScrollView>
     </View>
   );
@@ -214,78 +118,38 @@ export default HomeScreen;
 
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  container: { flex: 1 },
+  scroll: { paddingBottom: 32 },
 
-  // Header — headerBg (not primary) so the hero darkens with the scheme like
-  // every other screen's header card.
-  header: {
-    backgroundColor: colors.headerBg,
-    paddingHorizontal: 20,
-    paddingBottom: 28,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
-  },
-  headerTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  headerTextCol: { flex: 1 },
-  greeting: { fontSize: 14, color: 'rgba(255,255,255,0.8)', fontWeight: '500' },
-  title: { fontSize: 26, color: colors.headerText, fontWeight: '800', letterSpacing: 0.2, marginTop: 2 },
-  dateChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 20,
-    paddingHorizontal: 12, paddingVertical: 6,
-  },
-  dateChipText: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.9)' },
-
-  // Sections
-  section: { paddingHorizontal: 16, marginTop: 24 },
-  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
-
-  // Stats Grid
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },
-  kpiCard: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 16,
-    width: '48%',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  kpiIconCircle: {
-    width: 46, height: 46, borderRadius: 23,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  kpiValue: { fontSize: 22, fontWeight: '800', marginTop: 10, color: colors.textPrimary },
-  kpiTitle: { fontSize: 12, color: colors.textMuted, marginTop: 4, textAlign: 'center', fontWeight: '600' },
-
-  // Management
-  managementCard: {
-    backgroundColor: colors.card,
-    borderRadius: 14,
-    padding: 16,
+  // Stats strip inside the hero — fixed white-on-brand like the other apps.
+  statsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 1,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 16,
+    paddingVertical: 12,
   },
-  mgmtIconCircle: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
-  mgmtTextCol: { flex: 1 },
-  mgmtTitle: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
-  mgmtSub: { fontSize: 12, color: colors.textMuted, marginTop: 2, fontWeight: '500' },
-});
+  statBox:    { flex: 1, alignItems: 'center', gap: 2 },
+  statBorder: { borderRightWidth: 1, borderRightColor: 'rgba(255,255,255,0.3)' },
+  statValue:  { fontSize: 20, fontWeight: '800', color: colors.white, fontVariant: ['tabular-nums'] },
+  statLabel:  { fontSize: 11, color: 'rgba(255,255,255,0.8)' },
 
-// Literal-only styles that used to sit inline in the JSX.
-const inline = StyleSheet.create({
-  pb32: { paddingBottom: 32 },
-  w70_h12_r6_mt6: { width: 70, height: 12, borderRadius: 6, marginTop: 6 },
-  w40_h24_r6_mt8: { width: 40, height: 24, borderRadius: 6, marginTop: 8 },
-  w22_h22_r11: { width: 22, height: 22, borderRadius: 11 },
+  section: { paddingHorizontal: 16, marginTop: 24 },
+  sectionTitle: { fontSize: 17, fontWeight: '700', color: colors.textPrimary, marginBottom: 14 },
+
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  tile: {
+    width: '48%',
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 14,
+    minHeight: 150,
+    justifyContent: 'space-between',
+  },
+  tileIcon: {
+    width: 40, height: 40, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 10,
+  },
+  tileValue: { fontSize: 26, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  tileTitle: { fontSize: 13.5, fontWeight: '700', marginTop: 2 },
+  tileSub: { fontSize: 11.5, marginTop: 1 },
 });

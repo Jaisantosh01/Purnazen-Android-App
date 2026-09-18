@@ -10,6 +10,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import preferencesService from '../services/preferencesService';
 import { COLORS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
+import EmptyState from '../components/EmptyState';
 import ScreenHeader from '../components/ScreenHeader';
 import AppToggle from '../components/AppToggle';
 
@@ -127,9 +128,12 @@ const NotificationsScreen = ({ navigation }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Recent</Text>
           <View style={styles.emptyRecent}>
-            <MCIcon name="bell-sleep-outline" size={36} color={colors.borderStrong} />
-            <Text style={styles.emptyRecentTitle}>No recent activity</Text>
-            <Text style={styles.emptyRecentSub}>Your notification history will appear here</Text>
+            <EmptyState
+              icon="bell-sleep-outline"
+              title="No recent activity"
+              hint="Your notification history will appear here"
+              compact
+            />
           </View>
         </View>
 
@@ -203,7 +207,6 @@ const makeStyles = colors => StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  emptyRecentTitle: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
   emptyRecentSub:   { fontSize: 12, color: colors.textMuted, textAlign: 'center', paddingHorizontal: 24 },
 });
 

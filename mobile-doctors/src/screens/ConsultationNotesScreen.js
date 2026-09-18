@@ -16,6 +16,7 @@ import appointmentService from '../services/appointmentService';
 import { showSuccess, showError } from '../utils/toast';
 import { SPACING, RADIUS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
+import EmptyState from '../components/EmptyState';
 import { showAlert } from '../utils/alert';
 import { canPopToStackRoot } from '../navigation/backHelpers';
 
@@ -253,18 +254,12 @@ const ConsultationNotesScreen = ({ route, navigation }) => {
         </View>
       ) : !hasRecords ? (
         /* ── Empty State ──────────────────────────────────────────────────── */
-        <View style={styles.emptyWrap}>
-          <TouchableOpacity
-            style={styles.emptyIconWrap}
-            activeOpacity={0.7}
-            onPress={() => setShowMenu(true)}>
-            <MCIcon name="plus" size={48} color={colors.primary} />
-          </TouchableOpacity>
-          <Text style={styles.emptyTitle}>Add Clinical Record</Text>
-          <Text style={styles.emptySubtitle}>
-            Tap + to add Doctor Notes, Diagnosis, or Prescription
-          </Text>
-        </View>
+        <EmptyState
+          icon="clipboard-plus-outline"
+          title="No clinical records yet"
+          hint="Add doctor notes, a diagnosis or a prescription for this consultation."
+          action={{ label: 'Add a record', onPress: () => setShowMenu(true) }}
+        />
       ) : (
         /* ── Records grouped by section ───────────────────────────────────── */
         <ScrollView
@@ -357,26 +352,6 @@ const makeStyles = colors => StyleSheet.create({
     justifyContent: 'center',
     padding: SPACING.xxl,
     gap: SPACING.md,
-  },
-  emptyIconWrap: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: colors.primaryFaint,
-    borderWidth: 2,
-    borderColor: colors.primary,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: SPACING.sm,
-  },
-  emptyTitle: { fontSize: 20, fontWeight: '800', color: colors.textPrimary },
-  emptySubtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 21,
-    maxWidth: 280,
   },
 
   // ── Section ─────────────────────────────────────────────────────────────────

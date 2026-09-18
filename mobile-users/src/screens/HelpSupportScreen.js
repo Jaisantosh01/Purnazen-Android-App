@@ -6,13 +6,14 @@ import {
   ScrollView,
   TouchableOpacity,
   Linking,
-  ActivityIndicator,
   RefreshControl,
 } from 'react-native';
 import { showAlert } from '../utils/alert';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import useTheme from '../hooks/useTheme';
+import EmptyState from '../components/EmptyState';
+import { ListSkeleton } from '../components/SkeletonLoader';
 import ScreenHeader from '../components/ScreenHeader';
 import AppVersionFooter from '../components/AppVersionFooter';
 import supportService from '../services/supportService';
@@ -87,18 +88,14 @@ const HelpSupportScreen = ({ navigation }) => {
         }
       >
         {loading ? (
-          <View style={styles.loaderBox}>
-            <ActivityIndicator size="large" color={colors.primary} />
-          </View>
+          <ListSkeleton count={3} />
         ) : error ? (
-          <View style={styles.emptyBox}>
-            <MCIcon name="wifi-off" size={44} color={colors.border} />
-            <Text style={styles.emptyTitle}>Couldn't load help content</Text>
-            <Text style={styles.emptyText}>{error}</Text>
-            <TouchableOpacity style={styles.retryBtn} onPress={() => load()} activeOpacity={0.85}>
-              <Text style={styles.retryText}>Try Again</Text>
-            </TouchableOpacity>
-          </View>
+          <EmptyState
+            icon="wifi-off"
+            title="Couldn't load help content"
+            hint={error}
+            action={{ label: 'Try again', onPress: () => load() }}
+          />
         ) : (
           <>
             {/* Contact Us — only render when the admin has configured channels */}
@@ -106,9 +103,7 @@ const HelpSupportScreen = ({ navigation }) => {
               <Text style={styles.sectionTitle}>Contact Us</Text>
               {contacts.length === 0 ? (
                 <View style={styles.inlineEmpty}>
-                  <MCIcon name="headset" size={28} color={colors.border} />
-                  <Text style={styles.inlineEmptyTitle}>Coming soon</Text>
-                  <Text style={styles.emptyText}>Support channels will be available shortly.</Text>
+                  <EmptyState compact icon="headset" title="Coming soon" hint="Support channels will be available shortly." />
                 </View>
               ) : (
                 <View style={styles.contactGrid}>
@@ -193,29 +188,13 @@ const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   scrollContent: { paddingBottom: 40, flexGrow: 1 },
 
-  loaderBox: { paddingVertical: 80, alignItems: 'center', justifyContent: 'center' },
 
-  emptyBox: { alignItems: 'center', paddingVertical: 70, paddingHorizontal: 32, gap: 8 },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
   inlineEmpty: {
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 28,
     backgroundColor: colors.card,
     borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
-  inlineEmptyTitle: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
-  emptyText: { fontSize: 13, color: colors.textMuted, textAlign: 'center', paddingHorizontal: 16 },
-  retryBtn: {
-    marginTop: 8,
-    backgroundColor: colors.primary,
-    paddingHorizontal: 28,
-    paddingVertical: 11,
-    borderRadius: 12,
-  },
-  retryText: { fontSize: 14, fontWeight: '700', color: colors.white },
 
   section: { paddingHorizontal: 16, marginTop: 24 },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary, marginBottom: 12 },

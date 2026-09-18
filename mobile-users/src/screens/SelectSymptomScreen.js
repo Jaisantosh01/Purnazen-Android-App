@@ -5,13 +5,13 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  StatusBar,
   TextInput,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import useTheme from '../hooks/useTheme';
-import { useHeaderTopPadding } from '../components/ScreenHeader';
+import EmptyState from '../components/EmptyState';
+import ScreenHeader from '../components/ScreenHeader';
 
 // Curated list — maps each symptom to a relief session slug so tapping
 // navigates directly to the right guided session.
@@ -27,8 +27,7 @@ const SYMPTOMS = [
 ];
 
 const SelectSymptomScreen = ({ navigation }) => {
-  const headerTop = useHeaderTopPadding();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -46,21 +45,9 @@ const SelectSymptomScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
+      <ScreenHeader title="Select Symptom" subtitle="Choose what you're experiencing" underColor={colors.card} />
 
-      {/* ── Header ── */}
-      <View style={[styles.header, { paddingTop: headerTop }]}>
-        <View style={styles.headerTop}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-            <MCIcon name="arrow-left" size={22} color={colors.textPrimary} />
-          </TouchableOpacity>
-          <View style={styles.headerText}>
-            <Text style={styles.headerTitle}>Select Symptom</Text>
-            <Text style={styles.headerSubtitle}>Choose what you're experiencing</Text>
-          </View>
-          <View style={styles.backBtn} />
-        </View>
-
+      <View style={styles.header}>
         <View style={styles.searchContainer}>
           <MCIcon name="magnify" size={18} color={colors.textMuted} style={inline.mr8} />
           <TextInput
@@ -108,11 +95,11 @@ const SelectSymptomScreen = ({ navigation }) => {
             ))}
           </View>
         ) : (
-          <View style={styles.emptyState}>
-            <MCIcon name="magnify-remove-outline" size={52} color={colors.borderStrong} />
-            <Text style={styles.emptyTitle}>No symptoms found</Text>
-            <Text style={styles.emptySubtitle}>Try a different keyword</Text>
-          </View>
+          <EmptyState
+            icon="magnify-remove-outline"
+            title="No symptoms found"
+            hint="Try a different keyword"
+          />
         )}
       </ScrollView>
     </View>
@@ -134,32 +121,6 @@ const makeStyles = colors => StyleSheet.create({
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.surfaceMuted,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 14,
-  },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerText: {
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 2,
   },
 
   // Search
@@ -234,20 +195,6 @@ const makeStyles = colors => StyleSheet.create({
   },
 
   // Empty State
-  emptyState: {
-    alignItems: 'center',
-    paddingTop: 80,
-    gap: 8,
-  },
-  emptyTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  emptySubtitle: {
-    fontSize: 13,
-    color: colors.textMuted,
-  },
 });
 
 // Literal-only styles that used to sit inline in the JSX.

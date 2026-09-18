@@ -188,11 +188,14 @@ function ProfileStackNavigator() {
   );
 }
 
+// Module-level so the tab bar isn't a new component type on every render.
+const renderTabBar = (props: any) => <TabBar {...props} icons={TAB_ICONS} />;
+
 function MainTabs() {
   return (
     <Tab.Navigator
       screenOptions={{ headerShown: false }}
-      tabBar={props => <TabBar {...props} icons={TAB_ICONS} />}
+      tabBar={renderTabBar}
     >
       <Tab.Screen
         name="Home"

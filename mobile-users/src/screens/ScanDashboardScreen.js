@@ -5,8 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  StatusBar,
-  ActivityIndicator,
   RefreshControl,
 } from 'react-native';
 // @ts-ignore
@@ -14,8 +12,9 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import scanService from '../services/scanService';
 import TrendChart from '../components/scan/TrendChart';
 import useTheme from '../hooks/useTheme';
-import { useHeaderTopPadding } from '../components/ScreenHeader';
-import { popToStackRoot } from '../navigation/backHelpers';
+import ScreenHeader from '../components/ScreenHeader';
+import EmptyState from '../components/EmptyState';
+import { ListSkeleton } from '../components/SkeletonLoader';
 import MedicalDisclaimer from '../components/MedicalDisclaimer';
 
 const GLOW = '#C850C0';
@@ -50,7 +49,6 @@ function pretty(v) {
 }
 
 const ScanDashboardScreen = ({ navigation }) => {
-  const headerTop = useHeaderTopPadding();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [mode, setMode] = useState('face'); // 'face' | 'tongue'
@@ -133,22 +131,24 @@ const ScanDashboardScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={GLOW} />
-      <View style={[styles.header, { paddingTop: headerTop }]}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => popToStackRoot(navigation)}>
-          <MCIcon name="arrow-left" size={22} color={colors.white} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{mode === 'face' ? 'Skin Dashboard' : 'Tongue Dashboard'}</Text>
-        <TouchableOpacity
-          style={styles.iconBtn}
-          onPress={() => navigation.navigate('ScanHistory', { scanType: mode === 'tongue' ? 'tongue' : 'face' })}
-        >
-          <MCIcon name="history" size={22} color={colors.white} />
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title={mode === 'face' ? 'Skin Dashboard' : 'Tongue Dashboard'}
+        subtitle="Trends from your recent scans"
+        background={GLOW}
+        backBehavior="popToRoot"
+        right={
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => navigation.navigate('ScanHistory', { scanType: mode === 'tongue' ? 'tongue' : 'face' })}
+            accessibilityLabel="Scan history"
+          >
+            <MCIcon name="history" size={22} color={colors.white} />
+          </TouchableOpacity>
+        }
+      />
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator color={GLOW} size="large" /></View>
+        <ListSkeleton count={3} />
       ) : (
         <ScrollView
           contentContainerStyle={inline.p16_pb40}
@@ -157,29 +157,18 @@ const ScanDashboardScreen = ({ navigation }) => {
           {Toggle}
 
           {!dash?.hasData ? (
-            <View style={styles.emptyBox}>
-              <MCIcon
-                name={mode === 'face' ? 'chart-line' : 'emoticon-tongue-outline'}
-                size={46}
-                color={colors.borderStrong}
-              />
-              <Text style={styles.emptyTitle}>No analysis yet</Text>
-              <Text style={styles.emptySub}>
-                {mode === 'face'
-                  ? 'Scan your face to build your skin dashboard and track progress.'
-                  : 'Scan your tongue to build your TCM wellness dashboard and track progress.'}
-              </Text>
-              <TouchableOpacity
-                style={styles.cta}
-                onPress={() =>
-                  mode === 'face'
-                    ? navigation.navigate('FaceScan', { scanType: 'face' })
-                    : navigation.navigate('TongueScan')
-                }
-              >
-                <Text style={styles.ctaText}>{mode === 'face' ? 'Start a face scan' : 'Start a tongue scan'}</Text>
-              </TouchableOpacity>
-            </View>
+            <EmptyState
+              accent={GLOW}
+              icon={mode === 'face' ? 'chart-line' : 'emoticon-tongue-outline'}
+              title="No analysis yet"
+              hint={mode === 'face'
+                ? 'Scan your face to build your skin dashboard and track progress.'
+                : 'Scan your tongue to build your TCM wellness dashboard and track progress.'}
+              action={{
+                label: mode === 'face' ? 'Start a face scan' : 'Start a tongue scan',
+                onPress: () => (mode === 'face' ? navigation.navigate('FaceScan', { scanType: 'face' }) : navigation.navigate('TongueScan')),
+              }}
+            />
           ) : mode === 'face' ? (
             <>
               {/* Summary cards */}
@@ -311,18 +300,10 @@ export default ScanDashboardScreen;
 
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  header: {
-    backgroundColor: GLOW,
-    paddingBottom: 20, paddingHorizontal: 20,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderBottomLeftRadius: 28, borderBottomRightRadius: 28,
-  },
   iconBtn: {
     width: 38, height: 38, borderRadius: 19,
     backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center',
   },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: colors.white },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 10 },
 
   toggle: {
     flexDirection: 'row', backgroundColor: colors.surfaceMuted, borderRadius: 12,
@@ -336,11 +317,6 @@ const makeStyles = colors => StyleSheet.create({
   toggleText: { fontSize: 13.5, fontWeight: '700', color: colors.textSecondary },
   toggleTextOn: { color: colors.white },
 
-  emptyBox: { alignItems: 'center', justifyContent: 'center', paddingVertical: 48, gap: 10 },
-  emptyTitle: { fontSize: 17, fontWeight: '700', color: colors.textPrimary },
-  emptySub: { fontSize: 13.5, color: colors.textMuted, textAlign: 'center', paddingHorizontal: 12 },
-  cta: { marginTop: 12, backgroundColor: GLOW, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 28 },
-  ctaText: { color: colors.white, fontWeight: '700', fontSize: 15 },
 
   summaryRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
   gauge: {

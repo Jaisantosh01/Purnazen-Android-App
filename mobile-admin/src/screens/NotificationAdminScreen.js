@@ -16,6 +16,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import useTheme from '../hooks/useTheme';
+import EmptyState from '../components/EmptyState';
 import ScreenHeader from '../components/ScreenHeader';
 import AppToggle from '../components/AppToggle';
 import { showAlert, showConfirm } from '../utils/alert';
@@ -620,17 +621,12 @@ const NotificationAdminScreen = ({ navigation }) => {
         {loadingBroadcasts ? (
           <ActivityIndicator color={colors.primary} style={styles.listSpinner} />
         ) : visibleBroadcasts.length === 0 ? (
-          <View style={styles.emptyBroadcasts}>
-            <MCIcon name="bullhorn-outline" size={34} color={colors.textMuted} />
-            <Text style={styles.emptyBroadcastsText}>
-              {broadcasts.length === 0 ? 'No broadcasts yet' : `No ${historyFilter} broadcasts`}
-            </Text>
-            {broadcasts.length === 0 ? (
-              <TouchableOpacity onPress={() => setTab('compose')}>
-                <Text style={styles.emptyLink}>Compose the first one</Text>
-              </TouchableOpacity>
-            ) : null}
-          </View>
+          <EmptyState
+            compact
+            icon="bullhorn-outline"
+            title={broadcasts.length === 0 ? 'No broadcasts yet' : `No ${historyFilter} broadcasts`}
+            action={broadcasts.length === 0 ? { label: 'Compose the first one', onPress: () => setTab('compose') } : undefined}
+          />
         ) : (
           visibleBroadcasts.map(renderBroadcast)
         )}
@@ -931,9 +927,6 @@ const makeStyles = colors => StyleSheet.create({
   smallBtnText: { fontSize: 12, fontWeight: '700', color: colors.primary },
   smallBtnDanger: { backgroundColor: colors.danger + '1A' },
   smallBtnDangerText: { fontSize: 12, fontWeight: '700', color: colors.danger },
-  emptyBroadcasts: { alignItems: 'center', paddingVertical: 24, gap: 8 },
-  emptyBroadcastsText: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
-  emptyLink: { fontSize: 12.5, fontWeight: '700', color: colors.primary },
 
   switchRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 },
   switchRowBorder: { borderTopWidth: 1, borderTopColor: colors.border },

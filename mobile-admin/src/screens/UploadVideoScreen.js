@@ -17,6 +17,7 @@ import { ENDPOINTS } from '../constants/apiEndpoints';
 import { WELLNESS_ICONS } from '../constants/icons';
 import { DirGridSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
+import EmptyState from '../components/EmptyState';
 import ScreenHeader from '../components/ScreenHeader';
 import StorageFileActionsModal from '../components/StorageFileActionsModal';
 import StorageFolderActionsModal from '../components/StorageFolderActionsModal';
@@ -624,10 +625,11 @@ const UploadVideoScreen = ({ route, navigation }) => {
         {dirsLoading ? (
           <DirGridSkeleton />
         ) : directories.length === 0 && dirFiles.length === 0 ? (
-          <View style={styles.emptyDirs}>
-            <MCIcon name="folder-open-outline" size={48} color={colors.textMuted} />
-            <Text style={styles.emptyDirText}>This folder is empty</Text>
-          </View>
+          <EmptyState
+            icon="folder-open-outline"
+            title="This folder is empty"
+            compact
+          />
         ) : viewMode === 'grid' ? (
           <View style={styles.dirsGrid}>
             {directories.map(renderGridDir)}
@@ -945,8 +947,6 @@ const makeStyles = colors => StyleSheet.create({
   useThisBtnText: { fontSize: 12, fontWeight: '700', color: colors.white },
 
   // Empty state
-  emptyDirs: { alignItems: 'center', paddingVertical: 24 },
-  emptyDirText: { fontSize: 14, color: colors.textMuted, marginTop: 12 },
 
   createDirBtn: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primaryLight },
 

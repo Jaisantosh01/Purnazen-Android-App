@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   RefreshControl,
 } from 'react-native';
 import { showAlert } from '../utils/alert';
@@ -14,6 +13,8 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
 import { SPACING, RADIUS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
+import EmptyState from '../components/EmptyState';
+import { ListSkeleton } from '../components/SkeletonLoader';
 import availabilityService from '../services/availabilityService';
 import { useAuthStore } from '../store/authStore';
 import { showSuccess, showError } from '../utils/toast';
@@ -169,9 +170,7 @@ const DayAvailabilityScreen = ({ route, navigation }) => {
       />
 
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <ListSkeleton count={3} />
       ) : (
         <ScrollView
           contentContainerStyle={styles.scroll}
@@ -183,11 +182,12 @@ const DayAvailabilityScreen = ({ route, navigation }) => {
 
           {daySlots.length === 0 ? (
             <View style={styles.emptyAvailabilityCard}>
-              <MCIcon name="calendar-blank-outline" size={36} color={colors.border} style={styles.emptyIcon} />
-              <Text style={styles.emptyAvailabilityTitle}>No availability configured for {day}.</Text>
-              <Text style={styles.emptyAvailabilityText}>
-                Tap the button below to add bookable weekly slots.
-              </Text>
+              <EmptyState
+                icon="calendar-blank-outline"
+                title={`No availability configured for ${day}.`}
+                hint="Tap the button below to add bookable weekly slots."
+                compact
+              />
             </View>
           ) : (
             <View style={styles.cardsContainer}>
@@ -239,7 +239,6 @@ const makeStyles = colors =>
   StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   scroll: { padding: SPACING.lg, paddingBottom: 100 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   sectionTitle: {
     fontSize: 12,
     fontWeight: '800',
@@ -288,16 +287,6 @@ const makeStyles = colors =>
     justifyContent: 'center',
     gap: SPACING.xs,
     marginBottom: SPACING.lg,
-  },
-  emptyAvailabilityTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: colors.textPrimary,
-  },
-  emptyAvailabilityText: {
-    fontSize: 13.5,
-    color: colors.textSecondary,
-    textAlign: 'center',
   },
   emptyIcon: {
     marginBottom: 4,

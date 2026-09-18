@@ -6,7 +6,6 @@ import {
   FlatList,
   RefreshControl,
   TouchableOpacity,
-  ActivityIndicator,
   TextInput,
   ScrollView,
 } from 'react-native';
@@ -15,6 +14,8 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
 import { SPACING, RADIUS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
+import EmptyState from '../components/EmptyState';
+import { ListSkeleton } from '../components/SkeletonLoader';
 import { useLeaveStore } from '../store/useLeaveStore';
 
 // One accent hue per status; the chip/badge fill is a translucent wash of it
@@ -260,9 +261,7 @@ const LeaveHistoryScreen = ({ route, navigation }) => {
       />
 
       {loading && leaves.length === 0 ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <ListSkeleton count={4} />
       ) : error && leaves.length === 0 ? (
         <View style={styles.center}>
           <MCIcon name="alert-circle-outline" size={48} color={colors.danger} />
@@ -343,11 +342,11 @@ const LeaveHistoryScreen = ({ route, navigation }) => {
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
             }
             ListEmptyComponent={
-              <View style={styles.emptyStateContainer}>
-                <MCIcon name="calendar-blank-outline" size={48} color={colors.textMuted} style={styles.emptyStateIcon} />
-                <Text style={styles.emptyStateTitle}>No {getStatusTitle(selectedStatus)} Leave Requests</Text>
-                <Text style={styles.emptyStateSubtitle}>Tap "Apply Leave" to create a new request.</Text>
-              </View>
+              <EmptyState
+                icon="calendar-blank-outline"
+                title={`No ${getStatusTitle(selectedStatus)} Leave Requests`}
+                hint={'Tap "Apply Leave" to create a new request.'}
+              />
             }
           />
         </View>
@@ -511,26 +510,8 @@ const makeStyles = colors =>
     textTransform: 'uppercase',
   },
 
-  emptyStateContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: SPACING.xxl,
-    gap: 8,
-  },
   emptyStateIcon: {
     marginBottom: 4,
-  },
-  emptyStateTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: colors.textPrimary,
-    textAlign: 'center',
-  },
-  emptyStateSubtitle: {
-    fontSize: 13.5,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    paddingHorizontal: SPACING.xl,
   },
 });
 

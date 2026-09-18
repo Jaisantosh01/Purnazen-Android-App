@@ -14,6 +14,7 @@ import availabilityService from '../services/availabilityService';
 import { useAuthStore } from '../store/authStore';
 import { showSuccess, showError } from '../utils/toast';
 import useTheme from '../hooks/useTheme';
+import EmptyState from '../components/EmptyState';
 
 const formatTime = (timeStr) => {
   if (!timeStr) return '';
@@ -181,10 +182,11 @@ const AddAvailabilityScreen = ({ route, navigation }) => {
           <Text style={styles.sectionTitle}>Available Slot Timings</Text>
 
           {availableSlots.length === 0 ? (
-            <View style={styles.emptyWrap}>
-              <MCIcon name="clock-outline" size={48} color={colors.textMuted} />
-              <Text style={styles.emptyText}>No slot timings configured for {selectedDay}.</Text>
-            </View>
+            <EmptyState
+              icon="clock-outline"
+              title={`No slot timings configured for ${selectedDay}.`}
+              compact
+            />
           ) : (
             <ScrollView contentContainerStyle={styles.slotsScroll} style={styles.flex1}>
               <View style={styles.slotsGrid}>
@@ -363,18 +365,6 @@ const makeStyles = colors => StyleSheet.create({
     borderRadius: RADIUS.sm,
   },
   activeBadgeText: { fontSize: 10, fontWeight: '800', color: colors.success },
-  emptyWrap: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: SPACING.sm,
-    padding: SPACING.xl,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
   footer: { marginTop: 'auto', paddingTop: SPACING.md },
   saveBtn: {
     backgroundColor: colors.primary,

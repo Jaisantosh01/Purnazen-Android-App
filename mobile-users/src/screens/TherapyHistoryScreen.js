@@ -12,6 +12,7 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import therapyService from '../services/therapyService';
 import useTheme from '../hooks/useTheme';
+import EmptyState from '../components/EmptyState';
 import ScreenHeader from '../components/ScreenHeader';
 import AppDialog from '../components/AppDialog';
 import PainScale from '../components/PainScale';
@@ -155,13 +156,11 @@ const TherapyHistoryScreen = ({ navigation }) => {
         </View>
 
         {(!sessions || sessions.length === 0) ? (
-          <View style={styles.emptyState}>
-            <MCIcon name="clipboard-text-outline" size={48} color={colors.textMuted} />
-            <Text style={styles.stateTitle}>No sessions yet</Text>
-            <Text style={styles.stateText}>
-              Start a therapy session and it will show up here.
-            </Text>
-          </View>
+          <EmptyState
+            icon="clipboard-text-outline"
+            title="No sessions yet"
+            hint="Start a therapy session and it will show up here."
+          />
         ) : (
         <View style={styles.sessionList}>
           {sessions.map((session) => {
@@ -307,9 +306,6 @@ const makeStyles = colors => StyleSheet.create({
   centered: {
     flex: 1, alignItems: 'center', justifyContent: 'center',
     paddingHorizontal: 32, gap: 8,
-  },
-  emptyState: {
-    alignItems: 'center', paddingHorizontal: 32, paddingVertical: 48, gap: 12,
   },
   stateTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
   stateText: { fontSize: 13, color: colors.textMuted, textAlign: 'center' },

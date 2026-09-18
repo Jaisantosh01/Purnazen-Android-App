@@ -19,6 +19,7 @@ import Avatar from '../components/Avatar';
 import appointmentService from '../services/appointmentService';
 import { SPACING, RADIUS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
+import EmptyState from '../components/EmptyState';
 import { showAlert } from '../utils/alert';
 import { chipColors } from '../utils/statusChip';
 import {
@@ -272,32 +273,24 @@ const EmptyDayCard = ({ section, hiddenCount, nextUp, onClearFilters }) => {
   if (hiddenCount > 0) {
     return (
       <View style={styles.emptyDay}>
-        <MCIcon name="filter-off-outline" size={22} color={colors.textMuted} />
-        <Text style={styles.emptyDayTitle}>
-          {hiddenCount} appointment{hiddenCount === 1 ? '' : 's'} hidden by your filters
-        </Text>
-        <TouchableOpacity style={styles.emptyDayBtn} activeOpacity={0.8} onPress={onClearFilters}>
-          <Text style={styles.emptyDayBtnText}>Clear filters</Text>
-        </TouchableOpacity>
+        <EmptyState
+          compact
+          icon="filter-off-outline"
+          title={`${hiddenCount} appointment${hiddenCount === 1 ? '' : 's'} hidden by your filters`}
+          action={{ label: 'Clear filters', onPress: onClearFilters }}
+        />
       </View>
     );
   }
 
   return (
     <View style={styles.emptyDay}>
-      <MCIcon
-        name={isToday ? 'coffee-outline' : 'calendar-blank-outline'}
-        size={22}
-        color={colors.textMuted}
+      <EmptyState
+        compact
+        icon={isToday ? 'coffee-outline' : 'calendar-blank-outline'}
+        title={isToday ? 'No more appointments today' : 'Nothing scheduled'}
+        hint={isToday && nextUp ? `Next: ${relativeDayLabel(nextUp.dateKey)} at ${nextUp.appointment.time || '—'}` : undefined}
       />
-      <Text style={styles.emptyDayTitle}>
-        {isToday ? 'No more appointments today' : 'Nothing scheduled'}
-      </Text>
-      {isToday && nextUp ? (
-        <Text style={styles.emptyDaySub}>
-          Next: {relativeDayLabel(nextUp.dateKey)} at {nextUp.appointment.time || '—'}
-        </Text>
-      ) : null}
     </View>
   );
 };
@@ -968,17 +961,6 @@ const makeStyles = colors => StyleSheet.create({
     borderColor: colors.borderStrong,
     backgroundColor: colors.surfaceMuted,
   },
-  emptyDayTitle: { fontSize: 13.5, fontWeight: '700', color: colors.textSecondary, textAlign: 'center' },
-  emptyDaySub: { fontSize: 12, fontWeight: '600', color: colors.textMuted, textAlign: 'center' },
-  emptyDayBtn: {
-    marginTop: 2,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: 7,
-    borderRadius: RADIUS.pill,
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-  },
-  emptyDayBtnText: { fontSize: 12.5, fontWeight: '800', color: colors.primary },
 
   // Card
   card: {

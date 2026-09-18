@@ -29,6 +29,8 @@ import { canPopToStackRoot } from '../navigation/backHelpers';
  *   hideTitle     (boolean) if true, the title text is not rendered
  *   subtitleRight (string) text rendered at the trailing edge of the subtitle row
  *   variant       'brand' (solid hero, default) | 'light' (surface card)
+ *   background    override the brand fill (a feature sub-brand such as the
+ *                 magenta scan screens); text stays white
  *   showBack      force-show/hide the back button (defaults to canGoBack())
  *   onBack        custom back handler (defaults to navigation.goBack)
  *   backBehavior  'goBack' (default, step one screen) | 'popToRoot' (jump to
@@ -57,6 +59,7 @@ export default function ScreenHeader({
   subtitleRight = null,
   hideTitle = false,
   variant = 'brand',
+  background,
   showBack,
   onBack,
   backBehavior = 'goBack',
@@ -93,7 +96,7 @@ export default function ScreenHeader({
   };
 
   const brand = variant === 'brand';
-  const bg = brand ? colors.headerBg : colors.surface;
+  const bg = background || (brand ? colors.headerBg : colors.surface);
   const fg = brand ? colors.headerText : colors.textPrimary;
   const subFg = brand ? 'rgba(255,255,255,0.85)' : colors.textSecondary;
   const backBg = brand ? 'rgba(255,255,255,0.2)' : colors.surfaceMuted;

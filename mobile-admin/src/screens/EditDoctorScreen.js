@@ -16,6 +16,7 @@ import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import { EditFormSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
+import EmptyState from '../components/EmptyState';
 import ScreenHeader from '../components/ScreenHeader';
 import AppToggle from '../components/AppToggle';
 import { showAlert, showConfirm } from '../utils/alert';
@@ -657,11 +658,12 @@ const EditDoctorScreen = ({ route, navigation }) => {
     <>
       {clinics.length === 0 ? (
         <View style={styles.emptyCard}>
-          <MCIcon name="hospital-building" size={30} color={colors.textMuted} />
-          <Text style={styles.emptyTitle}>No clinics yet</Text>
-          <Text style={styles.emptyText}>
-            Add the places this doctor practises at. Patients pick one when booking an in-person visit.
-          </Text>
+          <EmptyState
+            icon="hospital-building"
+            title="No clinics yet"
+            hint="Add the places this doctor practises at. Patients pick one when booking an in-person visit."
+            compact
+          />
         </View>
       ) : null}
 
@@ -736,11 +738,12 @@ const EditDoctorScreen = ({ route, navigation }) => {
     <>
       {(editedDoctor.awards || []).length === 0 ? (
         <View style={styles.emptyCard}>
-          <MCIcon name="trophy-outline" size={30} color={colors.textMuted} />
-          <Text style={styles.emptyTitle}>No awards yet</Text>
-          <Text style={styles.emptyText}>
-            Optional. Awards show on the doctor's public profile.
-          </Text>
+          <EmptyState
+            icon="trophy-outline"
+            title="No awards yet"
+            hint="Optional. Awards show on the doctor's public profile."
+            compact
+          />
         </View>
       ) : null}
 
@@ -942,7 +945,6 @@ const makeStyles = colors => StyleSheet.create({
     alignItems: 'center', gap: 6, paddingVertical: 28, paddingHorizontal: 20, marginBottom: 14,
     borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card,
   },
-  emptyTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
   emptyText: { fontSize: 12.5, color: colors.textSecondary, textAlign: 'center', lineHeight: 18 },
 
   label: { fontSize: 13, fontWeight: '600', color: colors.textSecondary, marginBottom: 6, marginTop: 12 },

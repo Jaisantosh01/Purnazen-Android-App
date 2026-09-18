@@ -1,16 +1,17 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
+  ActivityIndicator,
   View,
   Text,
   StyleSheet,
   ScrollView,
-  ActivityIndicator,
 } from 'react-native';
 // @ts-ignore
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { showConfirm } from '../utils/alert';
 import consentService from '../services/consentService';
 import useTheme from '../hooks/useTheme';
+import { ListSkeleton } from '../components/SkeletonLoader';
 import ScreenHeader from '../components/ScreenHeader';
 import AppToggle from '../components/AppToggle';
 
@@ -90,7 +91,7 @@ const ConsentScreen = ({ navigation }) => {
       <ScreenHeader title="Privacy & Data" subtitle="Manage your consents" backBehavior="popToRoot" />
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator color={colors.primary} size="large" /></View>
+        <ListSkeleton count={4} />
       ) : (
         <ScrollView contentContainerStyle={inline.p16_pb40}>
           <Text style={styles.intro}>
@@ -148,7 +149,6 @@ const makeStyles = colors => StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center',
   },
   headerTitle: { fontSize: 18, fontWeight: '800', color: colors.white },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   intro: { fontSize: 14, color: colors.textSecondary, lineHeight: 20, marginBottom: 16 },
   card: {
     backgroundColor: colors.card, borderRadius: 16, padding: 16, marginBottom: 12,

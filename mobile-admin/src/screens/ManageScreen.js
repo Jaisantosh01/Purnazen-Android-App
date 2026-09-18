@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
-import ScreenHeader from '../components/ScreenHeader';
+import TabHeader from '../components/TabHeader';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import useTheme from '../hooks/useTheme';
 
@@ -12,6 +12,7 @@ const ManageScreen = ({ navigation }) => {
   const GROUPS = [
     {
       title: 'People',
+      hue: '#7C3AED',
       items: [
         {
           icon: 'account-group-outline',
@@ -44,6 +45,7 @@ const ManageScreen = ({ navigation }) => {
     },
     {
       title: 'Scheduling',
+      hue: '#2563EB',
       items: [
         {
           icon: 'calendar-clock-outline',
@@ -67,6 +69,7 @@ const ManageScreen = ({ navigation }) => {
     },
     {
       title: 'Content',
+      hue: '#0D9488',
       items: [
         {
           icon: 'video-outline',
@@ -108,6 +111,7 @@ const ManageScreen = ({ navigation }) => {
     },
     {
       title: 'Patients',
+      hue: '#D97706',
       items: [
         {
           icon: 'message-reply-text-outline',
@@ -119,6 +123,7 @@ const ManageScreen = ({ navigation }) => {
     },
     {
       title: 'Billing',
+      hue: '#16A34A',
       items: [
         {
           icon: 'percent-outline',
@@ -132,16 +137,12 @@ const ManageScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader
-        title="Manage"
-        subtitle="All management areas in one place"
-        showBack={false}
-      />
-
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
+        <TabHeader title="Manage" subtitle="All management areas in one place" />
+
         {GROUPS.map(group => (
           <View key={group.title} style={styles.section}>
             <Text style={styles.sectionTitle}>{group.title}</Text>
@@ -154,8 +155,8 @@ const ManageScreen = ({ navigation }) => {
                     activeOpacity={0.7}
                     onPress={() => navigation.navigate(item.screen, item.params)}
                   >
-                    <View style={styles.iconCircle}>
-                      <MCIcon name={item.icon} size={24} color={colors.primary} />
+                    <View style={[styles.iconCircle, { backgroundColor: `${group.hue}22` }]}>
+                      <MCIcon name={item.icon} size={22} color={group.hue} />
                     </View>
                     <View style={styles.rowTextCol}>
                       <Text style={styles.rowTitle}>{item.title}</Text>
@@ -175,47 +176,52 @@ const ManageScreen = ({ navigation }) => {
 
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  scrollContent: { padding: 16, paddingBottom: 32 },
+  scrollContent: { paddingBottom: 32 },
 
-  section: { marginBottom: 20 },
+  section: { marginHorizontal: 16, marginTop: 20 },
   sectionTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.textMuted,
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    letterSpacing: 0.8,
     marginBottom: 8,
     marginLeft: 4,
   },
   groupCard: {
     backgroundColor: colors.card,
     borderRadius: 16,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     overflow: 'hidden',
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    padding: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.border,
-    marginLeft: 76,
+    marginLeft: 68,
   },
   iconCircle: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: colors.primaryLight,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   rowTextCol: { flex: 1 },
-  rowTitle: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
-  rowSub: { fontSize: 12, color: colors.textMuted, marginTop: 2, fontWeight: '500' },
+  rowTitle: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
+  rowSub: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
 });
 
 export default ManageScreen;

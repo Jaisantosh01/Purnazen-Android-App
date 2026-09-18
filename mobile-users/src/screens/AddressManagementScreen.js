@@ -17,6 +17,7 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { WebView } from 'react-native-webview';
 import Geolocation from '@react-native-community/geolocation';
 import useTheme from '../hooks/useTheme';
+import EmptyState from '../components/EmptyState';
 import ScreenHeader from '../components/ScreenHeader';
 import AppToggle from '../components/AppToggle';
 import consultService from '../services/consultService';
@@ -589,13 +590,11 @@ const AddressManagementScreen = ({ navigation }) => {
         }
         ListEmptyComponent={
           !loading && (
-            <View style={styles.emptyState}>
-              <MCIcon name="map-marker-off-outline" size={48} color={colors.borderStrong} />
-              <Text style={styles.emptyTitle}>No Addresses Saved</Text>
-              <Text style={styles.emptySubtitle}>
-                Add your home or office address for clinic visits and home consultations.
-              </Text>
-            </View>
+            <EmptyState
+              icon="map-marker-off-outline"
+              title="No Addresses Saved"
+              hint="Add your home or office address for clinic visits and home consultations."
+            />
           )
         }
         renderItem={({ item }) => (
@@ -790,9 +789,6 @@ const makeStyles = colors => StyleSheet.create({
     borderRadius: 8,
   },
   typeBadgeText: { fontSize: 11, color: colors.textMuted, fontWeight: '500' },
-  emptyState: { alignItems: 'center', paddingTop: 60, gap: 8 },
-  emptyTitle: { fontSize: 16, fontWeight: '600', color: colors.textMuted },
-  emptySubtitle: { fontSize: 13, color: colors.textMuted, textAlign: 'center', paddingHorizontal: 40, lineHeight: 18 },
 });
 
 // Literal-only styles that used to sit inline in the JSX.

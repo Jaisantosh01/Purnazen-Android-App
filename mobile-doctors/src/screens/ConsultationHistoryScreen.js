@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  ActivityIndicator,
   RefreshControl,
 } from 'react-native';
 import { showAlert } from '../utils/alert';
@@ -14,6 +13,8 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
 import { SPACING, RADIUS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
+import EmptyState from '../components/EmptyState';
+import { ListSkeleton } from '../components/SkeletonLoader';
 import patientService from '../services/patientService';
 
 const STATUS_CONFIG = {
@@ -168,9 +169,7 @@ const ConsultationHistoryScreen = ({ route, navigation }) => {
       />
 
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <ListSkeleton count={4} />
       ) : error ? (
         <View style={styles.center}>
           <MCIcon name="alert-circle-outline" size={48} color={colors.danger} style={inline.mb12} />
@@ -199,13 +198,11 @@ const ConsultationHistoryScreen = ({ route, navigation }) => {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
           }
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <MCIcon name="clipboard-text-outline" size={60} color={colors.borderStrong} />
-              <Text style={styles.emptyTitle}>No History Available</Text>
-              <Text style={styles.emptySubtitle}>
-                This patient has no recorded consultation history.
-              </Text>
-            </View>
+            <EmptyState
+              icon="clipboard-text-outline"
+              title="No History Available"
+              hint="This patient has no recorded consultation history."
+            />
           }
         />
       )}
@@ -335,24 +332,6 @@ const makeStyles = colors =>
   },
 
   // Empty state
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 80,
-    paddingHorizontal: SPACING.xl,
-    gap: SPACING.sm,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: colors.textPrimary,
-    marginTop: SPACING.sm,
-  },
-  emptySubtitle: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
   center: {
     flex: 1,
     alignItems: 'center',

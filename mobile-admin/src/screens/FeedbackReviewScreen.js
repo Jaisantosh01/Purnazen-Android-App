@@ -27,6 +27,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../components/ScreenHeader';
 import useTheme from '../hooks/useTheme';
+import EmptyState from '../components/EmptyState';
+import { ListSkeleton } from '../components/SkeletonLoader';
 import feedbackReviewService, { REVIEWER } from '../services/feedbackReviewService';
 import { showError, showSuccess } from '../utils/toast';
 
@@ -234,9 +236,7 @@ const FeedbackReviewScreen = ({ route }) => {
       </View>
 
       {loading && !refreshing ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.primary} />
-        </View>
+        <ListSkeleton count={4} />
       ) : (
         <FlatList
           data={items}
@@ -260,21 +260,11 @@ const FeedbackReviewScreen = ({ route }) => {
           }
           ListFooterComponent={loadingMore ? <ActivityIndicator style={styles.more} color={colors.primary} /> : null}
           ListEmptyComponent={
-            <View style={styles.empty}>
-              <MCIcon
-                name={error ? 'wifi-alert' : 'message-check-outline'}
-                size={44}
-                color={colors.textMuted}
-              />
-              <Text style={styles.emptyTitle}>
-                {error ? 'Could not load feedback' : filter === 'pending' ? 'All caught up' : 'No feedback yet'}
-              </Text>
-              <Text style={styles.emptyText}>
-                {error || (filter === 'pending'
-                  ? 'Every remark has a reply. New ones appear here after patients finish a session.'
-                  : 'Remarks and pain scores appear here after patients finish a session.')}
-              </Text>
-            </View>
+            <EmptyState
+              icon={error ? 'wifi-alert' : 'check-all'}
+              title={error ? 'Could not load feedback' : filter === 'pending' ? 'All caught up' : 'No feedback yet'}
+              hint={error || (filter === 'pending' ? 'Every remark has a reply. New ones appear here after patients finish a session.' : 'Remarks and pain scores appear here after patients finish a session.')}
+            />
           }
         />
       )}

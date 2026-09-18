@@ -15,6 +15,7 @@ import {
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import consultService from '../services/consultService';
 import useTheme from '../hooks/useTheme';
+import EmptyState from '../components/EmptyState';
 import useTaxConfig from '../hooks/useTaxConfig';
 import Avatar from '../components/Avatar';
 import {TAG_ICONS} from '../constants/icons';
@@ -231,11 +232,11 @@ const ConsultScreen = ({ navigation }) => {
   const renderEmpty = () => {
     if (isLoading) return null;
     return (
-      <View style={styles.emptyState}>
-        <MCIcon name="doctor" size={60} color={colors.borderStrong} />
-        <Text style={styles.emptyTitle}>No doctors found</Text>
-        <Text style={styles.emptySubtitle}>Try a different search or filter</Text>
-      </View>
+      <EmptyState
+        icon="doctor"
+        title="No doctors found"
+        hint="Try a different search or filter"
+      />
     );
   };
 
@@ -591,23 +592,6 @@ const makeStyles = colors => StyleSheet.create({
   },
 
   // Empty state
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 80,
-  },
-  emptyTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: 8,
-    marginTop: 16,
-  },
-  emptySubtitle: {
-    fontSize: 13,
-    color: colors.textMuted,
-    textAlign: 'center',
-  },
 });
 
 // Literal-only styles that used to sit inline in the JSX.

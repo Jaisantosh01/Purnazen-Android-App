@@ -10,6 +10,7 @@ import { ENDPOINTS } from '../constants/apiEndpoints';
 import { SessionPlayerSkeleton } from '../components/SkeletonLoader';
 import VideoPlayer from '../components/VideoPlayer';
 import useTheme from '../hooks/useTheme';
+import EmptyState from '../components/EmptyState';
 import ScreenHeader from '../components/ScreenHeader';
 import AppToggle from '../components/AppToggle';
 import SwipeRowActions, { SWIPE_LEFT_OPEN, SWIPE_RIGHT_OPEN } from '../components/SwipeRowActions';
@@ -241,14 +242,12 @@ const VideoGroupDetailScreen = ({ route, navigation }) => {
       />
 
       {loading ? <SessionPlayerSkeleton /> : hasNoVideos ? (
-        <View style={styles.emptyContainer}>
-          <MCIcon name="video-off" size={64} color={colors.textMuted} />
-          <Text style={styles.emptyText}>No videos in this group</Text>
-          <TouchableOpacity style={styles.addVideoBtn} onPress={() => navigation.navigate('VideoGroupEditor', { groupId, groupTitle })}>
-            <MCIcon name="playlist-edit" size={20} color={colors.white} />
-            <Text style={styles.addVideoBtnText}>Manage Videos</Text>
-          </TouchableOpacity>
-        </View>
+        <EmptyState
+          icon="video-off"
+          title="No videos in this group"
+          hint="Add videos from the group editor; patients see them in this order."
+          action={{ label: 'Manage videos', onPress: () => navigation.navigate('VideoGroupEditor', { groupId, groupTitle }) }}
+        />
       ) : (
         <View style={styles.container}>
           {catalog?.description ? (
@@ -448,10 +447,6 @@ const makeStyles = colors => StyleSheet.create({
   autoPlayTitle: { fontSize: 14.5, fontWeight: '700', color: colors.textPrimary },
   autoPlaySubtitle: { fontSize: 12, color: colors.textMuted, marginTop: 2, lineHeight: 16 },
 
-  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyText: { marginTop: 16, fontSize: 16, color: colors.textMuted },
-  addVideoBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 8, marginTop: 20 },
-  addVideoBtnText: { color: colors.white, fontWeight: '600', marginLeft: 8 },
 
   bannerIcon: { marginRight: 8 },
   playerBar: {

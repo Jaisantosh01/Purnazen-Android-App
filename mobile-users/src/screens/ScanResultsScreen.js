@@ -6,7 +6,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  StatusBar,
   Share,
 } from 'react-native';
 import { showAlert } from '../utils/alert';
@@ -15,8 +14,9 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import MetricScoreRow from '../components/scan/MetricScoreRow';
 import RecommendationCard from '../components/scan/RecommendationCard';
 import useTheme from '../hooks/useTheme';
-import { useHeaderTopPadding } from '../components/ScreenHeader';
-import { popToStackRoot } from '../navigation/backHelpers';
+import ScreenHeader from '../components/ScreenHeader';
+
+const GLOW = '#C850C0';
 import MedicalDisclaimer from '../components/MedicalDisclaimer';
 
 const METRIC_LABELS = {
@@ -93,7 +93,6 @@ function glowColor(score) {
 }
 
 const ScanResultsScreen = ({ navigation, route }) => {
-  const headerTop = useHeaderTopPadding();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { scan, imageUri } = route.params;
@@ -130,20 +129,19 @@ const ScanResultsScreen = ({ navigation, route }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor="#C850C0" />
-
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={inline.pb40}>
-
-        {/* Header */}
-        <View style={[styles.header, { paddingTop: headerTop }]}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => popToStackRoot(navigation)}>
-            <MCIcon name="arrow-left" size={22} color={colors.white} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Scan Results</Text>
-          <TouchableOpacity style={styles.backBtn} onPress={handleShare}>
+      <ScreenHeader
+        title="Scan Results"
+        subtitle={isTongue ? 'Tongue analysis' : 'Skin analysis'}
+        background={GLOW}
+        backBehavior="popToRoot"
+        right={
+          <TouchableOpacity style={styles.backBtn} onPress={handleShare} accessibilityLabel="Share results">
             <MCIcon name="share-variant" size={20} color={colors.white} />
           </TouchableOpacity>
-        </View>
+        }
+      />
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={inline.pb40}>
 
         {/* Enhanced / original preview */}
         {shownUri && !isTongue && (
@@ -335,16 +333,6 @@ const makeStyles = colors => StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
-    backgroundColor: '#C850C0',
-    paddingBottom: 24,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
-  },
   backBtn: {
     width: 38,
     height: 38,
@@ -352,11 +340,6 @@ const makeStyles = colors => StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.white,
   },
   scoreSection: {
     alignItems: 'center',

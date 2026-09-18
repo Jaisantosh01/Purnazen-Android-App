@@ -7,10 +7,10 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
 import useTheme from '../hooks/useTheme';
+import EmptyState from '../components/EmptyState';
 import ScreenHeader from '../components/ScreenHeader';
 
 const CONTENT_TYPES = {
@@ -158,10 +158,10 @@ const ContentViewerScreen = ({ route, navigation }) => {
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchData(true)} colors={[colors.primary]} tintColor={colors.primary} />}>
           {data.length === 0 ? (
-            <View style={styles.emptyBox}>
-              <MCIcon name="file-document-outline" size={48} color={colors.border} />
-              <Text style={styles.emptyText}>No data</Text>
-            </View>
+            <EmptyState
+              icon="file-document-outline"
+              title="No data"
+            />
           ) : (
             data.map((item) => (
               <View key={item.id} style={styles.contentCard}>
@@ -183,8 +183,6 @@ const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   content: { padding: 16, paddingBottom: 32 },
-  emptyBox: { alignItems: 'center', justifyContent: 'center', marginTop: 80, gap: 12 },
-  emptyText: { fontSize: 15, color: colors.textMuted },
 
   contentCard: {
     backgroundColor: colors.card,

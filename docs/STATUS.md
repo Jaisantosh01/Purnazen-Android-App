@@ -1,6 +1,6 @@
 # Project Status & Delivery Plan
 
-**As of:** 17 September 2026 · branch `refactorWithEnhancements_12Sep_AG`
+**As of:** 18 September 2026 · branch `refactorWithEnhancements_12Sep_AG`
 **Scope:** the three mobile apps (Patient, Doctor, Admin) on **Android and iOS**,
 the shared FastAPI backend, and the *Face Glow — AI Facial Health & Beauty
 Tracker* product brief.
@@ -50,14 +50,26 @@ to compare areas and track trends, not to set deadlines.
 | Check | Result |
 |---|---|
 | Backend `pytest` (SQLite) | **287 passed**, 7 skipped (the skipped tests need live Azure storage) |
-| Patient app: jest / tsc / eslint | **118 tests passed** · tsc clean · 0 lint errors |
-| Doctor app: jest / tsc / eslint | **54 tests passed** · tsc clean · 0 lint errors |
-| Admin app: jest / tsc / eslint | **90 tests passed** · tsc clean · 0 lint errors |
+| Patient app: jest / tsc / eslint | **123 tests passed** · tsc clean · 0 lint errors (6 warnings) |
+| Doctor app: jest / tsc / eslint | **54 tests passed** · tsc clean · 0 lint errors (3 warnings) |
+| Admin app: jest / tsc / eslint | **90 tests passed** · tsc clean · 0 lint errors (4 warnings) |
 | Backend size | 204 routes across 33 endpoint modules |
 | iOS, all three apps | Built with Xcode 27 and run on the iPhone Air simulator against a local backend on 17 Sep: sign-in, dashboards, Settings, two-step enrolment → challenge → recovery code (Doctor), Manage → Quick Relief / Support Contacts / Patient Feedback (Admin), Home / Relief / Wellness / Consult / Profile and the native Sign in with Apple sheet (Patient). Guide in [RUNNING_IOS_MACOS.md](RUNNING_IOS_MACOS.md) |
 
-Lint warnings are mostly `react-native/no-inline-styles`. They do not affect
-behaviour, but they are worth clearing before the codebase grows further.
+The remaining lint warnings are all `react/no-unstable-nested-components`
+(components declared inside a render). They do not affect behaviour.
+
+**Shared design system (18 Sep).** The three apps now share one visual
+language, built from four byte-identical components under
+`src/components/` in each app — `TabBar` (pill-highlighted bottom tabs),
+`TabHeader` (scrolling hero on tab roots, with an optional stats strip),
+`ScreenHeader` (fixed header on pushed screens; `background` prop for feature
+sub-brands such as the magenta scan screens) and `EmptyState` (icon / title /
+hint / action, used for every "nothing here" and error-with-retry block) —
+plus `SkeletonLoader` and `utils/cardTheme.js` for the tinted 2-up grids.
+Profile screens use grouped cards; Doctor Dashboard and Admin Home use the
+hero + stats + tinted tiles layout of the Patient Wellness tab. When one of
+these components changes, copy it to the other two apps.
 
 ---
 

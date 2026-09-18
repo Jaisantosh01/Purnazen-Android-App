@@ -20,6 +20,7 @@ import { ENDPOINTS } from '../constants/apiEndpoints';
 import { ListSkeleton } from '../components/SkeletonLoader';
 import Avatar from '../components/Avatar';
 import useTheme from '../hooks/useTheme';
+import EmptyState from '../components/EmptyState';
 
 const DoctorManagementScreen = ({ navigation }) => {
   const { colors } = useTheme();
@@ -340,10 +341,10 @@ const DoctorManagementScreen = ({ navigation }) => {
           renderHiddenItem={renderHiddenItem}
           contentContainerStyle={styles.listContainer}
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <MCIcon name="doctor" size={64} color={colors.textMuted} />
-              <Text style={styles.emptyText}>No doctors found</Text>
-            </View>
+            <EmptyState
+              icon="doctor"
+              title="No doctors found"
+            />
           }
           refreshing={loading}
           onRefresh={() => fetchData(1)}
@@ -445,8 +446,6 @@ const makeStyles = colors => StyleSheet.create({
     borderRadius: 4,
   },
   inactiveBadgeText: { color: colors.white, fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
-  emptyContainer: { alignItems: 'center', justifyContent: 'center', marginTop: 60 },
-  emptyText: { marginTop: 16, fontSize: 16, color: colors.textMuted },
 
   rowBack: {
     flex: 1,

@@ -17,6 +17,7 @@ import { ENDPOINTS } from '../constants/apiEndpoints';
 import { STATUS_OPTIONS, APPOINTMENT_STATUS_COLORS as STATUS_COLORS, DAY_NAMES, MONTH_NAMES } from '../constants/appointments';
 import { ListSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
+import EmptyState from '../components/EmptyState';
 import ScreenHeader from '../components/ScreenHeader';
 import { showAlert } from '../utils/alert';
 
@@ -424,10 +425,10 @@ const AppointmentManagementScreen = ({ navigation, route }) => {
           refreshing={loading}
           onRefresh={fetchAppointments}
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <MCIcon name="calendar-remove" size={48} color={colors.textMuted} />
-              <Text style={styles.emptyText}>No appointments found</Text>
-            </View>
+            <EmptyState
+              icon="calendar-remove"
+              title="No appointments found"
+            />
           }
         />
       )}
@@ -820,8 +821,6 @@ const makeStyles = colors => StyleSheet.create({
   footerLeft: { flexDirection: 'row', alignItems: 'center' },
   footerText: { fontSize: 12, color: colors.textMuted, marginLeft: 4 },
   feeText: { fontSize: 14, fontWeight: '700', color: colors.primary },
-  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 60 },
-  emptyText: { marginTop: 12, fontSize: 15, color: colors.textMuted },
   filterModalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
   filterModalContainer: { backgroundColor: colors.modalSurface, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%', width: '100%', maxWidth: 640, alignSelf: 'center' , borderWidth: 1, borderColor: colors.modalBorder, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 16, elevation: 12},
   filterModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: colors.border },

@@ -1,12 +1,11 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
+  ActivityIndicator,
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  StatusBar,
-  ActivityIndicator,
   RefreshControl,
 } from 'react-native';
 import { showAlert } from '../utils/alert';
@@ -16,8 +15,11 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import scanService from '../services/scanService';
 import useScanStore from '../store/scanStore';
 import useTheme from '../hooks/useTheme';
-import { useHeaderTopPadding } from '../components/ScreenHeader';
-import { popToStackRoot } from '../navigation/backHelpers';
+import ScreenHeader from '../components/ScreenHeader';
+import EmptyState from '../components/EmptyState';
+import { ListSkeleton } from '../components/SkeletonLoader';
+
+const GLOW = '#C850C0';
 
 function glowColor(score, muted = '#9CA3AF') {
   if (score == null) return muted;
@@ -70,7 +72,6 @@ function GlowTrend({ points, styles, colors, title = 'Glow score over time' }) {
 }
 
 const ScanHistoryScreen = ({ navigation, route }) => {
-  const headerTop = useHeaderTopPadding();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   // Default from the entry route, then let the user flip Skin ↔ Tongue tabs.
@@ -189,44 +190,26 @@ const ScanHistoryScreen = ({ navigation, route }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor="#C850C0" />
-
-      <View style={[styles.header, { paddingTop: headerTop }]}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => popToStackRoot(navigation)}>
-          <MCIcon name="arrow-left" size={22} color={colors.white} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Scan History</Text>
-        <View style={inline.w38} />
-      </View>
+      <ScreenHeader title="Scan History" subtitle="Skin and tongue scans over time" background={GLOW} backBehavior="popToRoot" />
 
       {TabBar}
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator color="#C850C0" size="large" /></View>
+        <ListSkeleton count={4} />
       ) : items.length === 0 ? (
-        <View style={styles.center}>
-          <MCIcon
-            name={isTongue ? 'emoticon-tongue-outline' : 'history'}
-            size={48}
-            color={colors.borderStrong}
-          />
-          <Text style={styles.emptyTitle}>No {isTongue ? 'tongue' : 'skin'} scans yet</Text>
-          <Text style={styles.emptySub}>
-            {isTongue
-              ? 'Run a tongue scan to start tracking your wellness over time.'
-              : 'Run a face scan to start tracking your skin over time.'}
-          </Text>
-          <TouchableOpacity
-            style={[styles.scanCta, isTongue && styles.scanCtaTongue]}
-            onPress={() => navigation.navigate(isTongue ? 'TongueScan' : 'FaceScan', { scanType })}
-          >
-            <Text style={styles.scanCtaText}>Start a scan</Text>
-          </TouchableOpacity>
-        </View>
+        <EmptyState
+          accent={GLOW}
+          icon={isTongue ? 'emoticon-tongue-outline' : 'face-recognition'}
+          title={`No ${isTongue ? 'tongue' : 'skin'} scans yet`}
+          hint={isTongue
+            ? 'Run a tongue scan to start tracking your wellness over time.'
+            : 'Run a face scan to start tracking your skin over time.'}
+          action={{ label: 'Start a scan', onPress: () => navigation.navigate(isTongue ? 'TongueScan' : 'FaceScan', { scanType }) }}
+        />
       ) : (
         <ScrollView
           contentContainerStyle={inline.p16_pb40}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#C850C0']} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[GLOW]} />}
         >
           <GlowTrend
             points={trendPoints}
@@ -295,22 +278,6 @@ export default ScanHistoryScreen;
 
 const makeStyles = colors => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  header: {
-    backgroundColor: '#C850C0',
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
-  },
-  backBtn: {
-    width: 38, height: 38, borderRadius: 19,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: colors.white },
   tabs: {
     flexDirection: 'row',
     marginHorizontal: 16,
@@ -332,15 +299,9 @@ const makeStyles = colors => StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 11,
   },
-  tabBtnOn: { backgroundColor: '#C850C0' },
+  tabBtnOn: { backgroundColor: GLOW },
   tabText: { fontSize: 13.5, fontWeight: '700', color: colors.textSecondary },
   tabTextOn: { color: colors.white },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 10 },
-  emptyTitle: { fontSize: 17, fontWeight: '700', color: colors.textPrimary },
-  emptySub: { fontSize: 13.5, color: colors.textMuted, textAlign: 'center' },
-  scanCta: { marginTop: 12, backgroundColor: '#C850C0', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 28 },
-  scanCtaTongue: { backgroundColor: '#fa7921' },
-  scanCtaText: { color: colors.white, fontWeight: '700', fontSize: 15 },
 
   trendCard: {
     backgroundColor: colors.card,
@@ -384,5 +345,4 @@ const makeStyles = colors => StyleSheet.create({
 const inline = StyleSheet.create({
   flex1: { flex: 1 },
   p16_pb40: { padding: 16, paddingBottom: 40 },
-  w38: { width: 38 },
 });

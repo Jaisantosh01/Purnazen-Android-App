@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   RefreshControl,
   Animated,
 } from 'react-native';
@@ -15,6 +14,8 @@ import ScreenHeader from '../components/ScreenHeader';
 import { SPACING, RADIUS } from '../constants/theme';
 import { useLeaveStore } from '../store/useLeaveStore';
 import useTheme from '../hooks/useTheme';
+import EmptyState from '../components/EmptyState';
+import { ListSkeleton } from '../components/SkeletonLoader';
 
 const STATUS_COLORS = {
   pending: { primary: '#2563EB', bgLight: '#FEF3C7', textDark: '#92400E' },
@@ -353,11 +354,11 @@ const ScheduleScreen = ({ navigation }) => {
               ))
             ) : (
               /* Empty State */
-              <View style={styles.emptyStateContainer}>
-                <MCIcon name="calendar-blank-outline" size={48} color={colors.textMuted} style={styles.emptyStateIcon} />
-                <Text style={styles.emptyStateTitle}>No {getStatusTitle(selectedStatus)} Leave Requests</Text>
-                <Text style={styles.emptyStateSubtitle}>Tap "Apply Leave" to create a new request.</Text>
-              </View>
+              <EmptyState
+                icon="calendar-blank-outline"
+                title={`No ${getStatusTitle(selectedStatus)} Leave Requests`}
+                hint={'Tap "Apply Leave" to create a new request.'}
+              />
             )}
           </View>
 
@@ -385,9 +386,7 @@ const ScheduleScreen = ({ navigation }) => {
       </View>
 
       {loading && !refreshing ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <ListSkeleton count={3} />
       ) : (
         <View style={styles.mainContent}>
           {renderAvailabilityContent()}
@@ -422,7 +421,6 @@ const makeStyles = colors => StyleSheet.create({
     padding: SPACING.xl,
     gap: SPACING.sm,
   },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   dayGroup: { marginBottom: SPACING.lg },
   dayHeader: {
     fontSize: 13,
@@ -903,28 +901,8 @@ const makeStyles = colors => StyleSheet.create({
     fontWeight: '800',
     textTransform: 'uppercase',
   },
-  emptyStateContainer: {
-    minHeight: 250,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: SPACING.xl,
-    paddingHorizontal: SPACING.lg,
-    gap: 8,
-  },
   emptyStateIcon: {
     marginBottom: 4,
-  },
-  emptyStateTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: colors.textPrimary,
-    textAlign: 'center',
-  },
-  emptyStateSubtitle: {
-    fontSize: 13.5,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    paddingHorizontal: SPACING.md,
   },
   fabText: { color: colors.white, fontSize: 14.5, fontWeight: '800' },
 });

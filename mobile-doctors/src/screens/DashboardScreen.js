@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   RefreshControl,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -14,10 +13,13 @@ import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAuthStore } from '../store/authStore';
 import appointmentService from '../services/appointmentService';
 import notificationsService from '../services/notificationsService';
-import ScreenHeader from '../components/ScreenHeader';
+import TabHeader from '../components/TabHeader';
+import EmptyState from '../components/EmptyState';
+import { CardSkeleton } from '../components/SkeletonLoader';
 import { SPACING, RADIUS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
 import { chipColors } from '../utils/statusChip';
+import { reliefCardColors, blend } from '../utils/cardTheme';
 
 const STATUS_CONFIG = {
   pending:   { label: 'Pending',   bg: '#FEF3C7', text: '#92400E', darkText: '#FCD34D', dot: '#F59E0B' },
@@ -46,12 +48,17 @@ const timeToMinutes = t => {
   return h * 60 + min;
 };
 
+// Tinted 2-up tiles, same treatment as the patient app's Relief/Wellness grids.
 const QUICK_LINKS = [
-  { key: 'Appointments', label: 'Appointments', icon: 'calendar-check', tab: 'Appointments' },
-  { key: 'Schedule', label: 'My schedule', icon: 'calendar-clock', tab: 'Schedule' },
-  { key: 'Patients', label: 'Patients', icon: 'account-multiple', tab: 'Patients' },
-  { key: 'Feedback', label: 'Patient feedback', icon: 'message-reply-text-outline', screen: 'FeedbackReview' },
+  { key: 'Appointments', label: 'Appointments',     sub: 'Requests & today', icon: 'calendar-check',              tab: 'Appointments', hue: '#2563EB' },
+  { key: 'Schedule',     label: 'My schedule',      sub: 'Availability & leave', icon: 'calendar-clock',          tab: 'Schedule',     hue: '#0D9488' },
+  { key: 'Patients',     label: 'Patients',         sub: 'Records & history', icon: 'account-multiple',           tab: 'Patients',     hue: '#7C3AED' },
+  { key: 'Feedback',     label: 'Patient feedback', sub: 'Ratings & comments', icon: 'message-reply-text-outline', screen: 'FeedbackReview', hue: '#D97706' },
 ];
+
+const greeting = h => (h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening');
+const todayLabel = () =>
+  new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
 
 const StatusBadge = ({ status }) => {
   const { colors, isDark } = useTheme();
@@ -66,7 +73,7 @@ const StatusBadge = ({ status }) => {
 };
 
 const DashboardScreen = ({ navigation }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const doctor = useAuthStore(s => s.doctor);
   const name = doctor?.full_name || doctor?.name || 'Doctor';
@@ -109,9 +116,9 @@ const DashboardScreen = ({ navigation }) => {
   ).size;
 
   const STATS = [
-    { key: 'today',    label: "Today's appointments", value: todays.length, icon: 'calendar-today' },
-    { key: 'pending',  label: 'Pending requests',     value: pendingCount,  icon: 'clock-alert-outline' },
-    { key: 'patients', label: 'Active patients',      value: patientCount,  icon: 'account-group-outline' },
+    { key: 'today',    label: 'Today',    value: todays.length, icon: 'calendar-today',        tab: 'Appointments' },
+    { key: 'pending',  label: 'Pending',  value: pendingCount,  icon: 'clock-alert-outline',   tab: 'Appointments' },
+    { key: 'patients', label: 'Patients', value: patientCount,  icon: 'account-group-outline', tab: 'Patients' },
   ];
 
   const openAppointment = item =>
@@ -123,45 +130,48 @@ const DashboardScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader
-        title={`Hello, ${name}`}
-        subtitle="Here's your day at a glance"
-        showBack={false}
-        right={
-          <TouchableOpacity
-            onPress={() => navigation.navigate('NotificationCenter')}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <MCIcon name="bell-outline" size={24} color={colors.white} />
-            {unreadCount > 0 && (
-              <View style={styles.bellBadge}>
-                <Text style={styles.bellBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        }
-      />
-
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      ) : (
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}
+      >
+        <TabHeader
+          title={`${greeting(new Date().getHours())}, ${name}`}
+          subtitle={todayLabel()}
+          right={
+            <TouchableOpacity
+              style={styles.bellBtn}
+              onPress={() => navigation.navigate('NotificationCenter')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Notifications"
+            >
+              <MCIcon name="bell-outline" size={22} color={colors.white} />
+              {unreadCount > 0 && (
+                <View style={styles.bellBadge}>
+                  <Text style={styles.bellBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          }
         >
-          {/* Stats */}
+          {/* Stats strip — each number is tappable and lands on the list it counts. */}
           <View style={styles.statsRow}>
-            {STATS.map(s => (
-              <View key={s.key} style={styles.statCard}>
-                <MCIcon name={s.icon} size={22} color={colors.primary} />
-                <Text style={styles.statValue}>{s.value}</Text>
+            {STATS.map((s, i) => (
+              <TouchableOpacity
+                key={s.key}
+                style={[styles.statBox, i < STATS.length - 1 && styles.statBorder]}
+                activeOpacity={0.7}
+                onPress={() => navigation.navigate(s.tab)}
+              >
+                <MCIcon name={s.icon} size={20} color={colors.white} />
+                <Text style={styles.statValue}>{loading ? '·' : s.value}</Text>
                 <Text style={styles.statLabel}>{s.label}</Text>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
+        </TabHeader>
 
+        <View style={styles.body}>
           {/* Today's schedule */}
           <View style={styles.sectionRow}>
             <Text style={styles.sectionTitle}>Today's schedule</Text>
@@ -170,10 +180,16 @@ const DashboardScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
 
-          {todays.length === 0 ? (
+          {loading ? (
+            [1, 2].map(i => <CardSkeleton key={i} />)
+          ) : todays.length === 0 ? (
             <View style={styles.emptyCard}>
-              <MCIcon name="calendar-blank-outline" size={36} color={colors.border} />
-              <Text style={styles.emptyText}>No appointments scheduled for today.</Text>
+              <EmptyState
+                compact
+                icon="calendar-blank-outline"
+                title="Nothing scheduled today"
+                hint="New bookings and requests appear here as they come in."
+              />
             </View>
           ) : (
             <View style={styles.scheduleList}>
@@ -203,21 +219,25 @@ const DashboardScreen = ({ navigation }) => {
           {/* Quick links */}
           <Text style={styles.sectionTitle}>Quick actions</Text>
           <View style={styles.linksGrid}>
-            {QUICK_LINKS.map(l => (
-              <TouchableOpacity
-                key={l.key}
-                style={styles.linkCard}
-                activeOpacity={0.85}
-                onPress={() => navigation.navigate(l.screen || l.tab)}>
-                <View style={styles.linkIcon}>
-                  <MCIcon name={l.icon} size={24} color={colors.primary} />
-                </View>
-                <Text style={styles.linkLabel}>{l.label}</Text>
-              </TouchableOpacity>
-            ))}
+            {QUICK_LINKS.map(l => {
+              const c = reliefCardColors({ bg: blend(l.hue, colors.card, 0.12), fg: l.hue, colors, isDark });
+              return (
+                <TouchableOpacity
+                  key={l.key}
+                  style={[styles.linkCard, { backgroundColor: c.background }]}
+                  activeOpacity={0.85}
+                  onPress={() => navigation.navigate(l.screen || l.tab)}>
+                  <View style={[styles.linkIcon, { backgroundColor: blend(l.hue, c.background, 0.14) }]}>
+                    <MCIcon name={l.icon} size={22} color={c.accent} />
+                  </View>
+                  <Text style={[styles.linkLabel, { color: c.title }]}>{l.label}</Text>
+                  <Text style={[styles.linkSub, { color: c.subtitle }]} numberOfLines={1}>{l.sub}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
-        </ScrollView>
-      )}
+        </View>
+      </ScrollView>
     </View>
   );
 };
@@ -225,30 +245,36 @@ const DashboardScreen = ({ navigation }) => {
 export default DashboardScreen;
 
 const makeStyles = colors => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
+  scroll: { paddingBottom: 100 },
+  body: { paddingHorizontal: SPACING.lg },
+
+  bellBtn: {
+    width: 42, height: 42, borderRadius: 21,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center', justifyContent: 'center',
+    marginTop: 2,
+  },
   bellBadge: {
-    position: 'absolute', top: -6, right: -6,
+    position: 'absolute', top: -4, right: -4,
     minWidth: 18, height: 18, borderRadius: 9,
     backgroundColor: '#EF4444',
     alignItems: 'center', justifyContent: 'center',
     paddingHorizontal: 4,
   },
   bellBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
-  root: { flex: 1, backgroundColor: colors.background },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  scroll: { padding: SPACING.lg, paddingBottom: 100 },
 
-  statsRow: { flexDirection: 'row', gap: SPACING.md },
-  statCard: {
-    flex: 1,
-    backgroundColor: colors.card,
+  // Stats strip inside the hero — fixed white-on-brand like the patient app.
+  statsRow: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.15)',
     borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: SPACING.md,
-    gap: 6,
+    paddingVertical: SPACING.md,
   },
-  statValue: { fontSize: 22, fontWeight: '800', color: colors.textPrimary },
-  statLabel: { fontSize: 11.5, color: colors.textSecondary, lineHeight: 15 },
+  statBox:    { flex: 1, alignItems: 'center', gap: 2 },
+  statBorder: { borderRightWidth: 1, borderRightColor: 'rgba(255,255,255,0.3)' },
+  statValue:  { fontSize: 20, fontWeight: '800', color: colors.white, fontVariant: ['tabular-nums'] },
+  statLabel:  { fontSize: 11, color: 'rgba(255,255,255,0.8)' },
 
   sectionRow: {
     flexDirection: 'row',
@@ -286,37 +312,29 @@ const makeStyles = colors => StyleSheet.create({
   apptMeta: { fontSize: 12, color: colors.textSecondary, marginTop: 1 },
 
   emptyCard: {
-    alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingVertical: SPACING.xl,
-    gap: SPACING.sm,
   },
-  emptyText: { fontSize: 13, color: colors.textSecondary, textAlign: 'center' },
 
   linksGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.md },
   linkCard: {
     width: '47.5%',
-    backgroundColor: colors.card,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: SPACING.lg,
-    alignItems: 'center',
-    gap: SPACING.sm,
+    borderRadius: 18,
+    padding: SPACING.lg,
+    gap: 2,
   },
   linkIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: colors.primaryFaint,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: SPACING.sm,
   },
-  linkLabel: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
+  linkLabel: { fontSize: 14.5, fontWeight: '800' },
+  linkSub: { fontSize: 12 },
 
   badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: RADIUS.pill },
   badgeText: { fontSize: 11, fontWeight: '700' },

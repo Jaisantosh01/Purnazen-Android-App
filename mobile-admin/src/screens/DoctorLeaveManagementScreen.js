@@ -17,6 +17,7 @@ import { LEAVE_STATUS_COLORS as STATUS_COLORS, DAY_NAMES, MONTH_NAMES } from '..
 import TimePickerModal from '../components/TimePickerModal';
 import SkeletonBox, { LeaveCardSkeleton, LeaveStatsSkeleton } from '../components/SkeletonLoader';
 import useTheme from '../hooks/useTheme';
+import EmptyState from '../components/EmptyState';
 import ScreenHeader from '../components/ScreenHeader';
 import { showAlert } from '../utils/alert';
 
@@ -479,10 +480,10 @@ const [loadingMore, setLoadingMore] = useState(false);
             </View>
           ) : null}
           ListEmptyComponent={
-            <View style={styles.empty}>
-              <MCIcon name="calendar-remove" size={48} color={colors.textMuted} />
-              <Text style={styles.emptyText}>No leaves found</Text>
-            </View>
+            <EmptyState
+              icon="calendar-remove"
+              title="No leaves found"
+            />
           }
         />
       )}
@@ -891,8 +892,6 @@ const makeStyles = colors => StyleSheet.create({
   cardActions: { flexDirection: 'row', gap: 10, marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border },
   actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 8 },
   actionText: { fontSize: 14, fontWeight: '700' },
-  empty: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
-  emptyText: { marginTop: 12, fontSize: 15, color: colors.textMuted },
 
   // Filter Modal
   filterModalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
