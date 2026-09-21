@@ -60,18 +60,16 @@ class FaceDetector:
         options = FaceLandmarkerOptions(
             base_options=BaseOptions(model_asset_path=str(_MODEL_PATH)),
             running_mode=VisionRunningMode.IMAGE,
-            num_faces=1,
+            # 2, not 1: the capture gate must be able to say "multiple faces".
+            # With num_faces=1 MediaPipe can only ever report 0 or 1.
+            num_faces=2,
             min_face_detection_confidence=0.5,
         )
         self._landmarker = FaceLandmarker.create_from_options(options)
         logger.info("MediaPipe FaceLandmarker initialised.")
 
-    def detect(self, image_bgr: np.ndarray) -> tuple[list, float]:
-        """Run face landmark detection on a BGR image.
-
-        Returns (landmarks_list, confidence) where landmarks_list is
-        result.face_landmarks[0] (list[NormalizedLandmark]) or [] if no face.
-        """
+    def detect_faces(self, image_bgr: np.ndarray) -> list:
+        """Landmark lists for every detected face (up to ``num_faces``); [] if none."""
         if not _mediapipe_available:
             raise RuntimeError(
                 "AI packages not installed. Install mediapipe and related dependencies."
@@ -85,17 +83,31 @@ class FaceDetector:
             data=image_rgb,
         )
         result = self._landmarker.detect(mp_image)
+        return list(result.face_landmarks) if result.face_landmarks else []
 
-        if result.face_landmarks and len(result.face_landmarks) > 0:
-            return result.face_landmarks[0], 0.95
-        return [], 0.0
+    def detect(self, image_bgr: np.ndarray) -> tuple[list, float]:
+        """Run face landmark detection on a BGR image.
+
+        Returns (landmarks_list, confidence) where landmarks_list is
+        the first face's list[NormalizedLandmark], or [] if no face.
+        """
+        faces = self.detect_faces(image_bgr)
+        return (faces[0], 0.95) if faces else ([], 0.0)
 
     def close(self) -> None:
-        """Release MediaPipe resources."""
+        """Release MediaPipe resources and drop the cached singleton.
+
+        Without the reset, get_face_detector() keeps handing out this closed
+        instance, every detect() raises, and the pipeline silently falls back to
+        Haar for the rest of the process.
+        """
+        global _detector
         try:
             self._landmarker.close()
         except Exception:
             pass
+        if _detector is self:
+            _detector = None
 
 
 def get_face_detector() -> FaceDetector:

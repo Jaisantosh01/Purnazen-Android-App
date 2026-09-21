@@ -25,9 +25,12 @@ router = APIRouter(prefix="/face-glow", tags=["Face Scan"])
 def _quality_gate(content: bytes, scan_type: str = "face"):
     """Run the capture-quality assessment on raw image bytes.
 
-    Returns a 422 ``error_response`` (with reason + guidance) if the photo has a
-    blocking quality issue, or ``None`` to proceed. Degrades to None (no gate) if
-    the CV stack isn't installed, so uploads still work without the AI deps.
+    Returns ``(error, assessment)``: ``error`` is a 422 ``error_response`` (with
+    reason + guidance) if the photo has a blocking quality issue, else ``None``;
+    ``assessment`` is the full result (or ``None``), carrying the face landmarks
+    the gate already computed so the pipeline doesn't run the detector again.
+    Degrades to ``(None, None)`` (no gate) if the CV stack isn't installed, so
+    uploads still work without the AI deps.
     """
     try:
         import cv2
@@ -37,11 +40,11 @@ def _quality_gate(content: bytes, scan_type: str = "face"):
         from app.ai.quality import assess_quality, first_blocking_issue
     except ImportError:
         logger.warning("CV stack not available; quality gate bypassed for scan_type=%s", scan_type)
-        return None
+        return None, None
 
     img = cv2.imdecode(np.frombuffer(content, np.uint8), cv2.IMREAD_COLOR)
     if img is None:
-        return None
+        return None, None
 
     assessment = assess_quality(resize_for_analysis(img), scan_type=scan_type)
     blocking = first_blocking_issue(assessment)
@@ -52,8 +55,8 @@ def _quality_gate(content: bytes, scan_type: str = "face"):
             reason=blocking["code"],
             guidance=blocking["guidance"],
             extra={"quality": assessment["metrics"]},
-        )
-    return None
+        ), assessment
+    return None, assessment
 
 
 @router.post(
@@ -79,12 +82,15 @@ async def upload_scan(
 
     # Capture-quality gate — fast, synchronous, before we store or enqueue anything.
     # Returns specific retake guidance so the user can fix it.
-    gate = _quality_gate(content, scan_type=scan_type)
+    gate, assessment = _quality_gate(content, scan_type=scan_type)
     if gate is not None:
         return gate
 
     upload = await UploadService.validate_and_upload_bytes(content, user_id=user.id, folder_suffix="raw")
 
+    # Reuse the gate's landmarks (same 800px resize the pipeline uses) so the
+    # pipeline skips its own detector pass — the most expensive step, run twice.
+    pts = (assessment or {}).get("landmarks")
     scan = FaceScanRepository.create(
         db,
         user_id=user.id,
@@ -92,6 +98,8 @@ async def upload_scan(
         image_url=upload["url"],
         image_public_id=upload["public_id"],
         file_size_bytes=upload["bytes"],
+        landmarks_json=json.dumps({"type": "mesh", "points": pts}) if pts else None,
+        face_confidence=0.95 if pts else None,
     )
 
     background_tasks.add_task(run_scan_pipeline, scan.id, scan_type)
@@ -261,6 +269,7 @@ async def quality_preview(
         return error_response("Could not decode image", status_code=422)
 
     assessment = assess_quality(resize_for_analysis(img), scan_type=scan_type)
+    assessment.pop("landmarks", None)   # live preview only needs the verdict
     return success_response("Quality assessed", assessment)
 
 

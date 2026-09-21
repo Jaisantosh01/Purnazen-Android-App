@@ -188,6 +188,19 @@ def _serialize_landmarks(landmarks, img: "np.ndarray") -> str:
     return json.dumps({"type": "mesh", "points": pts})
 
 
+def _landmarks_from_json(raw: "str | None") -> list:
+    """Inverse of _serialize_landmarks: mesh JSON → objects with .x/.y, else []."""
+    if not raw:
+        return []
+    try:
+        data = json.loads(raw)
+    except (ValueError, TypeError):
+        return []
+    if data.get("type") != "mesh":
+        return []
+    return [types.SimpleNamespace(x=float(x), y=float(y)) for x, y in data.get("points", [])]
+
+
 def _serialize_bbox(img: "np.ndarray", x: int, y: int, w: int, h: int) -> str:
     """Serialize a fallback face bounding box (normalized) for the client overlay."""
     H, W = img.shape[:2]
@@ -232,9 +245,15 @@ def _run_face_pipeline(db, scan, img: "np.ndarray") -> dict:
     FaceScanRepository.set_progress(db, scan, "detecting")
 
     try:
-        from app.ai.face_detector import get_face_detector
         from app.ai.image_preprocessor import extract_rois
-        landmarks, confidence = get_face_detector().detect(img)
+        # The upload gate already ran the detector on this same 800px frame and
+        # persisted the mesh — reuse it rather than paying for MediaPipe twice.
+        landmarks = _landmarks_from_json(scan.landmarks_json)
+        if landmarks:
+            confidence = float(scan.face_confidence or 0.95)
+        else:
+            from app.ai.face_detector import get_face_detector
+            landmarks, confidence = get_face_detector().detect(img)
         scan.face_detected = len(landmarks) > 0
         scan.face_confidence = float(confidence)
 

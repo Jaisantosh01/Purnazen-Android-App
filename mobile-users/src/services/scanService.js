@@ -1,5 +1,11 @@
+import ImageResizer from 'react-native-image-resizer';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../constants/apiEndpoints';
+import { logBreadcrumb } from './crashReporting';
+
+// Longest edge of the uploaded scan. Every analyzer works at ≤800 px; 1600 keeps
+// a 2× margin for the mesh overlay without shipping the full sensor frame.
+const UPLOAD_MAX_PX = 1600;
 
 // Poll fast so the live mesh / per-feature checklist animates smoothly.
 const POLL_INTERVAL_MS = 800;
@@ -30,12 +36,24 @@ const scanService = {
    * @param {'face'|'tongue'} scanType
    */
   async uploadScan(filePath, scanType = 'face') {
-    const fileName = filePath.split('/').pop() || 'scan.jpg';
+    // The camera captures at full sensor resolution (12–108 MP); the server's
+    // first step is to downscale to 800 px wide. Shrink before upload so a scan
+    // costs ~300 KB on the wire instead of several MB — and never let a resize
+    // failure block the scan.
+    let uploadPath = filePath;
+    try {
+      const r = await ImageResizer.createResizedImage(filePath, UPLOAD_MAX_PX, UPLOAD_MAX_PX, 'JPEG', 90);
+      if (r?.uri) uploadPath = r.uri;
+    } catch (e) {
+      logBreadcrumb(`scan resize skipped: ${e?.message || e}`);
+    }
+
+    const fileName = uploadPath.split('/').pop() || 'scan.jpg';
     const ext = fileName.split('.').pop()?.toLowerCase();
     const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
 
     const form = new FormData();
-    form.append('file', { uri: filePath, name: fileName, type: mimeType });
+    form.append('file', { uri: uploadPath, name: fileName, type: mimeType });
 
     const res = await apiClient.post(
       `${ENDPOINTS.FACE_GLOW_SCAN_UPLOAD}?scan_type=${scanType}`,

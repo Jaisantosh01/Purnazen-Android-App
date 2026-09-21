@@ -29,6 +29,12 @@ jest.mock('react-native-vision-camera', () => ({
   useCameraPermission: () => ({ hasPermission: false, requestPermission: jest.fn() }),
 }));
 
+// Native resizer (pre-upload downscale in scanService): pass the URI through.
+jest.mock('react-native-image-resizer', () => ({
+  __esModule: true,
+  default: { createResizedImage: jest.fn(async uri => ({ uri })) },
+}));
+
 jest.mock('react-native-image-picker', () => ({
   launchImageLibrary: jest.fn(),
   launchCamera: jest.fn(),

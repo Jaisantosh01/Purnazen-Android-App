@@ -62,3 +62,8 @@ def rate_limited_client(client):
     limiter.enabled = True
     yield client
     limiter.enabled = False
+
+
+def pytest_addoption(parser):
+    parser.addoption("--golden-update", action="store_true", default=False,
+                     help="rewrite tests/golden/expected.json from the current pipeline output")

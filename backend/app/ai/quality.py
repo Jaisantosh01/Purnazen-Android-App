@@ -48,17 +48,27 @@ _PRIORITY = [
 
 # ── Face detection ─────────────────────────────────────────────────────────────
 
-def _detect_faces_mediapipe(img_bgr) -> int:
-    """Return face count using MediaPipe FaceLandmarker (most accurate).
+def _detect_faces_mediapipe(img_bgr) -> tuple:
+    """Return (face_count, largest_bbox_or_None, landmarks_or_None) via MediaPipe.
 
-    Returns -1 if MediaPipe is unavailable so the caller falls back to Haar.
+    face_count is -1 if MediaPipe is unavailable so the caller falls back to Haar.
+    The bbox is the tight extent of the first face's landmarks in pixels — the
+    real thing, so the size/centre checks below actually measure something.
     """
     try:
         from app.ai.face_detector import get_face_detector
-        landmarks, _ = get_face_detector().detect(img_bgr)
-        return 1 if landmarks else 0
+        faces = get_face_detector().detect_faces(img_bgr)
     except Exception:
-        return -1
+        return -1, None, None
+    if not faces:
+        return 0, None, None
+    lms = faces[0]
+    h, w = img_bgr.shape[:2]
+    xs = [lm.x for lm in lms]
+    ys = [lm.y for lm in lms]
+    x1, x2 = int(min(xs) * w), int(max(xs) * w)
+    y1, y2 = int(min(ys) * h), int(max(ys) * h)
+    return len(faces), (x1, y1, max(1, x2 - x1), max(1, y2 - y1)), lms
 
 
 def _detect_faces_haar(img_bgr) -> list:
@@ -77,30 +87,21 @@ def _detect_faces_haar(img_bgr) -> list:
 
 
 def _count_faces(img_bgr) -> tuple:
-    """Return (face_count, largest_box_or_None).
+    """Return (face_count, largest_box_or_None, landmarks_or_None).
 
     Tries MediaPipe first for accuracy; falls back to Haar if unavailable.
-    If MediaPipe detected exactly 1 face, bbox is a rough centre crop (accurate
-    enough for size/centre checks).
+    Landmarks are only populated on the MediaPipe path.
     """
-    mp_count = _detect_faces_mediapipe(img_bgr)
-
+    mp_count, bbox, landmarks = _detect_faces_mediapipe(img_bgr)
     if mp_count >= 0:
-        if mp_count == 0:
-            return 0, None
-        # MediaPipe found face(s) — use a centred crop as the bounding box proxy
-        h, w = img_bgr.shape[:2]
-        bw, bh = int(w * 0.60), int(h * 0.60)
-        x = (w - bw) // 2
-        y = int(h * 0.15)
-        return mp_count, (x, y, bw, bh)
+        return mp_count, bbox, landmarks
 
     # MediaPipe unavailable — use Haar
     faces = _detect_faces_haar(img_bgr)
     if not faces:
-        return 0, None
+        return 0, None, None
     largest = max(faces, key=lambda f: f[2] * f[3])
-    return len(faces), largest
+    return len(faces), largest, None
 
 
 # ── Tongue detection ───────────────────────────────────────────────────────────
@@ -135,7 +136,7 @@ def assess_quality(img_bgr: np.ndarray, scan_type: str = "face") -> dict:
     if scan_type == "tongue":
         # Face count still matters: a visible face + no strong tongue signal
         # means the user is pointing at forehead/cheeks, not sticking out.
-        face_count, _ = _count_faces(img_bgr)
+        face_count, _, landmarks = _count_faces(img_bgr)
         face_area_ratio = 0.0
         center_offset = 0.0
 
@@ -150,7 +151,7 @@ def assess_quality(img_bgr: np.ndarray, scan_type: str = "face") -> dict:
 
     else:
         # Face checks
-        face_count, bbox = _count_faces(img_bgr)
+        face_count, bbox, landmarks = _count_faces(img_bgr)
         face_area_ratio = 0.0
         center_offset = 0.0
 
@@ -186,6 +187,10 @@ def assess_quality(img_bgr: np.ndarray, scan_type: str = "face") -> dict:
     return {
         "ok": ok,
         "issues": issues,
+        # Normalised [[x, y], ...] of the first face, so the upload endpoint can
+        # persist them and the pipeline can skip a second detector pass.
+        "landmarks": [[round(float(lm.x), 4), round(float(lm.y), 4)] for lm in landmarks]
+                     if landmarks else None,
         "metrics": {
             "blur":             round(blur, 2),
             "mean_l":           round(mean_l, 2),

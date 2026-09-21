@@ -60,4 +60,8 @@ class ScanResult(Base):
             "tongueShape": self.tongue_shape,
             "overallWellnessScore": _f(self.overall_wellness_score),
             "skinAgeEstimate": self.skin_age_estimate,
+            # Per-metric + overall analysis confidence in [0, 1] (face scans),
+            # computed by the pipeline; the app dims low-trust scores.
+            "confidence": (self.raw_metrics or {}).get("confidence"),
+            "scoringMethod": (self.raw_metrics or {}).get("scoring_method"),
         }

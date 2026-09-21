@@ -15,6 +15,8 @@ class FaceScanRepository:
         image_url: str,
         image_public_id: str,
         file_size_bytes: int | None = None,
+        landmarks_json: str | None = None,
+        face_confidence: float | None = None,
     ) -> FaceScan:
         scan = FaceScan(
             user_id=user_id,
@@ -23,6 +25,8 @@ class FaceScanRepository:
             image_url=image_url,
             image_public_id=image_public_id,
             file_size_bytes=file_size_bytes,
+            landmarks_json=landmarks_json,
+            face_confidence=face_confidence,
         )
         db.add(scan)
         db.commit()

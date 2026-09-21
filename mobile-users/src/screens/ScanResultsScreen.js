@@ -13,6 +13,7 @@ import { showAlert } from '../utils/alert';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import MetricScoreRow from '../components/scan/MetricScoreRow';
 import RecommendationCard from '../components/scan/RecommendationCard';
+import { LOW_CONFIDENCE } from '../components/scan/MetricScoreRow';
 import useTheme from '../hooks/useTheme';
 import ScreenHeader from '../components/ScreenHeader';
 
@@ -85,6 +86,10 @@ const FACE_METRIC_KEYS = [
   'dullnessIndex',
 ];
 
+// results.confidence is keyed like the backend ("hydration_score", …, "overall").
+const snake = k => k.replace(/([A-Z])/g, '_$1').toLowerCase();
+const confidenceFor = (conf, key) => (conf ? conf[snake(key)] ?? conf.overall : undefined);
+
 function glowColor(score) {
   if (score === null || score === undefined) return '#94a3b8';
   if (score >= 70) return '#22c55e';
@@ -100,6 +105,7 @@ const ScanResultsScreen = ({ navigation, route }) => {
   const recommendations = scan?.recommendations ?? [];
   const glowScore = results.glowScore ?? null;
   const color = glowColor(glowScore);
+  const lowConfidence = results?.confidence?.overall != null && results.confidence.overall < LOW_CONFIDENCE;
   const scanType = scan?.scan_type ?? 'face';
 
   // Enhanced (server) vs original (local capture) preview.
@@ -199,8 +205,14 @@ const ScanResultsScreen = ({ navigation, route }) => {
 
               {/* Wellness + skin age — surfaced here so they match the shared
                   report (previously only present in the share text). */}
-              {(results.overallWellnessScore != null || results.skinAgeEstimate != null) && (
+              {(results.overallWellnessScore != null || results.skinAgeEstimate != null || results.confidence?.overall != null) && (
                 <View style={styles.statChipsRow}>
+                  {results.confidence?.overall != null && (
+                    <View style={styles.statChip}>
+                      <Text style={styles.statChipValue}>{Math.round(results.confidence.overall * 100)}%</Text>
+                      <Text style={styles.statChipLabel}>Confidence</Text>
+                    </View>
+                  )}
                   {results.overallWellnessScore != null && (
                     <View style={styles.statChip}>
                       <Text style={styles.statChipValue}>{Math.round(results.overallWellnessScore)}</Text>
@@ -266,14 +278,30 @@ const ScanResultsScreen = ({ navigation, route }) => {
           ) : (
             <View style={styles.metricsBox}>
               {FACE_METRIC_KEYS.map(key => (
-                <MetricScoreRow key={key} metricKey={key} value={results[key]} />
+                <MetricScoreRow
+                  key={key}
+                  metricKey={key}
+                  value={results[key]}
+                  confidence={confidenceFor(results.confidence, key)}
+                />
               ))}
             </View>
           )}
         </View>
 
-        {/* Recommendations */}
-        {recommendations.length > 0 && (
+        {/* Recommendations — withheld when the pipeline flagged the scan as
+            low-confidence: advice built on a blurry / badly lit read is worse
+            than no advice. */}
+        {recommendations.length > 0 && lowConfidence && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Recommendations</Text>
+            <Text style={styles.lowConfNote}>
+              This scan's confidence is {Math.round(results.confidence.overall * 100)}%, too low to
+              tailor advice. Retake in even, bright light and hold still for personalised tips.
+            </Text>
+          </View>
+        )}
+        {recommendations.length > 0 && !lowConfidence && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Recommendations</Text>
             {recommendations.map(rec => (
@@ -418,6 +446,11 @@ const makeStyles = colors => StyleSheet.create({
     paddingHorizontal: 16,
     marginTop: 8,
     marginBottom: 4,
+  },
+  lowConfNote: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: colors.textSecondary,
   },
   sectionTitle: {
     fontSize: 17,

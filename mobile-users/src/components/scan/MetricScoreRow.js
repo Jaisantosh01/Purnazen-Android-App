@@ -23,20 +23,25 @@ function scoreColor(value, higherIsBetter) {
   return '#ef4444';
 }
 
-const MetricScoreRow = ({ metricKey, value }) => {
+// Below this the pipeline itself doesn't trust the number (poor light, missing
+// ROI, blurry): dim the row and mark the value as approximate.
+export const LOW_CONFIDENCE = 0.5;
+
+const MetricScoreRow = ({ metricKey, value, confidence }) => {
   if (value === null || value === undefined) return null;
 
   const meta = METRIC_LABELS[metricKey] || { label: metricKey, higherIsBetter: true };
   const color = scoreColor(value, meta.higherIsBetter);
   const barWidth = `${Math.min(Math.max(value, 0), 100)}%`;
+  const low = confidence != null && confidence < LOW_CONFIDENCE;
 
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, low && styles.rowLow]} accessibilityLabel={`${meta.label} ${Math.round(value)}${low ? ', low confidence' : ''}`}>
       <Text style={styles.label}>{meta.label}</Text>
       <View style={styles.barTrack}>
         <View style={[styles.barFill, { width: barWidth, backgroundColor: color }]} />
       </View>
-      <Text style={[styles.score, { color }]}>{Math.round(value)}</Text>
+      <Text style={[styles.score, { color }]}>{low ? '~' : ''}{Math.round(value)}</Text>
     </View>
   );
 };
@@ -50,6 +55,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     gap: 10,
   },
+  rowLow: { opacity: 0.55 },
   label: {
     width: 110,
     fontSize: 13,

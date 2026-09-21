@@ -80,7 +80,7 @@ def test_upload_no_file(client):
 def test_upload_non_image_rejected(client):
     token = _register_and_login(client)
     _grant_consent(client, token)
-    with patch("app.services.scan_pipeline_service.run_scan_pipeline"), patch(_GATE, return_value=None):
+    with patch("app.services.scan_pipeline_service.run_scan_pipeline"), patch(_GATE, return_value=(None, None)):
         r = client.post(
             "/api/v1/face-glow/scan/upload",
             files={"file": ("doc.pdf", io.BytesIO(b"%PDF-1.4 fake"), "application/pdf")},
@@ -94,7 +94,7 @@ def test_upload_valid_jpeg_queued(client, tmp_path):
     _grant_consent(client, token)
     with (
         patch("app.services.scan_pipeline_service.run_scan_pipeline"),
-        patch(_GATE, return_value=None),
+        patch(_GATE, return_value=(None, None)),
         patch("app.core.config.settings.LOCAL_UPLOADS_DIR", str(tmp_path)),
     ):
         r = _upload_scan(client, token)
@@ -274,7 +274,7 @@ def test_status_queued(client, tmp_path):
     _grant_consent(client, token)
     with (
         patch("app.services.scan_pipeline_service.run_scan_pipeline"),
-        patch(_GATE, return_value=None),
+        patch(_GATE, return_value=(None, None)),
         patch("app.core.config.settings.LOCAL_UPLOADS_DIR", str(tmp_path)),
     ):
         upload_r = _upload_scan(client, token)
@@ -294,7 +294,7 @@ def test_status_cannot_see_other_users_scan(client, tmp_path):
     client.post("/api/v1/consent/", json={"consent_type": "scan_storage", "granted": True}, headers=_auth(tok_a))
     with (
         patch("app.services.scan_pipeline_service.run_scan_pipeline"),
-        patch(_GATE, return_value=None),
+        patch(_GATE, return_value=(None, None)),
         patch("app.core.config.settings.LOCAL_UPLOADS_DIR", str(tmp_path)),
     ):
         upload_r = _upload_scan(client, tok_a)
@@ -319,7 +319,7 @@ def test_history_shows_uploaded_scan(client, tmp_path):
     _grant_consent(client, token)
     with (
         patch("app.services.scan_pipeline_service.run_scan_pipeline"),
-        patch(_GATE, return_value=None),
+        patch(_GATE, return_value=(None, None)),
         patch("app.core.config.settings.LOCAL_UPLOADS_DIR", str(tmp_path)),
     ):
         _upload_scan(client, token, "face")
@@ -335,7 +335,7 @@ def test_history_filter_by_scan_type(client, tmp_path):
     _grant_consent(client, token)
     with (
         patch("app.services.scan_pipeline_service.run_scan_pipeline"),
-        patch(_GATE, return_value=None),
+        patch(_GATE, return_value=(None, None)),
         patch("app.core.config.settings.LOCAL_UPLOADS_DIR", str(tmp_path)),
     ):
         _upload_scan(client, token, "face")
@@ -354,7 +354,7 @@ def test_delete_scan(client, tmp_path):
     with (
         patch("app.core.config.settings.LOCAL_UPLOADS_DIR", str(tmp_path)),
         patch("app.services.scan_pipeline_service.run_scan_pipeline"),
-        patch(_GATE, return_value=None),
+        patch(_GATE, return_value=(None, None)),
     ):
         upload_r = _upload_scan(client, token)
         scan_id = upload_r.json()["data"]["scan_id"]
@@ -373,7 +373,7 @@ def test_delete_other_users_scan_returns_404(client, tmp_path):
     client.post("/api/v1/consent/", json={"consent_type": "scan_storage", "granted": True}, headers=_auth(tok_a))
     with (
         patch("app.services.scan_pipeline_service.run_scan_pipeline"),
-        patch(_GATE, return_value=None),
+        patch(_GATE, return_value=(None, None)),
         patch("app.core.config.settings.LOCAL_UPLOADS_DIR", str(tmp_path)),
     ):
         upload_r = _upload_scan(client, tok_a)

@@ -39,23 +39,30 @@ MIN_YOLO_CONF = 0.45
 MIN_YOLO_CONF_EMPTY = 0.60
 
 
-def is_tongue_present(img_bgr: np.ndarray, *, face_count: int = 0) -> bool:
+_UNSET = object()
+
+
+def is_tongue_present(img_bgr: np.ndarray, *, face_count: int = 0, yolo_hit=_UNSET) -> bool:
     """True when a tongue is likely in frame (model or classical CV).
 
     Empty rooms / walls must stay amber: presence requires pink/red *body*
     tissue (not the pale "coat" band that beige walls match), plus either a
     confident YOLO hit or enough fill in the guide oval / a strong body blob.
+
+    ``yolo_hit`` lets a caller that already ran the detector pass its result in
+    (``None`` = ran, nothing found) so YOLO isn't invoked a second time.
     """
     body_guide = tongue_body_coverage(img_bgr)
     body_full = tongue_body_coverage_full(img_bgr)
 
-    yolo_hit = None
-    try:
-        from app.ai.tongue_detector import detect_tongue
+    if yolo_hit is _UNSET:
+        yolo_hit = None
+        try:
+            from app.ai.tongue_detector import detect_tongue
 
-        yolo_hit = detect_tongue(img_bgr)
-    except Exception as exc:
-        logger.debug("Tongue YOLO check skipped (%s)", exc)
+            yolo_hit = detect_tongue(img_bgr)
+        except Exception as exc:
+            logger.debug("Tongue YOLO check skipped (%s)", exc)
 
     # Hard reject: no pink/red tissue in the frame at all (empty room, desk, wall).
     if body_full < MIN_BODY_FULL_FRAME and body_guide < 0.02:
@@ -118,7 +125,7 @@ def analyze(img_bgr: np.ndarray) -> dict:
     seed = yolo_hit["bbox"] if yolo_hit else None
     coverage = tongue_coverage(img_bgr)
     chroma = tongue_chroma(img_bgr)
-    tongue_detected = is_tongue_present(img_bgr)
+    tongue_detected = is_tongue_present(img_bgr, yolo_hit=yolo_hit)
 
     mask, used_fallback = segment_tongue(img_bgr, seed_bbox=seed)
     markers = analyze_colors(img_bgr, mask)
