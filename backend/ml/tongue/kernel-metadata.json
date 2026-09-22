@@ -1,0 +1,15 @@
+{
+  "id": "nullpointeranish/purnazen-tongue-tcm-yolov8",
+  "title": "PurnaZen tongue TCM YOLOv8",
+  "code_file": "train_tongue_yolo.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "dataset_sources": ["obaidulhaque/tmc-tongue-dataset"],
+  "competition_sources": [],
+  "kernel_sources": [],
+  "model_sources": []
+}
