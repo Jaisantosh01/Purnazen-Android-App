@@ -63,6 +63,7 @@ import FaceGlowScreen from './src/screens/FaceGlowScreen';
 import FaceScanScreen from './src/screens/FaceScanScreen';
 // @ts-ignore
 import TongueScanScreen from './src/screens/TongueScanScreen';
+import VitalsScanScreen from './src/screens/VitalsScanScreen';
 import ScanProcessingScreen from './src/screens/ScanProcessingScreen';
 import ScanResultsScreen from './src/screens/ScanResultsScreen';
 import ScanHistoryScreen from './src/screens/ScanHistoryScreen';
@@ -117,6 +118,7 @@ function HomeStackNavigator() {
       <HomeStack.Screen name="FaceGlow"       component={FaceGlowScreen}      />
       <HomeStack.Screen name="FaceScan"       component={FaceScanScreen}      />
       <HomeStack.Screen name="TongueScan"    component={TongueScanScreen}    />
+      <HomeStack.Screen name="VitalsScan"    component={VitalsScanScreen}    />
       <HomeStack.Screen name="ScanProcessing" component={ScanProcessingScreen}/>
       <HomeStack.Screen name="ScanResults"    component={ScanResultsScreen}   />
       <HomeStack.Screen name="ScanHistory"    component={ScanHistoryScreen}   />

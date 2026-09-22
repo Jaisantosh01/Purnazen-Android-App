@@ -26,7 +26,15 @@ jest.mock('@react-native-firebase/crashlytics', () => {
 jest.mock('react-native-vision-camera', () => ({
   Camera: () => null,
   useCameraDevice: () => undefined,
+  useCameraFormat: () => undefined,
   useCameraPermission: () => ({ hasPermission: false, requestPermission: jest.fn() }),
+  useFrameProcessor: fn => fn,
+  // No native plugin under jest → VitalsScanScreen renders its "not available" state.
+  VisionCameraProxy: { initFrameProcessorPlugin: () => undefined },
+}));
+
+jest.mock('react-native-worklets-core', () => ({
+  Worklets: { createRunOnJS: fn => fn },
 }));
 
 // Native resizer (pre-upload downscale in scanService): pass the URI through.

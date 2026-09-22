@@ -125,6 +125,26 @@ const FaceGlowScreen = ({ navigation }) => {
               <Text style={[styles.scanBtnText, styles.tongueScanBtnText]}>Start Tongue Scan</Text>
             </TouchableOpacity>
           </View>
+
+          {/* ── Vitals Scan Card (beta) ── */}
+          <View style={styles.scanCard}>
+            <View style={styles.scanLeft}>
+              <View style={styles.cameraCircle}>
+                <MCIcon name="heart-pulse" size={22} color={colors.white} />
+              </View>
+              <View style={inline.flex1}>
+                <Text style={styles.scanTitle}>Vitals Scan <Text style={styles.betaTag}>BETA</Text></Text>
+                <Text style={styles.scanSubtitle}>Heart rate · breathing · 30 s, on-device</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.scanBtn}
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate('VitalsScan')}
+            >
+              <Text style={styles.scanBtnText}>Start Vitals Scan</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* ── Onboarding: basic now → personalized after a scan ── */}
@@ -279,6 +299,7 @@ const makeStyles = colors => StyleSheet.create({
     fontWeight: '700',
     color: colors.white,
   },
+  betaTag: { fontSize: 10, fontWeight: '800', color: colors.textMuted, letterSpacing: 1 },
   scanSubtitle: {
     fontSize: 12,
     color: 'rgba(255,255,255,0.85)',

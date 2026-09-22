@@ -23,6 +23,7 @@ class MainApplication : Application(), ReactApplication {
           // add(MyReactNativePackage())
           add(com.purnazen.scanquality.ScanQualityPackage())
           add(com.purnazen.inappupdate.InAppUpdatePackage())
+          add(com.purnazen.vitals.VitalsPackage())
         },
     )
   }

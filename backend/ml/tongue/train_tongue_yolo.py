@@ -105,7 +105,7 @@ def stage_dataset(split_root: Path, names: list[str], work: Path) -> Path:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--data-root", default="/kaggle/input/tmc-tongue-dataset")
+    ap.add_argument("--data-root", default="/kaggle/input")
     ap.add_argument("--out", default="/kaggle/working")
     ap.add_argument("--model", default="yolov8n.pt")
     ap.add_argument("--epochs", type=int, default=40)
@@ -121,6 +121,13 @@ def main():
 
     out = Path(args.out); out.mkdir(parents=True, exist_ok=True)
     work = out / "dataset"
+    # Show the mount layout in the log — Kaggle's input path is not always the slug.
+    for dirpath, dirnames, filenames in os.walk(args.data_root):
+        depth = dirpath[len(args.data_root):].count(os.sep)
+        if depth <= 4:
+            print(f"{'  ' * depth}{os.path.basename(dirpath) or args.data_root}/  ({len(filenames)} files)")
+        if depth >= 4:
+            dirnames[:] = []
     names = load_classes(args.data_root)
     yaml = stage_dataset(find_split_root(args.data_root), names, work)
     json.dump([{"id": i, "pinyin": n, "english": ENGLISH.get(n, n)} for i, n in enumerate(names)],

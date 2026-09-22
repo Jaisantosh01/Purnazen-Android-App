@@ -37,10 +37,13 @@
     "react-native-video": "^6.19.2",
     "react-native-vision-camera": "^4.7.3",
     "react-native-webview": "^14.0.1",
+    "react-native-worklets-core": "^1.6.3",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
+    "@babel/plugin-proposal-nullish-coalescing-operator": "^7.18.6",
+    "@babel/plugin-proposal-optional-chaining": "^7.21.0",
     "@babel/preset-env": "^7.25.3",
     "@babel/runtime": "^7.25.0",
     "@react-native-community/cli": "^20.1.3",
