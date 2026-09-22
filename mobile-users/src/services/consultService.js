@@ -178,6 +178,31 @@ class ConsultService {
     }
   }
 
+  /** Patient-side cancel of an unpaid hold (paid bookings go through
+   *  refundPayment, which cancels as part of the refund). */
+  async cancelAppointment(appointmentId) {
+    try {
+      const json = await this.put(`${ENDPOINTS.APPOINTMENTS}/${appointmentId}`, { status: 'cancelled' });
+      return json?.data;
+    } catch (err) {
+      throw new Error(err?.message ?? 'Failed to cancel appointment');
+    }
+  }
+
+  /** Full refund (cancels the appointment) when `amount` is omitted;
+   *  partial refund in rupees otherwise. */
+  async refundPayment({ appointmentId, amount }) {
+    try {
+      const json = await this.post(ENDPOINTS.PAYMENT_REFUND, {
+        appointmentId,
+        ...(amount != null ? { amount } : {}),
+      });
+      return json?.data;
+    } catch (err) {
+      throw new Error(err?.message ?? 'Refund failed');
+    }
+  }
+
 }
 
 export default new ConsultService();

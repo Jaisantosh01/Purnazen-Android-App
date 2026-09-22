@@ -37,6 +37,7 @@ export const APPOINTMENT_PAYMENT_LABELS = {
   pending: 'Pending',
   unpaid: 'Unpaid',
   paid: 'Paid',
+  refunded: 'Refunded',
 };
 
 

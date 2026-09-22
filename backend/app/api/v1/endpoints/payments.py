@@ -3,7 +3,11 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.models.user import User
-from app.schemas.payment import ProcessPaymentRequest, VerifyPaymentRequest
+from app.schemas.payment import (
+    ProcessPaymentRequest,
+    RefundPaymentRequest,
+    VerifyPaymentRequest,
+)
 from app.services.payment_service import PaymentService
 from app.utils.responses import error_response, success_response
 
@@ -49,6 +53,29 @@ def verify_payment(
     db: Session = Depends(get_db),
 ):
     response, status_code = PaymentService.verify(db, user, body)
+
+    if not response["success"]:
+        return error_response(response["message"], status_code)
+
+    return success_response(response["message"], response["data"], status_code)
+
+
+@router.post(
+    "/refund",
+    summary="Refund an appointment's payment",
+    description=(
+        "Refunds the paid amount for one of the caller's appointments through "
+        "Razorpay (or the local sandbox). Omit `amount` for a full refund, "
+        "which also cancels the appointment; pass a smaller `amount` in rupees "
+        "for a partial refund that leaves the booking in place."
+    ),
+)
+def refund_payment(
+    body: RefundPaymentRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    response, status_code = PaymentService.refund(db, user, body)
 
     if not response["success"]:
         return error_response(response["message"], status_code)

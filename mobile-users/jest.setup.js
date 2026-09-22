@@ -33,6 +33,12 @@ jest.mock('react-native-vision-camera', () => ({
   VisionCameraProxy: { initFrameProcessorPlugin: () => undefined },
 }));
 
+// Native checkout: tests drive the sandbox path, which never opens it.
+jest.mock('react-native-razorpay', () => ({
+  __esModule: true,
+  default: { open: jest.fn() },
+}));
+
 jest.mock('react-native-worklets-core', () => ({
   Worklets: { createRunOnJS: fn => fn },
 }));

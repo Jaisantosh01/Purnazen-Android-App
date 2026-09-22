@@ -19,3 +19,11 @@ class VerifyPaymentRequest(BaseModel):
     order_id: str = Field(alias="orderId", min_length=1)
     payment_id: str = Field(alias="paymentId", min_length=1)
     signature: str = Field(min_length=1)
+
+
+class RefundPaymentRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    appointment_id: UUID = Field(alias="appointmentId")
+    # Rupees. Omit for a full refund of whatever is still held.
+    amount: float | None = Field(default=None, gt=0)

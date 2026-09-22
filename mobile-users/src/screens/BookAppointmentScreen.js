@@ -237,16 +237,17 @@ const BookAppointmentScreen = ({ navigation, route }) => {
         fee:               selectedVisitData?.fee,
         userDescription:   userDescription.trim() || undefined,
       });
-      navigation.navigate('BookingConfirmed', {
+      // The booking is a 15-minute hold until it is paid for, so checkout
+      // comes first and the confirmation page only after a verified payment.
+      // `replace` keeps an abandoned checkout from unwinding into a second
+      // booking of the same slot; the hold stays visible in Appointments.
+      navigation.replace('Payment', {
         doctor,
-        date: getSelectedDateString(),
-        time: selectedTime.time,
         visitType: selectedVisitData?.title,
         fee: selectedVisitData?.fee,
         // The booked row carries the GST the backend settled on, so the
-        // confirmation and checkout quote the same total this screen did.
+        // checkout quotes the same total this screen did.
         appointment: booking,
-        bookingRef: booking?.reference,
         appointmentId: booking?.id,
       });
     } catch (err) {

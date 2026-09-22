@@ -17,6 +17,11 @@ from app.main import app
 # Turning it off also keeps the suite deterministic: it no longer depends on the
 # CI runner being able to resolve DNS.
 settings.EMAIL_CHECK_DELIVERABILITY = False
+# The suite exercises the local-sandbox payment path: a developer's .env may
+# carry real Razorpay test keys, and those must never turn a test run into
+# live orders/refunds against the gateway.
+settings.RAZORPAY_KEY_ID = ""
+settings.RAZORPAY_KEY_SECRET = ""
 
 engine = create_engine(
     "sqlite://",

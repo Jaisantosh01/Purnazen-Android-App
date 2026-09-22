@@ -103,3 +103,6 @@ skills-lock.json
 docs/research/papers/
 backend/.venv*/
 backend/app/ai/models/tongue_tcm_*
+
+# Serena MCP workspace
+.serena/

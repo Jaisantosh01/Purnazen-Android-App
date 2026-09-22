@@ -175,6 +175,8 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="ProfileMain"    component={ProfileScreen}        />
       <ProfileStack.Screen name="AppointmentHistory" component={AppointmentHistoryScreen} />
       <ProfileStack.Screen name="AppointmentDetail"  component={AppointmentDetailScreen}  />
+      <ProfileStack.Screen name="Payment"            component={PaymentScreen}            />
+      <ProfileStack.Screen name="BookingConfirmed"   component={BookingConfirmedScreen}   />
       <ProfileStack.Screen name="TherapyHistory" component={TherapyHistoryScreen} />
       <ProfileStack.Screen name="HealthReport"   component={HealthReportScreen}   />
       <ProfileStack.Screen name="VideoPlayer"    component={VideoPlayerScreen}    />

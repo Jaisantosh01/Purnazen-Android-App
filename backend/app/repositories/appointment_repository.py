@@ -144,6 +144,10 @@ class AppointmentRepository:
                 joinedload(Appointment.consultation_type),
             )
             .filter(Appointment.doctor_id == doctor_id)
+            # An unpaid booking is only a 15-minute hold on the slot (see
+            # reminder_scheduler.expire_stale_holds). It reaches the doctor
+            # once the patient has paid; until then there is nothing to accept.
+            .filter(~((Appointment.status == "pending") & (Appointment.payment_status == "pending")))
         )
 
         if date is not None:

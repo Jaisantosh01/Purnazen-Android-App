@@ -67,6 +67,14 @@
 -dontwarn com.google.android.play.core.**
 
 # ── OkHttp / Okio (axios goes through the RN networking stack) ──────────────
+# Razorpay checkout SDK (react-native-razorpay): callbacks are reached via
+# reflection and a JavascriptInterface, both of which R8 would otherwise strip.
+-keepclassmembers class * { @android.webkit.JavascriptInterface <methods>; }
+-keepattributes JavascriptInterface
+-dontwarn com.razorpay.**
+-keep class com.razorpay.** {*;}
+-optimizations !method/inlining/*
+-keepclasseswithmembers class * { public void onPayment*(...); }
 -dontwarn okhttp3.**
 -dontwarn okio.**
 -dontwarn javax.annotation.**

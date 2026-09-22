@@ -57,6 +57,7 @@ export const ENDPOINTS = {
   APPOINTMENTS: `${API_VERSION}/appointments`,
   PAYMENT: `${API_VERSION}/payments/process`,
   PAYMENT_VERIFY: `${API_VERSION}/payments/verify`,
+  PAYMENT_REFUND: `${API_VERSION}/payments/refund`,
   TAX_CONFIG: `${API_VERSION}/tax/config`,
 
   // Wellness Sessions

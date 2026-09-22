@@ -27,7 +27,9 @@ class Payment(Base):
     order_id = Column(String(100), nullable=False, unique=True)
     payment_id = Column(String(100))  # provider payment reference (set on verify)
     method = Column(String(20))  # card | upi | wallet
-    status = Column(String(20), nullable=False, default="created")  # created | paid | failed
+    status = Column(String(20), nullable=False, default="created")  # created | paid | failed | partially_refunded | refunded
+    refund_id = Column(String(100))  # provider refund reference (latest)
+    refunded_amount = Column(Numeric(10, 2), nullable=False, default=0)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     created_by = Column(GUID(), ForeignKey("users.id"), nullable=True)
@@ -48,5 +50,7 @@ class Payment(Base):
             "paymentId": self.payment_id,
             "method": self.method,
             "status": self.status,
+            "refundId": self.refund_id,
+            "refundedAmount": float(self.refunded_amount or 0),
             "createdAt": self.created_at.isoformat() if self.created_at else None,
         }

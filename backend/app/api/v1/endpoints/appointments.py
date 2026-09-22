@@ -73,6 +73,8 @@ def update_appointment(
     appointment = AppointmentService.update(db, user, appointment_id, body)
     if not appointment:
         return error_response("Appointment not found", 404)
+    if isinstance(appointment, dict):
+        return error_response(appointment["error"], appointment["status_code"])
 
     payload = (
         AppointmentService.serialize_for_doctor(db, appointment)

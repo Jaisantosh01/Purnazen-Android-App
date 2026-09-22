@@ -348,10 +348,37 @@ def test_doctor_status_update_returns_enriched_shape(client, db_session):
     _, appointment_id, _ = book_one(client, db_session)
     response = client.put(
         f"/api/v1/appointments/{appointment_id}",
-        json={"status": "booked"},
+        json={"status": "booked", "paymentStatus": "paid"},
         headers=doctor_headers(client),
     )
     assert response.status_code == 200
     data = response.json()["data"]
     assert data["status"] == "booked"
     assert "userAge" in data and "previousVisitsCount" in data
+
+
+def test_unpaid_hold_cannot_be_confirmed(client, db_session):
+    _, appointment_id, patient = book_one(client, db_session)
+    doctor = doctor_headers(client)
+
+    response = client.put(
+        f"/api/v1/appointments/{appointment_id}", json={"status": "booked"}, headers=doctor
+    )
+    assert response.status_code == 400
+    assert "Payment is pending" in response.json()["message"]
+    detail = client.get(f"/api/v1/appointments/{appointment_id}", headers=patient)
+    assert detail.json()["data"]["status"] == "pending"
+
+    # Unpaid holds are invisible to the doctor; a paid booking shows up.
+    listed = client.get("/api/v1/appointments/doctor", headers=doctor).json()["data"]
+    assert all(a["id"] != appointment_id for a in listed["appointments"])
+
+    client.put(
+        f"/api/v1/appointments/{appointment_id}", json={"paymentStatus": "paid"}, headers=doctor
+    )
+    listed = client.get("/api/v1/appointments/doctor", headers=doctor).json()["data"]
+    assert any(a["id"] == appointment_id for a in listed["appointments"])
+    response = client.put(
+        f"/api/v1/appointments/{appointment_id}", json={"status": "booked"}, headers=doctor
+    )
+    assert response.status_code == 200

@@ -1,11 +1,20 @@
+import logging
+
 from sqlalchemy.orm import Session
 
 from app.core import payment_provider
+from app.core.payment_provider import ProviderError
 from app.models.appointment import Appointment
 from app.models.user import User
 from app.repositories.payment_repository import PaymentRepository
-from app.schemas.payment import ProcessPaymentRequest, VerifyPaymentRequest
+from app.schemas.payment import (
+    ProcessPaymentRequest,
+    RefundPaymentRequest,
+    VerifyPaymentRequest,
+)
 from app.services.notification_service import NotificationService
+
+logger = logging.getLogger(__name__)
 
 
 class PaymentService:
@@ -30,11 +39,14 @@ class PaymentService:
             if appointment.total_amount is not None:
                 amount = float(appointment.total_amount)
 
-        order = payment_provider.create_order(
-            amount,
-            data.currency,
-            receipt=f"apt-{data.appointment_id}" if data.appointment_id else "adhoc",
-        )
+        try:
+            order = payment_provider.create_order(
+                amount,
+                data.currency,
+                receipt=f"apt-{data.appointment_id}" if data.appointment_id else "adhoc",
+            )
+        except ProviderError as exc:
+            return {"success": False, "message": exc.message}, exc.status_code
 
         payment = PaymentRepository.create(
             db,
@@ -107,6 +119,19 @@ class PaymentService:
 
         payment.status = "paid"
         payment.payment_id = data.payment_id
+        # The signature is the proof of payment; the provider lookup only
+        # enriches the row (real method: card/upi/netbanking/wallet) and
+        # captures accounts that have auto-capture off. Losing it must not
+        # un-pay a verified payment, so it is best-effort.
+        try:
+            details = payment_provider.fetch_payment(data.payment_id)
+            payment.method = details.get("method") or payment.method
+            if details.get("status") == "authorized":
+                payment_provider.capture_payment(
+                    data.payment_id, float(payment.amount), payment.currency
+                )
+        except ProviderError as exc:
+            logger.warning("Post-verify lookup for %s failed: %s", data.payment_id, exc.message)
         if payment.appointment:
             payment.appointment.payment_status = "paid"
         db.commit()
@@ -137,4 +162,61 @@ class PaymentService:
             "success": True,
             "message": "Payment verified successfully",
             "data": {"payment": payment.to_dict()},
+        }, 200
+
+    @staticmethod
+    def refund(db: Session, user: User, data: RefundPaymentRequest):
+        appointment = db.get(Appointment, data.appointment_id)
+        if not appointment or appointment.user_id != user.id:
+            return {"success": False, "message": "Appointment not found"}, 404
+        if appointment.status == "completed":
+            return {"success": False, "message": "Completed consultations cannot be refunded"}, 400
+
+        payment = PaymentRepository.get_refundable_by_appointment(db, appointment.id)
+        if not payment:
+            return {"success": False, "message": "No refundable payment for this appointment"}, 400
+
+        remaining = float(payment.amount) - float(payment.refunded_amount or 0)
+        amount = data.amount if data.amount is not None else remaining
+        if amount > remaining + 1e-6:
+            return {
+                "success": False,
+                "message": f"Only ₹{remaining:.2f} is left to refund on this payment",
+            }, 400
+
+        try:
+            refund = payment_provider.refund_payment(payment.payment_id, amount)
+        except ProviderError as exc:
+            return {"success": False, "message": exc.message}, exc.status_code
+
+        payment.refund_id = refund["id"]
+        payment.refunded_amount = float(payment.refunded_amount or 0) + amount
+        full = float(payment.refunded_amount) >= float(payment.amount) - 1e-6
+        payment.status = "refunded" if full else "partially_refunded"
+        # A full refund is the patient walking away: the slot opens up again.
+        if full:
+            appointment.payment_status = "refunded"
+            appointment.status = "cancelled"
+        db.commit()
+        db.refresh(payment)
+
+        ref = appointment.reference
+        NotificationService.notify_safely(
+            db, user.id, category="payment", event="payment_refunded",
+            title="Refund initiated",
+            body=f"₹{amount:.2f} for {ref} is on its way back to your payment method (5-7 working days).",
+            data={"appointmentId": str(appointment.id), "refundId": refund["id"]},
+        )
+        if full and appointment.doctor:
+            NotificationService.notify_safely(
+                db, appointment.doctor.user_id, category="appointment", event="appointment_cancelled",
+                title="Appointment cancelled",
+                body=f"{appointment.user.full_name or 'The patient'} cancelled {ref} and was refunded.",
+                data={"appointmentId": str(appointment.id)},
+            )
+
+        return {
+            "success": True,
+            "message": "Refund initiated",
+            "data": {"payment": payment.to_dict(), "refund": refund},
         }, 200

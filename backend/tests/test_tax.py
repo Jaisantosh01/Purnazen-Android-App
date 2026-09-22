@@ -33,6 +33,8 @@ def admin_headers(client, db_session, email="taxadmin@example.com"):
 
 def book(client, db_session, headers, fee=1200):
     doctor = seed_doctor(db_session)
+    doctor.consultation_fee = fee
+    db_session.commit()
     slots = add_availability(
         db_session, doctor, day="Monday", start=time(9, 0), end=time(11, 0)
     )

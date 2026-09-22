@@ -77,7 +77,14 @@ class AppointmentService:
             else None
         )
 
-        fee = data.fee if data.fee is not None else float(doctor.consultation_fee)
+        # The fee is the doctor's price for this visit type, never the
+        # client's figure: `data.fee` is what the app *displayed*, and a
+        # caller could otherwise book any doctor for ₹1 and pay exactly that.
+        visit = next(
+            (v for v in DoctorService.get_visit_types(doctor) if v["id"] == data.visit_type),
+            None,
+        )
+        fee = float(visit["fee"]) if visit else float(doctor.consultation_fee)
         # Snapshot the GST rate in force right now. Everything downstream (the
         # confirmation screen, checkout, the receipt) reads it back off the row,
         # so a later change to the admin rate cannot alter this booking's total.
@@ -162,6 +169,13 @@ class AppointmentService:
         old_status = appointment.status
         old_payment_status = appointment.payment_status
 
+        # A booking is confirmed by payment, not by whoever presses accept:
+        # an unpaid hold cannot become booked or completed. Staff may settle
+        # both in one request (`paymentStatus: paid` alongside the status).
+        paid = (data.payment_status or appointment.payment_status) == "paid"
+        if data.status in ("booked", "completed") and not paid:
+            return {"error": "Payment is pending for this appointment", "status_code": 400}
+
         if data.visit_type:
             appointment.visit_type = data.visit_type
         if data.date:
@@ -228,8 +242,10 @@ class AppointmentService:
                     db, patient_id, category="appointment", event=event,
                     title=title, body=body, data=payload,
                 )
-            # Doctor hears when the patient (or an admin) changed the state
-            if doctor_user_id and actor.id != doctor_user_id:
+            # Doctor hears when the patient (or an admin) changed the state —
+            # except a cancelled unpaid hold, which they were never shown.
+            unpaid_hold = new_status == "cancelled" and old_payment_status == "pending"
+            if doctor_user_id and actor.id != doctor_user_id and not unpaid_hold:
                 doc_body = (
                     f"{patient_name}'s {ref} on {when} is now {new_status}."
                 )

@@ -2,6 +2,20 @@ apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"
+// Firebase (push notifications). The Google Services plugin hard-fails without
+// google-services.json, so it is only applied once the config file from the
+// Firebase console has been dropped into android/app/. Until then the app
+// builds and runs normally with device push disabled.
+if (file('google-services.json').exists()) {
+    apply plugin: 'com.google.gms.google-services'
+    // Crashlytics rides on the same config file. Kept inside this guard
+    // so a checkout without google-services.json still builds.
+    // Applied before the android {} block below: its release buildType
+    // configures `firebaseCrashlytics {}`, a DSL this plugin registers.
+    apply plugin: 'com.google.firebase.crashlytics'
+} else {
+    logger.lifecycle('google-services.json not found - Firebase push disabled for this build.')
+}
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -204,16 +218,4 @@ dependencies {
     } else {
         implementation jscFlavor
     }
-}
-// Firebase (push notifications). The Google Services plugin hard-fails without
-// google-services.json, so it is only applied once the config file from the
-// Firebase console has been dropped into android/app/. Until then the app
-// builds and runs normally with device push disabled.
-if (file('google-services.json').exists()) {
-    apply plugin: 'com.google.gms.google-services'
-    // Crashlytics rides on the same config file. Kept inside this guard
-    // so a checkout without google-services.json still builds.
-    apply plugin: 'com.google.firebase.crashlytics'
-} else {
-    logger.lifecycle('google-services.json not found - Firebase push disabled for this build.')
 }

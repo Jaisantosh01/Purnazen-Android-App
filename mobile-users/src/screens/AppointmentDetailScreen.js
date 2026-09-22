@@ -1,14 +1,17 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
   Linking,
   Share,
 } from 'react-native';
 import MCIcon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { showAlert } from '../utils/alert';
+import consultService from '../services/consultService';
 import { APPOINTMENT_DETAIL_STATUS_COLORS } from '../constants/theme';
 import useTheme from '../hooks/useTheme';
 import { APPOINTMENT_HISTORY_STATUS_LABELS, APPOINTMENT_PAYMENT_LABELS } from '../constants/strings';
@@ -35,7 +38,86 @@ const getInitials = (name) => {
 const AppointmentDetailScreen = ({ navigation, route }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const { appointment } = route.params;
+  // Local copy so a refund can flip the badges without a round trip; the
+  // history list re-fetches on focus anyway.
+  const [appointment, setAppointment] = useState(route.params.appointment);
+  const [refunding, setRefunding] = useState(false);
+
+  // Money is only ever held on paid, still-upcoming bookings.
+  const canRefund =
+    appointment.paymentStatus === 'paid' &&
+    ['pending', 'booked'].includes(appointment.status);
+
+  // An unpaid hold (15 minutes from booking) can still be completed here.
+  const canPay =
+    appointment.status === 'pending' &&
+    ['pending', 'unpaid'].includes(appointment.paymentStatus);
+
+  const [cancelling, setCancelling] = useState(false);
+  const confirmCancelHold = useCallback(() => {
+    showAlert(
+      'Cancel booking?',
+      'Nothing has been charged. The slot will be released for other patients.',
+      [
+        { text: 'Keep booking', style: 'cancel' },
+        {
+          text: 'Cancel booking',
+          style: 'destructive',
+          onPress: async () => {
+            setCancelling(true);
+            try {
+              await consultService.cancelAppointment(appointment.id);
+              setAppointment(prev => ({ ...prev, status: 'cancelled' }));
+            } catch (err) {
+              showAlert('Could not cancel', err?.message || 'Please try again.');
+            } finally {
+              setCancelling(false);
+            }
+          },
+        },
+      ],
+    );
+  }, [appointment.id]);
+
+  const completePayment = useCallback(() => {
+    navigation.navigate('Payment', {
+      doctor: {
+        id: appointment.doctorId,
+        name: appointment.doctorName,
+        avatar: appointment.doctorAvatar,
+        specialty: appointment.specialty,
+      },
+      fee: appointment.fee,
+      appointment,
+      appointmentId: appointment.id,
+    });
+  }, [navigation, appointment]);
+
+  const confirmRefund = useCallback(() => {
+    showAlert(
+      'Cancel appointment?',
+      `${formatRupees(appointment.totalAmount ?? appointment.fee)} will be refunded to your original payment method within 5-7 working days.`,
+      [
+        { text: 'Keep booking', style: 'cancel' },
+        {
+          text: 'Cancel & refund',
+          style: 'destructive',
+          onPress: async () => {
+            setRefunding(true);
+            try {
+              await consultService.refundPayment({ appointmentId: appointment.id });
+              setAppointment(prev => ({ ...prev, status: 'cancelled', paymentStatus: 'refunded' }));
+              showAlert('Refund initiated', 'Your appointment is cancelled and the refund is on its way.');
+            } catch (err) {
+              showAlert('Refund failed', err?.message || 'Please try again.');
+            } finally {
+              setRefunding(false);
+            }
+          },
+        },
+      ],
+    );
+  }, [appointment]);
 
   // Straight off the row's own GST snapshot, so the detail view keeps agreeing
   // with what was charged even after an admin changes the rate.
@@ -188,6 +270,54 @@ const AppointmentDetailScreen = ({ navigation, route }) => {
           </View>
         </View>
 
+        {canPay ? (
+          <View style={styles.actions}>
+            <View style={styles.holdNote}>
+              <MCIcon name="timer-sand" size={16} color={colors.warning} />
+              <Text style={styles.holdText}>
+                Payment pending. This slot is held for 15 minutes from booking; pay to confirm it.
+              </Text>
+            </View>
+            <TouchableOpacity style={styles.payBtn} onPress={completePayment} activeOpacity={0.85}>
+              <MCIcon name="lock" size={18} color={colors.white} />
+              <Text style={styles.payBtnText}>Complete payment to confirm</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.refundBtn}
+              onPress={confirmCancelHold}
+              disabled={cancelling}
+              activeOpacity={0.8}
+            >
+              {cancelling
+                ? <ActivityIndicator color={colors.danger} />
+                : (
+                  <>
+                    <MCIcon name="close-circle-outline" size={18} color={colors.danger} />
+                    <Text style={styles.refundBtnText}>Cancel booking</Text>
+                  </>
+                )}
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        {canRefund ? (
+          <TouchableOpacity
+            style={styles.refundBtn}
+            onPress={confirmRefund}
+            disabled={refunding}
+            activeOpacity={0.8}
+          >
+            {refunding
+              ? <ActivityIndicator color={colors.danger} />
+              : (
+                <>
+                  <MCIcon name="cash-refund" size={18} color={colors.danger} />
+                  <Text style={styles.refundBtnText}>Cancel appointment & refund</Text>
+                </>
+              )}
+          </TouchableOpacity>
+        ) : null}
+
         {appointment.userDescription ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Your Description</Text>
@@ -285,6 +415,20 @@ const makeStyles = colors => StyleSheet.create({
     borderWidth: 1, borderColor: colors.primary, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8,
   },
   meetingBtnOutlineText: { fontSize: 12, fontWeight: '600', color: colors.primary },
+
+  actions: { gap: 10 },
+  holdNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingHorizontal: 4 },
+  holdText: { flex: 1, fontSize: 12, color: colors.textSecondary, lineHeight: 17 },
+  payBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: colors.primary, borderRadius: 12, paddingVertical: 14,
+  },
+  payBtnText: { fontSize: 14, fontWeight: '700', color: colors.white },
+  refundBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    borderWidth: 1.5, borderColor: colors.danger, borderRadius: 12, paddingVertical: 13,
+  },
+  refundBtnText: { fontSize: 14, fontWeight: '700', color: colors.danger },
 
   descriptionCard: {
     backgroundColor: colors.card, borderRadius: 14, padding: 16,

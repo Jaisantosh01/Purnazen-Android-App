@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Release builds ship with usesCleartextTraffic=false (Expo sets the manifest
+  placeholder), which also blocks a local backend reached over `adb reverse`
+  as http://localhost:5000. Permit plain HTTP for loopback hosts only; every
+  other host keeps the platform default (HTTPS required).
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
+</network-security-config>

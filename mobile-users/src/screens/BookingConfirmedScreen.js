@@ -12,7 +12,9 @@ import { canPopToStackRoot } from '../navigation/backHelpers';
 import { appointmentBreakdown, formatRupees, gstLabel } from '../utils/tax';
 
 const BookingConfirmedScreen = ({ navigation, route }) => {
-  const { doctor, date, time, visitType, fee, appointment, bookingRef, appointmentId } = route.params;
+  // Reached only after a verified payment (PaymentScreen replaces itself
+  // with this page), so the booking shown here is already paid for.
+  const { doctor, date, time, visitType, fee, appointment, bookingRef, payment } = route.params;
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
@@ -44,8 +46,10 @@ const BookingConfirmedScreen = ({ navigation, route }) => {
           <MCIcon name="check-bold" size={36} color={colors.primary} />
         </View>
 
-        <Text style={styles.title}>Booking Confirmed!</Text>
-        <Text style={styles.subtitle}>Your appointment has been successfully scheduled</Text>
+        <Text style={styles.title}>Payment successful</Text>
+        <Text style={styles.subtitle}>
+          Your appointment is booked. {doctor.name} will confirm it shortly and you will be notified.
+        </Text>
 
         <View style={styles.card}>
           <View style={styles.doctorRow}>
@@ -109,17 +113,27 @@ const BookingConfirmedScreen = ({ navigation, route }) => {
             </View>
           ) : null}
           <View style={styles.chargeRow}>
-            <Text style={styles.chargeTotalLabel}>Total Amount</Text>
-            <Text style={styles.chargeTotalValue}>{formatRupees(charges.total)}</Text>
+            <Text style={styles.chargeTotalLabel}>Total Paid</Text>
+            <Text style={styles.chargeTotalValue}>{formatRupees(payment?.amount ?? charges.total)}</Text>
           </View>
+
+          {payment ? (
+            <View style={styles.paidRow}>
+              <MCIcon name="check-decagram" size={16} color={colors.primary} />
+              <Text style={styles.paidText} numberOfLines={1}>
+                Paid{payment.method ? ` via ${String(payment.method).toUpperCase()}` : ''}
+                {payment.paymentId ? ` · ${payment.paymentId}` : ''}
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         <TouchableOpacity
           style={styles.payBtn}
-          onPress={() => navigation.navigate('Payment', { doctor, fee, appointment, appointmentId })}
+          onPress={() => navigation.replace('AppointmentDetail', { appointment })}
           activeOpacity={0.85}
         >
-          <Text style={styles.payBtnText}>Proceed to Payment</Text>
+          <Text style={styles.payBtnText}>View appointment</Text>
           <MCIcon name="arrow-right" size={18} color={colors.white} />
         </TouchableOpacity>
 
@@ -219,6 +233,11 @@ const makeStyles = colors => StyleSheet.create({
   chargeValue: { fontSize: 13, fontWeight: '600', color: colors.textPrimary },
   chargeTotalLabel: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
   chargeTotalValue: { fontSize: 16, fontWeight: '700', color: colors.primary },
+  paidRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    marginTop: 6, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.surfaceMuted,
+  },
+  paidText: { flex: 1, fontSize: 12, color: colors.textSecondary },
   payBtn: {
     width: '100%',
     flexDirection: 'row',
