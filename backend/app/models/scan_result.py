@@ -64,4 +64,8 @@ class ScanResult(Base):
             # computed by the pipeline; the app dims low-trust scores.
             "confidence": (self.raw_metrics or {}).get("confidence"),
             "scoringMethod": (self.raw_metrics or {}).get("scoring_method"),
+            # Tongue heads from the TCM model ("present"/"absent"); null = not available.
+            "tongueGreasiness": (self.raw_metrics or {}).get("tongue_greasiness"),
+            "tongueCracks": (self.raw_metrics or {}).get("tongue_cracks"),
+            "tongueToothMarks": (self.raw_metrics or {}).get("tongue_tooth_marks"),
         }

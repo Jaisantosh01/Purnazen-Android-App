@@ -106,6 +106,7 @@ const ScanResultsScreen = ({ navigation, route }) => {
   const glowScore = results.glowScore ?? null;
   const color = glowColor(glowScore);
   const lowConfidence = results?.confidence?.overall != null && results.confidence.overall < LOW_CONFIDENCE;
+  const tcmHeadsAvailable = results?.tongueCracks != null;
   const scanType = scan?.scan_type ?? 'face';
 
   // Enhanced (server) vs original (local capture) preview.
@@ -263,13 +264,21 @@ const ScanResultsScreen = ({ navigation, route }) => {
                   </View>
                 ) : null)}
               </View>
-              <Text style={styles.comingSoonTitle}>Coming soon</Text>
+              {/* Model-backed findings ("present"/"absent") once the TCM model
+                  is deployed; until then the backend sends null → Coming soon. */}
+              {!tcmHeadsAvailable && <Text style={styles.comingSoonTitle}>Coming soon</Text>}
               <View style={styles.tongueGrid}>
-                {['Greasiness', 'Cracks', 'Tooth marks'].map(label => (
+                {[
+                  ['Greasiness', results.tongueGreasiness],
+                  ['Cracks', results.tongueCracks],
+                  ['Tooth marks', results.tongueToothMarks],
+                ].map(([label, value]) => (
                   <View key={label} style={styles.tongueRow}>
                     <Text style={styles.tongueMetaLabel}>{label}</Text>
-                    <View style={[styles.tongueChip, styles.comingSoonChip]}>
-                      <Text style={styles.comingSoonChipText}>Soon</Text>
+                    <View style={[styles.tongueChip, value == null && styles.comingSoonChip]}>
+                      <Text style={value == null ? styles.comingSoonChipText : styles.tongueChipText}>
+                        {value == null ? 'Soon' : value}
+                      </Text>
                     </View>
                   </View>
                 ))}

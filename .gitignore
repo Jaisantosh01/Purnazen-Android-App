@@ -102,3 +102,4 @@ skills-lock.json
 # Research PDFs (docs/research/README.md is tracked; the papers are ~230 MB)
 docs/research/papers/
 backend/.venv*/
+backend/app/ai/models/tongue_tcm_*

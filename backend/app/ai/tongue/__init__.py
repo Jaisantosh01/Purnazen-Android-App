@@ -96,6 +96,56 @@ def is_tongue_present(img_bgr: np.ndarray, *, face_count: int = 0, yolo_hit=_UNS
     return True
 
 
+# Model confidence above which a TCM finding overrides the threshold category.
+TCM_OVERRIDE_CONF = 0.50
+# …and above which one of the three app heads reads "present".
+TCM_HEAD_CONF = 0.35
+
+_TCM_BODY = {"red_body": "red", "purple_body": "purple"}
+_TCM_COAT = {"white_coat": "white", "yellow_coat": "yellow"}
+_TCM_SHAPE = {"swollen_body": "swollen", "thin_body": "thin"}
+
+
+def _best(findings: dict, table: dict) -> str | None:
+    hits = [(findings.get(k, 0.0), v) for k, v in table.items()]
+    conf, value = max(hits) if hits else (0.0, None)
+    return value if conf >= TCM_OVERRIDE_CONF else None
+
+
+def apply_tcm_findings(markers: dict, findings: dict) -> dict:
+    """Let confident model findings override the Lab/HSV categories.
+
+    Only the categories the recommendation engine already understands are
+    touched; everything else stays as the classical analyzer set it.
+    """
+    out = dict(markers)
+    if (v := _best(findings, _TCM_BODY)):
+        out["body_color"] = v
+    if (v := _best(findings, _TCM_COAT)):
+        out["coat_color"] = v
+    if (v := _best(findings, _TCM_SHAPE)):
+        out["shape"] = v
+    if findings.get("thin_coat", 0.0) >= TCM_OVERRIDE_CONF:
+        out["coat_thick"] = "thin"
+    return out
+
+
+def tcm_heads(findings: dict | None) -> dict:
+    """The three app heads; None when the model isn't available (UI: Coming soon).
+
+    Greasiness maps to the dataset's 滑苔 (slippery coat) — the closest labelled
+    finding to a greasy (腻) coat.
+    """
+    if findings is None:
+        return {"tongue_greasiness": None, "tongue_cracks": None, "tongue_tooth_marks": None}
+    pres = lambda k: "present" if findings.get(k, 0.0) >= TCM_HEAD_CONF else "absent"
+    return {
+        "tongue_greasiness": pres("slippery_coat"),
+        "tongue_cracks": pres("cracks"),
+        "tongue_tooth_marks": pres("tooth_marks"),
+    }
+
+
 def _mask_bbox(mask: np.ndarray) -> list | None:
     """Normalized [x, y, w, h] bounding box of the segmented tongue, or None."""
     ys, xs = np.where(mask > 0)
@@ -140,6 +190,19 @@ def analyze(img_bgr: np.ndarray) -> dict:
     if yolo_hit and yolo_hit.get("confidence", 0) >= MIN_YOLO_CONF:
         tongue_detected = True
 
+    # TCM findings from the fine-tuned model, when its weights are present.
+    findings = None
+    try:
+        from app.ai.tongue_tcm import classify as classify_tcm
+        findings = classify_tcm(img_bgr)
+    except Exception as exc:
+        logger.debug("TCM tongue classifier skipped (%s)", exc)
+    if findings is not None:
+        markers = apply_tcm_findings(markers, findings)
+        score = overall_wellness(markers)
+
+    heads = tcm_heads(findings)
+
     return {
         "tongue_body_color": markers["body_color"],
         "tongue_coat_color": markers["coat_color"],
@@ -148,13 +211,13 @@ def analyze(img_bgr: np.ndarray) -> dict:
         "tongue_shape":      markers["shape"],
         "overall_wellness_score": score,
         "tongue_detected": tongue_detected,
-        # Placeholder heads — UI can label these Coming soon.
-        "tongue_greasiness": None,
-        "tongue_cracks": None,
-        "tongue_tooth_marks": None,
+        # "present" / "absent" from the TCM model; None (Coming soon) without it.
+        **heads,
         "raw_metrics": {
             "sprint": 4,
-            "scoring_method": "yolo+cv" if yolo_hit else "cv",
+            "scoring_method": ("yolo+tcm" if findings is not None else "yolo+cv") if yolo_hit else "cv",
+            "tcm_findings": findings,
+            **heads,   # persisted here: scan_results has no columns for them
             "tongue_segmentation_fallback": used_fallback,
             "tongue_coverage": round(coverage, 4),
             "tongue_chroma_a": round(chroma, 2),
