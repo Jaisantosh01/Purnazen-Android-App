@@ -102,6 +102,71 @@ cd mobile-doctors && npm install && npm run android
 cd mobile-admin && npm install && npm run android
 ```
 
+## 5. Restrict the API keys (do this once)
+
+GitHub's secret scanner opens a "Google API Key" alert on the keys inside
+`google-services.json` and `GoogleService-Info.plist`. Those keys are not
+secrets — they identify the app to Firebase and ship inside every APK and IPA,
+so anyone can read them out of a build whether or not the files are committed.
+Google says so directly, and the backend never trusts them: it verifies each
+Firebase ID token's signature and audience itself
+(`backend/app/services/social_auth.py`). Rotating them achieves nothing on its
+own; a new key would be just as public the moment it ships.
+
+What does matter is that a key only works from our apps. An **unrestricted**
+key is a real problem: copied out of the repo or out of the APK, it lets anyone
+call every API enabled on the project and hammer Identity Toolkit (account
+creation, credential stuffing) on our quota and our bill.
+
+Prove where the keys stand:
+
+```
+scripts/check-api-key-restrictions.sh
+```
+
+It calls Identity Toolkit from plain curl — no bundle id, no package signature.
+A properly restricted key refuses. If any line says `UNRESTRICTED`, fix it in
+**Google Cloud console → APIs & Services → Credentials**
+(https://console.cloud.google.com/apis/credentials?project=purnazen-de70c):
+
+**Android key** (`AIzaSyBiWK…`, the one in every `google-services.json`)
+- Application restrictions → **Android apps**, one entry per app:
+  `com.purnazen`, `com.purnazen.doctor`, `com.purnazen.admin` — each needs the
+  SHA-1 of the cert that signs it. Add the debug cert *and* the release cert,
+  and, if the app is on Play with Play App Signing, the SHA-1 Play shows under
+  Release → Setup → App signing.
+
+  ```
+  keytool -list -v -keystore mobile-users/android/app/debug.keystore \
+          -alias androiddebugkey -storepass android | grep SHA1
+  keytool -list -v -keystore <release.keystore> -alias <alias> | grep SHA1
+  ```
+
+**iOS key** (`AIzaSyCkr7…`, the one in every `GoogleService-Info.plist`)
+- Application restrictions → **iOS apps**, bundle ids `com.purnazen`,
+  `com.purnazen.doctor`, `com.purnazen.admin`.
+
+**Both keys** — API restrictions → *Restrict key*, and select only what these
+apps actually use (`app`, `auth`, `crashlytics`, `messaging`):
+
+- Identity Toolkit API — sign-in
+- Token Service API — ID-token refresh
+- Firebase Installations API — messaging + crashlytics registration
+- FCM Registration API — push tokens
+- Firebase Remote Config API — only if Remote Config is ever added
+
+Leave everything else off. Adding a Google product later (Maps, Places) means
+adding its API here too, or the app gets `API_KEY_SERVICE_BLOCKED`.
+
+Restrictions take a few minutes to propagate; re-run the script until both
+lines read `restricted`, then close the GitHub alert as **Won't fix** with a
+link to this section. `.github/secret_scanning.yml` keeps the alert from
+reopening on every commit that touches a config file.
+
+Rotate a key only if the project's billing or Identity Toolkit quota shows
+abuse that predates the restrictions — rotation means new config files in all
+three apps and a new release of each.
+
 ## What works afterwards
 
 - Users/doctors apps register an FCM token on login; backend pushes
